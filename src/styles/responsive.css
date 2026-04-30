@@ -1,0 +1,573 @@
+/* Responsive Design System */
+
+/* Breakpoints */
+/* Extra Small (xs): 0px - 480px */
+/* Small (sm): 481px - 768px */
+/* Medium (md): 769px - 1024px */
+/* Large (lg): 1025px - 1440px */
+/* Extra Large (xl): 1441px+ */
+
+/* ===== DESKTOP FIRST APPROACH ===== */
+
+/* Large Screens (lg and above): 1025px+ */
+@media (max-width: 1440px) {
+  /* Slight adjustments for 1440p and down */
+  .navbar-container {
+    padding: 0 30px;
+  }
+
+  .main-content {
+    padding: 30px 40px;
+  }
+}
+
+/* Medium Screens (md): 769px - 1024px */
+@media (max-width: 1024px) {
+  /* Navbar */
+  .navbar {
+    height: 65px;
+  }
+
+  .navbar-container {
+    padding: 0 20px;
+    gap: 20px;
+  }
+
+  .navbar-logo h1 {
+    font-size: 22px;
+    letter-spacing: 3px;
+  }
+
+  .tab-label,
+  .user-label {
+    display: none;
+  }
+
+  .nav-tab {
+    padding: 10px 12px;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 240px;
+  }
+
+  .sidebar.collapsed {
+    width: 70px;
+  }
+
+  .main-content {
+    margin-left: 240px;
+    padding: 25px 30px;
+  }
+
+  /* Layout */
+  .layout-wrapper {
+    height: calc(100vh - 65px);
+    margin-top: 65px;
+  }
+
+  /* Adjust font sizes */
+  h1 {
+    font-size: 2rem;
+  }
+
+  h2 {
+    font-size: 1.75rem;
+  }
+
+  h3 {
+    font-size: 1.35rem;
+  }
+
+  p {
+    font-size: 0.9rem;
+  }
+
+  /* Spacing adjustments */
+  .gap-4 {
+    gap: 24px;
+  }
+
+  .p-4 {
+    padding: 24px;
+  }
+
+  /* Neon button size */
+  .neon-button {
+    padding: 10px 20px;
+    font-size: 0.85rem;
+  }
+}
+
+/* Small Screens (sm): 481px - 768px */
+@media (max-width: 768px) {
+  /* Navbar */
+  .navbar {
+    height: 60px;
+  }
+
+  .navbar-container {
+    padding: 0 15px;
+    gap: 15px;
+    flex-wrap: wrap;
+  }
+
+  .navbar-logo {
+    order: 1;
+  }
+
+  .navbar-tabs {
+    order: 3;
+    width: 100%;
+    gap: 5px;
+    flex: none;
+  }
+
+  .navbar-user {
+    order: 2;
+  }
+
+  .navbar-logo h1 {
+    font-size: 18px;
+    letter-spacing: 2px;
+  }
+
+  .logo-icon {
+    font-size: 24px;
+  }
+
+  /* Sidebar positioning */
+  .sidebar {
+    position: fixed;
+    left: -280px;
+    top: 60px;
+    height: calc(100vh - 60px);
+    width: 280px;
+    transition: left 0.3s ease;
+    box-shadow: 2px 0 20px rgba(0, 0, 0, 0.5);
+  }
+
+  .sidebar.expanded {
+    left: 0;
+  }
+
+  .sidebar.collapsed {
+    width: 280px;
+    left: -280px;
+  }
+
+  /* Main content */
+  .main-content {
+    margin-left: 0;
+    padding: 20px 15px;
+    width: 100%;
+  }
+
+  .layout-wrapper {
+    flex-direction: column;
+    height: calc(100vh - 60px);
+    margin-top: 60px;
+  }
+
+  /* Typography */
+  h1 {
+    font-size: 1.75rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  h3 {
+    font-size: 1.2rem;
+  }
+
+  p {
+    font-size: 0.85rem;
+  }
+
+  /* Spacing */
+  .gap-3 {
+    gap: 16px;
+  }
+
+  .gap-4 {
+    gap: 20px;
+  }
+
+  .p-3 {
+    padding: 16px;
+  }
+
+  .p-4 {
+    padding: 20px;
+  }
+
+  .mt-3 {
+    margin-top: 16px;
+  }
+
+  .mt-4 {
+    margin-top: 20px;
+  }
+
+  /* Neon cards */
+  .neon-card {
+    border-radius: 6px;
+    padding: 16px;
+  }
+
+  /* Neon buttons */
+  .neon-button {
+    padding: 10px 18px;
+    font-size: 0.8rem;
+    letter-spacing: 0.5px;
+  }
+
+  /* Data display */
+  .data-row {
+    padding: 10px 0;
+    font-size: 0.85rem;
+  }
+
+  .data-label {
+    font-size: 0.75rem;
+  }
+
+  /* Badges */
+  .badge {
+    padding: 3px 10px;
+    font-size: 0.7rem;
+  }
+
+  /* Buttons general */
+  button {
+    font-size: 0.9rem;
+  }
+
+  /* Forms */
+  input,
+  textarea,
+  select {
+    padding: 8px 10px;
+    font-size: 0.9rem;
+  }
+
+  /* Table adjustments */
+  table {
+    font-size: 0.85rem;
+  }
+
+  th,
+  td {
+    padding: 8px;
+  }
+
+  /* Grid layouts */
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+}
+
+/* Extra Small Screens (xs): 0px - 480px */
+@media (max-width: 480px) {
+  /* Navbar */
+  .navbar {
+    height: 55px;
+  }
+
+  .navbar-container {
+    padding: 0 10px;
+    gap: 8px;
+  }
+
+  .navbar-logo h1 {
+    font-size: 16px;
+    letter-spacing: 1px;
+  }
+
+  .logo-icon {
+    font-size: 20px;
+  }
+
+  .nav-tab {
+    padding: 8px 8px;
+    font-size: 0.75rem;
+  }
+
+  .tab-icon {
+    font-size: 14px;
+  }
+
+  /* Main content */
+  .main-content {
+    padding: 15px 10px;
+  }
+
+  .layout-wrapper {
+    margin-top: 55px;
+    height: calc(100vh - 55px);
+  }
+
+  /* Typography */
+  h1 {
+    font-size: 1.5rem;
+    letter-spacing: 0.5px;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+  }
+
+  h3 {
+    font-size: 1rem;
+  }
+
+  h4 {
+    font-size: 0.9rem;
+  }
+
+  p {
+    font-size: 0.8rem;
+    line-height: 1.5;
+  }
+
+  /* Spacing */
+  .gap-2 {
+    gap: 10px;
+  }
+
+  .gap-3 {
+    gap: 12px;
+  }
+
+  .gap-4 {
+    gap: 16px;
+  }
+
+  .p-2 {
+    padding: 12px;
+  }
+
+  .p-3 {
+    padding: 14px;
+  }
+
+  .p-4 {
+    padding: 16px;
+  }
+
+  .m-1,
+  .mt-1,
+  .mb-1 {
+    margin: 4px;
+  }
+
+  .m-2,
+  .mt-2,
+  .mb-2 {
+    margin: 8px;
+  }
+
+  /* Components */
+  .neon-card {
+    border-radius: 4px;
+    padding: 12px;
+  }
+
+  .neon-button {
+    padding: 8px 14px;
+    font-size: 0.75rem;
+    border-width: 1px;
+  }
+
+  /* Forms */
+  input,
+  textarea,
+  select {
+    padding: 6px 8px;
+    font-size: 0.8rem;
+  }
+
+  /* Badges */
+  .badge {
+    padding: 2px 8px;
+    font-size: 0.65rem;
+  }
+
+  /* Data display */
+  .data-row {
+    padding: 8px 0;
+    font-size: 0.8rem;
+  }
+
+  .data-label {
+    font-size: 0.7rem;
+  }
+
+  .data-value {
+    font-size: 0.95rem;
+  }
+
+  /* Tables */
+  table {
+    font-size: 0.8rem;
+  }
+
+  th,
+  td {
+    padding: 6px;
+  }
+
+  /* Buttons */
+  button {
+    font-size: 0.8rem;
+    padding: 6px 12px;
+  }
+
+  /* Full width cards on mobile */
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* Sidebar - hide by default */
+  .sidebar {
+    left: -280px;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+}
+
+/* Landscape orientation adjustments */
+@media (max-height: 600px) and (orientation: landscape) {
+  .navbar {
+    height: 50px;
+  }
+
+  .layout-wrapper {
+    margin-top: 50px;
+    height: calc(100vh - 50px);
+  }
+
+  .main-content {
+    padding: 15px;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    margin-bottom: 5px;
+  }
+
+  p {
+    font-size: 0.8rem;
+  }
+
+  .gap-3 {
+    gap: 12px;
+  }
+
+  .p-3 {
+    padding: 12px;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Increase touch target sizes */
+  button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .nav-tab,
+  .quick-link,
+  .neon-button {
+    min-height: 40px;
+  }
+
+  /* Reduce hover effects */
+  .neon-button:hover {
+    transform: none;
+  }
+
+  .nav-tab:hover {
+    transform: none;
+  }
+
+  /* Better spacing for touch */
+  .gap-2 {
+    gap: 12px;
+  }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .animate-float,
+  .animate-glow,
+  .animate-rotate,
+  .animate-shimmer {
+    animation: none !important;
+  }
+}
+
+/* High DPI displays */
+@media (min-resolution: 192dpi) {
+  * {
+    -webkit-font-smoothing: subpixel-antialiased;
+  }
+
+  .glow-text-cyan,
+  .glow-text-magenta,
+  .glow-text-purple {
+    filter: brightness(1.1);
+  }
+}
+
+/* Print styles */
+@media print {
+  .navbar,
+  .sidebar,
+  .main-content::after {
+    display: none !important;
+  }
+
+  .main-content {
+    margin: 0;
+    padding: 0;
+  }
+
+  .layout-wrapper,
+  .layout-container {
+    margin: 0;
+    padding: 0;
+    height: auto;
+  }
+
+  body {
+    background: white;
+    color: black;
+  }
+
+  .neon-card,
+  .neon-button {
+    border: 1px solid black;
+    background: white;
+    color: black;
+  }
+}

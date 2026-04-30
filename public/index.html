@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0a0a23" />
+    <meta
+      name="description"
+      content="Nova - Space Themed Social Gaming Hub. Share clips, favorite songs, track sports stats, and compete in Roblox leagues."
+    />
+    <title>Nova - Space Themed Social Gaming Hub</title>
+
+    <!-- Preconnect to external resources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- Favicon -->
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+
+    <!-- Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Mono:wght@400;700&family=Roboto:wght@300;400;500;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- OpenGraph Meta Tags -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Nova - Space Themed Social Gaming Hub" />
+    <meta
+      property="og:description"
+      content="Connect with gamers, share clips, track sports, and compete in Roblox leagues"
+    />
+    <meta property="og:image" content="%PUBLIC_URL%/og-image.png" />
+    <meta property="og:url" content="https://nova-social.vercel.app" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Nova - Space Themed Social Gaming Hub" />
+    <meta
+      name="twitter:description"
+      content="Connect with gamers, share clips, track sports, and compete in Roblox leagues"
+    />
+    <meta name="twitter:image" content="%PUBLIC_URL%/twitter-image.png" />
+
+    <!-- Base Styles -->
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background-color: #0a0a23;
+      }
+
+      #root {
+        width: 100%;
+        height: 100%;
+      }
+
+      /* Loading animation before React mounts */
+      .loading-spinner {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 50px;
+        height: 50px;
+        border: 4px solid rgba(0, 255, 255, 0.2);
+        border-top-color: #00ffff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        z-index: 9999;
+      }
+
+      @keyframes spin {
+        to {
+          transform: translate(-50%, -50%) rotate(360deg);
+        }
+      }
+
+      /* Screen reader only content */
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border-width: 0;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- No Script Fallback -->
+    <noscript>
+      <div style="
+        color: #c0d0ff;
+        background: #0a0a23;
+        padding: 40px 20px;
+        text-align: center;
+        font-family: 'Space Mono', monospace;
+      ">
+        <h1 style="font-size: 2rem; margin-bottom: 20px;">Nova Requires JavaScript</h1>
+        <p>Please enable JavaScript in your browser to use Nova.</p>
+        <p style="margin-top: 10px; font-size: 0.9rem; color: rgba(192, 208, 255, 0.7);">
+          Nova is a space-themed social platform for gamers and sports enthusiasts.
+        </p>
+      </div>
+    </noscript>
+
+    <!-- React Root Element -->
+    <div id="root"></div>
+
+    <!-- Loading Spinner (will be hidden once React mounts) -->
+    <div id="loading-spinner" class="loading-spinner"></div>
+
+    <!-- Remove loading spinner once React loads -->
+    <script>
+      window.addEventListener('load', () => {
+        const spinner = document.getElementById('loading-spinner');
+        if (spinner) {
+          spinner.style.display = 'none';
+        }
+      });
+
+      // Auto-hide spinner after 5 seconds as fallback
+      setTimeout(() => {
+        const spinner = document.getElementById('loading-spinner');
+        if (spinner) {
+          spinner.style.display = 'none';
+        }
+      }, 5000);
+    </script>
+  </body>
+</html>
