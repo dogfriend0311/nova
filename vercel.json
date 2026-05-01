@@ -2,7 +2,6 @@
   "buildCommand": "npm run build",
   "devCommand": "npm start",
   "installCommand": "npm ci",
-  "framework": "create-react-app",
   "outputDirectory": "build",
   "env": {
     "REACT_APP_SUPABASE_URL": "@react_app_supabase_url",
