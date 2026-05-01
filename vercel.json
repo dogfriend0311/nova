@@ -1,9 +1,11 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
-  "devCommand": "npm start",
-  "installCommand": "npm ci",
-  "outputDirectory": "build",
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build"
+    }
+  ],
   "env": {
     "REACT_APP_SUPABASE_URL": "@react_app_supabase_url",
     "REACT_APP_SUPABASE_ANON_KEY": "@react_app_supabase_anon_key",
@@ -12,17 +14,5 @@
   },
   "regions": [
     "sfo1"
-  ],
-  "functions": {
-    "api/**/*.js": {
-      "memory": 1024,
-      "maxDuration": 30
-    }
-  },
-  "redirects": [
-    {
-      "source": "/api/:path*",
-      "destination": "https://api.example.com/:path*"
-    }
   ]
 }
