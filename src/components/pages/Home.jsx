@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import './Pages.css';
 
 const Home = () => {
-  const [memberCount, setMemberCount] = useState(1234);
+  const [memberCount] = useState(1234);
 
   useEffect(() => {
     // Add any home page initialization here
