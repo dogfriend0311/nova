@@ -4,24 +4,12 @@
   "installCommand": "npm ci",
   "framework": "react",
   "outputDirectory": "build",
-  "env": [
-    {
-      "key": "REACT_APP_SUPABASE_URL",
-      "value": "@react_app_supabase_url"
-    },
-    {
-      "key": "REACT_APP_SUPABASE_ANON_KEY",
-      "value": "@react_app_supabase_anon_key"
-    },
-    {
-      "key": "REACT_APP_SPORTS_API_KEY",
-      "value": "@react_app_sports_api_key"
-    },
-    {
-      "key": "REACT_APP_ROBLOX_API_KEY",
-      "value": "@react_app_roblox_api_key"
-    }
-  ],
+  "env": {
+    "REACT_APP_SUPABASE_URL": "@react_app_supabase_url",
+    "REACT_APP_SUPABASE_ANON_KEY": "@react_app_supabase_anon_key",
+    "REACT_APP_SPORTS_API_KEY": "@react_app_sports_api_key",
+    "REACT_APP_ROBLOX_API_KEY": "@react_app_roblox_api_key"
+  },
   "regions": [
     "sfo1"
   ],
