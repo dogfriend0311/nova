@@ -555,7 +555,7 @@ const NABBTeamsTab = () => {
 
 // NABB ROSTERS TAB
 const NABBRostersTab = () => {
-  const [teams, setTeams] = useState(
+  const [teams] = useState(
     JSON.parse(localStorage.getItem('nabb_teams') || '[]')
   );
   const [players, setPlayers] = useState(
