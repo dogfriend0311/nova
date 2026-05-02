@@ -327,6 +327,190 @@ const LeaguePlayersTab = () => {
           </div>
         ))}
       </div>
+
+      <SheetImportSection onImport={(updated) => setPlayers(updated)} />
+    </div>
+  );
+};
+
+// GOOGLE SHEETS IMPORT
+const SheetImportSection = ({ onImport }) => {
+  const [url, setUrl] = useState('');
+  const [status, setStatus] = useState('idle');
+  const [headers, setHeaders] = useState([]);
+  const [rows, setRows] = useState([]);
+  const [colMap, setColMap] = useState({});
+  const [selected, setSelected] = useState([]);
+
+  const toExportUrl = (raw) => {
+    const m = raw.match(/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (!m) return null;
+    const gidM = raw.match(/[#&?]gid=(\d+)/);
+    return `https://docs.google.com/spreadsheets/d/${m[1]}/export?format=csv${gidM ? `&gid=${gidM[1]}` : ''}`;
+  };
+
+  const parseCSV = (text) => {
+    return text.split('\n').filter(l => l.trim()).map(line => {
+      const cells = []; let cur = '', inQ = false;
+      for (const ch of line) {
+        if (ch === '"') inQ = !inQ;
+        else if (ch === ',' && !inQ) { cells.push(cur.trim()); cur = ''; }
+        else cur += ch;
+      }
+      cells.push(cur.trim());
+      return cells;
+    });
+  };
+
+  const COL_KEYS = {
+    player_name:         ['player_name','playername','player','name','username','user'],
+    team:                ['team','club','franchise'],
+    overall:             ['overall','rating','ovr'],
+    position:            ['position','pos'],
+    hits:                ['hits','h'],
+    runs:                ['runs','r'],
+    rbis:                ['rbi','rbis'],
+    home_runs:           ['hr','home_runs','homeruns','homers'],
+    strike_outs:         ['k','so','strikeouts','strike_outs'],
+    innings_pitched:     ['ip','inningspitched','innings_pitched'],
+    strikeouts_pitched:  ['kp','k_pitched','strikeoutspitched'],
+    hits_allowed:        ['ha','hitsallowed','hits_allowed'],
+    earned_runs:         ['er','earnedruns','earned_runs'],
+  };
+
+  const detectCols = (hdrs) => {
+    const norm = hdrs.map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
+    const det = {};
+    norm.forEach((col, i) => {
+      Object.entries(COL_KEYS).forEach(([key, variants]) => {
+        if (!det[key] && variants.includes(col)) det[key] = i;
+      });
+    });
+    return det;
+  };
+
+  const fetchSheet = async () => {
+    setStatus('loading');
+    try {
+      const exportUrl = toExportUrl(url);
+      if (!exportUrl) { setStatus('error'); return; }
+      const resp = await fetch(exportUrl);
+      if (!resp.ok) { setStatus('error'); return; }
+      const text = await resp.text();
+      const parsed = parseCSV(text);
+      if (parsed.length < 2) { setStatus('empty'); return; }
+      const hdrs = parsed[0];
+      const dataRows = parsed.slice(1).filter(r => r.some(c => c));
+      const det = detectCols(hdrs);
+      setHeaders(hdrs);
+      setRows(dataRows);
+      setColMap(det);
+      setSelected(dataRows.map((_, i) => i));
+      setStatus('preview');
+    } catch { setStatus('error'); }
+  };
+
+  const doImport = () => {
+    const existing = JSON.parse(localStorage.getItem('nabb_players') || '[]');
+    const get = (row, key) => colMap[key] !== undefined ? (row[colMap[key]] || '').trim() : '';
+    const newPlayers = selected.map(i => {
+      const row = rows[i];
+      return {
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+        player_name: get(row, 'player_name'),
+        team: get(row, 'team'),
+        overall: parseInt(get(row, 'overall')) || 75,
+        position: get(row, 'position'),
+        avatar_data: '',
+        hits:               parseInt(get(row, 'hits'))               || 0,
+        runs:               parseInt(get(row, 'runs'))               || 0,
+        rbis:               parseInt(get(row, 'rbis'))               || 0,
+        home_runs:          parseInt(get(row, 'home_runs'))          || 0,
+        strike_outs:        parseInt(get(row, 'strike_outs'))        || 0,
+        innings_pitched:    parseFloat(get(row, 'innings_pitched'))  || 0,
+        strikeouts_pitched: parseInt(get(row, 'strikeouts_pitched')) || 0,
+        hits_allowed:       parseInt(get(row, 'hits_allowed'))       || 0,
+        earned_runs:        parseInt(get(row, 'earned_runs'))        || 0,
+      };
+    }).filter(p => p.player_name);
+    const updated = [...existing, ...newPlayers];
+    localStorage.setItem('nabb_players', JSON.stringify(updated));
+    onImport(updated);
+    setStatus('done');
+    setUrl(''); setHeaders([]); setRows([]); setColMap({}); setSelected([]);
+    setTimeout(() => setStatus('idle'), 3000);
+  };
+
+  const inputStyle = { padding: '10px', background: 'rgba(0,255,255,0.05)', border: '1px solid rgba(0,255,255,0.2)', color: '#c0d0ff', borderRadius: '4px' };
+  const detectedKeys = Object.keys(colMap);
+
+  return (
+    <div className="neon-card p-3" style={{ marginTop: '30px' }}>
+      <h3 className="gradient-text-cyan">📊 Import from Google Sheets</h3>
+      <p style={{ color: 'rgba(192,208,255,0.55)', fontSize: '0.82rem', margin: '8px 0 14px' }}>
+        Paste any <strong style={{ color: '#c0d0ff' }}>public</strong> Google Sheets URL. The sheet needs a header row with column names like: <code style={{ color: 'var(--color-cyan)' }}>player_name, team, hits, runs, rbis, home_runs, innings_pitched</code>, etc.
+      </p>
+      <div style={{ display: 'flex', gap: '10px' }}>
+        <input type="text" value={url} onChange={e => setUrl(e.target.value)}
+          placeholder="https://docs.google.com/spreadsheets/d/..."
+          style={{ ...inputStyle, flex: 1 }} />
+        <button className="neon-button" onClick={fetchSheet} disabled={!url.trim() || status === 'loading'}>
+          {status === 'loading' ? 'Fetching…' : 'Fetch'}
+        </button>
+      </div>
+
+      {status === 'error' && <p style={{ color: '#ff4444', marginTop: '10px', fontSize: '0.83rem' }}>Could not fetch sheet. Make sure it's set to "Anyone with the link can view."</p>}
+      {status === 'empty' && <p style={{ color: '#ffd700', marginTop: '10px', fontSize: '0.83rem' }}>Sheet appears empty or has only one row.</p>}
+      {status === 'done'  && <p style={{ color: '#00d4f5', marginTop: '10px', fontSize: '0.83rem' }}>Players imported successfully!</p>}
+
+      {status === 'preview' && rows.length > 0 && (
+        <div style={{ marginTop: '16px' }}>
+          <p style={{ color: 'var(--color-cyan)', fontSize: '0.83rem', marginBottom: '6px' }}>
+            Found <strong>{rows.length}</strong> data rows.{' '}
+            {detectedKeys.length > 0
+              ? <>Auto-detected: <span style={{ color: '#ffd700' }}>{detectedKeys.join(', ')}</span></>
+              : <span style={{ color: '#ff4444' }}>No matching columns found — check header names.</span>}
+          </p>
+
+          <div style={{ overflowX: 'auto', marginBottom: '12px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.76rem' }}>
+              <thead>
+                <tr>
+                  <th style={{ padding: '6px 10px', color: 'rgba(192,208,255,0.5)', textAlign: 'left', borderBottom: '1px solid rgba(0,255,255,0.1)' }}>✓</th>
+                  {headers.slice(0, 12).map((h, i) => (
+                    <th key={i} style={{ padding: '6px 10px', color: colMap[Object.keys(COL_KEYS).find(k => colMap[k] === i)] ? 'var(--color-cyan)' : 'rgba(192,208,255,0.4)', textAlign: 'left', borderBottom: '1px solid rgba(0,255,255,0.1)', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.slice(0, 8).map((row, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid rgba(0,255,255,0.04)' }}>
+                    <td style={{ padding: '5px 10px' }}>
+                      <input type="checkbox" checked={selected.includes(i)}
+                        onChange={e => setSelected(e.target.checked ? [...selected, i] : selected.filter(r => r !== i))} />
+                    </td>
+                    {row.slice(0, 12).map((cell, j) => (
+                      <td key={j} style={{ padding: '5px 10px', color: '#c0d0ff', whiteSpace: 'nowrap' }}>{cell || '—'}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {rows.length > 8 && <p style={{ color: 'rgba(192,208,255,0.35)', fontSize: '0.74rem', marginTop: '4px' }}>…and {rows.length - 8} more rows (all will be imported if selected)</p>}
+          </div>
+
+          {detectedKeys.length > 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <button className="neon-button" onClick={doImport} disabled={selected.length === 0}>
+                Import {selected.length} Player{selected.length !== 1 ? 's' : ''}
+              </button>
+              <button className="neon-button" onClick={() => setStatus('idle')} style={{ borderColor: '#ff3333', color: '#ff3333' }}>Cancel</button>
+            </div>
+          ) : (
+            <button className="neon-button" onClick={() => setStatus('idle')} style={{ borderColor: '#ff3333', color: '#ff3333' }}>Cancel</button>
+          )}
+        </div>
+      )}
     </div>
   );
 };
