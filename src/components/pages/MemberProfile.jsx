@@ -9,10 +9,6 @@ const MemberProfile = () => {
   const [formData, setFormData] = useState({});
 
   useEffect(() => {
-    loadProfile();
-  }, [user]);
-
-  const loadProfile = () => {
     const profiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
     const userProfile = profiles.find(p => p.username === user?.username);
     setProfile(userProfile || {
@@ -28,7 +24,7 @@ const MemberProfile = () => {
       instagram_url: ''
     });
     setFormData(userProfile || {});
-  };
+  }, [user]);
 
   const handleSave = () => {
     const profiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
@@ -176,6 +172,7 @@ const MemberProfile = () => {
             <div className="profile-spotify">
               <h3>Favorite Song</h3>
               <iframe
+                title="Spotify player"
                 src={profile.spotify_url}
                 width="100%"
                 height="90"

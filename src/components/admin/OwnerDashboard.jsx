@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import './OwnerDashboard.css';
 
@@ -8,7 +8,6 @@ const OwnerDashboard = ({ onExit }) => {
 
   // Role check
   const canAccessNABB = hasPermission('nabb_helper');
-  const canAccessUsers = hasPermission('mod');
   const canAccessAll = user?.role === 'owner' || user?.role === 'cofounder' || user?.role === 'mod';
 
   return (
