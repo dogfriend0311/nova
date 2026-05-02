@@ -25,7 +25,11 @@ const AppContent = () => {
   const [selectedLeaguePlayer, setSelectedLeaguePlayer] = useState(null);
 
   if (!user) return <Login />;
-  if (showDashboard) return <OwnerDashboard onExit={() => setShowDashboard(false)} />;
+  if (showDashboard) return (
+    <div style={{ height: '100vh', overflowY: 'auto', overflowX: 'hidden', background: '#0a0a23' }}>
+      <OwnerDashboard onExit={() => setShowDashboard(false)} />
+    </div>
+  );
 
   const handleSelectPlayer = (player) => {
     setSelectedLeaguePlayer(player);
