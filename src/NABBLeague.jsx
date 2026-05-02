@@ -111,26 +111,58 @@ const OverviewTab = () => {
   );
 };
 
+const rosterColorDark = (color) => {
+  if (!color) return true;
+  const hex = color.replace('#', '');
+  if (hex.length < 6) return true;
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  return (r * 0.299 + g * 0.587 + b * 0.114) < 165;
+};
+
 const RostersTab = ({ onSelectPlayer }) => {
   const [teams] = useState(JSON.parse(localStorage.getItem('nabb_teams') || '[]'));
   const [players] = useState(JSON.parse(localStorage.getItem('nabb_players') || '[]'));
   const [selectedTeam, setSelectedTeam] = useState(null);
 
   if (selectedTeam) {
+    const color    = selectedTeam.team_color || '#00ffff';
+    const onColor  = rosterColorDark(color) ? '#ffffff' : '#111111';
     const teamPlayers = players.filter(p => p.team === selectedTeam.team_name);
+
     return (
       <div>
-        <button className="neon-button" style={{ marginBottom: '20px', fontSize: '0.9rem' }} onClick={() => setSelectedTeam(null)}>
-          ← Back to Teams
-        </button>
-
-        <div className="neon-card p-3" style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '20px' }}>
-          {selectedTeam.logo_url && (
-            <img src={selectedTeam.logo_url} alt="logo" style={{ width: '60px', height: '60px', objectFit: 'contain', borderRadius: '6px' }} />
-          )}
-          <div>
-            <h3 className="gradient-text-cyan" style={{ margin: 0 }}>{selectedTeam.team_name}</h3>
-            <p style={{ margin: '4px 0 0 0', color: 'rgba(192,208,255,0.6)', fontSize: '0.9rem' }}>{teamPlayers.length} player{teamPlayers.length !== 1 ? 's' : ''} on roster</p>
+        {/* Themed banner */}
+        <div style={{
+          borderRadius: '12px',
+          padding: '20px 24px',
+          marginBottom: '22px',
+          background: `linear-gradient(135deg, ${color}20 0%, #07071a 70%)`,
+          borderBottom: `3px solid ${color}`,
+          boxShadow: `0 4px 28px ${color}14`,
+        }}>
+          <button
+            className="neon-button"
+            style={{ marginBottom: '16px', fontSize: '0.85rem', borderColor: `${color}88`, color }}
+            onClick={() => setSelectedTeam(null)}
+          >
+            ← Back to Teams
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
+            {selectedTeam.logo_url ? (
+              <img src={selectedTeam.logo_url} alt="logo" style={{ width: '68px', height: '68px', objectFit: 'contain', borderRadius: '8px', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }} />
+            ) : (
+              <div style={{ width: '68px', height: '68px', borderRadius: '8px', background: `${color}22`, border: `2px solid ${color}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>⚾</div>
+            )}
+            <div>
+              <h3 style={{ margin: '0 0 5px', fontSize: '1.6rem', fontWeight: '900', color, letterSpacing: '1px' }}>
+                {selectedTeam.team_name}
+              </h3>
+              <p style={{ margin: 0, color: 'rgba(192,208,255,0.5)', fontSize: '0.88rem' }}>
+                {teamPlayers.length} player{teamPlayers.length !== 1 ? 's' : ''} on roster
+              </p>
+            </div>
           </div>
         </div>
 
@@ -143,18 +175,31 @@ const RostersTab = ({ onSelectPlayer }) => {
             {teamPlayers.map(player => (
               <div
                 key={player.id}
-                className="neon-card p-3"
-                style={{ cursor: 'pointer' }}
+                style={{
+                  background: `linear-gradient(160deg, ${color}0e 0%, rgba(8,8,26,0.95) 100%)`,
+                  border: `1px solid ${color}33`,
+                  borderTop: `3px solid ${color}`,
+                  borderRadius: '10px',
+                  padding: '14px',
+                  cursor: 'pointer',
+                  transition: 'transform 0.12s',
+                }}
                 onClick={() => {
                   if (onSelectPlayer) {
                     const fresh = JSON.parse(localStorage.getItem('nabb_players') || '[]');
                     onSelectPlayer(fresh.find(p => p.id === player.id) || player);
                   }
                 }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = ''; }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <h4 className="gradient-text-cyan" style={{ margin: 0 }}>{player.player_name}</h4>
-                  {player.number && <span style={{ color: 'rgba(192,208,255,0.5)', fontSize: '0.9rem' }}>#{player.number}</span>}
+                  <h4 style={{ margin: 0, color, fontWeight: '800' }}>{player.player_name}</h4>
+                  {player.number && (
+                    <span style={{ background: color, color: onColor, fontWeight: '800', fontSize: '0.75rem', padding: '2px 8px', borderRadius: '5px' }}>
+                      #{player.number}
+                    </span>
+                  )}
                 </div>
                 <div className="data-row">
                   <span className="data-label">Position</span>
@@ -162,9 +207,9 @@ const RostersTab = ({ onSelectPlayer }) => {
                 </div>
                 <div className="data-row">
                   <span className="data-label">Overall</span>
-                  <span className="data-value">{player.overall || '—'}</span>
+                  <span style={{ fontWeight: '800', color }}>{player.overall || '—'}</span>
                 </div>
-                <p style={{ marginTop: '10px', fontSize: '0.8rem', color: 'rgba(0,255,255,0.6)', textAlign: 'center' }}>Click to view stats →</p>
+                <p style={{ marginTop: '10px', fontSize: '0.78rem', color: `${color}99`, textAlign: 'center' }}>Click to view stats →</p>
               </div>
             ))}
           </div>
@@ -182,27 +227,37 @@ const RostersTab = ({ onSelectPlayer }) => {
       ) : (
         <div className="card-grid">
           {teams.map(team => {
+            const color = team.team_color || '#00ffff';
             const teamPlayers = players.filter(p => p.team === team.team_name);
             return (
               <div
                 key={team.id}
-                className="neon-card p-3"
-                style={{ cursor: 'pointer' }}
+                style={{
+                  background: `linear-gradient(160deg, ${color}0a 0%, rgba(8,8,26,0.95) 100%)`,
+                  border: `1px solid ${color}2a`,
+                  borderTop: `3px solid ${color}`,
+                  borderRadius: '10px',
+                  padding: '16px',
+                  cursor: 'pointer',
+                  transition: 'transform 0.12s',
+                }}
                 onClick={() => setSelectedTeam(team)}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = ''; }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px' }}>
                   {team.logo_url ? (
                     <img src={team.logo_url} alt="logo" style={{ width: '50px', height: '50px', objectFit: 'contain', borderRadius: '6px' }} />
                   ) : (
-                    <div style={{ width: '50px', height: '50px', borderRadius: '50%', background: team.team_color || 'linear-gradient(135deg, var(--color-cyan), var(--color-magenta))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px' }}>⚾</div>
+                    <div style={{ width: '50px', height: '50px', borderRadius: '8px', background: `${color}22`, border: `2px solid ${color}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem' }}>⚾</div>
                   )}
-                  <h4 className="gradient-text-cyan" style={{ margin: 0 }}>{team.team_name}</h4>
+                  <h4 style={{ margin: 0, color, fontWeight: '800' }}>{team.team_name}</h4>
                 </div>
                 <div className="data-row">
                   <span className="data-label">Players</span>
                   <span className="data-value">{teamPlayers.length}</span>
                 </div>
-                <p style={{ marginTop: '12px', fontSize: '0.8rem', color: 'rgba(0,255,255,0.6)', textAlign: 'center' }}>Click to view roster →</p>
+                <p style={{ marginTop: '12px', fontSize: '0.8rem', color: `${color}88`, textAlign: 'center' }}>Click to view roster →</p>
               </div>
             );
           })}
