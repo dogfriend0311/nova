@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { NABB_SEED_TEAMS, NABB_SEED_PLAYERS } from '../../data/nabbSeedData';
 import './OwnerDashboard.css';
 
 const OwnerDashboard = ({ onExit }) => {
@@ -132,6 +133,22 @@ const LeaguePlayersTab = () => {
 
   const set = (key, val) => setFormData(prev => ({ ...prev, [key]: val }));
 
+  const loadNABBSeed = () => {
+    // Merge teams — skip any that already exist by id
+    const existingTeams = JSON.parse(localStorage.getItem('nabb_teams') || '[]');
+    const existingTeamIds = new Set(existingTeams.map(t => t.id));
+    const mergedTeams = [...existingTeams, ...NABB_SEED_TEAMS.filter(t => !existingTeamIds.has(t.id))];
+    localStorage.setItem('nabb_teams', JSON.stringify(mergedTeams));
+
+    // Merge players — skip any that already exist by id
+    const existingPlayers = JSON.parse(localStorage.getItem('nabb_players') || '[]');
+    const existingPlayerIds = new Set(existingPlayers.map(p => p.id));
+    const mergedPlayers = [...existingPlayers, ...NABB_SEED_PLAYERS.filter(p => !existingPlayerIds.has(p.id))];
+    localStorage.setItem('nabb_players', JSON.stringify(mergedPlayers));
+    setPlayers(mergedPlayers);
+    alert(`Loaded NABB S14 seed data: ${NABB_SEED_TEAMS.filter(t => !existingTeamIds.has(t.id)).length} teams + ${NABB_SEED_PLAYERS.filter(p => !existingPlayerIds.has(p.id)).length} players added.`);
+  };
+
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -210,6 +227,18 @@ const LeaguePlayersTab = () => {
         <h2 className="gradient-text-cyan">League Players</h2>
         <button className="neon-button" onClick={() => { setEditingPlayer({ id: null }); setFormData(blankForm); setImgPreview(null); setAvatarZoom(1); }}>
           + Add Player
+        </button>
+      </div>
+
+      <div className="neon-card p-3" style={{ marginBottom: '20px', borderColor: 'rgba(255,200,0,0.35)', display: 'flex', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <div style={{ color: '#ffd700', fontWeight: 700, fontSize: '0.95rem', marginBottom: 4 }}>⚾ NABB Season 14 — Load Scraped Data</div>
+          <div style={{ color: 'rgba(192,208,255,0.55)', fontSize: '0.8rem' }}>
+            Adds 4 teams (CLE, BOS, ARI, PHI) and 6 players sourced from the NABB sheet. Pigs12341 includes full career stats. Safe to run multiple times — duplicates are skipped.
+          </div>
+        </div>
+        <button className="neon-button" style={{ borderColor: '#ffd700', color: '#ffd700', whiteSpace: 'nowrap' }} onClick={loadNABBSeed}>
+          Load NABB S14 Data
         </button>
       </div>
 
