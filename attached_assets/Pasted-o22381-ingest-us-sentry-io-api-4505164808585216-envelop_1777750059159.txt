@@ -1,0 +1,65 @@
+o22381.ingest.us.sentry.io/api/4505164808585216/envelope/?sentry_version=7&sentry_key=4cc707ab12ea4779b417479c0550a5cb&sentry_client=sentry.javascript.nextjs%2F10.45.0:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+o22381.ingest.us.sentry.io/api/4505164808585216/envelope/?sentry_version=7&sentry_key=4cc707ab12ea4779b417479c0550a5cb&sentry_client=sentry.javascript.nextjs%2F10.45.0:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+o22381.ingest.us.sentry.io/api/4505164808585216/envelope/?sentry_version=7&sentry_key=4cc707ab12ea4779b417479c0550a5cb&sentry_client=sentry.javascript.nextjs%2F10.45.0:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+3327.b77ca16d39519caf.js:1 It is recommended that a robustness level be specified. Not specifying the robustness level could result in unexpected behavior.
+requestMediaKeySystemAccess @ 3327.b77ca16d39519caf.js:1
+LeaguePlayerPage.jsx:167 [Nova] Roblox avatar attempt 0 failed for ID: 1845713040. URL: https://wsrv.nl/?url=https%3A%2F%2Fwww.roblox.com%2Fheadshot-thumbnail%2Fimage%3FuserId%3D1845713040%26width%3D420%26height%3D420%26format%3Dpng
+handleAvatarError @ LeaguePlayerPage.jsx:167
+LeaguePlayerPage.jsx:167 [Nova] Roblox avatar attempt 1 failed for ID: 1845713040. URL: https://wsrv.nl/?url=https%3A%2F%2Fwww.roblox.com%2Fbust-thumbnail%2Fimage%3FuserId%3D1845713040%26width%3D420%26height%3D420%26format%3Dpng
+handleAvatarError @ LeaguePlayerPage.jsx:167
+LeaguePlayerPage.jsx:167 [Nova] Roblox avatar attempt 2 failed for ID: 1845713040. URL: https://www.roblox.com/headshot-thumbnail/image?userId=1845713040&width=420&height=420&format=png
+handleAvatarError @ LeaguePlayerPage.jsx:167
+LeaguePlayerPage.jsx:171 [Nova] All Roblox avatar attempts failed for ID: 1845713040
+handleAvatarError @ LeaguePlayerPage.jsx:171
+guc3-spclient.spotify.com/gabo-receiver-service/public/v3/events:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+guc3-spclient.spotify.com/gabo-receiver-service/public/v3/events:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+guc3-spclient.spotify.com/gabo-receiver-service/public/v3/events:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+guc3-spclient.spotify.com/gabo-receiver-service/public/v3/events:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+guc3-spclient.spotify.com/gabo-receiver-service/public/v3/events:1  Failed to load resource: net::ERR_BLOCKED_BY_CLIENT
+  POST https://guc3-spclient.spotify.com/gabo-receiver-service/public/v3/events net::ERR_BLOCKED_BY_CLIENT
+reflect @ chrome-extension://ddkjiahejlhfcafbddmgiahcphecmpfh/rulesets/scripting/scriptlet/main/ublock-filters.js:2693
+(anonymous) @ chrome-extension://ddkjiahejlhfcafbddmgiahcphecmpfh/rulesets/scripting/scriptlet/main/ublock-filters.js:1260
+apply @ chrome-extension://ddkjiahejlhfcafbddmgiahcphecmpfh/rulesets/scripting/scriptlet/main/ublock-filters.js:2726
+(anonymous) @ _app-d4fdb45390ac7651.js:57
+V @ _app-d4fdb45390ac7651.js:53
+(anonymous) @ _app-d4fdb45390ac7651.js:53
+Promise.then
+(anonymous) @ _app-d4fdb45390ac7651.js:53
+_tick @ _app-d4fdb45390ac7651.js:53
+start @ _app-d4fdb45390ac7651.js:53
+_sendRetriedRequest @ _app-d4fdb45390ac7651.js:53
+(anonymous) @ _app-d4fdb45390ac7651.js:53
+Promise.then
+_sendRequest @ _app-d4fdb45390ac7651.js:53
+request @ _app-d4fdb45390ac7651.js:53
+_uploadBatch @ 8476-c23665adc43729ab.js:1
+upload @ 8476-c23665adc43729ab.js:1
+commitAndUploadESStats @ 8476-c23665adc43729ab.js:1
+sendESStats @ 8476-c23665adc43729ab.js:1
+(anonymous) @ 8476-c23665adc43729ab.js:1
+(anonymous) @ _app-d4fdb45390ac7651.js:53
+p @ _app-d4fdb45390ac7651.js:53
+flush @ 8476-c23665adc43729ab.js:1
+r @ _app-d4fdb45390ac7651.js:54
+_app-d4fdb45390ac7651.js:57  POST https://guc3-spclient.spotify.com/gabo-receiver-service/public/v3/events net::ERR_BLOCKED_BY_CLIENT
+(anonymous) @ _app-d4fdb45390ac7651.js:57
+apply @ _app-d4fdb45390ac7651.js:57
+(anonymous) @ _app-d4fdb45390ac7651.js:53
+eS @ _app-d4fdb45390ac7651.js:53
+(anonymous) @ _app-d4fdb45390ac7651.js:53
+Promise.then
+(anonymous) @ _app-d4fdb45390ac7651.js:53
+_tick @ _app-d4fdb45390ac7651.js:53
+start @ _app-d4fdb45390ac7651.js:53
+_sendRetriedRequest @ _app-d4fdb45390ac7651.js:53
+(anonymous) @ _app-d4fdb45390ac7651.js:53
+Promise.then
+_sendRequest @ _app-d4fdb45390ac7651.js:53
+request @ _app-d4fdb45390ac7651.js:53
+_uploadBatch @ _app-d4fdb45390ac7651.js:1
+upload @ _app-d4fdb45390ac7651.js:1
+upload @ _app-d4fdb45390ac7651.js:1
+h.n.init.curve @ _app-d4fdb45390ac7651.js:1
+_tick @ _app-d4fdb45390ac7651.js:1
+(anonymous) @ _app-d4fdb45390ac7651.js:1
+r @ _app-d4fdb45390ac7651.js:54

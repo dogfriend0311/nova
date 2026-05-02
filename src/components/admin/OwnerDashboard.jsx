@@ -118,41 +118,97 @@ const LeaguePlayersTab = () => {
   );
   const [editingPlayer, setEditingPlayer] = useState(null);
   const [formData, setFormData] = useState({});
+  const [imgPreview, setImgPreview] = useState(null);
+  const [avatarZoom, setAvatarZoom] = useState(1);
 
   const blankForm = {
-    player_name: '', team: '', overall: 75, roblox_id: '',
-    position: '', number: '', spotify_url: '',
+    player_name: '', team: '', overall: 75, position: '', number: '', spotify_url: '',
+    avatar_data: '',
     hits: 0, runs: 0, rbis: 0, home_runs: 0, strike_outs: 0,
-    innings_pitched: 0, strikeouts_pitched: 0, hits_allowed: 0, earned_runs: 0
+    adv_h_per_game: '', adv_r_per_game: '', adv_rbi_per_game: '', adv_hr_per_game: '', adv_k_per_game: '',
+    innings_pitched: 0, strikeouts_pitched: 0, hits_allowed: 0, earned_runs: 0,
+    adv_era: '', adv_k9: '', adv_h9: '', adv_er9: '',
   };
 
-  const handleSavePlayer = () => {
-    const newFormData = { ...formData, id: editingPlayer?.id || Date.now().toString() };
-    let updatedPlayers;
-    if (editingPlayer?.id) {
-      updatedPlayers = players.map(p => p.id === editingPlayer.id ? newFormData : p);
-    } else {
-      updatedPlayers = [...players, newFormData];
-    }
+  const set = (key, val) => setFormData(prev => ({ ...prev, [key]: val }));
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => { setImgPreview(ev.target.result); setAvatarZoom(1); };
+    reader.readAsDataURL(file);
+  };
+
+  const doSave = (data) => {
+    const newData = { ...data, id: editingPlayer?.id || Date.now().toString() };
+    const updatedPlayers = editingPlayer?.id
+      ? players.map(p => p.id === editingPlayer.id ? newData : p)
+      : [...players, newData];
     setPlayers(updatedPlayers);
     localStorage.setItem('nabb_players', JSON.stringify(updatedPlayers));
     setEditingPlayer(null);
     setFormData({});
+    setImgPreview(null);
+    setAvatarZoom(1);
+  };
+
+  const handleSavePlayer = () => {
+    if (imgPreview) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 420; canvas.height = 420;
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      img.onload = () => {
+        const size = Math.min(img.width, img.height);
+        const zoomedSize = size / avatarZoom;
+        const srcX = (img.width - zoomedSize) / 2;
+        const srcY = (img.height - zoomedSize) / 2;
+        ctx.drawImage(img, srcX, srcY, zoomedSize, zoomedSize, 0, 0, 420, 420);
+        doSave({ ...formData, avatar_data: canvas.toDataURL('image/jpeg', 0.88) });
+      };
+      img.src = imgPreview;
+    } else {
+      doSave(formData);
+    }
   };
 
   const handleDeletePlayer = (id) => {
-    const updatedPlayers = players.filter(p => p.id !== id);
-    setPlayers(updatedPlayers);
-    localStorage.setItem('nabb_players', JSON.stringify(updatedPlayers));
+    const updated = players.filter(p => p.id !== id);
+    setPlayers(updated);
+    localStorage.setItem('nabb_players', JSON.stringify(updated));
+  };
+
+  const startEdit = (player) => {
+    setEditingPlayer(player);
+    setFormData(player);
+    setImgPreview(player.avatar_data || null);
+    setAvatarZoom(1);
   };
 
   const selectStyle = { padding: '10px', background: 'rgba(0,255,255,0.05)', border: '1px solid rgba(0,255,255,0.2)', color: '#c0d0ff', borderRadius: '4px', width: '100%' };
+  const secHead = (icon, text, color = 'cyan') => (
+    <h4 style={{ color: color === 'cyan' ? 'var(--color-cyan)' : 'var(--color-magenta)', margin: '20px 0 12px 0', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px', borderTop: `1px solid rgba(${color === 'cyan' ? '0,255,255' : '255,0,255'},0.1)`, paddingTop: '18px' }}>{icon} {text}</h4>
+  );
+  const numField = (label, key, step = 1) => (
+    <div className="form-field">
+      <label>{label}</label>
+      <input type="number" step={step} value={formData[key] ?? 0}
+        onChange={(e) => set(key, step < 1 ? parseFloat(e.target.value) || 0 : parseInt(e.target.value) || 0)} min="0" />
+    </div>
+  );
+  const advField = (label, key) => (
+    <div className="form-field">
+      <label>{label}</label>
+      <input type="text" value={formData[key] || ''} onChange={(e) => set(key, e.target.value)} placeholder="Leave blank to auto-calculate" />
+    </div>
+  );
 
   return (
     <div className="tab-content">
       <div className="content-header">
         <h2 className="gradient-text-cyan">League Players</h2>
-        <button className="neon-button" onClick={() => { setEditingPlayer({ id: null }); setFormData(blankForm); }}>
+        <button className="neon-button" onClick={() => { setEditingPlayer({ id: null }); setFormData(blankForm); setImgPreview(null); setAvatarZoom(1); }}>
           + Add Player
         </button>
       </div>
@@ -161,91 +217,87 @@ const LeaguePlayersTab = () => {
         <div className="neon-card p-3" style={{ marginBottom: '30px' }}>
           <h3 className="gradient-text-magenta">{editingPlayer.id ? 'Edit Player' : 'Create New Player'}</h3>
           <div className="edit-form">
-            <h4 style={{ color: 'var(--color-cyan)', margin: '0 0 15px 0', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Basic Info</h4>
 
+            <h4 style={{ color: 'var(--color-cyan)', margin: '0 0 12px 0', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Basic Info</h4>
             <div className="form-field">
               <label>Player Name</label>
-              <input type="text" value={formData.player_name || ''} onChange={(e) => setFormData({...formData, player_name: e.target.value})} placeholder="Player name" />
+              <input type="text" value={formData.player_name || ''} onChange={(e) => set('player_name', e.target.value)} placeholder="Player name" />
             </div>
-
             <div className="form-field">
               <label>Team</label>
-              <select value={formData.team || ''} onChange={(e) => setFormData({...formData, team: e.target.value})} style={selectStyle}>
+              <select value={formData.team || ''} onChange={(e) => set('team', e.target.value)} style={selectStyle}>
                 <option value="">Free Agent</option>
                 {teams.map(t => <option key={t.id} value={t.team_name}>{t.team_name}</option>)}
               </select>
             </div>
-
             <div className="form-field">
               <label>Overall Rating</label>
-              <input type="number" value={formData.overall || 75} onChange={(e) => setFormData({...formData, overall: parseInt(e.target.value)})} min="0" max="100" />
+              <input type="number" value={formData.overall || 75} onChange={(e) => set('overall', parseInt(e.target.value))} min="0" max="100" />
             </div>
-
             <div className="form-field">
               <label>Jersey Number</label>
-              <input type="number" value={formData.number || ''} onChange={(e) => setFormData({...formData, number: e.target.value})} placeholder="Jersey number" />
+              <input type="number" value={formData.number || ''} onChange={(e) => set('number', e.target.value)} placeholder="Jersey number" />
             </div>
-
-            <div className="form-field">
-              <label>Roblox ID</label>
-              <input type="text" value={formData.roblox_id || ''} onChange={(e) => setFormData({...formData, roblox_id: e.target.value})} placeholder="Roblox user ID" />
-            </div>
-
             <div className="form-field">
               <label>Position</label>
-              <input type="text" value={formData.position || ''} onChange={(e) => setFormData({...formData, position: e.target.value})} placeholder="e.g. Pitcher, Batter" />
+              <input type="text" value={formData.position || ''} onChange={(e) => set('position', e.target.value)} placeholder="e.g. Pitcher, Batter" />
             </div>
-
             <div className="form-field">
               <label>Spotify Embed URL</label>
-              <input type="text" value={formData.spotify_url || ''} onChange={(e) => setFormData({...formData, spotify_url: e.target.value})} placeholder="https://open.spotify.com/embed/..." />
+              <input type="text" value={formData.spotify_url || ''} onChange={(e) => set('spotify_url', e.target.value)} placeholder="https://open.spotify.com/embed/..." />
             </div>
 
-            <h4 style={{ color: 'var(--color-cyan)', margin: '20px 0 15px 0', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px', borderTop: '1px solid rgba(0,255,255,0.1)', paddingTop: '20px' }}>⚾ Batting Stats</h4>
+            {secHead('🖼️', 'Player Avatar', 'cyan')}
+            <div className="form-field">
+              <label>Upload Photo</label>
+              <input type="file" accept="image/*" onChange={handleFileChange}
+                style={{ color: '#c0d0ff', background: 'rgba(0,255,255,0.05)', border: '1px solid rgba(0,255,255,0.2)', borderRadius: '4px', padding: '8px' }} />
+            </div>
+            {imgPreview && (
+              <>
+                <div style={{ width: '160px', height: '160px', overflow: 'hidden', borderRadius: '8px', border: '2px solid rgba(0,255,255,0.3)', background: '#0a0a23', margin: '10px auto' }}>
+                  <img src={imgPreview} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover', transform: `scale(${avatarZoom})`, transformOrigin: 'center', display: 'block' }} />
+                </div>
+                <div className="form-field">
+                  <label>Zoom: {avatarZoom.toFixed(1)}x</label>
+                  <input type="range" min="1" max="3" step="0.05" value={avatarZoom}
+                    onChange={(e) => setAvatarZoom(parseFloat(e.target.value))}
+                    style={{ width: '100%', accentColor: 'var(--color-cyan)' }} />
+                </div>
+              </>
+            )}
 
-            <div className="form-field">
-              <label>Hits</label>
-              <input type="number" value={formData.hits || 0} onChange={(e) => setFormData({...formData, hits: parseInt(e.target.value) || 0})} min="0" />
-            </div>
-            <div className="form-field">
-              <label>Runs</label>
-              <input type="number" value={formData.runs || 0} onChange={(e) => setFormData({...formData, runs: parseInt(e.target.value) || 0})} min="0" />
-            </div>
-            <div className="form-field">
-              <label>RBIs</label>
-              <input type="number" value={formData.rbis || 0} onChange={(e) => setFormData({...formData, rbis: parseInt(e.target.value) || 0})} min="0" />
-            </div>
-            <div className="form-field">
-              <label>Home Runs</label>
-              <input type="number" value={formData.home_runs || 0} onChange={(e) => setFormData({...formData, home_runs: parseInt(e.target.value) || 0})} min="0" />
-            </div>
-            <div className="form-field">
-              <label>Strike Outs (Batting)</label>
-              <input type="number" value={formData.strike_outs || 0} onChange={(e) => setFormData({...formData, strike_outs: parseInt(e.target.value) || 0})} min="0" />
-            </div>
+            {secHead('⚾', 'Career Batting Stats', 'cyan')}
+            {numField('Hits', 'hits')}
+            {numField('Runs', 'runs')}
+            {numField('RBIs', 'rbis')}
+            {numField('Home Runs', 'home_runs')}
+            {numField('Strike Outs (Batting)', 'strike_outs')}
 
-            <h4 style={{ color: 'var(--color-magenta)', margin: '20px 0 15px 0', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px', borderTop: '1px solid rgba(255,0,255,0.1)', paddingTop: '20px' }}>⚡ Pitching Stats</h4>
+            {secHead('📊', 'Advanced Batting — Career Override', 'magenta')}
+            <p style={{ color: 'rgba(192,208,255,0.45)', fontSize: '0.8rem', margin: '-6px 0 10px' }}>Leave blank to auto-calculate from career totals</p>
+            {advField('H / Game', 'adv_h_per_game')}
+            {advField('R / Game', 'adv_r_per_game')}
+            {advField('RBI / Game', 'adv_rbi_per_game')}
+            {advField('HR / Game', 'adv_hr_per_game')}
+            {advField('K / Game (Batting)', 'adv_k_per_game')}
 
-            <div className="form-field">
-              <label>Innings Pitched</label>
-              <input type="number" step="0.1" value={formData.innings_pitched || 0} onChange={(e) => setFormData({...formData, innings_pitched: parseFloat(e.target.value) || 0})} min="0" />
-            </div>
-            <div className="form-field">
-              <label>Strikeouts (Pitching)</label>
-              <input type="number" value={formData.strikeouts_pitched || 0} onChange={(e) => setFormData({...formData, strikeouts_pitched: parseInt(e.target.value) || 0})} min="0" />
-            </div>
-            <div className="form-field">
-              <label>Hits Allowed</label>
-              <input type="number" value={formData.hits_allowed || 0} onChange={(e) => setFormData({...formData, hits_allowed: parseInt(e.target.value) || 0})} min="0" />
-            </div>
-            <div className="form-field">
-              <label>Earned Runs</label>
-              <input type="number" value={formData.earned_runs || 0} onChange={(e) => setFormData({...formData, earned_runs: parseInt(e.target.value) || 0})} min="0" />
-            </div>
+            {secHead('⚡', 'Career Pitching Stats', 'cyan')}
+            {numField('Innings Pitched', 'innings_pitched', 0.1)}
+            {numField('Strikeouts (Pitching)', 'strikeouts_pitched')}
+            {numField('Hits Allowed', 'hits_allowed')}
+            {numField('Earned Runs', 'earned_runs')}
+
+            {secHead('📈', 'Advanced Pitching — Career Override', 'magenta')}
+            <p style={{ color: 'rgba(192,208,255,0.45)', fontSize: '0.8rem', margin: '-6px 0 10px' }}>Leave blank to auto-calculate from career totals</p>
+            {advField('ERA', 'adv_era')}
+            {advField('K/9', 'adv_k9')}
+            {advField('H/9', 'adv_h9')}
+            {advField('ER/9', 'adv_er9')}
 
             <div className="form-actions">
               <button className="neon-button" onClick={handleSavePlayer}>Save Player</button>
-              <button className="neon-button" onClick={() => setEditingPlayer(null)}>Cancel</button>
+              <button className="neon-button" onClick={() => { setEditingPlayer(null); setImgPreview(null); setAvatarZoom(1); }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -253,28 +305,23 @@ const LeaguePlayersTab = () => {
 
       <div className="players-grid">
         {players.map(player => (
-          <div key={player.id} className="neon-card p-3">
+          <div key={player.id} className="neon-card p-3" style={{ textAlign: 'center' }}>
+            {player.avatar_data ? (
+              <div style={{ width: '64px', height: '64px', borderRadius: '50%', overflow: 'hidden', margin: '0 auto 10px', border: '2px solid rgba(0,255,255,0.35)' }}>
+                <img src={player.avatar_data} alt={player.player_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </div>
+            ) : (
+              <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(0,255,255,0.08)', border: '2px solid rgba(0,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px', fontSize: '24px' }}>🎮</div>
+            )}
             <h4 className="gradient-text-cyan">{player.player_name}</h4>
-            <div style={{ marginTop: '12px' }}>
-              <div className="data-row">
-                <span className="data-label">Team</span>
-                <span className="data-value">{player.team || 'Free Agent'}</span>
-              </div>
-              <div className="data-row">
-                <span className="data-label">Position</span>
-                <span className="data-value">{player.position || '—'}</span>
-              </div>
-              <div className="data-row">
-                <span className="data-label">Overall</span>
-                <span className="data-value">{player.overall}</span>
-              </div>
-              <div className="data-row">
-                <span className="data-label">HR / H / RBI</span>
-                <span className="data-value">{player.home_runs || 0} / {player.hits || 0} / {player.rbis || 0}</span>
-              </div>
+            <div style={{ marginTop: '10px', textAlign: 'left' }}>
+              <div className="data-row"><span className="data-label">Team</span><span className="data-value">{player.team || 'Free Agent'}</span></div>
+              <div className="data-row"><span className="data-label">Position</span><span className="data-value">{player.position || '—'}</span></div>
+              <div className="data-row"><span className="data-label">Overall</span><span className="data-value">{player.overall}</span></div>
+              <div className="data-row"><span className="data-label">HR / H / RBI</span><span className="data-value">{player.home_runs || 0} / {player.hits || 0} / {player.rbis || 0}</span></div>
             </div>
             <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
-              <button className="neon-button" style={{ flex: 1, fontSize: '0.8rem' }} onClick={() => { setEditingPlayer(player); setFormData(player); }}>Edit</button>
+              <button className="neon-button" style={{ flex: 1, fontSize: '0.8rem' }} onClick={() => startEdit(player)}>Edit</button>
               <button className="neon-button" style={{ flex: 1, fontSize: '0.8rem', borderColor: '#ff3333', color: '#ff3333' }} onClick={() => handleDeletePlayer(player.id)}>Delete</button>
             </div>
           </div>

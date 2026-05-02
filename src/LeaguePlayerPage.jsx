@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import './LeaguePlayerPage.css';
 
 const toSpotifyEmbed = (url) => {
@@ -37,11 +37,6 @@ const LeaguePlayerPage = ({ player, onBack }) => {
     pitchBasic: false,
     pitchAdv: false,
   });
-  const [avatarAttempt, setAvatarAttempt] = useState(0);
-
-  useEffect(() => {
-    setAvatarAttempt(0);
-  }, [player?.roblox_id]);
 
   const toggle = (key) => setToggles(prev => ({ ...prev, [key]: !prev[key] }));
 
@@ -109,11 +104,11 @@ const LeaguePlayerPage = ({ player, onBack }) => {
     { label: 'K / Game',   value: gamesPlayed ? fmt(sSO / gamesPlayed) : '—' },
   ];
   const hitAdvCareer = [
-    { label: 'H / Game',   value: gamesPlayed ? fmt(cH / gamesPlayed) : '—' },
-    { label: 'R / Game',   value: gamesPlayed ? fmt(cR / gamesPlayed) : '—' },
-    { label: 'RBI / Game', value: gamesPlayed ? fmt(cRBI / gamesPlayed) : '—' },
-    { label: 'HR / Game',  value: gamesPlayed ? fmt(cHR / gamesPlayed) : '—' },
-    { label: 'K / Game',   value: gamesPlayed ? fmt(cSO / gamesPlayed) : '—' },
+    { label: 'H / Game',   value: player.adv_h_per_game   || (gamesPlayed ? fmt(cH   / gamesPlayed) : '—') },
+    { label: 'R / Game',   value: player.adv_r_per_game   || (gamesPlayed ? fmt(cR   / gamesPlayed) : '—') },
+    { label: 'RBI / Game', value: player.adv_rbi_per_game || (gamesPlayed ? fmt(cRBI / gamesPlayed) : '—') },
+    { label: 'HR / Game',  value: player.adv_hr_per_game  || (gamesPlayed ? fmt(cHR  / gamesPlayed) : '—') },
+    { label: 'K / Game',   value: player.adv_k_per_game   || (gamesPlayed ? fmt(cSO  / gamesPlayed) : '—') },
   ];
 
   const pitchBasicSeason = [
@@ -149,29 +144,14 @@ const LeaguePlayerPage = ({ player, onBack }) => {
     { label: 'ER/9',  value: sIP > 0 ? fmt((sER / sIP) * 9) : '—' },
   ];
   const pitchAdvCareer = [
-    { label: 'ERA',   value: cAdv.era },
-    { label: 'K/9',   value: cAdv.k9 },
-    { label: 'H/9',   value: cAdv.h9 },
+    { label: 'ERA',        value: player.adv_era || cAdv.era },
+    { label: 'K/9',        value: player.adv_k9  || cAdv.k9 },
+    { label: 'H/9',        value: player.adv_h9  || cAdv.h9 },
     { label: 'K Per Game', value: gamesPitched ? fmt(cKP / gamesPitched) : '—' },
-    { label: 'ER/9',  value: cIP > 0 ? fmt((cER / cIP) * 9) : '—' },
+    { label: 'ER/9',       value: player.adv_er9 || (cIP > 0 ? fmt((cER / cIP) * 9) : '—') },
   ];
 
-  const rid = player.roblox_id ? String(player.roblox_id).trim() : null;
-  const avatarUrls = rid ? [
-    `https://wsrv.nl/?url=${encodeURIComponent(`https://www.roblox.com/headshot-thumbnail/image?userId=${rid}&width=420&height=420&format=png`)}`,
-    `https://wsrv.nl/?url=${encodeURIComponent(`https://www.roblox.com/bust-thumbnail/image?userId=${rid}&width=420&height=420&format=png`)}`,
-    `https://www.roblox.com/headshot-thumbnail/image?userId=${rid}&width=420&height=420&format=png`,
-  ] : [];
-  const avatarSrc = avatarUrls[avatarAttempt] || null;
-  const handleAvatarError = () => {
-    console.warn(`[Nova] Roblox avatar attempt ${avatarAttempt} failed for ID: ${rid}. URL: ${avatarUrls[avatarAttempt]}`);
-    if (avatarAttempt < avatarUrls.length - 1) {
-      setAvatarAttempt(prev => prev + 1);
-    } else {
-      console.warn(`[Nova] All Roblox avatar attempts failed for ID: ${rid}`);
-      setAvatarAttempt(avatarUrls.length);
-    }
-  };
+  const avatarSrc = player.avatar_data || null;
 
   return (
     <div className="league-player-page">
@@ -186,11 +166,7 @@ const LeaguePlayerPage = ({ player, onBack }) => {
         <div className="player-card neon-card">
           <div className="card-avatar">
             {avatarSrc ? (
-              <img
-                src={avatarSrc}
-                alt={player.player_name}
-                onError={handleAvatarError}
-              />
+              <img src={avatarSrc} alt={player.player_name} />
             ) : (
               <div className="avatar-placeholder">🎮</div>
             )}
