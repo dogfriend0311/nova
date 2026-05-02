@@ -1,30 +1,43 @@
 import React, { useState, useEffect } from 'react';
 import './LeaguePlayerPage.css';
 
-const formatStatName = (key) =>
-  key.replace(/_/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+const safe = (n) => parseFloat(n) || 0;
+const safeInt = (n) => parseInt(n) || 0;
+const fmt = (n, decimals = 2) => isNaN(n) || !isFinite(n) ? '—' : Number(n).toFixed(decimals);
+
+const StatSection = ({ title, color, stats, isCareer, onToggle }) => (
+  <div className="stats-section neon-card">
+    <div className="stats-header">
+      <h3 className={color === 'cyan' ? 'gradient-text-cyan' : 'gradient-text-magenta'}>{title}</h3>
+      <button className="career-toggle" onClick={onToggle}>
+        {isCareer ? 'Season' : 'Career'}
+      </button>
+    </div>
+    <div className="stats-grid">
+      {stats.map(({ label, value }) => (
+        <div key={label} className="stat-item">
+          <span className="stat-label">{label}</span>
+          <span className="stat-value">{value}</span>
+        </div>
+      ))}
+    </div>
+  </div>
+);
 
 const LeaguePlayerPage = ({ player, onBack }) => {
-  const [careerToggles, setCareerToggles] = useState({
-    hitting: false,
-    pitching: false,
+  const [toggles, setToggles] = useState({
+    hitBasic: false,
+    hitAdv: false,
+    pitchBasic: false,
+    pitchAdv: false,
   });
-  const [avatarUrl, setAvatarUrl] = useState(null);
   const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
-    setAvatarUrl(null);
     setImgError(false);
-    if (!player?.roblox_id) return;
-    fetch(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${player.roblox_id}&size=420x420&format=Png&isCircular=false`)
-      .then(r => r.json())
-      .then(data => {
-        const url = data?.data?.[0]?.imageUrl;
-        if (url) setAvatarUrl(url);
-        else setImgError(true);
-      })
-      .catch(() => setImgError(true));
   }, [player?.roblox_id]);
+
+  const toggle = (key) => setToggles(prev => ({ ...prev, [key]: !prev[key] }));
 
   if (!player) {
     return (
@@ -39,44 +52,112 @@ const LeaguePlayerPage = ({ player, onBack }) => {
 
   const boxScores = JSON.parse(localStorage.getItem('nabb_box_scores') || '[]');
   const playerScores = boxScores.filter(b => b.player_id === player.id);
+  const gamesPlayed = playerScores.length;
+  const gamesPitched = playerScores.filter(b => safe(b.innings_pitched) > 0).length;
 
-  const aggHits = playerScores.reduce((s, b) => s + (parseInt(b.hits) || 0), 0);
-  const aggRuns = playerScores.reduce((s, b) => s + (parseInt(b.runs) || 0), 0);
-  const aggRbis = playerScores.reduce((s, b) => s + (parseInt(b.rbis) || 0), 0);
-  const aggHR = playerScores.reduce((s, b) => s + (parseInt(b.home_runs) || 0), 0);
-  const aggSO = playerScores.reduce((s, b) => s + (parseInt(b.strike_outs) || 0), 0);
-  const aggIP = playerScores.reduce((s, b) => s + (parseFloat(b.innings_pitched) || 0), 0);
-  const aggKP = playerScores.reduce((s, b) => s + (parseInt(b.strikeouts_pitched) || 0), 0);
-  const aggHA = playerScores.reduce((s, b) => s + (parseInt(b.hits_allowed) || 0), 0);
-  const aggER = playerScores.reduce((s, b) => s + (parseInt(b.earned_runs) || 0), 0);
+  // Season aggregates (box scores only)
+  const sH   = playerScores.reduce((s, b) => s + safeInt(b.hits), 0);
+  const sR   = playerScores.reduce((s, b) => s + safeInt(b.runs), 0);
+  const sRBI = playerScores.reduce((s, b) => s + safeInt(b.rbis), 0);
+  const sHR  = playerScores.reduce((s, b) => s + safeInt(b.home_runs), 0);
+  const sSO  = playerScores.reduce((s, b) => s + safeInt(b.strike_outs), 0);
+  const sIP  = playerScores.reduce((s, b) => s + safe(b.innings_pitched), 0);
+  const sKP  = playerScores.reduce((s, b) => s + safeInt(b.strikeouts_pitched), 0);
+  const sHA  = playerScores.reduce((s, b) => s + safeInt(b.hits_allowed), 0);
+  const sER  = playerScores.reduce((s, b) => s + safeInt(b.earned_runs), 0);
 
-  const hittingStats = {
-    games_played: playerScores.length,
-    hits: aggHits + (parseInt(player.hits) || 0),
-    runs: aggRuns + (parseInt(player.runs) || 0),
-    rbis: aggRbis + (parseInt(player.rbis) || 0),
-    home_runs: aggHR + (parseInt(player.home_runs) || 0),
-    strike_outs: aggSO + (parseInt(player.strike_outs) || 0),
-  };
+  // Career aggregates (box scores + player base stats)
+  const cH   = sH   + safeInt(player.hits);
+  const cR   = sR   + safeInt(player.runs);
+  const cRBI = sRBI + safeInt(player.rbis);
+  const cHR  = sHR  + safeInt(player.home_runs);
+  const cSO  = sSO  + safeInt(player.strike_outs);
+  const cIP  = sIP  + safe(player.innings_pitched);
+  const cKP  = sKP  + safeInt(player.strikeouts_pitched);
+  const cHA  = sHA  + safeInt(player.hits_allowed);
+  const cER  = sER  + safeInt(player.earned_runs);
 
-  const pitchingStats = {
-    games_pitched: playerScores.filter(b => (parseFloat(b.innings_pitched) || 0) > 0).length,
-    innings_pitched: (aggIP + (parseFloat(player.innings_pitched) || 0)).toFixed(1),
-    strikeouts: aggKP + (parseInt(player.strikeouts_pitched) || 0),
-    hits_allowed: aggHA + (parseInt(player.hits_allowed) || 0),
-    earned_runs: aggER + (parseInt(player.earned_runs) || 0),
-  };
+  // Build stat rows
+  const hitBasicSeason = [
+    { label: 'Games Played', value: gamesPlayed },
+    { label: 'Hits',         value: sH },
+    { label: 'Runs',         value: sR },
+    { label: 'RBIs',         value: sRBI },
+    { label: 'Home Runs',    value: sHR },
+    { label: 'Strike Outs',  value: sSO },
+  ];
+  const hitBasicCareer = [
+    { label: 'Games Played', value: gamesPlayed },
+    { label: 'Hits',         value: cH },
+    { label: 'Runs',         value: cR },
+    { label: 'RBIs',         value: cRBI },
+    { label: 'Home Runs',    value: cHR },
+    { label: 'Strike Outs',  value: cSO },
+  ];
 
-  const toggleCareer = (stat) => setCareerToggles(prev => ({ ...prev, [stat]: !prev[stat] }));
+  const hitAdvSeason = [
+    { label: 'H / Game',   value: gamesPlayed ? fmt(sH / gamesPlayed) : '—' },
+    { label: 'R / Game',   value: gamesPlayed ? fmt(sR / gamesPlayed) : '—' },
+    { label: 'RBI / Game', value: gamesPlayed ? fmt(sRBI / gamesPlayed) : '—' },
+    { label: 'HR / Game',  value: gamesPlayed ? fmt(sHR / gamesPlayed) : '—' },
+    { label: 'K / Game',   value: gamesPlayed ? fmt(sSO / gamesPlayed) : '—' },
+  ];
+  const hitAdvCareer = [
+    { label: 'H / Game',   value: gamesPlayed ? fmt(cH / gamesPlayed) : '—' },
+    { label: 'R / Game',   value: gamesPlayed ? fmt(cR / gamesPlayed) : '—' },
+    { label: 'RBI / Game', value: gamesPlayed ? fmt(cRBI / gamesPlayed) : '—' },
+    { label: 'HR / Game',  value: gamesPlayed ? fmt(cHR / gamesPlayed) : '—' },
+    { label: 'K / Game',   value: gamesPlayed ? fmt(cSO / gamesPlayed) : '—' },
+  ];
+
+  const pitchBasicSeason = [
+    { label: 'Games Pitched',  value: gamesPitched },
+    { label: 'Innings Pitched', value: sIP.toFixed(1) },
+    { label: 'Strikeouts',     value: sKP },
+    { label: 'Hits Allowed',   value: sHA },
+    { label: 'Earned Runs',    value: sER },
+  ];
+  const pitchBasicCareer = [
+    { label: 'Games Pitched',  value: gamesPitched },
+    { label: 'Innings Pitched', value: cIP.toFixed(1) },
+    { label: 'Strikeouts',     value: cKP },
+    { label: 'Hits Allowed',   value: cHA },
+    { label: 'Earned Runs',    value: cER },
+  ];
+
+  const calcAdv = (ip, er, k, ha) => ({
+    era:  ip > 0 ? fmt((er / ip) * 9) : '—',
+    k9:   ip > 0 ? fmt((k  / ip) * 9) : '—',
+    h9:   ip > 0 ? fmt((ha / ip) * 9) : '—',
+    kPer: ip > 0 ? fmt(k / (ip / 9)) : '—',
+  });
+
+  const sAdv = calcAdv(sIP, sER, sKP, sHA);
+  const cAdv = calcAdv(cIP, cER, cKP, cHA);
+
+  const pitchAdvSeason = [
+    { label: 'ERA',   value: sAdv.era },
+    { label: 'K/9',   value: sAdv.k9 },
+    { label: 'H/9',   value: sAdv.h9 },
+    { label: 'K Per Game', value: gamesPitched ? fmt(sKP / gamesPitched) : '—' },
+    { label: 'ER/9',  value: sIP > 0 ? fmt((sER / sIP) * 9) : '—' },
+  ];
+  const pitchAdvCareer = [
+    { label: 'ERA',   value: cAdv.era },
+    { label: 'K/9',   value: cAdv.k9 },
+    { label: 'H/9',   value: cAdv.h9 },
+    { label: 'K Per Game', value: gamesPitched ? fmt(cKP / gamesPitched) : '—' },
+    { label: 'ER/9',  value: cIP > 0 ? fmt((cER / cIP) * 9) : '—' },
+  ];
+
+  const avatarSrc = player.roblox_id
+    ? `https://www.roblox.com/headshot-thumbnail/image?userId=${player.roblox_id}&width=420&height=420&format=png`
+    : null;
 
   return (
     <div className="league-player-page">
       {onBack && (
-        <button
-          className="neon-button"
-          style={{ marginBottom: '20px', fontSize: '0.9rem' }}
-          onClick={onBack}
-        >
+        <button className="neon-button" style={{ marginBottom: '20px', fontSize: '0.9rem' }} onClick={onBack}>
           ← Back to League
         </button>
       )}
@@ -85,12 +166,11 @@ const LeaguePlayerPage = ({ player, onBack }) => {
         {/* LEFT — Trading Card */}
         <div className="player-card neon-card">
           <div className="card-avatar">
-            {avatarUrl && !imgError ? (
+            {avatarSrc && !imgError ? (
               <img
-                src={avatarUrl}
+                src={avatarSrc}
                 alt={player.player_name}
                 onError={() => setImgError(true)}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }}
               />
             ) : (
               <div className="avatar-placeholder">🎮</div>
@@ -135,41 +215,34 @@ const LeaguePlayerPage = ({ player, onBack }) => {
 
         {/* RIGHT — Stats */}
         <div className="player-stats">
-          {/* Hitting */}
-          <div className="stats-section neon-card">
-            <div className="stats-header">
-              <h3 className="gradient-text-cyan">⚾ Hitting Stats</h3>
-              <button className="career-toggle" onClick={() => toggleCareer('hitting')}>
-                {careerToggles.hitting ? 'Season' : 'Career'}
-              </button>
-            </div>
-            <div className="stats-grid">
-              {Object.entries(hittingStats).map(([key, val]) => (
-                <div key={key} className="stat-item">
-                  <span className="stat-label">{formatStatName(key)}</span>
-                  <span className="stat-value">{val}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Pitching */}
-          <div className="stats-section neon-card">
-            <div className="stats-header">
-              <h3 className="gradient-text-magenta">⚡ Pitching Stats</h3>
-              <button className="career-toggle" onClick={() => toggleCareer('pitching')}>
-                {careerToggles.pitching ? 'Season' : 'Career'}
-              </button>
-            </div>
-            <div className="stats-grid">
-              {Object.entries(pitchingStats).map(([key, val]) => (
-                <div key={key} className="stat-item">
-                  <span className="stat-label">{formatStatName(key)}</span>
-                  <span className="stat-value">{val}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <StatSection
+            title="⚾ Season Hitting Stats"
+            color="cyan"
+            stats={toggles.hitBasic ? hitBasicCareer : hitBasicSeason}
+            isCareer={toggles.hitBasic}
+            onToggle={() => toggle('hitBasic')}
+          />
+          <StatSection
+            title="📊 Advanced Hitting Stats"
+            color="magenta"
+            stats={toggles.hitAdv ? hitAdvCareer : hitAdvSeason}
+            isCareer={toggles.hitAdv}
+            onToggle={() => toggle('hitAdv')}
+          />
+          <StatSection
+            title="⚡ Season Pitching Stats"
+            color="cyan"
+            stats={toggles.pitchBasic ? pitchBasicCareer : pitchBasicSeason}
+            isCareer={toggles.pitchBasic}
+            onToggle={() => toggle('pitchBasic')}
+          />
+          <StatSection
+            title="📈 Advanced Pitching Stats"
+            color="magenta"
+            stats={toggles.pitchAdv ? pitchAdvCareer : pitchAdvSeason}
+            isCareer={toggles.pitchAdv}
+            onToggle={() => toggle('pitchAdv')}
+          />
 
           {/* Game Log */}
           {playerScores.length > 0 && (
