@@ -145,7 +145,12 @@ const RostersTab = ({ onSelectPlayer }) => {
                 key={player.id}
                 className="neon-card p-3"
                 style={{ cursor: 'pointer' }}
-                onClick={() => onSelectPlayer && onSelectPlayer(player)}
+                onClick={() => {
+                  if (onSelectPlayer) {
+                    const fresh = JSON.parse(localStorage.getItem('nabb_players') || '[]');
+                    onSelectPlayer(fresh.find(p => p.id === player.id) || player);
+                  }
+                }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                   <h4 className="gradient-text-cyan" style={{ margin: 0 }}>{player.player_name}</h4>
@@ -241,7 +246,12 @@ const PlayersTab = ({ onSelectPlayer }) => {
               key={player.id}
               className="neon-card p-3"
               style={{ cursor: 'pointer' }}
-              onClick={() => onSelectPlayer && onSelectPlayer(player)}
+              onClick={() => {
+                if (onSelectPlayer) {
+                  const fresh = JSON.parse(localStorage.getItem('nabb_players') || '[]');
+                  onSelectPlayer(fresh.find(p => p.id === player.id) || player);
+                }
+              }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                 <h4 className="gradient-text-cyan" style={{ margin: 0 }}>{player.player_name}</h4>
@@ -308,7 +318,12 @@ const LeagueLeadersTab = ({ onSelectPlayer }) => {
               <tr
                 key={p.id}
                 style={{ cursor: 'pointer', borderBottom: '1px solid rgba(0,255,255,0.06)' }}
-                onClick={() => onSelectPlayer && onSelectPlayer(p)}
+                onClick={() => {
+                  if (onSelectPlayer) {
+                    const fresh = JSON.parse(localStorage.getItem('nabb_players') || '[]');
+                    onSelectPlayer(fresh.find(fp => fp.id === p.id) || p);
+                  }
+                }}
               >
                 <td style={{ padding: '8px', color: i === 0 ? 'var(--color-cyan)' : 'rgba(192,208,255,0.9)', fontWeight: i === 0 ? '700' : 'normal' }}>
                   {i + 1}. {p.player_name}
