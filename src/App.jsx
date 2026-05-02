@@ -3,7 +3,6 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/layout/Layout';
 import Home from './components/pages/Home';
 import Hub from './components/pages/Hub';
-import RobloxStats from './components/pages/RobloxStats';
 import MemberPages from './components/pages/MemberPages';
 import NABBLeague from './NABBLeague';
 import LeaguePlayerPage from './LeaguePlayerPage';
@@ -43,8 +42,6 @@ const AppContent = () => {
         return <NABBLeague />;
       case 'members':
         return <MemberPages />;
-      case 'nabb':
-        return <NABBLeague />;
       case 'player':
         return <LeaguePlayerPage />;
       default:
