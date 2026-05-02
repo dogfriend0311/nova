@@ -9,7 +9,7 @@ import MemberProfile from './components/pages/MemberProfile';
 import NABBLeague from './NABBLeague';
 import NABBRosters from './components/pages/NABBRosters';
 import LeaguePlayerPage from './LeaguePlayerPage';
-import Login from './components/auth/Login';
+import LoginModal from './components/auth/LoginModal';
 import OwnerDashboard from './components/admin/OwnerDashboard';
 import './styles/globals.css';
 import './styles/theme.css';
@@ -18,18 +18,14 @@ import './styles/space.css';
 import './styles/responsive.css';
 import './Login.css';
 import './OwnerDashboard.css';
+import './components/auth/LoginModal.css';
 
 const AppContent = () => {
   const { user } = useAuth();
   const [currentPage, setCurrentPage] = useState('home');
   const [showDashboard, setShowDashboard] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [selectedLeaguePlayer, setSelectedLeaguePlayer] = useState(null);
-
-  if (!user) return (
-    <div style={{ position: 'fixed', inset: 0, overflowY: 'auto', overflowX: 'hidden', background: '#0a0a23', zIndex: 9999 }}>
-      <Login />
-    </div>
-  );
   if (showDashboard) return (
     <div style={{ height: '100vh', overflowY: 'auto', overflowX: 'hidden', background: '#0a0a23' }}>
       <OwnerDashboard onExit={() => setShowDashboard(false)} />
@@ -41,29 +37,38 @@ const AppContent = () => {
     setCurrentPage('player');
   };
 
+  const handlePageChange = (page) => {
+    if (page === 'profile' && !user) { setShowLoginModal(true); return; }
+    setCurrentPage(page);
+  };
+
   const renderPage = () => {
     switch (currentPage) {
-      case 'home':     return <Home />;
-      case 'sports':   return <SportsHub />;
-      case 'watchlist':return <WatchList />;
-      case 'nabb':     return <NABBLeague onSelectPlayer={handleSelectPlayer} />;
-      case 'members':  return <MemberPages />;
-      case 'profile':  return <MemberProfile />;
+      case 'home':         return <Home />;
+      case 'sports':       return <SportsHub />;
+      case 'watchlist':    return <WatchList onSignIn={() => setShowLoginModal(true)} />;
+      case 'nabb':         return <NABBLeague onSelectPlayer={handleSelectPlayer} />;
+      case 'members':      return <MemberPages />;
+      case 'profile':      return user ? <MemberProfile /> : <Home />;
       case 'nabb-rosters': return <NABBRosters />;
-      case 'player':   return <LeaguePlayerPage player={selectedLeaguePlayer} onBack={() => setCurrentPage('nabb')} />;
-      default:         return <Home />;
+      case 'player':       return <LeaguePlayerPage player={selectedLeaguePlayer} onBack={() => setCurrentPage('nabb')} />;
+      default:             return <Home />;
     }
   };
 
   return (
-    <Layout
-      currentPage={currentPage}
-      onPageChange={setCurrentPage}
-      onDashboard={() => setShowDashboard(true)}
-      user={user}
-    >
-      {renderPage()}
-    </Layout>
+    <>
+      <Layout
+        currentPage={currentPage}
+        onPageChange={handlePageChange}
+        onDashboard={() => setShowDashboard(true)}
+        onSignIn={() => setShowLoginModal(true)}
+        user={user}
+      >
+        {renderPage()}
+      </Layout>
+      {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
+    </>
   );
 };
 
