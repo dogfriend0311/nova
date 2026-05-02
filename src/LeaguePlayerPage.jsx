@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './LeaguePlayerPage.css';
 
 const formatStatName = (key) =>
@@ -9,6 +9,22 @@ const LeaguePlayerPage = ({ player, onBack }) => {
     hitting: false,
     pitching: false,
   });
+  const [avatarUrl, setAvatarUrl] = useState(null);
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setAvatarUrl(null);
+    setImgError(false);
+    if (!player?.roblox_id) return;
+    fetch(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${player.roblox_id}&size=420x420&format=Png&isCircular=false`)
+      .then(r => r.json())
+      .then(data => {
+        const url = data?.data?.[0]?.imageUrl;
+        if (url) setAvatarUrl(url);
+        else setImgError(true);
+      })
+      .catch(() => setImgError(true));
+  }, [player?.roblox_id]);
 
   if (!player) {
     return (
@@ -69,14 +85,16 @@ const LeaguePlayerPage = ({ player, onBack }) => {
         {/* LEFT — Trading Card */}
         <div className="player-card neon-card">
           <div className="card-avatar">
-            {player.roblox_id ? (
+            {avatarUrl && !imgError ? (
               <img
-                src={`https://www.roblox.com/headshot-thumbnail/image?userId=${player.roblox_id}&width=420&height=420&format=png`}
+                src={avatarUrl}
                 alt={player.player_name}
-                onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                onError={() => setImgError(true)}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }}
               />
-            ) : null}
-            <div className="avatar-placeholder" style={{ display: player.roblox_id ? 'none' : 'flex' }}>🎮</div>
+            ) : (
+              <div className="avatar-placeholder">🎮</div>
+            )}
           </div>
 
           <div className="card-content">
