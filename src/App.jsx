@@ -7,8 +7,8 @@ import RobloxStats from './components/pages/RobloxStats';
 import MemberPages from './components/pages/MemberPages';
 import NABBLeague from './NABBLeague';
 import LeaguePlayerPage from './LeaguePlayerPage';
-import Login from './Login';
-import OwnerDashboard from './OwnerDashboard';
+import Login from './components/auth/Login';
+import OwnerDashboard from './components/admin/OwnerDashboard';
 import './styles/globals.css';
 import './styles/theme.css';
 import './styles/animations.css';
@@ -39,8 +39,8 @@ const AppContent = () => {
         return <Home />;
       case 'hub':
         return <Hub />;
-      case 'roblox':
-        return <RobloxStats />;
+      case 'nabb':
+        return <NABBLeague />;
       case 'members':
         return <MemberPages />;
       case 'nabb':

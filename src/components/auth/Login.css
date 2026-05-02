@@ -1,0 +1,123 @@
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  width: 100%;
+  padding: 20px;
+  position: relative;
+  z-index: 10;
+}
+
+.login-box {
+  width: 100%;
+  max-width: 400px;
+  padding: 40px;
+  border-radius: 8px;
+  animation: fadeInUp 0.5s ease-out;
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.login-icon {
+  font-size: 48px;
+  margin-bottom: 15px;
+  display: block;
+  animation: float 3s ease-in-out infinite;
+}
+
+.login-header h1 {
+  font-size: 2rem;
+  margin-bottom: 5px;
+}
+
+.login-header p {
+  color: rgba(192, 208, 255, 0.7);
+  font-size: 0.95rem;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(192, 208, 255, 0.9);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-group input {
+  padding: 12px;
+  border: 2px solid rgba(0, 255, 255, 0.3);
+  background: rgba(0, 255, 255, 0.05);
+  color: #c0d0ff;
+  border-radius: 4px;
+  font-family: 'Space Mono', monospace;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.form-group input:focus {
+  border-color: rgba(0, 255, 255, 0.6);
+  background: rgba(0, 255, 255, 0.1);
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+}
+
+.form-group input::placeholder {
+  color: rgba(192, 208, 255, 0.4);
+}
+
+.form-group input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error-message {
+  padding: 12px;
+  background: rgba(255, 51, 51, 0.1);
+  border: 1px solid rgba(255, 51, 51, 0.3);
+  color: #ff3333;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.login-form button {
+  margin-top: 10px;
+}
+
+.login-footer {
+  text-align: center;
+  margin-top: 25px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(0, 255, 255, 0.1);
+  color: rgba(192, 208, 255, 0.6);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+  .login-box {
+    padding: 30px;
+  }
+
+  .login-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .login-icon {
+    font-size: 40px;
+  }
+}

@@ -5,7 +5,7 @@ const Navbar = ({ currentPage, onPageChange, onDashboard }) => {
   const tabs = [
     { id: 'home', label: 'Home Page', icon: '🏠' },
     { id: 'hub', label: 'Hub', icon: '🌐' },
-    { id: 'roblox', label: 'Roblox League', icon: '🎮' },
+    { id: 'nabb', label: 'NABB', icon: '⚾' },
     { id: 'members', label: 'Member Pages', icon: '👥' },
   ];
 

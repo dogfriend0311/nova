@@ -15,13 +15,50 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = (username, password) => {
+    // Admin login
     if (username === 'x0afterhoursx0' && password === 'Chiefsfan87') {
-      const userData = { username, isAdmin: true };
+      const userData = { username, role: 'admin', isAdmin: true };
       setUser(userData);
       localStorage.setItem('nova_user', JSON.stringify(userData));
       return { success: true };
     }
+
+    // Check if user exists in localStorage (mock database)
+    const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
+    const foundUser = users.find(u => u.username === username && u.password === password);
+    
+    if (foundUser) {
+      const userData = { 
+        username: foundUser.username, 
+        role: foundUser.role || 'member',
+        isAdmin: false 
+      };
+      setUser(userData);
+      localStorage.setItem('nova_user', JSON.stringify(userData));
+      return { success: true };
+    }
+
     return { success: false, error: 'Invalid credentials' };
+  };
+
+  const signup = (username, password, email) => {
+    // Check if user already exists
+    const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
+    if (users.find(u => u.username === username)) {
+      return { success: false, error: 'Username already exists' };
+    }
+
+    // Create new user with member role
+    const newUser = { username, password, email, role: 'member' };
+    users.push(newUser);
+    localStorage.setItem('nova_users', JSON.stringify(users));
+
+    // Auto-login after signup
+    const userData = { username, role: 'member', isAdmin: false };
+    setUser(userData);
+    localStorage.setItem('nova_user', JSON.stringify(userData));
+
+    return { success: true };
   };
 
   const logout = () => {
@@ -29,10 +66,19 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('nova_user');
   };
 
-  const isAdmin = user?.isAdmin || false;
+  const updateUserRole = (targetUsername, newRole) => {
+    const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
+    const userIndex = users.findIndex(u => u.username === targetUsername);
+    if (userIndex !== -1) {
+      users[userIndex].role = newRole;
+      localStorage.setItem('nova_users', JSON.stringify(users));
+      return { success: true };
+    }
+    return { success: false, error: 'User not found' };
+  };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAdmin, loading }}>
+    <AuthContext.Provider value={{ user, login, signup, logout, updateUserRole, loading }}>
       {children}
     </AuthContext.Provider>
   );
