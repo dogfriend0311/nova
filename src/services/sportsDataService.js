@@ -23,16 +23,19 @@ const apiFetch = async (url) => {
   return r.json();
 };
 
-export const fetchScoreboard = (sport) =>
+export const fetchScoreboard  = (sport) =>
   apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/scoreboard`);
 
-export const fetchStandings = (sport) => {
+export const fetchStandings   = (sport) => {
   const qs = LEVEL3_SPORTS.includes(sport) ? '?level=3' : '';
   return apiFetch(`${ESPN_V2}/${SPORT_PATHS[sport]}/standings${qs}`);
 };
 
-export const fetchNews = (sport) =>
+export const fetchNews        = (sport) =>
   apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/news?limit=12`);
+
+export const fetchTeamRoster  = (sport, teamId) =>
+  apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/teams/${teamId}/roster`);
 
 /* ── Normalizers ─────────────────────────────────────────────── */
 
@@ -44,12 +47,15 @@ export function normalizeGame(event) {
   const status = comp.status?.type;
 
   const mkTeam = (c) => ({
-    abbr:      c?.team?.abbreviation || '?',
-    name:      c?.team?.displayName  || '?',
-    shortName: c?.team?.shortDisplayName || c?.team?.abbreviation || '?',
-    logo:      c?.team?.logo         || null,
-    score:     c?.score              || null,
-    record:    c?.records?.[0]?.summary || null,
+    id:        c?.team?.id                  || null,
+    abbr:      c?.team?.abbreviation        || '?',
+    name:      c?.team?.displayName         || '?',
+    shortName: c?.team?.shortDisplayName    || c?.team?.abbreviation || '?',
+    logo:      c?.team?.logo                || null,
+    color:     c?.team?.color               || null,
+    altColor:  c?.team?.alternateColor      || null,
+    score:     c?.score                     || null,
+    record:    c?.records?.[0]?.summary     || null,
   });
 
   return {
@@ -68,19 +74,22 @@ function normalizeEntries(entries) {
     .map((e) => {
       const gs = (name) => e.stats?.find((s) => s.name === name);
       return {
-        team:   e.team?.abbreviation || '?',
-        name:   e.team?.displayName  || '?',
-        logo:   e.team?.logos?.[0]?.href || e.team?.logo || null,
-        wins:   +(gs('wins')?.value    ?? 0),
-        losses: +(gs('losses')?.value  ?? 0),
-        pct:    gs('winPercent')?.displayValue || '.000',
-        gb:     gs('gamesBehind')?.displayValue || '—',
-        streak: gs('streak')?.displayValue      || '—',
-        record: gs('overall')?.displayValue     || null,
-        home:   gs('Home')?.displayValue        || null,
-        away:   gs('Road')?.displayValue        || null,
-        pts:    gs('points')?.value             ?? null,
-        otl:    gs('otLosses')?.value           ?? null,
+        id:       e.team?.id                 || null,
+        team:     e.team?.abbreviation       || '?',
+        name:     e.team?.displayName        || '?',
+        logo:     e.team?.logos?.[0]?.href   || e.team?.logo || null,
+        color:    e.team?.color              || null,
+        altColor: e.team?.alternateColor     || null,
+        wins:     +(gs('wins')?.value    ?? 0),
+        losses:   +(gs('losses')?.value  ?? 0),
+        pct:      gs('winPercent')?.displayValue || '.000',
+        gb:       gs('gamesBehind')?.displayValue || '—',
+        streak:   gs('streak')?.displayValue      || '—',
+        record:   gs('overall')?.displayValue     || null,
+        home:     gs('Home')?.displayValue        || null,
+        away:     gs('Road')?.displayValue        || null,
+        pts:      gs('points')?.value             ?? null,
+        otl:      gs('otLosses')?.value           ?? null,
       };
     })
     .sort((a, b) => b.wins - a.wins);

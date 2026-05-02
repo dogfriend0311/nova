@@ -503,3 +503,233 @@
   .sh-table-header,
   .sh-table-row { grid-template-columns: 1fr 36px 36px; }
 }
+
+/* ── Roster hint ── */
+.sh-roster-hint {
+  font-size: 0.76rem;
+  color: rgba(192, 208, 255, 0.3);
+  margin: 0 0 14px;
+  letter-spacing: 0.02em;
+}
+
+/* ── Clickable rows ── */
+.sh-row-clickable {
+  cursor: pointer;
+}
+
+.sh-row-clickable:hover {
+  background: rgba(100, 150, 255, 0.1) !important;
+}
+
+.sh-team-row.clickable {
+  cursor: pointer;
+}
+
+.sh-team-row.clickable:hover .sh-team-abbr { color: #ffffff; }
+.sh-team-row.clickable:hover .sh-team-name  { color: rgba(255,255,255,0.7); }
+
+/* ── Roster page ── */
+.sh-roster-page {
+  margin-top: 16px;
+}
+
+/* ── Roster banner ── */
+.sh-roster-banner {
+  border-radius: 14px;
+  padding: 20px 24px 22px;
+  margin-bottom: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sh-roster-back {
+  align-self: flex-start;
+  background: transparent;
+  border: 1px solid rgba(100,120,200,0.3);
+  border-radius: 8px;
+  color: rgba(192,208,255,0.55);
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: 'Space Mono', monospace;
+  letter-spacing: 0.04em;
+}
+
+.sh-roster-back:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+.sh-roster-identity {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.sh-roster-big-logo {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 16px rgba(0,0,0,0.5));
+  flex-shrink: 0;
+}
+
+.sh-roster-logo-ph {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  flex-shrink: 0;
+}
+
+.sh-roster-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.sh-roster-team-name {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 900;
+  letter-spacing: 1px;
+  line-height: 1;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.4);
+}
+
+.sh-roster-record {
+  font-size: 0.88rem;
+  color: rgba(192, 208, 255, 0.5);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+/* ── Position groups ── */
+.sh-roster-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.sh-roster-group {}
+
+.sh-roster-pos-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin: 0 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(100,120,200,0.15);
+}
+
+.sh-roster-pos-count {
+  border-radius: 20px;
+  padding: 1px 8px;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+/* ── Player grid ── */
+.sh-player-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+  gap: 10px;
+}
+
+/* ── Player card ── */
+.sh-player-card {
+  border-radius: 10px;
+  border: 1px solid rgba(100,120,200,0.15);
+  padding: 12px 12px 10px;
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+  transition: transform 0.12s, border-color 0.12s;
+}
+
+.sh-player-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(100,150,255,0.35);
+}
+
+/* ── Photo ── */
+.sh-player-photo-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.sh-player-headshot {
+  width: 52px;
+  height: 52px;
+  border-radius: 8px;
+  object-fit: cover;
+  object-position: top center;
+  display: block;
+  background: rgba(20,20,50,0.6);
+}
+
+.sh-player-ph {
+  width: 52px;
+  height: 52px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.sh-player-jersey {
+  position: absolute;
+  bottom: -5px;
+  right: -5px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 4px;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* ── Player details ── */
+.sh-player-details {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.sh-player-name {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: rgba(192, 208, 255, 0.9);
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  word-break: break-word;
+}
+
+.sh-player-pos-age {
+  font-size: 0.7rem;
+  color: rgba(192, 208, 255, 0.4);
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .sh-roster-team-name { font-size: 1.4rem; }
+  .sh-roster-big-logo  { width: 54px; height: 54px; }
+  .sh-player-grid      { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+}
