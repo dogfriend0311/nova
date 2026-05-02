@@ -6,6 +6,7 @@ import Hub from './components/pages/Hub';
 import MemberPages from './components/pages/MemberPages';
 import MemberProfile from './components/pages/MemberProfile';
 import NABBLeague from './NABBLeague';
+import NABBRosters from './components/pages/NABBRosters';
 import LeaguePlayerPage from './LeaguePlayerPage';
 import Login from './components/auth/Login';
 import OwnerDashboard from './components/admin/OwnerDashboard';
@@ -45,6 +46,8 @@ const AppContent = () => {
         return <MemberPages />;
       case 'profile':
         return <MemberProfile />;
+      case 'nabb-rosters':
+        return <NABBRosters />;
       case 'player':
         return <LeaguePlayerPage />;
       default:

@@ -152,6 +152,26 @@
   gap: 15px;
 }
 
+.badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-pending {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+}
+
+.badge-active {
+  background: rgba(0, 255, 0, 0.2);
+  color: #00ff00;
+}
+
 @media (max-width: 1024px) {
   .dashboard-header {
     flex-direction: column;

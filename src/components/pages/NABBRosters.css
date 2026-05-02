@@ -1,0 +1,62 @@
+.nabb-rosters {
+  width: 100%;
+}
+
+.rosters-container {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 30px;
+  margin-top: 30px;
+}
+
+.teams-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: fit-content;
+}
+
+.teams-selector .neon-card {
+  padding: 15px;
+}
+
+.roster-display {
+  min-height: 400px;
+}
+
+.roster-display table {
+  margin-top: 20px;
+}
+
+.roster-display th,
+.roster-display td {
+  padding: 12px;
+  text-align: left;
+}
+
+@media (max-width: 1024px) {
+  .rosters-container {
+    grid-template-columns: 1fr;
+  }
+
+  .teams-selector {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .rosters-container {
+    gap: 20px;
+  }
+
+  .roster-display table {
+    font-size: 0.85rem;
+  }
+
+  .roster-display th,
+  .roster-display td {
+    padding: 8px;
+  }
+}

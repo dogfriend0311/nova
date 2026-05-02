@@ -667,6 +667,9 @@ const NABBGamesTab = () => {
   const [teams] = useState(
     JSON.parse(localStorage.getItem('nabb_teams') || '[]')
   );
+  const [players] = useState(
+    JSON.parse(localStorage.getItem('nabb_players') || '[]')
+  );
   const [newGame, setNewGame] = useState({
     home_team: '',
     away_team: '',
@@ -674,14 +677,40 @@ const NABBGamesTab = () => {
     home_score: 0,
     away_score: 0
   });
+  const [editingGame, setEditingGame] = useState(null);
+  const [editFormData, setEditFormData] = useState({});
 
   const addGame = () => {
-    if (newGame.home_team && newGame.away_team) {
-      const updated = [...games, { id: Date.now().toString(), ...newGame, status: 'scheduled' }];
+    if (newGame.home_team && newGame.away_team && newGame.home_team !== newGame.away_team) {
+      const updated = [...games, { 
+        id: Date.now().toString(), 
+        ...newGame, 
+        status: 'scheduled',
+        home_team_logo: teams.find(t => t.team_name === newGame.home_team)?.logo_url || '',
+        away_team_logo: teams.find(t => t.team_name === newGame.away_team)?.logo_url || '',
+        home_team_color: teams.find(t => t.team_name === newGame.home_team)?.team_color || '#00ffff',
+        away_team_color: teams.find(t => t.team_name === newGame.away_team)?.team_color || '#00ffff'
+      }];
       setGames(updated);
       localStorage.setItem('nabb_games', JSON.stringify(updated));
       setNewGame({ home_team: '', away_team: '', game_date: '', home_score: 0, away_score: 0 });
     }
+  };
+
+  const updateGame = () => {
+    const updated = games.map(g => 
+      g.id === editingGame.id ? { ...g, ...editFormData } : g
+    );
+    setGames(updated);
+    localStorage.setItem('nabb_games', JSON.stringify(updated));
+    setEditingGame(null);
+    setEditFormData({});
+  };
+
+  const deleteGame = (id) => {
+    const updated = games.filter(g => g.id !== id);
+    setGames(updated);
+    localStorage.setItem('nabb_games', JSON.stringify(updated));
   };
 
   return (
@@ -729,19 +758,123 @@ const NABBGamesTab = () => {
         </div>
       </div>
 
+      {editingGame && (
+        <div className="neon-card p-3" style={{ marginBottom: '30px' }}>
+          <h3 className="gradient-text-magenta">Edit Game</h3>
+          <div className="edit-form">
+            <div className="form-field">
+              <label>Home Score</label>
+              <input
+                type="number"
+                value={editFormData.home_score || 0}
+                onChange={(e) => setEditFormData({...editFormData, home_score: parseInt(e.target.value)})}
+                style={{ padding: '10px', background: 'rgba(0, 255, 255, 0.05)', border: '1px solid rgba(0, 255, 255, 0.2)', color: '#c0d0ff', borderRadius: '4px' }}
+              />
+            </div>
+
+            <div className="form-field">
+              <label>Away Score</label>
+              <input
+                type="number"
+                value={editFormData.away_score || 0}
+                onChange={(e) => setEditFormData({...editFormData, away_score: parseInt(e.target.value)})}
+                style={{ padding: '10px', background: 'rgba(0, 255, 255, 0.05)', border: '1px solid rgba(0, 255, 255, 0.2)', color: '#c0d0ff', borderRadius: '4px' }}
+              />
+            </div>
+
+            <div className="form-field">
+              <label>Status</label>
+              <select
+                value={editFormData.status || 'scheduled'}
+                onChange={(e) => setEditFormData({...editFormData, status: e.target.value})}
+                style={{ padding: '10px', background: 'rgba(0, 255, 255, 0.05)', border: '1px solid rgba(0, 255, 255, 0.2)', color: '#c0d0ff', borderRadius: '4px' }}
+              >
+                <option value="scheduled">Scheduled</option>
+                <option value="live">Live</option>
+                <option value="final">Final</option>
+              </select>
+            </div>
+
+            <div className="form-actions">
+              <button className="neon-button" onClick={updateGame}>Save Changes</button>
+              <button className="neon-button" onClick={() => setEditingGame(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="games-list">
         {games.map(game => (
           <div key={game.id} className="neon-card p-3" style={{ marginBottom: '15px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <p style={{ margin: '0 0 5px 0', color: 'var(--color-cyan)' }}>
-                  <strong>{game.home_team}</strong> vs <strong>{game.away_team}</strong>
-                </p>
-                <p style={{ margin: '0', fontSize: '0.9rem', color: 'rgba(192, 208, 255, 0.6)' }}>
-                  {new Date(game.game_date).toLocaleDateString()} {new Date(game.game_date).toLocaleTimeString()}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr auto 1fr',
+              gap: '20px',
+              alignItems: 'center'
+            }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '10px' }}>
+                  {game.home_team_logo && (
+                    <img src={game.home_team_logo} alt={game.home_team} style={{ width: '40px', height: '40px', borderRadius: '50%' }} />
+                  )}
+                  {!game.home_team_logo && (
+                    <div style={{ width: '40px', height: '40px', background: game.home_team_color, borderRadius: '50%' }} />
+                  )}
+                </div>
+                <p style={{ margin: '0', color: 'var(--color-cyan)', fontWeight: '600' }}>{game.home_team}</p>
+                <p style={{ margin: '5px 0 0 0', fontSize: '1.5rem', color: 'var(--color-cyan)', fontWeight: '700' }}>{game.home_score}</p>
+              </div>
+
+              <div style={{ textAlign: 'center', minWidth: '150px' }}>
+                <span className="badge badge-pending">{game.status}</span>
+                <p style={{ margin: '10px 0 0 0', fontSize: '0.85rem', color: 'rgba(192, 208, 255, 0.7)' }}>
+                  {new Date(game.game_date).toLocaleDateString()}
                 </p>
               </div>
-              <span className="badge badge-pending">{game.status}</span>
+
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '10px' }}>
+                  {game.away_team_logo && (
+                    <img src={game.away_team_logo} alt={game.away_team} style={{ width: '40px', height: '40px', borderRadius: '50%' }} />
+                  )}
+                  {!game.away_team_logo && (
+                    <div style={{ width: '40px', height: '40px', background: game.away_team_color, borderRadius: '50%' }} />
+                  )}
+                </div>
+                <p style={{ margin: '0', color: 'var(--color-magenta)', fontWeight: '600' }}>{game.away_team}</p>
+                <p style={{ margin: '5px 0 0 0', fontSize: '1.5rem', color: 'var(--color-magenta)', fontWeight: '700' }}>{game.away_score}</p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+              <button
+                className="neon-button"
+                style={{ flex: 1, fontSize: '0.85rem' }}
+                onClick={() => {
+                  setEditingGame(game);
+                  setEditFormData({
+                    home_score: game.home_score,
+                    away_score: game.away_score,
+                    status: game.status
+                  });
+                }}
+              >
+                Edit Score
+              </button>
+              <button
+                className="neon-button"
+                style={{ flex: 1, fontSize: '0.85rem' }}
+                onClick={() => {}}
+              >
+                Box Score
+              </button>
+              <button
+                className="neon-button"
+                style={{ flex: 1, fontSize: '0.85rem', borderColor: '#ff3333', color: '#ff3333' }}
+                onClick={() => deleteGame(game.id)}
+              >
+                Delete
+              </button>
             </div>
           </div>
         ))}
@@ -752,13 +885,230 @@ const NABBGamesTab = () => {
 
 // NABB BOX SCORES TAB
 const NABBBoxScoresTab = () => {
+  const [games] = useState(
+    JSON.parse(localStorage.getItem('nabb_games') || '[]')
+  );
+  const [players] = useState(
+    JSON.parse(localStorage.getItem('nabb_players') || '[]')
+  );
+  const [boxScores, setBoxScores] = useState(
+    JSON.parse(localStorage.getItem('nabb_box_scores') || '[]')
+  );
+  const [selectedGame, setSelectedGame] = useState(null);
+  const [editingScore, setEditingScore] = useState(null);
+  const [editFormData, setEditFormData] = useState({});
+
+  const gameBoxScore = selectedGame 
+    ? boxScores.filter(b => b.game_id === selectedGame.id)
+    : [];
+
+  const homeTeamScores = gameBoxScore.filter(b => {
+    const player = players.find(p => p.id === b.player_id);
+    return player && player.team === selectedGame?.home_team;
+  });
+
+  const awayTeamScores = gameBoxScore.filter(b => {
+    const player = players.find(p => p.id === b.player_id);
+    return player && player.team === selectedGame?.away_team;
+  });
+
+  const handleSaveScore = () => {
+    let updated = boxScores.filter(b => b.id !== editingScore.id);
+    updated = [...updated, { ...editingScore, ...editFormData }];
+    setBoxScores(updated);
+    localStorage.setItem('nabb_box_scores', JSON.stringify(updated));
+    setEditingScore(null);
+    setEditFormData({});
+  };
+
+  const addPlayerScore = (playerId, teamName) => {
+    const newScore = {
+      id: Date.now().toString(),
+      game_id: selectedGame.id,
+      player_id: playerId,
+      team: teamName,
+      hits: 0,
+      runs: 0,
+      rbis: 0,
+      home_runs: 0,
+      strike_outs: 0,
+      strikeouts_pitched: 0,
+      hits_allowed: 0,
+      earned_runs: 0,
+      innings_pitched: 0
+    };
+    const updated = [...boxScores, newScore];
+    setBoxScores(updated);
+    localStorage.setItem('nabb_box_scores', JSON.stringify(updated));
+  };
+
+  if (!selectedGame) {
+    return (
+      <div className="tab-content">
+        <h2 className="gradient-text-cyan">NABB Box Scores</h2>
+        <div style={{ marginTop: '20px' }}>
+          {games.filter(g => g.status === 'final' || g.status === 'live').map(game => (
+            <div key={game.id} className="neon-card p-3" style={{ marginBottom: '15px', cursor: 'pointer' }} onClick={() => setSelectedGame(game)}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <p style={{ margin: '0 0 5px 0', color: 'var(--color-cyan)' }}>
+                    <strong>{game.home_team}</strong> {game.home_score} - {game.away_score} <strong>{game.away_team}</strong>
+                  </p>
+                  <p style={{ margin: '0', fontSize: '0.85rem', color: 'rgba(192, 208, 255, 0.6)' }}>
+                    {new Date(game.game_date).toLocaleDateString()}
+                  </p>
+                </div>
+                <span className="badge badge-active">{game.status}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="tab-content">
-      <h2 className="gradient-text-cyan">NABB Box Scores</h2>
-      <div className="neon-card p-3" style={{ marginTop: '20px' }}>
-        <p style={{ color: 'rgba(192, 208, 255, 0.7)' }}>
-          Box scores will be generated automatically when games are created and scores are updated.
-        </p>
+      <button className="neon-button" onClick={() => setSelectedGame(null)} style={{ marginBottom: '20px' }}>
+        ← Back to Games
+      </button>
+
+      <h2 className="gradient-text-cyan">
+        {selectedGame.home_team} vs {selectedGame.away_team}
+      </h2>
+
+      {editingScore && (
+        <div className="neon-card p-3" style={{ marginBottom: '30px' }}>
+          <h3 className="gradient-text-magenta">Edit Player Stats</h3>
+          <div className="edit-form">
+            <div className="form-field">
+              <label>Hits</label>
+              <input type="number" value={editFormData.hits || 0} onChange={(e) => setEditFormData({...editFormData, hits: parseInt(e.target.value)})} min="0" />
+            </div>
+            <div className="form-field">
+              <label>Runs</label>
+              <input type="number" value={editFormData.runs || 0} onChange={(e) => setEditFormData({...editFormData, runs: parseInt(e.target.value)})} min="0" />
+            </div>
+            <div className="form-field">
+              <label>RBIs</label>
+              <input type="number" value={editFormData.rbis || 0} onChange={(e) => setEditFormData({...editFormData, rbis: parseInt(e.target.value)})} min="0" />
+            </div>
+            <div className="form-field">
+              <label>Home Runs</label>
+              <input type="number" value={editFormData.home_runs || 0} onChange={(e) => setEditFormData({...editFormData, home_runs: parseInt(e.target.value)})} min="0" />
+            </div>
+            <div className="form-field">
+              <label>Strike Outs (Batting)</label>
+              <input type="number" value={editFormData.strike_outs || 0} onChange={(e) => setEditFormData({...editFormData, strike_outs: parseInt(e.target.value)})} min="0" />
+            </div>
+            <div className="form-actions">
+              <button className="neon-button" onClick={handleSaveScore}>Save</button>
+              <button className="neon-button" onClick={() => setEditingScore(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="neon-card p-3" style={{ marginBottom: '30px' }}>
+        <h3 className="gradient-text-cyan">{selectedGame.home_team} ({homeTeamScores.length})</h3>
+        <table style={{ width: '100%', marginTop: '15px', fontSize: '0.85rem' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid rgba(0, 255, 255, 0.2)' }}>
+              <th style={{ textAlign: 'left', padding: '8px', color: 'var(--color-cyan)' }}>Player</th>
+              <th style={{ textAlign: 'center', padding: '8px', color: 'var(--color-cyan)' }}>H</th>
+              <th style={{ textAlign: 'center', padding: '8px', color: 'var(--color-cyan)' }}>R</th>
+              <th style={{ textAlign: 'center', padding: '8px', color: 'var(--color-cyan)' }}>RBI</th>
+              <th style={{ textAlign: 'center', padding: '8px', color: 'var(--color-cyan)' }}>HR</th>
+              <th style={{ textAlign: 'center', padding: '8px', color: 'var(--color-cyan)' }}>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {homeTeamScores.map(score => {
+              const player = players.find(p => p.id === score.player_id);
+              return (
+                <tr key={score.id} style={{ borderBottom: '1px solid rgba(0, 255, 255, 0.1)' }}>
+                  <td style={{ padding: '8px' }}>{player?.player_name}</td>
+                  <td style={{ textAlign: 'center', padding: '8px' }}>{score.hits}</td>
+                  <td style={{ textAlign: 'center', padding: '8px' }}>{score.runs}</td>
+                  <td style={{ textAlign: 'center', padding: '8px' }}>{score.rbis}</td>
+                  <td style={{ textAlign: 'center', padding: '8px' }}>{score.home_runs}</td>
+                  <td style={{ textAlign: 'center', padding: '8px' }}>
+                    <button
+                      onClick={() => { setEditingScore(score); setEditFormData(score); }}
+                      style={{ background: 'none', border: 'none', color: 'var(--color-cyan)', cursor: 'pointer', fontSize: '0.9rem' }}
+                    >
+                      ✏️
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        <div style={{ marginTop: '15px' }}>
+          <label style={{ fontSize: '0.8rem', color: 'rgba(192, 208, 255, 0.7)' }}>Add Player</label>
+          <select
+            onChange={(e) => { if (e.target.value) { addPlayerScore(e.target.value, selectedGame.home_team); e.target.value = ''; } }}
+            style={{ width: '100%', padding: '8px', background: 'rgba(0, 255, 255, 0.05)', border: '1px solid rgba(0, 255, 255, 0.2)', color: '#c0d0ff', borderRadius: '4px', marginTop: '5px' }}
+          >
+            <option value="">Select player</option>
+            {players.filter(p => p.team === selectedGame.home_team && !homeTeamScores.find(s => s.player_id === p.id)).map(p => (
+              <option key={p.id} value={p.id}>{p.player_name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="neon-card p-3">
+        <h3 className="gradient-text-magenta">{selectedGame.away_team} ({awayTeamScores.length})</h3>
+        <table style={{ width: '100%', marginTop: '15px', fontSize: '0.85rem' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid rgba(255, 0, 255, 0.2)' }}>
+              <th style={{ textAlign: 'left', padding: '8px', color: 'var(--color-magenta)' }}>Player</th>
+              <th style={{ textAlign: 'center', padding: '8px', color: 'var(--color-magenta)' }}>H</th>
+              <th style={{ textAlign: 'center', padding: '8px', color: 'var(--color-magenta)' }}>R</th>
+              <th style={{ textAlign: 'center', padding: '8px', color: 'var(--color-magenta)' }}>RBI</th>
+              <th style={{ textAlign: 'center', padding: '8px', color: 'var(--color-magenta)' }}>HR</th>
+              <th style={{ textAlign: 'center', padding: '8px', color: 'var(--color-magenta)' }}>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {awayTeamScores.map(score => {
+              const player = players.find(p => p.id === score.player_id);
+              return (
+                <tr key={score.id} style={{ borderBottom: '1px solid rgba(255, 0, 255, 0.1)' }}>
+                  <td style={{ padding: '8px' }}>{player?.player_name}</td>
+                  <td style={{ textAlign: 'center', padding: '8px' }}>{score.hits}</td>
+                  <td style={{ textAlign: 'center', padding: '8px' }}>{score.runs}</td>
+                  <td style={{ textAlign: 'center', padding: '8px' }}>{score.rbis}</td>
+                  <td style={{ textAlign: 'center', padding: '8px' }}>{score.home_runs}</td>
+                  <td style={{ textAlign: 'center', padding: '8px' }}>
+                    <button
+                      onClick={() => { setEditingScore(score); setEditFormData(score); }}
+                      style={{ background: 'none', border: 'none', color: 'var(--color-magenta)', cursor: 'pointer', fontSize: '0.9rem' }}
+                    >
+                      ✏️
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        <div style={{ marginTop: '15px' }}>
+          <label style={{ fontSize: '0.8rem', color: 'rgba(192, 208, 255, 0.7)' }}>Add Player</label>
+          <select
+            onChange={(e) => { if (e.target.value) { addPlayerScore(e.target.value, selectedGame.away_team); e.target.value = ''; } }}
+            style={{ width: '100%', padding: '8px', background: 'rgba(255, 0, 255, 0.05)', border: '1px solid rgba(255, 0, 255, 0.2)', color: '#c0d0ff', borderRadius: '4px', marginTop: '5px' }}
+          >
+            <option value="">Select player</option>
+            {players.filter(p => p.team === selectedGame.away_team && !awayTeamScores.find(s => s.player_id === p.id)).map(p => (
+              <option key={p.id} value={p.id}>{p.player_name}</option>
+            ))}
+          </select>
+        </div>
       </div>
     </div>
   );
@@ -766,51 +1116,230 @@ const NABBBoxScoresTab = () => {
 
 // NABB GAME FEED TAB
 const NABBGameFeedTab = () => {
+  const [games] = useState(
+    JSON.parse(localStorage.getItem('nabb_games') || '[]')
+  );
+  const [teams] = useState(
+    JSON.parse(localStorage.getItem('nabb_teams') || '[]')
+  );
+  const [players] = useState(
+    JSON.parse(localStorage.getItem('nabb_players') || '[]')
+  );
   const [feed, setFeed] = useState(
     JSON.parse(localStorage.getItem('nabb_feed') || '[]')
   );
-  const [newFeed, setNewFeed] = useState({ event: '' });
+  const [selectedGame, setSelectedGame] = useState(null);
+  const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const [selectedEvent, setSelectedEvent] = useState('');
 
-  const addFeedItem = () => {
-    if (newFeed.event) {
-      const updated = [...feed, { id: Date.now().toString(), ...newFeed, timestamp: new Date().toISOString() }];
+  const liveGame = selectedGame 
+    ? games.find(g => g.id === selectedGame.id)
+    : null;
+
+  const homeTeamPlayers = selectedGame
+    ? players.filter(p => p.team === selectedGame.home_team)
+    : [];
+
+  const awayTeamPlayers = selectedGame
+    ? players.filter(p => p.team === selectedGame.away_team)
+    : [];
+
+  const eventTypes = [
+    'Single',
+    'Double',
+    'Triple',
+    'Home Run',
+    'Strike Out',
+    'Walk',
+    'Hit by Pitch',
+    "Fielder's Choice",
+    'Error',
+    'Stolen Base',
+    'Caught Stealing',
+    'Double Play',
+    'Pitching Change',
+    'Pinch Hitter',
+    'Scoring Play'
+  ];
+
+  const handleLogEvent = () => {
+    if (selectedPlayer && selectedEvent) {
+      const player = players.find(p => p.id === selectedPlayer);
+      const newEvent = {
+        id: Date.now().toString(),
+        game_id: selectedGame.id,
+        player_id: selectedPlayer,
+        player_name: player?.player_name,
+        team: player?.team,
+        event_type: selectedEvent,
+        timestamp: new Date().toISOString()
+      };
+      const updated = [...feed, newEvent];
       setFeed(updated);
       localStorage.setItem('nabb_feed', JSON.stringify(updated));
-      setNewFeed({ event: '' });
+      setSelectedPlayer(null);
+      setSelectedEvent('');
     }
   };
 
+  const gameFeed = selectedGame
+    ? feed.filter(f => f.game_id === selectedGame.id)
+    : [];
+
+  if (!selectedGame) {
+    return (
+      <div className="tab-content">
+        <h2 className="gradient-text-cyan">NABB Game Feed</h2>
+        <p style={{ color: 'rgba(192, 208, 255, 0.7)', marginTop: '10px' }}>Select a game to log events</p>
+        <div style={{ marginTop: '20px' }}>
+          {games.filter(g => g.status === 'live' || g.status === 'final').map(game => (
+            <div key={game.id} className="neon-card p-3" style={{ marginBottom: '15px', cursor: 'pointer' }} onClick={() => setSelectedGame(game)}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <p style={{ margin: '0 0 5px 0', color: 'var(--color-cyan)' }}>
+                    <strong>{game.home_team}</strong> {game.home_score} - {game.away_score} <strong>{game.away_team}</strong>
+                  </p>
+                </div>
+                <span className="badge badge-pending">{game.status}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="tab-content">
-      <h2 className="gradient-text-cyan">NABB Game Feed</h2>
+      <button className="neon-button" onClick={() => setSelectedGame(null)} style={{ marginBottom: '20px' }}>
+        ← Back to Games
+      </button>
 
-      <div className="neon-card p-3" style={{ marginTop: '20px', marginBottom: '30px' }}>
-        <h3 className="gradient-text-magenta">Post Update</h3>
-        <div className="edit-form">
-          <div className="form-field">
-            <label>Event/Update</label>
-            <textarea
-              value={newFeed.event}
-              onChange={(e) => setNewFeed({...newFeed, event: e.target.value})}
-              placeholder="What's happening in the league?"
-              rows="3"
-              style={{ padding: '10px', background: 'rgba(0, 255, 255, 0.05)', border: '1px solid rgba(0, 255, 255, 0.2)', color: '#c0d0ff', borderRadius: '4px' }}
-            />
+      <h2 className="gradient-text-cyan">
+        {liveGame.home_team} vs {liveGame.away_team}
+      </h2>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginTop: '20px' }}>
+        <div className="neon-card p-3">
+          <h4 className="gradient-text-cyan">{liveGame.home_team}</h4>
+          <div style={{ marginTop: '15px', maxHeight: '300px', overflowY: 'auto' }}>
+            {homeTeamPlayers.map(player => (
+              <button
+                key={player.id}
+                onClick={() => setSelectedPlayer(player.id)}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  background: selectedPlayer === player.id ? 'rgba(0, 255, 255, 0.2)' : 'rgba(0, 255, 255, 0.05)',
+                  border: selectedPlayer === player.id ? '2px solid var(--color-cyan)' : '1px solid rgba(0, 255, 255, 0.2)',
+                  color: '#c0d0ff',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  marginBottom: '8px',
+                  textAlign: 'left',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                {player.player_name}
+              </button>
+            ))}
           </div>
+        </div>
 
-          <button className="neon-button" onClick={addFeedItem}>Post Update</button>
+        <div className="neon-card p-3">
+          <h4 className="gradient-text-magenta">{liveGame.away_team}</h4>
+          <div style={{ marginTop: '15px', maxHeight: '300px', overflowY: 'auto' }}>
+            {awayTeamPlayers.map(player => (
+              <button
+                key={player.id}
+                onClick={() => setSelectedPlayer(player.id)}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  background: selectedPlayer === player.id ? 'rgba(255, 0, 255, 0.2)' : 'rgba(255, 0, 255, 0.05)',
+                  border: selectedPlayer === player.id ? '2px solid var(--color-magenta)' : '1px solid rgba(255, 0, 255, 0.2)',
+                  color: '#c0d0ff',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  marginBottom: '8px',
+                  textAlign: 'left',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                {player.player_name}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="feed-list">
-        {feed.map(item => (
-          <div key={item.id} className="neon-card p-3" style={{ marginBottom: '15px' }}>
-            <p style={{ margin: '0 0 10px 0', color: '#c0d0ff' }}>{item.event}</p>
-            <p style={{ margin: '0', fontSize: '0.85rem', color: 'rgba(192, 208, 255, 0.5)' }}>
-              {new Date(item.timestamp).toLocaleString()}
-            </p>
+      <div className="neon-card p-3" style={{ marginTop: '20px', marginBottom: '20px' }}>
+        <h4 className="gradient-text-magenta">Log Event</h4>
+        <div style={{ marginTop: '15px' }}>
+          <label style={{ fontSize: '0.8rem', color: 'rgba(192, 208, 255, 0.7)', display: 'block', marginBottom: '8px' }}>
+            {selectedPlayer ? `Selected Player: ${players.find(p => p.id === selectedPlayer)?.player_name}` : 'Select a player first'}
+          </label>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '8px' }}>
+            {eventTypes.map(event => (
+              <button
+                key={event}
+                onClick={() => setSelectedEvent(event)}
+                style={{
+                  padding: '10px',
+                  background: selectedEvent === event ? 'rgba(0, 255, 255, 0.2)' : 'rgba(0, 255, 255, 0.05)',
+                  border: selectedEvent === event ? '2px solid var(--color-cyan)' : '1px solid rgba(0, 255, 255, 0.2)',
+                  color: selectedEvent === event ? 'var(--color-cyan)' : 'rgba(192, 208, 255, 0.7)',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
+                  fontWeight: '600',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                {event}
+              </button>
+            ))}
           </div>
-        ))}
+
+          <button 
+            className="neon-button" 
+            onClick={handleLogEvent}
+            disabled={!selectedPlayer || !selectedEvent}
+            style={{ marginTop: '15px', width: '100%' }}
+          >
+            Log Event
+          </button>
+        </div>
+      </div>
+
+      <div className="neon-card p-3">
+        <h4 className="gradient-text-cyan">Live Feed</h4>
+        <div style={{ marginTop: '15px', maxHeight: '400px', overflowY: 'auto' }}>
+          {gameFeed.length === 0 ? (
+            <p style={{ color: 'rgba(192, 208, 255, 0.6)' }}>No events logged yet</p>
+          ) : (
+            gameFeed.map(event => (
+              <div key={event.id} style={{
+                padding: '12px',
+                background: 'rgba(0, 255, 255, 0.05)',
+                border: '1px solid rgba(0, 255, 255, 0.1)',
+                borderRadius: '4px',
+                marginBottom: '10px'
+              }}>
+                <p style={{ margin: '0', color: 'var(--color-cyan)', fontWeight: '600' }}>
+                  {event.player_name}
+                </p>
+                <p style={{ margin: '5px 0 0 0', color: 'rgba(192, 208, 255, 0.8)' }}>
+                  {event.event_type}
+                </p>
+                <p style={{ margin: '3px 0 0 0', fontSize: '0.8rem', color: 'rgba(192, 208, 255, 0.5)' }}>
+                  {new Date(event.timestamp).toLocaleTimeString()}
+                </p>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );

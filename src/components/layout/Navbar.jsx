@@ -6,6 +6,7 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, user }) => {
     { id: 'home', label: 'Home Page', icon: '🏠' },
     { id: 'hub', label: 'Hub', icon: '🌐' },
     { id: 'nabb', label: 'NABB', icon: '⚾' },
+    { id: 'nabb-rosters', label: 'Rosters', icon: '👥' },
     { id: 'members', label: 'Member Pages', icon: '👥' },
   ];
 
