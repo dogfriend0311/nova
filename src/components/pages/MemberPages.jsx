@@ -1,306 +1,235 @@
 import React, { useEffect, useState } from 'react';
-import { supabaseHelpers } from '../../services/supabaseClient';
 import './Pages.css';
 
+const roleLabel = (role) => {
+  const map = { owner: 'Owner', cofounder: 'Co-Founder', mod: 'Moderator', nabb_helper: 'NABB Helper', member: 'Member' };
+  return map[role] || 'Member';
+};
+
+const roleBadgeStyle = (role) => {
+  const styles = {
+    owner: { background: 'rgba(255,215,0,0.15)', border: '1px solid rgba(255,215,0,0.4)', color: '#ffd700' },
+    cofounder: { background: 'rgba(255,100,0,0.15)', border: '1px solid rgba(255,100,0,0.4)', color: '#ff6400' },
+    mod: { background: 'rgba(0,200,100,0.15)', border: '1px solid rgba(0,200,100,0.4)', color: '#00c864' },
+    nabb_helper: { background: 'rgba(150,0,255,0.15)', border: '1px solid rgba(150,0,255,0.4)', color: '#9600ff' },
+  };
+  return styles[role] || { background: 'rgba(0,255,255,0.1)', border: '1px solid rgba(0,255,255,0.3)', color: 'var(--color-cyan)' };
+};
+
 const MemberPages = () => {
-  const [activeTab, setActiveTab] = useState('directory');
   const [members, setMembers] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [selectedMember, setSelectedMember] = useState(null);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
-    fetchMembers();
+    const profiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
+    const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
+
+    const merged = profiles.map(profile => {
+      const user = users.find(u => u.username === profile.username);
+      return { ...profile, role: user?.role || 'member' };
+    });
+
+    setMembers(merged);
   }, []);
 
-  const fetchMembers = async () => {
-    setLoading(true);
-    const { data, error } = await supabaseHelpers.getMembers(50);
-    if (!error && data) {
-      setMembers(data);
-    } else {
-      // Fallback mock data
-      setMembers(
-        Array(20)
-          .fill(0)
-          .map((_, i) => ({
-            id: i + 1,
-            username: `Player_${i + 1}`,
-            level: Math.floor(Math.random() * 100),
-            clips_count: Math.floor(Math.random() * 50),
-          }))
-      );
-    }
-    setLoading(false);
-  };
+  if (selectedMember) {
+    return <MemberProfileView member={selectedMember} onBack={() => setSelectedMember(null)} />;
+  }
 
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'directory':
-        return <DirectoryTab members={members} onSelectMember={setSelectedMember} />;
-      case 'profile':
-        return selectedMember ? (
-          <ProfileTab member={selectedMember} />
-        ) : (
-          <div className="empty-state">
-            <div className="empty-state-icon">👤</div>
-            <div className="empty-state-title">Select a Member</div>
-            <div className="empty-state-message">
-              Click on a member to view their profile
-            </div>
-          </div>
-        );
-      case 'clips':
-        return <ClipsTab />;
-      case 'music':
-        return <MusicTab />;
-      default:
-        return null;
-    }
-  };
+  const filtered = members.filter(m =>
+    m.username?.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div className="page members-page">
       <div className="page-header">
         <h1 className="gradient-text">Member Pages</h1>
-        <p className="subtitle">Explore member profiles, clips, and favorite songs</p>
+        <p className="subtitle">Explore member profiles across Nova</p>
       </div>
 
-      {/* Tabs */}
-      <div className="tabs">
-        <button
-          className={`tab ${activeTab === 'directory' ? 'active' : ''}`}
-          onClick={() => setActiveTab('directory')}
-        >
-          📚 Member Directory
-        </button>
-        <button
-          className={`tab ${activeTab === 'profile' ? 'active' : ''}`}
-          onClick={() => setActiveTab('profile')}
-        >
-          👤 Profile
-        </button>
-        <button
-          className={`tab ${activeTab === 'clips' ? 'active' : ''}`}
-          onClick={() => setActiveTab('clips')}
-        >
-          🎬 Gaming Clips
-        </button>
-        <button
-          className={`tab ${activeTab === 'music' ? 'active' : ''}`}
-          onClick={() => setActiveTab('music')}
-        >
-          🎵 Favorite Songs
-        </button>
+      <div style={{ marginBottom: '20px' }}>
+        <input
+          type="text"
+          placeholder="Search members..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{ width: '100%', maxWidth: '400px' }}
+        />
       </div>
 
-      {/* Content */}
-      {loading ? (
-        <div className="loading">
-          <div className="loading-spinner"></div>
+      {filtered.length === 0 ? (
+        <div className="neon-card p-3" style={{ textAlign: 'center' }}>
+          <p style={{ color: 'rgba(192,208,255,0.5)' }}>
+            {members.length === 0 ? 'No member profiles yet' : 'No members match your search'}
+          </p>
         </div>
       ) : (
-        renderTabContent()
+        <div className="card-grid">
+          {filtered.map((member, i) => (
+            <div
+              key={i}
+              className="neon-card"
+              style={{ cursor: 'pointer', overflow: 'hidden' }}
+              onClick={() => setSelectedMember(member)}
+            >
+              {/* Mini banner */}
+              <div style={{
+                height: '70px',
+                background: member.top_banner_url
+                  ? `url(${member.top_banner_url}) center/cover`
+                  : 'linear-gradient(135deg, #0d1b2e 0%, #001a2e 50%, #0d1229 100%)',
+                position: 'relative'
+              }} />
+
+              <div style={{ padding: '0 16px 16px', position: 'relative' }}>
+                {/* Avatar overlapping banner */}
+                <div style={{
+                  width: '60px', height: '60px', borderRadius: '50%',
+                  background: 'linear-gradient(135deg, var(--color-cyan), var(--color-magenta))',
+                  border: '4px solid #1a1d2e', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', fontSize: '26px', marginTop: '-30px',
+                  overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,255,255,0.2)'
+                }}>
+                  {member.avatar_url ? <img src={member.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🚀'}
+                </div>
+
+                <div style={{ marginTop: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <h4 style={{ margin: 0, color: '#fff', fontSize: '1rem' }}>{member.username}</h4>
+                    <span style={{
+                      ...roleBadgeStyle(member.role),
+                      padding: '2px 8px', borderRadius: '10px', fontSize: '0.68rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.4px'
+                    }}>{roleLabel(member.role)}</span>
+                  </div>
+
+                  {member.bio && (
+                    <p style={{ margin: '8px 0 0 0', color: 'rgba(192,208,255,0.65)', fontSize: '0.85rem', lineHeight: 1.4,
+                      overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                      {member.bio}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
 };
 
-const DirectoryTab = ({ members, onSelectMember }) => {
-  const [searchTerm, setSearchTerm] = useState('');
+const MemberProfileView = ({ member, onBack }) => {
+  const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
+  const userRecord = users.find(u => u.username === member.username);
+  const role = userRecord?.role || member.role || 'member';
 
-  const filteredMembers = members.filter((m) =>
-    m.username?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const onlineData = JSON.parse(localStorage.getItem('nova_online') || '{}');
+  const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+  const isOnline = onlineData[member.username] > fiveMinAgo;
+
+  const socials = [
+    { key: 'twitter_url', label: 'Twitter', icon: '🐦' },
+    { key: 'twitch_url', label: 'Twitch', icon: '🎮' },
+    { key: 'youtube_url', label: 'YouTube', icon: '▶️' },
+    { key: 'instagram_url', label: 'Instagram', icon: '📸' },
+  ].filter(s => member[s.key]);
 
   return (
-    <div className="card-container">
-      <div style={{ marginBottom: '20px' }}>
-        <input
-          type="text"
-          placeholder="Search members..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ width: '100%', maxWidth: '400px' }}
-        />
-      </div>
+    <div className="page" style={{ maxWidth: '680px', margin: '0 auto' }}>
+      <button className="neon-button" style={{ marginBottom: '20px', fontSize: '0.9rem' }} onClick={onBack}>
+        ← Back to Members
+      </button>
 
-      <div className="card-grid">
-        {filteredMembers.map((member) => (
-          <div
-            key={member.id}
-            className="neon-card p-3"
-            onClick={() => onSelectMember(member)}
-            style={{ cursor: 'pointer' }}
-          >
-            <div
-              style={{
-                width: '60px',
-                height: '60px',
-                background: 'linear-gradient(135deg, var(--color-cyan), var(--color-magenta))',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '30px',
-                margin: '0 auto 15px',
-              }}
-            >
-              🚀
-            </div>
-            <h4 className="gradient-text-cyan text-center">{member.username}</h4>
-            <div className="mt-2">
-              <div className="data-row">
-                <span className="data-label">Level</span>
-                <span className="data-value">{member.level}</span>
-              </div>
-              <div className="data-row">
-                <span className="data-label">Clips</span>
-                <span className="data-value">{member.clips_count}</span>
-              </div>
-            </div>
-            <button className="neon-button" style={{ width: '100%', marginTop: '15px' }}>
-              View Profile
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
+      {/* Banner */}
+      <div style={{
+        width: '100%', height: '200px', borderRadius: '12px 12px 0 0',
+        background: member.top_banner_url
+          ? `url(${member.top_banner_url}) center/cover`
+          : 'linear-gradient(135deg, #0d1b2e 0%, #001a2e 50%, #0d1229 100%)'
+      }} />
 
-const ProfileTab = ({ member }) => {
-  return (
-    <div className="card-container">
-      <div className="neon-card p-3">
-        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-          <div
-            style={{
-              width: '120px',
-              height: '120px',
-              background: 'linear-gradient(135deg, var(--color-cyan), var(--color-magenta))',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '60px',
-              margin: '0 auto 20px',
-            }}
-          >
-            🚀
-          </div>
-          <h2 className="gradient-text">{member.username}</h2>
-          <p style={{ color: 'var(--color-cyan)', marginTop: '10px' }}>Member since 2024</p>
+      {/* Card */}
+      <div style={{
+        background: '#1a1d2e', border: '1px solid rgba(0,255,255,0.12)', borderTop: 'none',
+        borderRadius: '0 0 12px 12px', padding: '60px 20px 24px 20px', position: 'relative'
+      }}>
+        {/* Avatar */}
+        <div style={{
+          width: '90px', height: '90px', borderRadius: '50%',
+          background: 'linear-gradient(135deg, var(--color-cyan), var(--color-magenta))',
+          border: '5px solid #1a1d2e', display: 'flex', alignItems: 'center',
+          justifyContent: 'center', fontSize: '40px', position: 'absolute',
+          top: '-45px', left: '20px', overflow: 'hidden',
+          boxShadow: '0 4px 20px rgba(0,255,255,0.25)'
+        }}>
+          {member.avatar_url ? <img src={member.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🚀'}
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="neon-card p-2">
-            <div className="data-row">
-              <span className="data-label">Level</span>
-              <span className="data-value">{member.level}</span>
-            </div>
-            <div className="data-row">
-              <span className="data-label">XP</span>
-              <span className="data-value">12,500</span>
-            </div>
-          </div>
-
-          <div className="neon-card p-2">
-            <div className="data-row">
-              <span className="data-label">Followers</span>
-              <span className="data-value">234</span>
-            </div>
-            <div className="data-row">
-              <span className="data-label">Following</span>
-              <span className="data-value">89</span>
-            </div>
-          </div>
-
-          <div className="neon-card p-2">
-            <div className="data-row">
-              <span className="data-label">Clips</span>
-              <span className="data-value">{member.clips_count}</span>
-            </div>
-            <div className="data-row">
-              <span className="data-label">Likes</span>
-              <span className="data-value">1,234</span>
-            </div>
-          </div>
-
-          <div className="neon-card p-2">
-            <div className="data-row">
-              <span className="data-label">Playlists</span>
-              <span className="data-value">5</span>
-            </div>
-            <div className="data-row">
-              <span className="data-label">Songs</span>
-              <span className="data-value">127</span>
-            </div>
-          </div>
+        {/* Online indicator */}
+        <div style={{ position: 'absolute', top: '12px', right: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{
+            width: '9px', height: '9px', borderRadius: '50%',
+            background: isOnline ? '#00ff00' : 'rgba(192,208,255,0.3)',
+            boxShadow: isOnline ? '0 0 8px rgba(0,255,0,0.6)' : 'none',
+            display: 'inline-block'
+          }} />
+          <span style={{ color: 'rgba(192,208,255,0.5)', fontSize: '0.8rem' }}>{isOnline ? 'Online' : 'Offline'}</span>
         </div>
 
-        <div style={{ marginTop: '20px', textAlign: 'center' }}>
-          <button className="neon-button">Follow Member</button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const ClipsTab = () => {
-  return (
-    <div className="card-grid">
-      {[1, 2, 3, 4, 5, 6].map((i) => (
-        <div key={i} className="neon-card p-3">
-          <div
-            style={{
-              width: '100%',
-              height: '150px',
-              background: 'linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(255, 0, 255, 0.1))',
-              borderRadius: '4px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '48px',
-              marginBottom: '10px',
-            }}
-          >
-            🎬
+        {/* Username + role */}
+        <div style={{ marginTop: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '4px' }}>
+            <h2 style={{ margin: 0, color: '#fff', fontSize: '1.4rem', fontWeight: '700' }}>{member.username}</h2>
+            <span style={{
+              ...roleBadgeStyle(role),
+              padding: '3px 10px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px'
+            }}>{roleLabel(role)}</span>
           </div>
-          <h4 className="gradient-text-cyan">Epic Gaming Moment #{i}</h4>
-          <div className="mt-2" style={{ fontSize: '0.9rem', color: 'rgba(192, 208, 255, 0.7)' }}>
-            {Math.floor(Math.random() * 50000)} views • {Math.floor(Math.random() * 1000)} likes
-          </div>
+          {member.discord_tag && (
+            <p style={{ color: 'rgba(192,208,255,0.4)', fontSize: '0.85rem', margin: '0 0 4px 0' }}>{member.discord_tag}</p>
+          )}
         </div>
-      ))}
-    </div>
-  );
-};
 
-const MusicTab = () => {
-  return (
-    <div className="card-container">
-      <div className="neon-card p-3">
-        <h3 className="gradient-text-magenta">Favorite Songs</h3>
-        <div className="list-items mt-2">
-          {[
-            { name: 'Cosmic Chill', artist: 'Space Beats' },
-            { name: 'Neon Dreams', artist: 'Synth Wave' },
-            { name: 'Digital Sky', artist: 'Electronic Vibes' },
-            { name: 'Stellar Journey', artist: 'Ambient Space' },
-            { name: 'Cyber Midnight', artist: 'Darkwave' },
-          ].map((song, i) => (
-            <div key={i} className="list-item">
-              <div className="list-item-icon">🎵</div>
-              <div className="list-item-content">
-                <div className="list-item-label">{song.name}</div>
-                <div className="list-item-description">{song.artist}</div>
-              </div>
-              <button className="neon-button" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>
-                ▶ Play
-              </button>
+        {/* About Me */}
+        {member.bio && (
+          <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: '8px', padding: '14px 16px', marginTop: '14px' }}>
+            <div style={{ fontSize: '0.72rem', fontWeight: '700', color: 'rgba(192,208,255,0.45)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>About Me</div>
+            <p style={{ margin: 0, color: 'rgba(192,208,255,0.9)', fontSize: '0.95rem', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{member.bio}</p>
+          </div>
+        )}
+
+        {/* Spotify */}
+        {member.spotify_url && (
+          <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: '8px', padding: '14px 16px', marginTop: '14px' }}>
+            <div style={{ fontSize: '0.72rem', fontWeight: '700', color: 'rgba(192,208,255,0.45)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>🎵 Listening To</div>
+            <iframe title="Spotify" src={member.spotify_url} width="100%" height="90" frameBorder="0"
+              allow="autoplay; clipboard-write; encrypted-media" style={{ borderRadius: '8px' }} />
+          </div>
+        )}
+
+        {/* Connections */}
+        {socials.length > 0 && (
+          <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: '8px', padding: '14px 16px', marginTop: '14px' }}>
+            <div style={{ fontSize: '0.72rem', fontWeight: '700', color: 'rgba(192,208,255,0.45)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>Connections</div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {socials.map(s => (
+                <a key={s.key} href={member[s.key]} target="_blank" rel="noreferrer"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px',
+                    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '6px', color: 'rgba(192,208,255,0.85)', fontSize: '0.85rem',
+                    textDecoration: 'none', fontFamily: "'Space Mono', monospace", transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,255,255,0.1)'; e.currentTarget.style.color = 'var(--color-cyan)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'rgba(192,208,255,0.85)'; }}
+                >
+                  {s.icon} {s.label}
+                </a>
+              ))}
             </div>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -14,22 +14,31 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
+  // Online heartbeat: update every 30s while logged in
+  useEffect(() => {
+    if (!user || user.role === 'guest') return;
+
+    const updateOnline = () => {
+      const online = JSON.parse(localStorage.getItem('nova_online') || '{}');
+      online[user.username] = Date.now();
+      localStorage.setItem('nova_online', JSON.stringify(online));
+    };
+
+    updateOnline();
+    const interval = setInterval(updateOnline, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
+
   const login = (username, password) => {
-    // Admin login
     if (username === 'x0afterhoursx0' && password === 'Chiefsfan87') {
-      const userData = { 
-        username, 
-        role: 'owner',
-        email: 'admin@nova.com'
-      };
+      const userData = { username, role: 'owner' };
       setUser(userData);
       localStorage.setItem('nova_user', JSON.stringify(userData));
-      
-      // Create owner member profile if doesn't exist
+
       const memberProfiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
       if (!memberProfiles.find(p => p.username === username)) {
         memberProfiles.push({
-          username: username,
+          username,
           bio: 'Nova Owner',
           top_banner_url: '',
           left_banner_url: '',
@@ -42,20 +51,15 @@ export const AuthProvider = ({ children }) => {
         });
         localStorage.setItem('member_profiles', JSON.stringify(memberProfiles));
       }
-      
+
       return { success: true };
     }
 
-    // Check users
     const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
     const foundUser = users.find(u => u.username === username && u.password === password);
-    
+
     if (foundUser) {
-      const userData = { 
-        username: foundUser.username, 
-        role: foundUser.role || 'member',
-        email: foundUser.email
-      };
+      const userData = { username: foundUser.username, role: foundUser.role || 'member' };
       setUser(userData);
       localStorage.setItem('nova_user', JSON.stringify(userData));
       return { success: true };
@@ -65,22 +69,21 @@ export const AuthProvider = ({ children }) => {
   };
 
   const loginAsGuest = () => {
-    const userData = { username: 'Guest', role: 'guest', email: null };
+    const userData = { username: 'Guest', role: 'guest' };
     setUser(userData);
     localStorage.setItem('nova_user', JSON.stringify(userData));
   };
 
-  const signup = (username, password, email) => {
+  const signup = (username, password) => {
     const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
     if (users.find(u => u.username === username)) {
       return { success: false, error: 'Username already exists' };
     }
 
-    const newUser = { username, password, email, role: 'member' };
+    const newUser = { username, password, role: 'member' };
     users.push(newUser);
     localStorage.setItem('nova_users', JSON.stringify(users));
 
-    // Create member profile
     const memberProfiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
     memberProfiles.push({
       username,
@@ -96,7 +99,7 @@ export const AuthProvider = ({ children }) => {
     });
     localStorage.setItem('member_profiles', JSON.stringify(memberProfiles));
 
-    const userData = { username, role: 'member', email };
+    const userData = { username, role: 'member' };
     setUser(userData);
     localStorage.setItem('nova_user', JSON.stringify(userData));
 
@@ -104,6 +107,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    if (user && user.role !== 'guest') {
+      const online = JSON.parse(localStorage.getItem('nova_online') || '{}');
+      delete online[user.username];
+      localStorage.setItem('nova_online', JSON.stringify(online));
+    }
     setUser(null);
     localStorage.removeItem('nova_user');
   };
@@ -121,7 +129,6 @@ export const AuthProvider = ({ children }) => {
 
   const hasPermission = (requiredRole) => {
     if (!user) return false;
-    
     const permissions = {
       owner: ['owner', 'cofounder', 'mod', 'nabb_helper', 'member'],
       cofounder: ['cofounder', 'mod', 'nabb_helper', 'member'],
@@ -130,21 +137,20 @@ export const AuthProvider = ({ children }) => {
       member: ['member'],
       guest: []
     };
-
     const userPerms = permissions[user.role] || [];
     return userPerms.includes(requiredRole);
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      login, 
+    <AuthContext.Provider value={{
+      user,
+      login,
       loginAsGuest,
-      signup, 
-      logout, 
-      updateUserRole, 
+      signup,
+      logout,
+      updateUserRole,
       hasPermission,
-      loading 
+      loading
     }}>
       {children}
     </AuthContext.Provider>
@@ -153,8 +159,6 @@ export const AuthProvider = ({ children }) => {
 
 export const useAuth = () => {
   const context = React.useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 };

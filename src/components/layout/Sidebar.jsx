@@ -1,8 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './Sidebar.css';
 
 const Sidebar = ({ currentPage, onNavigate }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [stats, setStats] = useState({ members: 0, online: 0, clips: 0 });
+  const [onlineMembers, setOnlineMembers] = useState([]);
+
+  useEffect(() => {
+    const refresh = () => {
+      const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
+      const memberCount = users.length + 1;
+
+      const onlineData = JSON.parse(localStorage.getItem('nova_online') || '{}');
+      const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+      const online = Object.entries(onlineData)
+        .filter(([, ts]) => ts > fiveMinAgo)
+        .map(([username]) => username);
+
+      const clips = JSON.parse(localStorage.getItem('nova_clips') || '[]');
+
+      setStats({ members: memberCount, online: online.length, clips: clips.length });
+      setOnlineMembers(online);
+    };
+
+    refresh();
+    const interval = setInterval(refresh, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   const quickLinks = [
     { id: 'nabb', label: 'NABB League', icon: '⚾' },
@@ -13,7 +37,6 @@ const Sidebar = ({ currentPage, onNavigate }) => {
 
   return (
     <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
-      {/* Toggle Button */}
       <button
         className="sidebar-toggle"
         onClick={() => setIsCollapsed(!isCollapsed)}
@@ -22,7 +45,6 @@ const Sidebar = ({ currentPage, onNavigate }) => {
         {isCollapsed ? '→' : '←'}
       </button>
 
-      {/* Quick Links */}
       <div className="sidebar-section">
         {!isCollapsed && <h3>Quick Links</h3>}
         <div className="quick-links">
@@ -40,21 +62,27 @@ const Sidebar = ({ currentPage, onNavigate }) => {
         </div>
       </div>
 
-      {/* Online Members */}
       <div className="sidebar-section">
         {!isCollapsed && <h3>Online Members</h3>}
         <div className="online-members">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="member-indicator" title={`Member ${i}`}>
-              <div className="member-avatar">🚀</div>
-              {!isCollapsed && <span className="member-name">Member {i}</span>}
-              <div className="online-status"></div>
-            </div>
-          ))}
+          {onlineMembers.length === 0 ? (
+            !isCollapsed && (
+              <p style={{ fontSize: '0.8rem', color: 'rgba(192,208,255,0.4)', padding: '4px 0' }}>
+                No one online
+              </p>
+            )
+          ) : (
+            onlineMembers.map((username) => (
+              <div key={username} className="member-indicator" title={username}>
+                <div className="member-avatar">🚀</div>
+                {!isCollapsed && <span className="member-name">{username}</span>}
+                <div className="online-status"></div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
-      {/* Current Stats */}
       <div className="sidebar-section">
         {!isCollapsed && <h3>Stats</h3>}
         <div className="stats">
@@ -63,7 +91,7 @@ const Sidebar = ({ currentPage, onNavigate }) => {
             {!isCollapsed && (
               <>
                 <span className="stat-label">Members</span>
-                <span className="stat-value">1,234</span>
+                <span className="stat-value">{stats.members}</span>
               </>
             )}
           </div>
@@ -72,7 +100,7 @@ const Sidebar = ({ currentPage, onNavigate }) => {
             {!isCollapsed && (
               <>
                 <span className="stat-label">Online</span>
-                <span className="stat-value">42</span>
+                <span className="stat-value">{stats.online}</span>
               </>
             )}
           </div>
@@ -81,7 +109,7 @@ const Sidebar = ({ currentPage, onNavigate }) => {
             {!isCollapsed && (
               <>
                 <span className="stat-label">Clips</span>
-                <span className="stat-value">567</span>
+                <span className="stat-value">{stats.clips}</span>
               </>
             )}
           </div>

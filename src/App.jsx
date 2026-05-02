@@ -22,18 +22,16 @@ const AppContent = () => {
   const { user } = useAuth();
   const [currentPage, setCurrentPage] = useState('home');
   const [showDashboard, setShowDashboard] = useState(false);
+  const [selectedLeaguePlayer, setSelectedLeaguePlayer] = useState(null);
 
-  // If not logged in, show login
-  if (!user) {
-    return <Login />;
-  }
+  if (!user) return <Login />;
+  if (showDashboard) return <OwnerDashboard onExit={() => setShowDashboard(false)} />;
 
-  // If viewing dashboard, show it
-  if (showDashboard) {
-    return <OwnerDashboard onExit={() => setShowDashboard(false)} />;
-  }
+  const handleSelectPlayer = (player) => {
+    setSelectedLeaguePlayer(player);
+    setCurrentPage('player');
+  };
 
-  // Otherwise show regular website
   const renderPage = () => {
     switch (currentPage) {
       case 'home':
@@ -41,7 +39,7 @@ const AppContent = () => {
       case 'hub':
         return <Hub />;
       case 'nabb':
-        return <NABBLeague />;
+        return <NABBLeague onSelectPlayer={handleSelectPlayer} />;
       case 'members':
         return <MemberPages />;
       case 'profile':
@@ -49,15 +47,15 @@ const AppContent = () => {
       case 'nabb-rosters':
         return <NABBRosters />;
       case 'player':
-        return <LeaguePlayerPage />;
+        return <LeaguePlayerPage player={selectedLeaguePlayer} onBack={() => setCurrentPage('nabb')} />;
       default:
         return <Home />;
     }
   };
 
   return (
-    <Layout 
-      currentPage={currentPage} 
+    <Layout
+      currentPage={currentPage}
       onPageChange={setCurrentPage}
       onDashboard={() => setShowDashboard(true)}
       user={user}
@@ -67,12 +65,10 @@ const AppContent = () => {
   );
 };
 
-const App = () => {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
-  );
-};
+const App = () => (
+  <AuthProvider>
+    <AppContent />
+  </AuthProvider>
+);
 
 export default App;
