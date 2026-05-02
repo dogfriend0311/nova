@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/layout/Layout';
 import Home from './components/pages/Home';
-import Hub from './components/pages/Hub';
 import SportsHub from './components/pages/SportsHub';
+import WatchList from './components/pages/WatchList';
 import MemberPages from './components/pages/MemberPages';
 import MemberProfile from './components/pages/MemberProfile';
 import NABBLeague from './NABBLeague';
@@ -39,24 +39,15 @@ const AppContent = () => {
 
   const renderPage = () => {
     switch (currentPage) {
-      case 'home':
-        return <Home />;
-      case 'hub':
-        return <Hub />;
-      case 'sports':
-        return <SportsHub />;
-      case 'nabb':
-        return <NABBLeague onSelectPlayer={handleSelectPlayer} />;
-      case 'members':
-        return <MemberPages />;
-      case 'profile':
-        return <MemberProfile />;
-      case 'nabb-rosters':
-        return <NABBRosters />;
-      case 'player':
-        return <LeaguePlayerPage player={selectedLeaguePlayer} onBack={() => setCurrentPage('nabb')} />;
-      default:
-        return <Home />;
+      case 'home':     return <Home />;
+      case 'sports':   return <SportsHub />;
+      case 'watchlist':return <WatchList />;
+      case 'nabb':     return <NABBLeague onSelectPlayer={handleSelectPlayer} />;
+      case 'members':  return <MemberPages />;
+      case 'profile':  return <MemberProfile />;
+      case 'nabb-rosters': return <NABBRosters />;
+      case 'player':   return <LeaguePlayerPage player={selectedLeaguePlayer} onBack={() => setCurrentPage('nabb')} />;
+      default:         return <Home />;
     }
   };
 

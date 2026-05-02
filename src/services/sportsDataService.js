@@ -10,6 +10,13 @@ export const SPORT_PATHS = {
   cbb: 'baseball/college-baseball',
 };
 
+const LEVEL3_SPORTS = ['mlb', 'nfl', 'nba', 'nhl'];
+
+const DIV_LABELS = {
+  ALE: 'AL East', ALC: 'AL Central', ALW: 'AL West',
+  NLE: 'NL East', NLC: 'NL Central', NLW: 'NL West',
+};
+
 const apiFetch = async (url) => {
   const r = await fetch(url);
   if (!r.ok) throw new Error(`HTTP_${r.status}`);
@@ -19,8 +26,10 @@ const apiFetch = async (url) => {
 export const fetchScoreboard = (sport) =>
   apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/scoreboard`);
 
-export const fetchStandings = (sport) =>
-  apiFetch(`${ESPN_V2}/${SPORT_PATHS[sport]}/standings`);
+export const fetchStandings = (sport) => {
+  const qs = LEVEL3_SPORTS.includes(sport) ? '?level=3' : '';
+  return apiFetch(`${ESPN_V2}/${SPORT_PATHS[sport]}/standings${qs}`);
+};
 
 export const fetchNews = (sport) =>
   apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/news?limit=12`);
@@ -83,14 +92,17 @@ export function normalizeStandings(data) {
   for (const top of data.children) {
     if (top.children?.length) {
       for (const sub of top.children) {
+        const label = DIV_LABELS[sub.abbreviation]
+          || sub.name
+          || `${top.abbreviation} ${sub.abbreviation}`;
         result.push({
-          label:   `${top.abbreviation} — ${sub.abbreviation || sub.name}`,
+          label,
           entries: normalizeEntries(sub.standings?.entries),
         });
       }
     } else if (top.standings?.entries) {
       result.push({
-        label:   top.abbreviation || top.name,
+        label:   DIV_LABELS[top.abbreviation] || top.abbreviation || top.name,
         entries: normalizeEntries(top.standings.entries),
       });
     }

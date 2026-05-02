@@ -212,3 +212,159 @@
   .discord-avatar { width: 74px; height: 74px; font-size: 32px; top: -37px; }
   .discord-username { font-size: 1.1rem; }
 }
+
+/* ── Edit page section tabs ──────────────────────────────── */
+.mp-edit-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid rgba(100, 120, 200, 0.18);
+  padding-bottom: 12px;
+}
+
+/* ── Favorite Teams Selector ─────────────────────────────── */
+.mp-team-selector { display: flex; flex-direction: column; gap: 14px; }
+
+.mp-sport-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mp-sport-tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px;
+  background: rgba(15, 15, 40, 0.85);
+  border: 1px solid rgba(100, 120, 200, 0.22);
+  border-radius: 8px;
+  color: rgba(192, 208, 255, 0.5);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.02em;
+}
+
+.mp-sport-tab:hover { border-color: rgba(100, 200, 255, 0.4); color: rgba(192, 208, 255, 0.88); }
+.mp-sport-tab.active { border-color: #00c8ff; color: #00c8ff; background: rgba(0, 200, 255, 0.07); }
+
+.mp-sport-count {
+  background: #00c8ff;
+  color: #000;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  font-size: 0.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+.mp-team-division { margin-bottom: 10px; }
+
+.mp-div-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(192, 208, 255, 0.35);
+  margin-bottom: 6px;
+}
+
+.mp-team-row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.mp-team-btn {
+  padding: 5px 11px;
+  background: rgba(15, 15, 40, 0.7);
+  border: 1px solid rgba(100, 120, 200, 0.22);
+  border-radius: 7px;
+  color: rgba(192, 208, 255, 0.55);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.04em;
+}
+
+.mp-team-btn:hover { border-color: rgba(100, 200, 255, 0.4); color: rgba(192, 208, 255, 0.9); }
+.mp-team-btn.selected { background: rgba(0, 200, 255, 0.1); border-color: #00c8ff; color: #00c8ff; }
+
+/* ── Fav teams display ──────────────────────────────────── */
+.mp-fav-sport-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 7px;
+}
+
+.mp-fav-sport-label {
+  font-size: 0.72rem;
+  color: rgba(192, 208, 255, 0.38);
+  min-width: 60px;
+  flex-shrink: 0;
+}
+
+.mp-fav-teams { display: flex; gap: 5px; flex-wrap: wrap; }
+
+.mp-fav-team-badge {
+  padding: 2px 9px;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  background: rgba(0, 200, 255, 0.08);
+  border: 1px solid rgba(0, 200, 255, 0.3);
+  color: #00c8ff;
+  letter-spacing: 0.04em;
+}
+
+/* ── Watch list preview (own profile) ───────────────────── */
+.mp-wl-stats {
+  display: flex;
+  gap: 14px;
+  font-size: 0.82rem;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.mp-wl-stat { display: flex; align-items: center; gap: 4px; color: rgba(192, 208, 255, 0.7); }
+
+.mp-pinned-grid { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+
+.mp-pinned-card {
+  width: 52px;
+  height: 74px;
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+  background: rgba(20, 20, 50, 0.8);
+  border: 1px solid rgba(100, 120, 200, 0.25);
+  flex-shrink: 0;
+}
+
+.mp-pinned-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.mp-pinned-ph {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  opacity: 0.5;
+}
+
+.mp-pinned-rating {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fbbf24;
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 1px 3px;
+  border-radius: 3px;
+}
