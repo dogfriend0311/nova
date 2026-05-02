@@ -131,6 +131,7 @@ const LeaguePlayerPage = ({ playerId }) => {
               <div className="card-spotify">
                 <div className="spotify-label">🎵 Favorite Song</div>
                 <iframe
+                  title="Spotify player"
                   src={`https://open.spotify.com/embed?utm_source=generator`}
                   width="100%"
                   height="90"
