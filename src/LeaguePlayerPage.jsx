@@ -156,8 +156,11 @@ const LeaguePlayerPage = ({ player, onBack }) => {
     { label: 'ER/9',  value: cIP > 0 ? fmt((cER / cIP) * 9) : '—' },
   ];
 
-  const avatarSrc = player.roblox_id
+  const robloxImgUrl = player.roblox_id
     ? `https://www.roblox.com/headshot-thumbnail/image?userId=${player.roblox_id}&width=420&height=420&format=png`
+    : null;
+  const avatarSrc = robloxImgUrl
+    ? `https://wsrv.nl/?url=${encodeURIComponent(robloxImgUrl)}&w=420&h=420&fit=cover`
     : null;
 
   return (
