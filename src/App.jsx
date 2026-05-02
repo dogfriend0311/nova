@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/layout/Layout';
 import Home from './components/pages/Home';
 import Hub from './components/pages/Hub';
+import SportsHub from './components/pages/SportsHub';
 import MemberPages from './components/pages/MemberPages';
 import MemberProfile from './components/pages/MemberProfile';
 import NABBLeague from './NABBLeague';
@@ -42,6 +43,8 @@ const AppContent = () => {
         return <Home />;
       case 'hub':
         return <Hub />;
+      case 'sports':
+        return <SportsHub />;
       case 'nabb':
         return <NABBLeague onSelectPlayer={handleSelectPlayer} />;
       case 'members':

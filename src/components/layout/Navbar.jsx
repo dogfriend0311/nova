@@ -3,9 +3,10 @@ import './Navbar.css';
 
 const Navbar = ({ currentPage, onPageChange, onDashboard, user }) => {
   const tabs = [
-    { id: 'home', label: 'Home Page', icon: '🏠' },
-    { id: 'hub', label: 'Hub', icon: '🌐' },
-    { id: 'nabb', label: 'NABB', icon: '⚾' },
+    { id: 'home',    label: 'Home Page',    icon: '🏠' },
+    { id: 'hub',     label: 'Hub',          icon: '🌐' },
+    { id: 'sports',  label: 'Sports',       icon: '🏆' },
+    { id: 'nabb',    label: 'NABB',         icon: '⚾' },
     { id: 'members', label: 'Member Pages', icon: '👥' },
   ];
 
