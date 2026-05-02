@@ -13,107 +13,72 @@ const fmt = (n, decimals = 2) => isNaN(n) || !isFinite(n) ? '—' : Number(n).to
 
 // ── Savant Card ─────────────────────────────────────────────────────────────
 const SavantCard = ({ player }) => {
-  const allPlayers = JSON.parse(localStorage.getItem('nabb_players') || '[]');
-  const boxScores  = JSON.parse(localStorage.getItem('nabb_box_scores') || '[]');
-
-  const getStats = (p) => {
-    const sc = boxScores.filter(b => b.player_id === p.id);
-    const gp = Math.max(sc.length, 1);
-    const cH   = sc.reduce((s,b) => s + (parseInt(b.hits)||0), 0)               + (parseInt(p.hits)||0);
-    const cR   = sc.reduce((s,b) => s + (parseInt(b.runs)||0), 0)               + (parseInt(p.runs)||0);
-    const cRBI = sc.reduce((s,b) => s + (parseInt(b.rbis)||0), 0)               + (parseInt(p.rbis)||0);
-    const cHR  = sc.reduce((s,b) => s + (parseInt(b.home_runs)||0), 0)          + (parseInt(p.home_runs)||0);
-    const cSO  = sc.reduce((s,b) => s + (parseInt(b.strike_outs)||0), 0)        + (parseInt(p.strike_outs)||0);
-    const cIP  = sc.reduce((s,b) => s + (parseFloat(b.innings_pitched)||0), 0)  + (parseFloat(p.innings_pitched)||0);
-    const cKP  = sc.reduce((s,b) => s + (parseInt(b.strikeouts_pitched)||0), 0) + (parseInt(p.strikeouts_pitched)||0);
-    const cHA  = sc.reduce((s,b) => s + (parseInt(b.hits_allowed)||0), 0)       + (parseInt(p.hits_allowed)||0);
-    const cER  = sc.reduce((s,b) => s + (parseInt(b.earned_runs)||0), 0)        + (parseInt(p.earned_runs)||0);
-    return {
-      hpg:   cH   / gp,
-      rpg:   cR   / gp,
-      rbipg: cRBI / gp,
-      hrpg:  cHR  / gp,
-      sopg:  cSO  / gp,
-      era:   cIP > 0 ? (cER / cIP) * 9 : null,
-      k9:    cIP > 0 ? (cKP / cIP) * 9 : null,
-      ha9:   cIP > 0 ? (cHA / cIP) * 9 : null,
-    };
-  };
-
-  const leagueStats = allPlayers.map(getStats);
-  const my = getStats(player);
-
-  const calcPct = (key, higherBetter) => {
-    const val = my[key];
-    if (val === null || val === undefined || isNaN(val)) return null;
-    const vals = leagueStats.map(s => s[key]).filter(v => v !== null && v !== undefined && !isNaN(v));
-    if (vals.length < 2) return null;
-    const betterCount = higherBetter ? vals.filter(v => v < val).length : vals.filter(v => v > val).length;
-    return Math.round((betterCount / (vals.length - 1)) * 100);
-  };
-
   const pctColor = (p) => {
-    if (p === null) return 'rgba(192,208,255,0.3)';
-    if (p >= 70) return '#00d4f5';
-    if (p >= 30) return '#ffd700';
+    const n = parseFloat(p);
+    if (isNaN(n)) return 'rgba(192,208,255,0.3)';
+    if (n >= 70) return '#00d4f5';
+    if (n >= 30) return '#ffd700';
     return '#ff4d4d';
   };
 
-  const Bar = ({ label, statKey, higherBetter, decimals = 2 }) => {
-    const p   = calcPct(statKey, higherBetter);
-    const val = my[statKey];
-    const display = (val !== null && val !== undefined && !isNaN(val)) ? Number(val).toFixed(decimals) : '—';
+  const Bar = ({ label, value, pct }) => {
+    const p = parseFloat(pct);
+    if (pct === '' || pct === undefined || pct === null || isNaN(p)) return null;
     const color = pctColor(p);
-    const pctWidth = p !== null ? p : 50;
     return (
       <div className="sv-bar-item">
         <div className="sv-bar-header">
           <span className="sv-bar-label">{label}</span>
-          <span className="sv-bar-val" style={{ color }}>{display}</span>
+          <span className="sv-bar-val" style={{ color }}>{value || '—'}</span>
         </div>
         <div className="sv-bar-track">
-          <div className="sv-bar-fill" style={{ width: `${pctWidth}%`, background: color }} />
+          <div className="sv-bar-fill" style={{ width: `${Math.min(Math.max(p, 0), 100)}%`, background: color }} />
         </div>
-        {p !== null && <span className="sv-bar-pct" style={{ color }}>{p}th %ile</span>}
+        <span className="sv-bar-pct" style={{ color }}>{Math.round(p)}th %ile</span>
       </div>
     );
   };
 
-  const hasBatting  = my.hpg > 0 || my.rpg > 0 || my.hrpg > 0;
-  const hasPitching = my.era !== null || my.k9 !== null;
+  const batting = [
+    { label: 'H / Game',   value: player.adv_h_per_game,   pct: player.sv_h_per_game },
+    { label: 'R / Game',   value: player.adv_r_per_game,   pct: player.sv_r_per_game },
+    { label: 'RBI / Game', value: player.adv_rbi_per_game, pct: player.sv_rbi_per_game },
+    { label: 'HR / Game',  value: player.adv_hr_per_game,  pct: player.sv_hr_per_game },
+    { label: 'K / Game',   value: player.adv_k_per_game,   pct: player.sv_k_per_game },
+  ].filter(s => s.pct !== '' && s.pct !== undefined && s.pct !== null);
 
-  if ((!hasBatting && !hasPitching) || allPlayers.length < 2) return null;
+  const pitching = [
+    { label: 'ERA', value: player.adv_era, pct: player.sv_era },
+    { label: 'K/9', value: player.adv_k9,  pct: player.sv_k9 },
+    { label: 'H/9', value: player.adv_h9,  pct: player.sv_h9 },
+  ].filter(s => s.pct !== '' && s.pct !== undefined && s.pct !== null);
+
+  if (batting.length === 0 && pitching.length === 0) return null;
 
   return (
     <div className="savant-card neon-card">
       <div className="sv-header">
         <h3 className="gradient-text-cyan">⭐ Savant Card</h3>
-        <span className="sv-subtitle">Career Percentile Rankings</span>
+        <span className="sv-subtitle">Percentile Rankings</span>
       </div>
       <div className="sv-legend">
         <span style={{ color: '#ff4d4d' }}>● POOR</span>
         <span style={{ color: '#ffd700' }}>● AVERAGE</span>
         <span style={{ color: '#00d4f5' }}>● GREAT</span>
       </div>
-      {hasBatting && (
+      {batting.length > 0 && (
         <>
           <div className="sv-section-label">⚾ Batting</div>
           <div className="sv-bars">
-            <Bar label="H / Game"   statKey="hpg"   higherBetter={true} />
-            <Bar label="R / Game"   statKey="rpg"   higherBetter={true} />
-            <Bar label="RBI / Game" statKey="rbipg" higherBetter={true} />
-            <Bar label="HR / Game"  statKey="hrpg"  higherBetter={true} decimals={3} />
-            <Bar label="K / Game"   statKey="sopg"  higherBetter={false} />
+            {batting.map((s, i) => <Bar key={i} {...s} />)}
           </div>
         </>
       )}
-      {hasPitching && (
+      {pitching.length > 0 && (
         <>
           <div className="sv-section-label">⚡ Pitching</div>
           <div className="sv-bars">
-            <Bar label="ERA"   statKey="era" higherBetter={false} />
-            <Bar label="K/9"   statKey="k9"  higherBetter={true} />
-            <Bar label="HA/9"  statKey="ha9" higherBetter={false} />
+            {pitching.map((s, i) => <Bar key={i} {...s} />)}
           </div>
         </>
       )}
