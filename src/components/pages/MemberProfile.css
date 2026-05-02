@@ -213,6 +213,95 @@
   .discord-username { font-size: 1.1rem; }
 }
 
+/* ── Image upload field ──────────────────────────────────── */
+.mp-image-field { margin-bottom: 6px; }
+
+.mp-image-upload-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.mp-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 14px;
+  background: rgba(0, 200, 255, 0.07);
+  border: 1px solid rgba(0, 200, 255, 0.3);
+  border-radius: 6px;
+  color: #00c8ff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  font-family: 'Space Mono', monospace;
+  flex-shrink: 0;
+}
+
+.mp-upload-btn:hover { background: rgba(0, 200, 255, 0.14); border-color: #00c8ff; }
+
+.mp-upload-clear {
+  background: rgba(255, 60, 60, 0.07);
+  border: 1px solid rgba(255, 60, 60, 0.3);
+  color: #ff6b6b;
+  border-radius: 6px;
+  padding: 8px 11px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.mp-upload-clear:hover { background: rgba(255, 60, 60, 0.15); }
+
+.mp-image-preview-wrap {
+  margin-top: 8px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(100, 120, 200, 0.2);
+  max-height: 100px;
+  max-width: 300px;
+}
+
+.mp-image-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  max-height: 100px;
+}
+
+/* ── Team logo in buttons / badges ───────────────────────── */
+.mp-team-logo {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.mp-badge-logo {
+  width: 15px;
+  height: 15px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.mp-team-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mp-fav-team-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 /* ── Edit page section tabs ──────────────────────────────── */
 .mp-edit-tabs {
   display: flex;

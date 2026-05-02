@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { SPORT_LABELS } from '../../data/teams';
+import { SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl } from '../../data/teams';
 import { getWatchList } from '../../services/mediaService';
 import './Pages.css';
 
@@ -35,21 +35,34 @@ const FavTeams = ({ favTeams }) => {
       {SPORT_KEYS.map((sport) => {
         const picked = favTeams?.[sport] || [];
         if (!picked.length) return null;
+        const hasLogos = ['mlb', 'nfl', 'nba', 'nhl'].includes(sport);
         return (
           <div key={sport} style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '7px' }}>
-            <span style={{ fontSize: '0.72rem', color: 'rgba(192,208,255,0.38)', minWidth: '70px', flexShrink: 0 }}>
-              {SPORT_LABELS[sport].replace(/^[^\s]+ /, '')}
+            <span style={{ fontSize: '0.72rem', color: 'rgba(192,208,255,0.38)', minWidth: '88px', flexShrink: 0 }}>
+              {SPORT_ICONS[sport]} {SPORT_SHORT[sport]}
             </span>
             <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-              {picked.map((abbr) => (
-                <span key={abbr} style={{
-                  padding: '2px 9px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: '800',
-                  background: 'rgba(0,200,255,0.08)', border: '1px solid rgba(0,200,255,0.3)', color: '#00c8ff',
-                  letterSpacing: '0.04em',
-                }}>
-                  {abbr}
-                </span>
-              ))}
+              {picked.map((abbr) => {
+                const logo = hasLogos ? getTeamLogoUrl(sport, abbr) : null;
+                return (
+                  <span key={abbr} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '4px',
+                    padding: '3px 9px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: '800',
+                    background: 'rgba(0,200,255,0.08)', border: '1px solid rgba(0,200,255,0.3)', color: '#00c8ff',
+                    letterSpacing: '0.04em',
+                  }}>
+                    {logo && (
+                      <img
+                        src={logo}
+                        alt=""
+                        style={{ width: 15, height: 15, objectFit: 'contain', flexShrink: 0 }}
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                      />
+                    )}
+                    {abbr}
+                  </span>
+                );
+              })}
             </div>
           </div>
         );
@@ -78,7 +91,6 @@ const WatchPreview = ({ username }) => {
       <div style={{ fontSize: '0.72rem', fontWeight: '700', color: 'rgba(192,208,255,0.45)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
         🎬 Watch List
       </div>
-
       <div style={{ display: 'flex', gap: '14px', fontSize: '0.8rem', marginBottom: '12px', flexWrap: 'wrap' }}>
         <span style={{ color: '#a5d6a7' }}>✓ {watched} watched</span>
         <span style={{ color: '#66bb6a' }}>▶ {watching} watching</span>
@@ -92,8 +104,7 @@ const WatchPreview = ({ username }) => {
             {pinned.slice(0, 6).map((item) => (
               <div key={item.id} style={{
                 width: '52px', height: '74px', borderRadius: '6px', overflow: 'hidden', position: 'relative',
-                background: 'rgba(20,20,50,0.8)', border: '1px solid rgba(100,120,200,0.25)',
-                flexShrink: 0,
+                background: 'rgba(20,20,50,0.8)', border: '1px solid rgba(100,120,200,0.25)', flexShrink: 0,
               }} title={item.title}>
                 {item.poster
                   ? <img src={item.poster} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -137,9 +148,9 @@ const WatchPreview = ({ username }) => {
 
 /* ── Member List ───────────────────────────────────────────── */
 const MemberPages = () => {
-  const [members, setMembers]             = useState([]);
+  const [members, setMembers]               = useState([]);
   const [selectedMember, setSelectedMember] = useState(null);
-  const [search, setSearch]               = useState('');
+  const [search, setSearch]                 = useState('');
 
   useEffect(() => {
     const profiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');

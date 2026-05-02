@@ -1,3 +1,49 @@
+/* ── ESPN CDN Logo Helper ───────────────────────────────────────
+   Maps our abbreviations → ESPN CDN abbreviations where they differ
+   URL format: https://a.espncdn.com/i/teamlogos/{sport}/500/scoreboard/{abbr}.png
+   ─────────────────────────────────────────────────────────────── */
+const LOGO_ABBR = {
+  mlb: { TBR:'tb', CHW:'cws', KCR:'kc', WSN:'wsh', SDP:'sd', SFG:'sf' },
+  nfl: { WAS:'wsh', KC:'kc', LV:'lv', NE:'ne', SF:'sf', TB:'tb', GB:'gb', NO:'no', LAR:'lar', LAC:'lac', NYG:'nyg', NYJ:'nyj', DAL:'dal', PHI:'phi', CHI:'chi', DET:'det', MIN:'min', ATL:'atl', CAR:'car' },
+  nba: { GS:'gs', NO:'no', SAS:'sa', UTA:'utah', WAS:'wsh', BKN:'bkn', NYK:'nyk', OKC:'okc', PHX:'phx', SAC:'sac', LAC:'lac', LAL:'lal', MEM:'mem', POR:'por', DEN:'den', MIL:'mil', IND:'ind', ORL:'orl', CHA:'cha' },
+  nhl: { WSH:'wsh', TBL:'tbl', NJD:'njd', NYI:'nyi', NYR:'nyr', VGK:'vgk', UTA:'utah', CGY:'cgy', EDM:'edm', MTL:'mtl', OTT:'ott', CBJ:'cbj', WPG:'wpg', NSH:'nsh', SJS:'sjs', VAN:'van', FLA:'fla', BUF:'buf', ANA:'ana' },
+};
+
+export const getTeamLogoUrl = (sport, abbr) => {
+  const sportPath = { mlb:'mlb', nfl:'nfl', nba:'nba', nhl:'nhl' }[sport];
+  if (!sportPath) return null;
+  const a = (LOGO_ABBR[sport]?.[abbr] ?? abbr).toLowerCase();
+  return `https://a.espncdn.com/i/teamlogos/${sportPath}/500/scoreboard/${a}.png`;
+};
+
+export const getTeamByAbbr = (sport, abbr) => {
+  const divs = TEAMS[sport] || {};
+  for (const teams of Object.values(divs)) {
+    const found = teams.find((t) => t.abbr === abbr);
+    if (found) return found;
+  }
+  return { abbr, name: abbr };
+};
+
+/* ── Sport metadata ─────────────────────────────────────────── */
+export const SPORT_LABELS = {
+  mlb: '⚾ MLB',
+  nfl: '🏈 NFL',
+  nba: '🏀 NBA',
+  nhl: '🏒 NHL',
+  cfb: '🏈 College Football',
+  cbb: '⚾ College Baseball',
+};
+
+export const SPORT_ICONS = {
+  mlb: '⚾', nfl: '🏈', nba: '🏀', nhl: '🏒', cfb: '🏈', cbb: '⚾',
+};
+
+export const SPORT_SHORT = {
+  mlb: 'MLB', nfl: 'NFL', nba: 'NBA', nhl: 'NHL', cfb: 'Col. Football', cbb: 'Col. Baseball',
+};
+
+/* ── Team Rosters ────────────────────────────────────────────── */
 export const TEAMS = {
   mlb: {
     'AL East':    [{ abbr:'BAL',name:'Orioles' },{ abbr:'BOS',name:'Red Sox' },{ abbr:'NYY',name:'Yankees' },{ abbr:'TBR',name:'Rays' },{ abbr:'TOR',name:'Blue Jays' }],
@@ -32,25 +78,20 @@ export const TEAMS = {
     'Pacific':      [{ abbr:'ANA',name:'Ducks' },{ abbr:'CGY',name:'Flames' },{ abbr:'EDM',name:'Oilers' },{ abbr:'LA',name:'Kings' },{ abbr:'SJS',name:'Sharks' },{ abbr:'SEA',name:'Kraken' },{ abbr:'VAN',name:'Canucks' },{ abbr:'VGK',name:'Golden Knights' }],
   },
   cfb: {
-    'SEC':      [{ abbr:'ALA',name:'Alabama' },{ abbr:'UGA',name:'Georgia' },{ abbr:'LSU',name:'LSU' },{ abbr:'FLA',name:'Florida' },{ abbr:'TENN',name:'Tennessee' },{ abbr:'TAMU',name:'Texas A&M' },{ abbr:'AUB',name:'Auburn' },{ abbr:'ARK',name:'Arkansas' },{ abbr:'OLE',name:'Ole Miss' },{ abbr:'MSU',name:'Miss State' },{ abbr:'VANDY',name:'Vanderbilt' },{ abbr:'SC',name:'S Carolina' },{ abbr:'UK',name:'Kentucky' },{ abbr:'MIZ',name:'Missouri' },{ abbr:'TEX',name:'Texas' },{ abbr:'OU',name:'Oklahoma' }],
+    'SEC':      [{ abbr:'ALA',name:'Alabama' },{ abbr:'UGA',name:'Georgia' },{ abbr:'LSU',name:'LSU' },{ abbr:'FLA',name:'Florida' },{ abbr:'TENN',name:'Tennessee' },{ abbr:'TAMU',name:'Texas A&M' },{ abbr:'AUB',name:'Auburn' },{ abbr:'ARK',name:'Arkansas' },{ abbr:'OLE',name:'Ole Miss' },{ abbr:'MSU',name:'Miss. State' },{ abbr:'VANDY',name:'Vanderbilt' },{ abbr:'SC',name:'S. Carolina' },{ abbr:'UK',name:'Kentucky' },{ abbr:'MIZ',name:'Missouri' },{ abbr:'TEX',name:'Texas' },{ abbr:'OU',name:'Oklahoma' }],
     'Big Ten':  [{ abbr:'MICH',name:'Michigan' },{ abbr:'OSU',name:'Ohio State' },{ abbr:'PSU',name:'Penn State' },{ abbr:'WISC',name:'Wisconsin' },{ abbr:'IOWA',name:'Iowa' },{ abbr:'MIN',name:'Minnesota' },{ abbr:'NEB',name:'Nebraska' },{ abbr:'PUR',name:'Purdue' },{ abbr:'ORE',name:'Oregon' },{ abbr:'USC',name:'USC' },{ abbr:'UCLA',name:'UCLA' },{ abbr:'WASH',name:'Washington' }],
-    'ACC':      [{ abbr:'CLEM',name:'Clemson' },{ abbr:'FSU',name:'Florida State' },{ abbr:'MIA',name:'Miami' },{ abbr:'UNC',name:'North Carolina' },{ abbr:'NCST',name:'NC State' },{ abbr:'VT',name:'Virginia Tech' },{ abbr:'WAKE',name:'Wake Forest' },{ abbr:'DUKE',name:'Duke' },{ abbr:'PITT',name:'Pittsburgh' },{ abbr:'LOU',name:'Louisville' }],
-    'Big 12':   [{ abbr:'KSU',name:'Kansas State' },{ abbr:'OKST',name:'Oklahoma State' },{ abbr:'TCU',name:'TCU' },{ abbr:'BAY',name:'Baylor' },{ abbr:'ISU',name:'Iowa State' },{ abbr:'WVU',name:'West Virginia' },{ abbr:'TTU',name:'Texas Tech' },{ abbr:'BYU',name:'BYU' },{ abbr:'CIN',name:'Cincinnati' },{ abbr:'UCF',name:'UCF' }],
+    'ACC':      [{ abbr:'CLEM',name:'Clemson' },{ abbr:'FSU',name:'Florida State' },{ abbr:'MIA',name:'Miami' },{ abbr:'UNC',name:'N. Carolina' },{ abbr:'NCST',name:'NC State' },{ abbr:'VT',name:'Virginia Tech' },{ abbr:'WAKE',name:'Wake Forest' },{ abbr:'DUKE',name:'Duke' },{ abbr:'PITT',name:'Pittsburgh' },{ abbr:'LOU',name:'Louisville' }],
+    'Big 12':   [{ abbr:'KSU',name:'Kansas State' },{ abbr:'OKST',name:'Oklahoma St.' },{ abbr:'TCU',name:'TCU' },{ abbr:'BAY',name:'Baylor' },{ abbr:'ISU',name:'Iowa State' },{ abbr:'WVU',name:'West Virginia' },{ abbr:'TTU',name:'Texas Tech' },{ abbr:'BYU',name:'BYU' },{ abbr:'CIN',name:'Cincinnati' },{ abbr:'UCF',name:'UCF' }],
     'Other':    [{ abbr:'ND',name:'Notre Dame' },{ abbr:'BSU',name:'Boise State' },{ abbr:'APS',name:'App State' }],
   },
   cbb: {
-    'SEC':      [{ abbr:'VANDY',name:'Vanderbilt' },{ abbr:'LSU',name:'LSU' },{ abbr:'FLA',name:'Florida' },{ abbr:'ARK',name:'Arkansas' },{ abbr:'TENN',name:'Tennessee' },{ abbr:'OLE',name:'Ole Miss' },{ abbr:'MSU',name:'Miss State' },{ abbr:'TAMU',name:'Texas A&M' },{ abbr:'UK',name:'Kentucky' },{ abbr:'UGA',name:'Georgia' },{ abbr:'SC',name:'S Carolina' },{ abbr:'AUB',name:'Auburn' },{ abbr:'ALA',name:'Alabama' }],
-    'ACC':      [{ abbr:'FSU',name:'Florida State' },{ abbr:'CLEM',name:'Clemson' },{ abbr:'UVA',name:'Virginia' },{ abbr:'GT',name:'Georgia Tech' },{ abbr:'WAKE',name:'Wake Forest' },{ abbr:'NCST',name:'NC State' },{ abbr:'MIA',name:'Miami' },{ abbr:'UNC',name:'North Carolina' },{ abbr:'LOU',name:'Louisville' }],
-    'Big 12':   [{ abbr:'TCU',name:'TCU' },{ abbr:'TEX',name:'Texas' },{ abbr:'OKST',name:'Oklahoma State' },{ abbr:'WVU',name:'West Virginia' },{ abbr:'KSU',name:'Kansas State' },{ abbr:'BAY',name:'Baylor' },{ abbr:'TTU',name:'Texas Tech' }],
+    'SEC':      [{ abbr:'VANDY',name:'Vanderbilt' },{ abbr:'LSU',name:'LSU' },{ abbr:'FLA',name:'Florida' },{ abbr:'ARK',name:'Arkansas' },{ abbr:'TENN',name:'Tennessee' },{ abbr:'OLE',name:'Ole Miss' },{ abbr:'MSU',name:'Miss. State' },{ abbr:'TAMU',name:'Texas A&M' },{ abbr:'UK',name:'Kentucky' },{ abbr:'UGA',name:'Georgia' },{ abbr:'SC',name:'S. Carolina' },{ abbr:'AUB',name:'Auburn' },{ abbr:'ALA',name:'Alabama' }],
+    'ACC':      [{ abbr:'FSU',name:'Florida State' },{ abbr:'CLEM',name:'Clemson' },{ abbr:'UVA',name:'Virginia' },{ abbr:'GT',name:'Georgia Tech' },{ abbr:'WAKE',name:'Wake Forest' },{ abbr:'NCST',name:'NC State' },{ abbr:'MIA',name:'Miami' },{ abbr:'UNC',name:'N. Carolina' },{ abbr:'LOU',name:'Louisville' }],
+    'Big 12':   [{ abbr:'TCU',name:'TCU' },{ abbr:'TEX',name:'Texas' },{ abbr:'OKST',name:'Oklahoma St.' },{ abbr:'WVU',name:'West Virginia' },{ abbr:'KSU',name:'Kansas State' },{ abbr:'BAY',name:'Baylor' },{ abbr:'TTU',name:'Texas Tech' }],
     'Pac-12':   [{ abbr:'OSU',name:'Oregon State' },{ abbr:'STAN',name:'Stanford' },{ abbr:'ARI',name:'Arizona' },{ abbr:'UCLA',name:'UCLA' }],
     'Big Ten':  [{ abbr:'IND',name:'Indiana' },{ abbr:'MICH',name:'Michigan' },{ abbr:'MD',name:'Maryland' },{ abbr:'NEB',name:'Nebraska' },{ abbr:'OSU',name:'Ohio State' }],
     'Other':    [{ abbr:'ND',name:'Notre Dame' },{ abbr:'CHAR',name:'Charlotte' },{ abbr:'ECU',name:'East Carolina' }],
   },
-};
-
-export const SPORT_LABELS = {
-  mlb: '⚾ MLB', nfl: '🏈 NFL', nba: '🏀 NBA',
-  nhl: '🏒 NHL', cfb: '🎓 College Football', cbb: '🎓 College Baseball',
 };
 
 export const ALL_TEAMS_FLAT = Object.fromEntries(

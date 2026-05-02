@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { TEAMS, SPORT_LABELS } from '../../data/teams';
+import { TEAMS, SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl } from '../../data/teams';
 import { getWatchList } from '../../services/mediaService';
 import './MemberProfile.css';
 
@@ -10,9 +10,7 @@ const roleLabel = (role) => {
 };
 
 const TYPE_ICONS = { anime: '🎌', movie: '🎬', tv: '📺' };
-
 const SPORT_KEYS = ['mlb', 'nfl', 'nba', 'nhl', 'cfb', 'cbb'];
-
 const DEFAULT_FAV_TEAMS = { mlb: [], nfl: [], nba: [], nhl: [], cfb: [], cbb: [] };
 
 const DEFAULT_PROFILE = {
@@ -21,9 +19,74 @@ const DEFAULT_PROFILE = {
   discord_tag: '', fav_teams: DEFAULT_FAV_TEAMS,
 };
 
-/* ── Team Selector (used in edit form) ─────────────────────── */
+/* ── Image upload field ─────────────────────────────────────── */
+const ImageField = ({ label, fieldKey, value, onChange }) => {
+  const inputRef = useRef(null);
+
+  const handleFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) {
+      alert('Image must be under 3 MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => onChange(fieldKey, reader.result);
+    reader.readAsDataURL(file);
+  };
+
+  const isBase64 = value && value.startsWith('data:');
+  const hasImage = !!value;
+
+  return (
+    <div className="form-group mp-image-field">
+      <label>{label}</label>
+      <div className="mp-image-upload-row">
+        <input
+          type="text"
+          value={isBase64 ? '' : (value || '')}
+          onChange={(e) => onChange(fieldKey, e.target.value)}
+          placeholder={isBase64 ? '(uploaded file)' : 'Paste image URL…'}
+          style={{ flex: 1 }}
+        />
+        <label className="mp-upload-btn" title="Upload from device">
+          📁 Upload
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFile}
+            style={{ display: 'none' }}
+          />
+        </label>
+        {hasImage && (
+          <button
+            className="mp-upload-clear"
+            onClick={() => onChange(fieldKey, '')}
+            title="Remove image"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+      {hasImage && (
+        <div className="mp-image-preview-wrap">
+          <img
+            src={value}
+            alt="preview"
+            className="mp-image-preview"
+            onError={(e) => { e.target.style.display = 'none'; }}
+          />
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ── Team Selector ──────────────────────────────────────────── */
 const TeamSelector = ({ favTeams, onChange }) => {
   const [activeSport, setActiveSport] = useState('mlb');
+  const hasLogos = ['mlb', 'nfl', 'nba', 'nhl'].includes(activeSport);
 
   const toggle = (sport, abbr) => {
     const current = favTeams[sport] || [];
@@ -37,8 +100,13 @@ const TeamSelector = ({ favTeams, onChange }) => {
         {SPORT_KEYS.map((s) => {
           const count = (favTeams[s] || []).length;
           return (
-            <button key={s} className={`mp-sport-tab ${activeSport === s ? 'active' : ''}`} onClick={() => setActiveSport(s)}>
-              {SPORT_LABELS[s].split(' ')[0]}
+            <button
+              key={s}
+              className={`mp-sport-tab ${activeSport === s ? 'active' : ''}`}
+              onClick={() => setActiveSport(s)}
+            >
+              <span>{SPORT_ICONS[s]}</span>
+              <span>{SPORT_SHORT[s]}</span>
               {count > 0 && <span className="mp-sport-count">{count}</span>}
             </button>
           );
@@ -52,6 +120,7 @@ const TeamSelector = ({ favTeams, onChange }) => {
             <div className="mp-team-row">
               {teams.map((t) => {
                 const selected = (favTeams[activeSport] || []).includes(t.abbr);
+                const logo = hasLogos ? getTeamLogoUrl(activeSport, t.abbr) : null;
                 return (
                   <button
                     key={t.abbr}
@@ -59,6 +128,14 @@ const TeamSelector = ({ favTeams, onChange }) => {
                     onClick={() => toggle(activeSport, t.abbr)}
                     title={t.name}
                   >
+                    {logo && (
+                      <img
+                        src={logo}
+                        alt=""
+                        className="mp-team-logo"
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                      />
+                    )}
                     {t.abbr}
                   </button>
                 );
@@ -71,7 +148,7 @@ const TeamSelector = ({ favTeams, onChange }) => {
   );
 };
 
-/* ── Favorite Teams Display ──────────────────────────────────── */
+/* ── Favorite Teams Display ─────────────────────────────────── */
 const FavTeamsDisplay = ({ favTeams }) => {
   const hasSome = SPORT_KEYS.some((s) => (favTeams?.[s] || []).length > 0);
   if (!hasSome) return null;
@@ -82,13 +159,27 @@ const FavTeamsDisplay = ({ favTeams }) => {
       {SPORT_KEYS.map((sport) => {
         const picked = favTeams?.[sport] || [];
         if (!picked.length) return null;
+        const hasLogos = ['mlb', 'nfl', 'nba', 'nhl'].includes(sport);
         return (
           <div key={sport} className="mp-fav-sport-row">
-            <span className="mp-fav-sport-label">{SPORT_LABELS[sport]}</span>
+            <span className="mp-fav-sport-label">{SPORT_ICONS[sport]} {SPORT_SHORT[sport]}</span>
             <div className="mp-fav-teams">
-              {picked.map((abbr) => (
-                <span key={abbr} className="mp-fav-team-badge">{abbr}</span>
-              ))}
+              {picked.map((abbr) => {
+                const logo = hasLogos ? getTeamLogoUrl(sport, abbr) : null;
+                return (
+                  <span key={abbr} className="mp-fav-team-badge">
+                    {logo && (
+                      <img
+                        src={logo}
+                        alt=""
+                        className="mp-badge-logo"
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                      />
+                    )}
+                    {abbr}
+                  </span>
+                );
+              })}
             </div>
           </div>
         );
@@ -97,7 +188,7 @@ const FavTeamsDisplay = ({ favTeams }) => {
   );
 };
 
-/* ── Watch List Preview ──────────────────────────────────────── */
+/* ── Watch List Preview ─────────────────────────────────────── */
 const WatchListPreview = ({ username }) => {
   const list = getWatchList(username);
   if (!list.length) return null;
@@ -115,7 +206,6 @@ const WatchListPreview = ({ username }) => {
         <span className="mp-wl-stat"><span style={{color:'#66bb6a'}}>▶</span> {watching} watching</span>
         <span className="mp-wl-stat"><span style={{color:'#64b5f6'}}>📋</span> {plan} planned</span>
       </div>
-
       {pinned.length > 0 && (
         <>
           <div style={{ fontSize: '0.72rem', color: 'rgba(192,208,255,0.35)', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', marginTop: '10px', marginBottom: '8px' }}>
@@ -138,7 +228,7 @@ const WatchListPreview = ({ username }) => {
   );
 };
 
-/* ── Main MemberProfile ──────────────────────────────────────── */
+/* ── Main MemberProfile ─────────────────────────────────────── */
 const MemberProfile = () => {
   const { user } = useAuth();
   const [profile,  setProfile]  = useState(null);
@@ -153,6 +243,8 @@ const MemberProfile = () => {
     setProfile(p);
     setFormData(p);
   }, [user]);
+
+  const handleField = (key, val) => setFormData((prev) => ({ ...prev, [key]: val }));
 
   const handleSave = () => {
     const profiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
@@ -182,14 +274,18 @@ const MemberProfile = () => {
 
         {!favTab ? (
           <div className="neon-card p-3">
-            <div className="form-group">
-              <label>Banner Image URL</label>
-              <input type="text" value={formData.top_banner_url || ''} onChange={(e) => setFormData({ ...formData, top_banner_url: e.target.value })} placeholder="https://…" />
-            </div>
-            <div className="form-group">
-              <label>Avatar Image URL</label>
-              <input type="text" value={formData.avatar_url || ''} onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })} placeholder="https://…" />
-            </div>
+            <ImageField
+              label="Banner Image"
+              fieldKey="top_banner_url"
+              value={formData.top_banner_url || ''}
+              onChange={handleField}
+            />
+            <ImageField
+              label="Avatar / Profile Picture"
+              fieldKey="avatar_url"
+              value={formData.avatar_url || ''}
+              onChange={handleField}
+            />
             <div className="form-group">
               <label>About Me</label>
               <textarea rows="4" value={formData.bio || ''} onChange={(e) => setFormData({ ...formData, bio: e.target.value })} placeholder="Tell us about yourself…" />
@@ -205,9 +301,9 @@ const MemberProfile = () => {
 
             <h4 className="gradient-text-cyan" style={{ margin: '20px 0 10px' }}>Socials</h4>
             {[
-              { key: 'twitter_url', label: 'Twitter URL' },
-              { key: 'twitch_url',  label: 'Twitch URL' },
-              { key: 'youtube_url', label: 'YouTube URL' },
+              { key: 'twitter_url',   label: 'Twitter URL' },
+              { key: 'twitch_url',    label: 'Twitch URL' },
+              { key: 'youtube_url',   label: 'YouTube URL' },
               { key: 'instagram_url', label: 'Instagram URL' },
             ].map(({ key, label }) => (
               <div className="form-group" key={key}>

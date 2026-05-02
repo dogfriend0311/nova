@@ -38,10 +38,12 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, user }) => {
               <span className="user-label">Profile</span>
             </button>
           )}
-          <button className="user-button" onClick={onDashboard}>
-            <span className="user-icon">⚙️</span>
-            <span className="user-label">Admin</span>
-          </button>
+          {['owner', 'cofounder', 'mod'].includes(user?.role) && (
+            <button className="user-button" onClick={onDashboard}>
+              <span className="user-icon">⚙️</span>
+              <span className="user-label">Admin</span>
+            </button>
+          )}
         </div>
       </div>
     </nav>
