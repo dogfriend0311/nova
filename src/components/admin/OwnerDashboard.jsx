@@ -124,6 +124,10 @@ const LeaguePlayersTab = () => {
   const blankForm = {
     player_name: '', team: '', overall: 75, position: '', number: '', spotify_url: '',
     avatar_data: '',
+    season_hits: 0, season_runs: 0, season_rbis: 0, season_home_runs: 0, season_strike_outs: 0,
+    adv_s_h_per_game: '', adv_s_r_per_game: '', adv_s_rbi_per_game: '', adv_s_hr_per_game: '', adv_s_k_per_game: '',
+    season_innings_pitched: 0, season_strikeouts_pitched: 0, season_hits_allowed: 0, season_earned_runs: 0,
+    adv_s_era: '', adv_s_k9: '', adv_s_h9: '', adv_s_er9: '',
     hits: 0, runs: 0, rbis: 0, home_runs: 0, strike_outs: 0,
     adv_h_per_game: '', adv_r_per_game: '', adv_rbi_per_game: '', adv_hr_per_game: '', adv_k_per_game: '',
     innings_pitched: 0, strikeouts_pitched: 0, hits_allowed: 0, earned_runs: 0,
@@ -268,6 +272,34 @@ const LeaguePlayersTab = () => {
                 </div>
               </>
             )}
+
+            {secHead('⚾', 'Season Batting Stats', 'cyan')}
+            {numField('Hits', 'season_hits')}
+            {numField('Runs', 'season_runs')}
+            {numField('RBIs', 'season_rbis')}
+            {numField('Home Runs', 'season_home_runs')}
+            {numField('Strike Outs (Batting)', 'season_strike_outs')}
+
+            {secHead('📊', 'Advanced Batting — Season Override', 'magenta')}
+            <p style={{ color: 'rgba(192,208,255,0.45)', fontSize: '0.8rem', margin: '-6px 0 10px' }}>Leave blank to auto-calculate from season totals</p>
+            {advField('H / Game', 'adv_s_h_per_game')}
+            {advField('R / Game', 'adv_s_r_per_game')}
+            {advField('RBI / Game', 'adv_s_rbi_per_game')}
+            {advField('HR / Game', 'adv_s_hr_per_game')}
+            {advField('K / Game (Batting)', 'adv_s_k_per_game')}
+
+            {secHead('⚡', 'Season Pitching Stats', 'cyan')}
+            {numField('Innings Pitched', 'season_innings_pitched', 0.1)}
+            {numField('Strikeouts (Pitching)', 'season_strikeouts_pitched')}
+            {numField('Hits Allowed', 'season_hits_allowed')}
+            {numField('Earned Runs', 'season_earned_runs')}
+
+            {secHead('📈', 'Advanced Pitching — Season Override', 'magenta')}
+            <p style={{ color: 'rgba(192,208,255,0.45)', fontSize: '0.8rem', margin: '-6px 0 10px' }}>Leave blank to auto-calculate from season totals</p>
+            {advField('ERA', 'adv_s_era')}
+            {advField('K/9', 'adv_s_k9')}
+            {advField('H/9', 'adv_s_h9')}
+            {advField('ER/9', 'adv_s_er9')}
 
             {secHead('⚾', 'Career Batting Stats', 'cyan')}
             {numField('Hits', 'hits')}

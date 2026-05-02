@@ -131,16 +131,16 @@ const LeaguePlayerPage = ({ player, onBack }) => {
   const gamesPlayed = playerScores.length;
   const gamesPitched = playerScores.filter(b => safe(b.innings_pitched) > 0).length;
 
-  // Season aggregates (box scores only)
-  const sH   = playerScores.reduce((s, b) => s + safeInt(b.hits), 0);
-  const sR   = playerScores.reduce((s, b) => s + safeInt(b.runs), 0);
-  const sRBI = playerScores.reduce((s, b) => s + safeInt(b.rbis), 0);
-  const sHR  = playerScores.reduce((s, b) => s + safeInt(b.home_runs), 0);
-  const sSO  = playerScores.reduce((s, b) => s + safeInt(b.strike_outs), 0);
-  const sIP  = playerScores.reduce((s, b) => s + safe(b.innings_pitched), 0);
-  const sKP  = playerScores.reduce((s, b) => s + safeInt(b.strikeouts_pitched), 0);
-  const sHA  = playerScores.reduce((s, b) => s + safeInt(b.hits_allowed), 0);
-  const sER  = playerScores.reduce((s, b) => s + safeInt(b.earned_runs), 0);
+  // Season aggregates (box scores + editable season base stats)
+  const sH   = playerScores.reduce((s, b) => s + safeInt(b.hits), 0)               + safeInt(player.season_hits);
+  const sR   = playerScores.reduce((s, b) => s + safeInt(b.runs), 0)               + safeInt(player.season_runs);
+  const sRBI = playerScores.reduce((s, b) => s + safeInt(b.rbis), 0)               + safeInt(player.season_rbis);
+  const sHR  = playerScores.reduce((s, b) => s + safeInt(b.home_runs), 0)          + safeInt(player.season_home_runs);
+  const sSO  = playerScores.reduce((s, b) => s + safeInt(b.strike_outs), 0)        + safeInt(player.season_strike_outs);
+  const sIP  = playerScores.reduce((s, b) => s + safe(b.innings_pitched), 0)       + safe(player.season_innings_pitched);
+  const sKP  = playerScores.reduce((s, b) => s + safeInt(b.strikeouts_pitched), 0) + safeInt(player.season_strikeouts_pitched);
+  const sHA  = playerScores.reduce((s, b) => s + safeInt(b.hits_allowed), 0)       + safeInt(player.season_hits_allowed);
+  const sER  = playerScores.reduce((s, b) => s + safeInt(b.earned_runs), 0)        + safeInt(player.season_earned_runs);
 
   // Career aggregates (box scores + player base stats)
   const cH   = sH   + safeInt(player.hits);
@@ -171,12 +171,13 @@ const LeaguePlayerPage = ({ player, onBack }) => {
     { label: 'Strike Outs',  value: cSO },
   ];
 
+  const sGP = Math.max(gamesPlayed, sH > 0 || sR > 0 || sHR > 0 ? 1 : 0);
   const hitAdvSeason = [
-    { label: 'H / Game',   value: gamesPlayed ? fmt(sH / gamesPlayed) : '—' },
-    { label: 'R / Game',   value: gamesPlayed ? fmt(sR / gamesPlayed) : '—' },
-    { label: 'RBI / Game', value: gamesPlayed ? fmt(sRBI / gamesPlayed) : '—' },
-    { label: 'HR / Game',  value: gamesPlayed ? fmt(sHR / gamesPlayed) : '—' },
-    { label: 'K / Game',   value: gamesPlayed ? fmt(sSO / gamesPlayed) : '—' },
+    { label: 'H / Game',   value: player.adv_s_h_per_game   || (sGP ? fmt(sH   / sGP) : '—') },
+    { label: 'R / Game',   value: player.adv_s_r_per_game   || (sGP ? fmt(sR   / sGP) : '—') },
+    { label: 'RBI / Game', value: player.adv_s_rbi_per_game || (sGP ? fmt(sRBI / sGP) : '—') },
+    { label: 'HR / Game',  value: player.adv_s_hr_per_game  || (sGP ? fmt(sHR  / sGP) : '—') },
+    { label: 'K / Game',   value: player.adv_s_k_per_game   || (sGP ? fmt(sSO  / sGP) : '—') },
   ];
   const hitAdvCareer = [
     { label: 'H / Game',   value: player.adv_h_per_game   || (gamesPlayed ? fmt(cH   / gamesPlayed) : '—') },
@@ -212,11 +213,11 @@ const LeaguePlayerPage = ({ player, onBack }) => {
   const cAdv = calcAdv(cIP, cER, cKP, cHA);
 
   const pitchAdvSeason = [
-    { label: 'ERA',   value: sAdv.era },
-    { label: 'K/9',   value: sAdv.k9 },
-    { label: 'H/9',   value: sAdv.h9 },
+    { label: 'ERA',        value: player.adv_s_era || sAdv.era },
+    { label: 'K/9',        value: player.adv_s_k9  || sAdv.k9 },
+    { label: 'H/9',        value: player.adv_s_h9  || sAdv.h9 },
     { label: 'K Per Game', value: gamesPitched ? fmt(sKP / gamesPitched) : '—' },
-    { label: 'ER/9',  value: sIP > 0 ? fmt((sER / sIP) * 9) : '—' },
+    { label: 'ER/9',       value: player.adv_s_er9 || (sIP > 0 ? fmt((sER / sIP) * 9) : '—') },
   ];
   const pitchAdvCareer = [
     { label: 'ERA',        value: player.adv_era || cAdv.era },
