@@ -667,9 +667,6 @@ const NABBGamesTab = () => {
   const [teams] = useState(
     JSON.parse(localStorage.getItem('nabb_teams') || '[]')
   );
-  const [players] = useState(
-    JSON.parse(localStorage.getItem('nabb_players') || '[]')
-  );
   const [newGame, setNewGame] = useState({
     home_team: '',
     away_team: '',
@@ -1118,9 +1115,6 @@ const NABBBoxScoresTab = () => {
 const NABBGameFeedTab = () => {
   const [games] = useState(
     JSON.parse(localStorage.getItem('nabb_games') || '[]')
-  );
-  const [teams] = useState(
-    JSON.parse(localStorage.getItem('nabb_teams') || '[]')
   );
   const [players] = useState(
     JSON.parse(localStorage.getItem('nabb_players') || '[]')
