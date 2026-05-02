@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import './LeaguePlayerPage.css';
 
+const toSpotifyEmbed = (url) => {
+  if (!url) return url;
+  if (url.includes('/embed/')) return url;
+  return url.replace('open.spotify.com/', 'open.spotify.com/embed/');
+};
+
 const safe = (n) => parseFloat(n) || 0;
 const safeInt = (n) => parseInt(n) || 0;
 const fmt = (n, decimals = 2) => isNaN(n) || !isFinite(n) ? '—' : Number(n).toFixed(decimals);
@@ -201,7 +207,7 @@ const LeaguePlayerPage = ({ player, onBack }) => {
                 <div className="spotify-label">🎵 Favorite Song</div>
                 <iframe
                   title="Spotify player"
-                  src={player.spotify_url}
+                  src={toSpotifyEmbed(player.spotify_url)}
                   width="100%"
                   height="90"
                   frameBorder="0"

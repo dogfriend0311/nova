@@ -203,7 +203,7 @@ const MemberProfileView = ({ member, onBack }) => {
         {member.spotify_url && (
           <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: '8px', padding: '14px 16px', marginTop: '14px' }}>
             <div style={{ fontSize: '0.72rem', fontWeight: '700', color: 'rgba(192,208,255,0.45)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>🎵 Listening To</div>
-            <iframe title="Spotify" src={member.spotify_url} width="100%" height="90" frameBorder="0"
+            <iframe title="Spotify" src={member.spotify_url.includes('/embed/') ? member.spotify_url : member.spotify_url.replace('open.spotify.com/', 'open.spotify.com/embed/')} width="100%" height="90" frameBorder="0"
               allow="autoplay; clipboard-write; encrypted-media" style={{ borderRadius: '8px' }} />
           </div>
         )}

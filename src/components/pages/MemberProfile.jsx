@@ -134,7 +134,7 @@ const MemberProfile = () => {
             <div className="discord-section-title">🎵 Listening To</div>
             <iframe
               title="Spotify"
-              src={profile.spotify_url}
+              src={profile.spotify_url.includes('/embed/') ? profile.spotify_url : profile.spotify_url.replace('open.spotify.com/', 'open.spotify.com/embed/')}
               width="100%"
               height="90"
               frameBorder="0"
