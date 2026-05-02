@@ -1,7 +1,7 @@
 import React from 'react';
 import './Navbar.css';
 
-const Navbar = ({ currentPage, onPageChange }) => {
+const Navbar = ({ currentPage, onPageChange, onDashboard }) => {
   const tabs = [
     { id: 'home', label: 'Home Page', icon: '🏠' },
     { id: 'hub', label: 'Hub', icon: '🌐' },
@@ -32,11 +32,11 @@ const Navbar = ({ currentPage, onPageChange }) => {
           ))}
         </div>
 
-        {/* User Account */}
+        {/* User Account / Admin */}
         <div className="navbar-user">
-          <button className="user-button">
-            <span className="user-icon">👤</span>
-            <span className="user-label">Account</span>
+          <button className="user-button" onClick={onDashboard}>
+            <span className="user-icon">⚙️</span>
+            <span className="user-label">Admin</span>
           </button>
         </div>
       </div>

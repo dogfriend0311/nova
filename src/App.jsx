@@ -18,17 +18,21 @@ import './Login.css';
 import './OwnerDashboard.css';
 
 const AppContent = () => {
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
   const [currentPage, setCurrentPage] = useState('home');
+  const [showDashboard, setShowDashboard] = useState(false);
 
-  if (isAdmin && user) {
-    return <OwnerDashboard />;
-  }
-
+  // If not logged in, show login
   if (!user) {
     return <Login />;
   }
 
+  // If viewing dashboard, show it
+  if (showDashboard) {
+    return <OwnerDashboard onExit={() => setShowDashboard(false)} />;
+  }
+
+  // Otherwise show regular website
   const renderPage = () => {
     switch (currentPage) {
       case 'home':
@@ -49,7 +53,11 @@ const AppContent = () => {
   };
 
   return (
-    <Layout currentPage={currentPage} onPageChange={setCurrentPage}>
+    <Layout 
+      currentPage={currentPage} 
+      onPageChange={setCurrentPage}
+      onDashboard={() => setShowDashboard(true)}
+    >
       {renderPage()}
     </Layout>
   );

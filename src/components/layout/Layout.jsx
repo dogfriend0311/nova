@@ -4,12 +4,12 @@ import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 import './Layout.css';
 
-const Layout = ({ currentPage, onPageChange, children }) => {
+const Layout = ({ currentPage, onPageChange, onDashboard, children }) => {
   return (
     <div className="layout-container">
       <SpaceBackground />
       
-      <Navbar currentPage={currentPage} onPageChange={onPageChange} />
+      <Navbar currentPage={currentPage} onPageChange={onPageChange} onDashboard={onDashboard} />
       
       <div className="layout-wrapper">
         <Sidebar currentPage={currentPage} onNavigate={onPageChange} />
