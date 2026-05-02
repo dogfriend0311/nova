@@ -4,6 +4,7 @@ import Layout from './components/layout/Layout';
 import Home from './components/pages/Home';
 import Hub from './components/pages/Hub';
 import MemberPages from './components/pages/MemberPages';
+import MemberProfile from './components/pages/MemberProfile';
 import NABBLeague from './NABBLeague';
 import LeaguePlayerPage from './LeaguePlayerPage';
 import Login from './components/auth/Login';
@@ -42,6 +43,8 @@ const AppContent = () => {
         return <NABBLeague />;
       case 'members':
         return <MemberPages />;
+      case 'profile':
+        return <MemberProfile />;
       case 'player':
         return <LeaguePlayerPage />;
       default:
@@ -54,6 +57,7 @@ const AppContent = () => {
       currentPage={currentPage} 
       onPageChange={setCurrentPage}
       onDashboard={() => setShowDashboard(true)}
+      user={user}
     >
       {renderPage()}
     </Layout>

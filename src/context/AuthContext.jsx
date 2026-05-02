@@ -17,13 +17,17 @@ export const AuthProvider = ({ children }) => {
   const login = (username, password) => {
     // Admin login
     if (username === 'x0afterhoursx0' && password === 'Chiefsfan87') {
-      const userData = { username, role: 'admin', isAdmin: true };
+      const userData = { 
+        username, 
+        role: 'owner',
+        email: 'admin@nova.com'
+      };
       setUser(userData);
       localStorage.setItem('nova_user', JSON.stringify(userData));
       return { success: true };
     }
 
-    // Check if user exists in localStorage (mock database)
+    // Check users
     const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
     const foundUser = users.find(u => u.username === username && u.password === password);
     
@@ -31,7 +35,7 @@ export const AuthProvider = ({ children }) => {
       const userData = { 
         username: foundUser.username, 
         role: foundUser.role || 'member',
-        isAdmin: false 
+        email: foundUser.email
       };
       setUser(userData);
       localStorage.setItem('nova_user', JSON.stringify(userData));
@@ -42,19 +46,29 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signup = (username, password, email) => {
-    // Check if user already exists
     const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
     if (users.find(u => u.username === username)) {
       return { success: false, error: 'Username already exists' };
     }
 
-    // Create new user with member role
     const newUser = { username, password, email, role: 'member' };
     users.push(newUser);
     localStorage.setItem('nova_users', JSON.stringify(users));
 
-    // Auto-login after signup
-    const userData = { username, role: 'member', isAdmin: false };
+    // Create member profile
+    const memberProfiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
+    memberProfiles.push({
+      username,
+      bio: '',
+      top_banner_url: '',
+      left_banner_url: '',
+      right_banner_url: '',
+      spotify_url: '',
+      socials: {}
+    });
+    localStorage.setItem('member_profiles', JSON.stringify(memberProfiles));
+
+    const userData = { username, role: 'member', email };
     setUser(userData);
     localStorage.setItem('nova_user', JSON.stringify(userData));
 
@@ -77,8 +91,31 @@ export const AuthProvider = ({ children }) => {
     return { success: false, error: 'User not found' };
   };
 
+  const hasPermission = (requiredRole) => {
+    if (!user) return false;
+    
+    const permissions = {
+      owner: ['owner', 'cofounder', 'mod', 'nabb_helper', 'member'],
+      cofounder: ['cofounder', 'mod', 'nabb_helper', 'member'],
+      mod: ['mod', 'nabb_helper', 'member'],
+      nabb_helper: ['nabb_helper', 'member'],
+      member: ['member']
+    };
+
+    const userPerms = permissions[user.role] || [];
+    return userPerms.includes(requiredRole);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, updateUserRole, loading }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      login, 
+      signup, 
+      logout, 
+      updateUserRole, 
+      hasPermission,
+      loading 
+    }}>
       {children}
     </AuthContext.Provider>
   );

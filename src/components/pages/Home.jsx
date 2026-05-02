@@ -13,7 +13,7 @@ const Home = () => {
       <div className="page-header">
         <h1 className="gradient-text">Welcome to Nova</h1>
         <p className="subtitle">
-          Your home for all things Roblox Sports
+          Social hub
         </p>
       </div>
 

@@ -99,8 +99,17 @@ const OverviewTab = () => {
             <span className="data-value">Roblox Baseball</span>
           </div>
           <div className="data-row">
-            <span className="data-label">Season</span>
-            <span className="data-value">2024</span>
+            <span className="data-label">Status</span>
+            <span className="data-value" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                background: '#00ff00',
+                boxShadow: '0 0 8px rgba(0, 255, 0, 0.6)'
+              }}></span>
+              ONGOING
+            </span>
           </div>
           <div className="data-row">
             <span className="data-label">Teams</span>

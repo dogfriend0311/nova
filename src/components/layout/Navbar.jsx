@@ -1,7 +1,7 @@
 import React from 'react';
 import './Navbar.css';
 
-const Navbar = ({ currentPage, onPageChange, onDashboard }) => {
+const Navbar = ({ currentPage, onPageChange, onDashboard, user }) => {
   const tabs = [
     { id: 'home', label: 'Home Page', icon: '🏠' },
     { id: 'hub', label: 'Hub', icon: '🌐' },
@@ -34,6 +34,13 @@ const Navbar = ({ currentPage, onPageChange, onDashboard }) => {
 
         {/* User Account / Admin */}
         <div className="navbar-user">
+          {user?.role === 'member' && (
+            <button className="user-button" onClick={() => onPageChange('profile')}>
+              <span className="user-icon">👤</span>
+              <span className="user-label">Profile</span>
+            </button>
+          )}
+
           <button className="user-button" onClick={onDashboard}>
             <span className="user-icon">⚙️</span>
             <span className="user-label">Admin</span>
