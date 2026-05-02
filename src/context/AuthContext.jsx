@@ -24,6 +24,25 @@ export const AuthProvider = ({ children }) => {
       };
       setUser(userData);
       localStorage.setItem('nova_user', JSON.stringify(userData));
+      
+      // Create owner member profile if doesn't exist
+      const memberProfiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
+      if (!memberProfiles.find(p => p.username === username)) {
+        memberProfiles.push({
+          username: username,
+          bio: 'Nova Owner',
+          top_banner_url: '',
+          left_banner_url: '',
+          right_banner_url: '',
+          spotify_url: '',
+          twitter_url: '',
+          twitch_url: '',
+          youtube_url: '',
+          instagram_url: ''
+        });
+        localStorage.setItem('member_profiles', JSON.stringify(memberProfiles));
+      }
+      
       return { success: true };
     }
 
@@ -45,6 +64,12 @@ export const AuthProvider = ({ children }) => {
     return { success: false, error: 'Invalid credentials' };
   };
 
+  const loginAsGuest = () => {
+    const userData = { username: 'Guest', role: 'guest', email: null };
+    setUser(userData);
+    localStorage.setItem('nova_user', JSON.stringify(userData));
+  };
+
   const signup = (username, password, email) => {
     const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
     if (users.find(u => u.username === username)) {
@@ -64,7 +89,10 @@ export const AuthProvider = ({ children }) => {
       left_banner_url: '',
       right_banner_url: '',
       spotify_url: '',
-      socials: {}
+      twitter_url: '',
+      twitch_url: '',
+      youtube_url: '',
+      instagram_url: ''
     });
     localStorage.setItem('member_profiles', JSON.stringify(memberProfiles));
 
@@ -99,7 +127,8 @@ export const AuthProvider = ({ children }) => {
       cofounder: ['cofounder', 'mod', 'nabb_helper', 'member'],
       mod: ['mod', 'nabb_helper', 'member'],
       nabb_helper: ['nabb_helper', 'member'],
-      member: ['member']
+      member: ['member'],
+      guest: []
     };
 
     const userPerms = permissions[user.role] || [];
@@ -110,6 +139,7 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider value={{ 
       user, 
       login, 
+      loginAsGuest,
       signup, 
       logout, 
       updateUserRole, 

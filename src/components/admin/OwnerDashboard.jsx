@@ -117,9 +117,17 @@ const LeaguePlayersTab = () => {
   const [formData, setFormData] = useState({});
 
   const handleSavePlayer = () => {
-    const updatedPlayers = editingPlayer
-      ? players.map(p => p.id === editingPlayer.id ? { ...editingPlayer, ...formData } : p)
-      : [...players, { id: Date.now().toString(), ...formData }];
+    const newFormData = {
+      ...formData,
+      id: editingPlayer?.id || Date.now().toString()
+    };
+
+    let updatedPlayers;
+    if (editingPlayer?.id) {
+      updatedPlayers = players.map(p => p.id === editingPlayer.id ? newFormData : p);
+    } else {
+      updatedPlayers = [...players, newFormData];
+    }
     
     setPlayers(updatedPlayers);
     localStorage.setItem('nabb_players', JSON.stringify(updatedPlayers));
@@ -138,13 +146,14 @@ const LeaguePlayersTab = () => {
       <div className="content-header">
         <h2 className="gradient-text-cyan">Create League Players</h2>
         <button className="neon-button" onClick={() => {
-          setEditingPlayer({});
+          setEditingPlayer({ id: null });
           setFormData({
             player_name: '',
             team: '',
             overall: 75,
             roblox_id: '',
             position: '',
+            number: '',
             spotify_url: ''
           });
         }}>
@@ -186,6 +195,16 @@ const LeaguePlayersTab = () => {
                 onChange={(e) => setFormData({...formData, overall: parseInt(e.target.value)})}
                 min="0"
                 max="100"
+              />
+            </div>
+
+            <div className="form-field">
+              <label>Jersey Number</label>
+              <input
+                type="number"
+                value={formData.number || ''}
+                onChange={(e) => setFormData({...formData, number: e.target.value})}
+                placeholder="Jersey number"
               />
             </div>
 
@@ -439,14 +458,18 @@ const NABBTeamsTab = () => {
   const [teams, setTeams] = useState(
     JSON.parse(localStorage.getItem('nabb_teams') || '[]')
   );
-  const [newTeam, setNewTeam] = useState({ team_name: '', team_color: '#00ffff' });
+  const [newTeam, setNewTeam] = useState({ 
+    team_name: '', 
+    team_color: '#00ffff',
+    logo_url: ''
+  });
 
   const addTeam = () => {
     if (newTeam.team_name) {
       const updated = [...teams, { id: Date.now().toString(), ...newTeam }];
       setTeams(updated);
       localStorage.setItem('nabb_teams', JSON.stringify(updated));
-      setNewTeam({ team_name: '', team_color: '#00ffff' });
+      setNewTeam({ team_name: '', team_color: '#00ffff', logo_url: '' });
     }
   };
 
@@ -482,6 +505,16 @@ const NABBTeamsTab = () => {
             />
           </div>
 
+          <div className="form-field">
+            <label>Logo URL</label>
+            <input
+              type="text"
+              value={newTeam.logo_url}
+              onChange={(e) => setNewTeam({...newTeam, logo_url: e.target.value})}
+              placeholder="Logo image URL"
+            />
+          </div>
+
           <button className="neon-button" onClick={addTeam}>Create Team</button>
         </div>
       </div>
@@ -490,15 +523,20 @@ const NABBTeamsTab = () => {
         {teams.map(team => (
           <div key={team.id} className="neon-card p-3">
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
-              <div
-                style={{
-                  width: '30px',
-                  height: '30px',
-                  background: team.team_color,
-                  borderRadius: '4px',
-                  border: '1px solid rgba(255, 255, 255, 0.2)'
-                }}
-              />
+              {team.logo_url && (
+                <img src={team.logo_url} alt={team.team_name} style={{ width: '40px', height: '40px', borderRadius: '4px' }} />
+              )}
+              {!team.logo_url && (
+                <div
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    background: team.team_color,
+                    borderRadius: '4px',
+                    border: '1px solid rgba(255, 255, 255, 0.2)'
+                  }}
+                />
+              )}
               <h4 className="gradient-text-cyan" style={{ margin: 0 }}>{team.team_name}</h4>
             </div>
             <button
@@ -517,12 +555,20 @@ const NABBTeamsTab = () => {
 
 // NABB ROSTERS TAB
 const NABBRostersTab = () => {
-  const [teams] = useState(
+  const [teams, setTeams] = useState(
     JSON.parse(localStorage.getItem('nabb_teams') || '[]')
   );
-  const [players] = useState(
+  const [players, setPlayers] = useState(
     JSON.parse(localStorage.getItem('nabb_players') || '[]')
   );
+
+  const updatePlayerTeam = (playerId, teamName) => {
+    const updated = players.map(p =>
+      p.id === playerId ? {...p, team: teamName} : p
+    );
+    setPlayers(updated);
+    localStorage.setItem('nabb_players', JSON.stringify(updated));
+  };
 
   return (
     <div className="tab-content">
@@ -530,19 +576,77 @@ const NABBRostersTab = () => {
 
       <div className="rosters-grid" style={{ marginTop: '20px' }}>
         {teams.map(team => (
-          <div key={team.id} className="neon-card p-3">
-            <h4 className="gradient-text-cyan">{team.team_name}</h4>
-            <div style={{ marginTop: '15px' }}>
+          <div key={team.id} className="nebb-card p-3">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
+              {team.logo_url && (
+                <img src={team.logo_url} alt={team.team_name} style={{ width: '30px', height: '30px', borderRadius: '50%' }} />
+              )}
+              <h4 className="gradient-text-cyan" style={{ margin: 0 }}>{team.team_name}</h4>
+            </div>
+
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ fontSize: '0.8rem', color: 'rgba(192, 208, 255, 0.7)' }}>Add Players</label>
+              <select
+                onChange={(e) => {
+                  if (e.target.value) {
+                    updatePlayerTeam(e.target.value, team.team_name);
+                    e.target.value = '';
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  background: 'rgba(0, 255, 255, 0.05)',
+                  border: '1px solid rgba(0, 255, 255, 0.2)',
+                  color: '#c0d0ff',
+                  borderRadius: '4px',
+                  marginTop: '5px'
+                }}
+              >
+                <option value="">Select player</option>
+                {players.filter(p => p.team !== team.team_name).map(p => (
+                  <option key={p.id} value={p.id}>{p.player_name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <p style={{ fontSize: '0.8rem', color: 'rgba(192, 208, 255, 0.7)', marginBottom: '10px' }}>
+                Roster ({players.filter(p => p.team === team.team_name).length})
+              </p>
               {players.filter(p => p.team === team.team_name).length === 0 ? (
-                <p style={{ color: 'rgba(192, 208, 255, 0.6)' }}>No players yet</p>
+                <p style={{ color: 'rgba(192, 208, 255, 0.6)', fontSize: '0.9rem' }}>No players</p>
               ) : (
-                <ul style={{ listStyle: 'none' }}>
+                <ul style={{ listStyle: 'none', padding: 0 }}>
                   {players.filter(p => p.team === team.team_name).map(player => (
-                    <li key={player.id} style={{ padding: '8px 0', borderBottom: '1px solid rgba(0, 255, 255, 0.1)' }}>
-                      <span style={{ color: 'var(--color-cyan)' }}>{player.player_name}</span>
-                      <span style={{ marginLeft: '10px', color: 'rgba(192, 208, 255, 0.6)', fontSize: '0.9rem' }}>
-                        {player.position}
-                      </span>
+                    <li 
+                      key={player.id} 
+                      style={{ 
+                        padding: '8px 0', 
+                        borderBottom: '1px solid rgba(0, 255, 255, 0.1)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}
+                    >
+                      <div>
+                        <span style={{ color: 'var(--color-cyan)', fontSize: '0.9rem' }}>#{player.number} {player.player_name}</span>
+                        <span style={{ marginLeft: '10px', color: 'rgba(192, 208, 255, 0.6)', fontSize: '0.8rem' }}>
+                          {player.position}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => updatePlayerTeam(player.id, '')}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#ff3333',
+                          cursor: 'pointer',
+                          fontSize: '1rem'
+                        }}
+                      >
+                        ✕
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -553,7 +657,7 @@ const NABBRostersTab = () => {
       </div>
     </div>
   );
-};
+}
 
 // NABB GAMES TAB
 const NABBGamesTab = () => {

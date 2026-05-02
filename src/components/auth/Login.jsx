@@ -9,7 +9,7 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
-  const { login } = useAuth();
+  const { login, loginAsGuest } = useAuth();
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -71,6 +71,18 @@ const Login = () => {
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
+
+        <div className="login-divider">
+          <span>OR</span>
+        </div>
+
+        <button 
+          className="neon-button" 
+          onClick={() => loginAsGuest()}
+          style={{ marginBottom: '15px' }}
+        >
+          Continue as Guest
+        </button>
 
         <div className="login-footer">
           <p>

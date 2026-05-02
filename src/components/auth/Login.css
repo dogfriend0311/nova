@@ -45,6 +45,22 @@
   gap: 20px;
 }
 
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin: 20px 0;
+  color: rgba(192, 208, 255, 0.5);
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(192, 208, 255, 0.2);
+}
+
 .form-group {
   display: flex;
   flex-direction: column;

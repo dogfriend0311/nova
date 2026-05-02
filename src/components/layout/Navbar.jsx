@@ -34,7 +34,7 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, user }) => {
 
         {/* User Account / Admin */}
         <div className="navbar-user">
-          {user?.role === 'member' && (
+          {user?.role !== 'guest' && (
             <button className="user-button" onClick={() => onPageChange('profile')}>
               <span className="user-icon">👤</span>
               <span className="user-label">Profile</span>
