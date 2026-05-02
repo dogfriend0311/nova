@@ -14,6 +14,7 @@
 
 .main-content {
   flex: 1;
+  min-height: 0;
   margin-left: 280px;
   overflow-y: auto;
   overflow-x: hidden;
@@ -71,11 +72,7 @@
   }
 }
 
-/* Prevent horizontal scroll */
+/* Prevent horizontal scroll only */
 body {
-  overflow: hidden;
-}
-
-html {
-  overflow: hidden;
+  overflow-x: hidden;
 }
