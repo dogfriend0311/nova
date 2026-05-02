@@ -11,7 +11,7 @@ const robloxClient = axios.create({
 
 // Custom endpoint for league stats (if using a custom backend service)
 const leagueClient = axios.create({
-  baseURL: `${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api`,
+  baseURL: `https://api.roblox.com`, // Changed from localhost
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

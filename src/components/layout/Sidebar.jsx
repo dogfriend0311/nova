@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
 import './Sidebar.css';
 
-const Sidebar = ({ currentPage, onPageChange }) => {
+const Sidebar = ({ currentPage, onNavigate }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const quickLinks = [
+    { id: 'nabb', label: 'NABB League', icon: '⚾' },
     { id: 'trending', label: 'Trending', icon: '⭐' },
     { id: 'recent', label: 'Recent Activity', icon: '📊' },
-    { id: 'games', label: 'Live Games', icon: '🏆' },
     { id: 'clips', label: 'Top Clips', icon: '🎬' },
-    { id: 'music', label: 'Music Picks', icon: '🎵' },
   ];
 
   return (
@@ -32,6 +31,7 @@ const Sidebar = ({ currentPage, onPageChange }) => {
               key={link.id}
               className="quick-link"
               title={link.label}
+              onClick={() => onNavigate(link.id)}
             >
               <span className="link-icon">{link.icon}</span>
               {!isCollapsed && <span className="link-label">{link.label}</span>}

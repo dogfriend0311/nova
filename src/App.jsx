@@ -1,16 +1,33 @@
 import React, { useState } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/layout/Layout';
 import Home from './components/pages/Home';
 import Hub from './components/pages/Hub';
 import RobloxStats from './components/pages/RobloxStats';
 import MemberPages from './components/pages/MemberPages';
+import NABBLeague from './components/pages/NABBLeague';
+import LeaguePlayerPage from './components/pages/LeaguePlayerPage';
+import Login from './Login';
+import OwnerDashboard from './OwnerDashboard';
 import './styles/globals.css';
 import './styles/theme.css';
 import './styles/animations.css';
 import './styles/space.css';
+import './styles/responsive.css';
+import './Login.css';
+import './OwnerDashboard.css';
 
-const App = () => {
+const AppContent = () => {
+  const { user, isAdmin } = useAuth();
   const [currentPage, setCurrentPage] = useState('home');
+
+  if (isAdmin && user) {
+    return <OwnerDashboard />;
+  }
+
+  if (!user) {
+    return <Login />;
+  }
 
   const renderPage = () => {
     switch (currentPage) {
@@ -22,6 +39,10 @@ const App = () => {
         return <RobloxStats />;
       case 'members':
         return <MemberPages />;
+      case 'nabb':
+        return <NABBLeague />;
+      case 'player':
+        return <LeaguePlayerPage />;
       default:
         return <Home />;
     }
@@ -31,6 +52,14 @@ const App = () => {
     <Layout currentPage={currentPage} onPageChange={setCurrentPage}>
       {renderPage()}
     </Layout>
+  );
+};
+
+const App = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 };
 

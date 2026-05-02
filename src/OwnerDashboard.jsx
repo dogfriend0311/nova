@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { supabaseHelpers } from '../../services/supabaseClient';
+import { useAuth } from './context/AuthContext';
+import { supabaseHelpers } from './services/supabaseClient';
 import './OwnerDashboard.css';
 
 const OwnerDashboard = () => {

@@ -12,7 +12,7 @@ const Layout = ({ currentPage, onPageChange, children }) => {
       <Navbar currentPage={currentPage} onPageChange={onPageChange} />
       
       <div className="layout-wrapper">
-        <Sidebar currentPage={currentPage} onPageChange={onPageChange} />
+        <Sidebar currentPage={currentPage} onNavigate={onPageChange} />
         
         <main className="main-content">
           {children}
