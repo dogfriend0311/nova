@@ -37,10 +37,10 @@ const LeaguePlayerPage = ({ player, onBack }) => {
     pitchBasic: false,
     pitchAdv: false,
   });
-  const [imgError, setImgError] = useState(false);
+  const [avatarAttempt, setAvatarAttempt] = useState(0);
 
   useEffect(() => {
-    setImgError(false);
+    setAvatarAttempt(0);
   }, [player?.roblox_id]);
 
   const toggle = (key) => setToggles(prev => ({ ...prev, [key]: !prev[key] }));
@@ -156,12 +156,22 @@ const LeaguePlayerPage = ({ player, onBack }) => {
     { label: 'ER/9',  value: cIP > 0 ? fmt((cER / cIP) * 9) : '—' },
   ];
 
-  const robloxImgUrl = player.roblox_id
-    ? `https://www.roblox.com/headshot-thumbnail/image?userId=${player.roblox_id}&width=420&height=420&format=png`
-    : null;
-  const avatarSrc = robloxImgUrl
-    ? `https://wsrv.nl/?url=${encodeURIComponent(robloxImgUrl)}&w=420&h=420&fit=cover`
-    : null;
+  const rid = player.roblox_id ? String(player.roblox_id).trim() : null;
+  const avatarUrls = rid ? [
+    `https://wsrv.nl/?url=${encodeURIComponent(`https://www.roblox.com/headshot-thumbnail/image?userId=${rid}&width=420&height=420&format=png`)}`,
+    `https://wsrv.nl/?url=${encodeURIComponent(`https://www.roblox.com/bust-thumbnail/image?userId=${rid}&width=420&height=420&format=png`)}`,
+    `https://www.roblox.com/headshot-thumbnail/image?userId=${rid}&width=420&height=420&format=png`,
+  ] : [];
+  const avatarSrc = avatarUrls[avatarAttempt] || null;
+  const handleAvatarError = () => {
+    console.warn(`[Nova] Roblox avatar attempt ${avatarAttempt} failed for ID: ${rid}. URL: ${avatarUrls[avatarAttempt]}`);
+    if (avatarAttempt < avatarUrls.length - 1) {
+      setAvatarAttempt(prev => prev + 1);
+    } else {
+      console.warn(`[Nova] All Roblox avatar attempts failed for ID: ${rid}`);
+      setAvatarAttempt(avatarUrls.length);
+    }
+  };
 
   return (
     <div className="league-player-page">
@@ -175,11 +185,11 @@ const LeaguePlayerPage = ({ player, onBack }) => {
         {/* LEFT — Trading Card */}
         <div className="player-card neon-card">
           <div className="card-avatar">
-            {avatarSrc && !imgError ? (
+            {avatarSrc ? (
               <img
                 src={avatarSrc}
                 alt={player.player_name}
-                onError={() => setImgError(true)}
+                onError={handleAvatarError}
               />
             ) : (
               <div className="avatar-placeholder">🎮</div>
