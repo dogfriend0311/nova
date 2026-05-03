@@ -1,36 +1,64 @@
 /* ── Last.fm Service ─────────────────────────────────────────────
-   Key priority: localStorage (runtime) → REACT_APP env var (build)
-   Images: Last.fm CDN is broken / artist images removed in 2019.
-           We fall back to iTunes Search API (free, no auth, CORS OK).
+   Key priority: REACT_APP env var (build) → localStorage (fallback)
+   OAuth: redirect → Last.fm auth → return with ?token → getSession
+   Images: Last.fm CDN removed artist images in 2019; iTunes fallback.
 ──────────────────────────────────────────────────────────────── */
+import md5 from 'blueimp-md5';
+
 const BASE    = 'https://ws.audioscrobbler.com/2.0/';
 const LS_KEY  = 'nova_lastfm_api_key';
 
 /* Last.fm's universal "no image" placeholder hash — treat as null */
 const LFM_PLACEHOLDER = '2a96cbd8b46e442fc4';
 
-/* ── API key helpers ──────────────────────────────────────────── */
-/* Auto-persist the bundled env key to localStorage the very first
-   time this module loads on any device.  This means the key entry
-   form is never shown on any device that loads the current build,
-   AND the key survives future builds / cache refreshes. */
-(function seedKey() {
-  try {
-    const envKey = (process.env.REACT_APP_LASTFM_KEY || '').trim();
-    if (envKey && !localStorage.getItem(LS_KEY)) {
-      localStorage.setItem(LS_KEY, envKey);
-    }
-  } catch { /* SSR / private-browsing guard */ }
-}());
-
+/* ── API key / secret helpers ─────────────────────────────────── */
+/* Env key always wins — ensures the correct bundled key is used
+   even if localStorage has a stale value from a previous build. */
 function getApiKey() {
-  const stored = localStorage.getItem(LS_KEY) || '';
-  if (stored.trim()) return stored.trim();
-  return (process.env.REACT_APP_LASTFM_KEY || '').trim();
+  const envKey = (process.env.REACT_APP_LASTFM_KEY || '').trim();
+  if (envKey) return envKey;
+  return (localStorage.getItem(LS_KEY) || '').trim();
 }
-export function hasApiKey()      { return !!getApiKey(); }
-export function saveApiKey(key)  { localStorage.setItem(LS_KEY, key.trim()); }
-export function clearApiKey()    { localStorage.removeItem(LS_KEY); }
+function getApiSecret() {
+  return (process.env.REACT_APP_LASTFM_SECRET || '').trim();
+}
+export function hasApiKey() { return !!getApiKey(); }
+
+/* ── Last.fm OAuth helpers ────────────────────────────────────── */
+/* Build the redirect URL that sends the user to Last.fm sign-in. */
+export function getAuthUrl() {
+  const key      = getApiKey();
+  const callback = window.location.origin + window.location.pathname;
+  return `https://www.last.fm/api/auth/?api_key=${key}&cb=${encodeURIComponent(callback)}`;
+}
+
+/* Exchange the one-time token (from ?token= callback) for a session.
+   Requires REACT_APP_LASTFM_SECRET to be set.
+   Returns { name, key } or null on failure. */
+export async function authGetSession(token) {
+  const key    = getApiKey();
+  const secret = getApiSecret();
+  if (!key || !secret || !token) return null;
+  try {
+    const params = { api_key: key, method: 'auth.getSession', token };
+    const sigStr = Object.keys(params).sort().map(k => k + params[k]).join('') + secret;
+    const api_sig = md5(sigStr);
+    const q = new URLSearchParams({ ...params, api_sig, format: 'json' });
+    const res = await fetch(`${BASE}?${q}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.error) {
+      console.error('[Last.fm] getSession error', data.error, data.message);
+      return null;
+    }
+    return data.session || null;
+  } catch (e) {
+    console.error('[Last.fm] getSession failed:', e?.message);
+    return null;
+  }
+}
+
+export function hasSecret() { return !!getApiSecret(); }
 
 /* ── Detect & strip Last.fm placeholder images ────────────────── */
 function isPlaceholder(url) {

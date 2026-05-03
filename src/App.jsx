@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/layout/Layout';
 import Home from './components/pages/Home';
@@ -24,10 +24,22 @@ import './components/auth/LoginModal.css';
 const AppContent = () => {
   const { user } = useAuth();
   const [currentPage, setCurrentPage] = useState('home');
+  const [lfmToken, setLfmToken] = useState(null);
 
   const [showDashboard, setShowDashboard] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [selectedLeaguePlayer, setSelectedLeaguePlayer] = useState(null);
+
+  /* Detect Last.fm OAuth callback: ?token=XXX in the URL */
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (token) {
+      window.history.replaceState({}, '', window.location.pathname);
+      setLfmToken(token);
+      setCurrentPage('lastfm');
+    }
+  }, []);
   if (showDashboard) return (
     <div style={{ height: '100vh', overflowY: 'auto', overflowX: 'hidden', background: '#0a0a23' }}>
       <OwnerDashboard onExit={() => setShowDashboard(false)} />
@@ -52,7 +64,7 @@ const AppContent = () => {
       case 'nabb':         return <NABBLeague onSelectPlayer={handleSelectPlayer} />;
       case 'members':      return <MemberPages />;
       case 'profile':      return user ? <MemberProfile /> : <Home />;
-      case 'lastfm':       return <LastFmPage />;
+      case 'lastfm':       return <LastFmPage pendingToken={lfmToken} onTokenConsumed={() => setLfmToken(null)} />;
       case 'nabb-rosters': return <NABBRosters />;
       case 'player':       return <LeaguePlayerPage player={selectedLeaguePlayer} onBack={() => setCurrentPage('nabb')} />;
       default:             return <Home />;

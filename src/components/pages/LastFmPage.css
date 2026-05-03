@@ -544,6 +544,73 @@
 .lfm-no-user-icon { font-size: 3rem; margin-bottom: 12px; }
 .lfm-no-user p    { font-size: 0.88rem; }
 
+/* ── Sign-in hero ────────────────────────────────────────────── */
+.lfm-signin-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 60px 24px 40px;
+  gap: 14px;
+}
+
+.lfm-signin-logo {
+  font-size: 4rem;
+  filter: drop-shadow(0 0 18px rgba(213,16,7,0.55));
+  margin-bottom: 4px;
+}
+
+.lfm-signin-title {
+  font-size: 1.7rem;
+  font-weight: 800;
+  color: #e8efff;
+  margin: 0;
+}
+
+.lfm-signin-sub {
+  color: rgba(192,208,255,0.55);
+  font-size: 0.95rem;
+  max-width: 380px;
+  line-height: 1.6;
+  margin: 0 0 8px;
+}
+
+.lfm-signin-btn {
+  background: linear-gradient(135deg, #d51007 0%, #8b0000 100%);
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  padding: 15px 44px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  transition: opacity 0.2s, transform 0.1s;
+  box-shadow: 0 6px 28px rgba(213,16,7,0.38);
+}
+
+.lfm-signin-btn:hover { opacity: 0.88; transform: translateY(-2px); }
+
+.lfm-signin-manual {
+  background: transparent;
+  border: none;
+  color: rgba(192,208,255,0.38);
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  margin-top: 4px;
+  transition: color 0.2s;
+}
+
+.lfm-signin-manual:hover { color: rgba(192,208,255,0.7); }
+
+.lfm-oauth-loading {
+  justify-content: center;
+  padding: 60px 0;
+  font-size: 1rem;
+}
+
 /* ── Connect bar ─────────────────────────────────────────────── */
 .lfm-connect-bar {
   display: flex;

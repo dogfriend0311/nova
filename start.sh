@@ -5,8 +5,9 @@
 ENV_FILE=".env.local"
 > "$ENV_FILE"
 
-[ -n "$REACT_APP_LASTFM_KEY" ] && echo "REACT_APP_LASTFM_KEY=$(echo "$REACT_APP_LASTFM_KEY" | tr -d '[:space:]')" >> "$ENV_FILE"
-[ -n "$REACT_APP_OMDB_KEY"   ] && echo "REACT_APP_OMDB_KEY=$(echo "$REACT_APP_OMDB_KEY" | tr -d '[:space:]')"     >> "$ENV_FILE"
+[ -n "$REACT_APP_LASTFM_KEY"    ] && echo "REACT_APP_LASTFM_KEY=$(echo "$REACT_APP_LASTFM_KEY" | tr -d '[:space:]')"       >> "$ENV_FILE"
+[ -n "$REACT_APP_LASTFM_SECRET" ] && echo "REACT_APP_LASTFM_SECRET=$(echo "$REACT_APP_LASTFM_SECRET" | tr -d '[:space:]')" >> "$ENV_FILE"
+[ -n "$REACT_APP_OMDB_KEY"      ] && echo "REACT_APP_OMDB_KEY=$(echo "$REACT_APP_OMDB_KEY" | tr -d '[:space:]')"           >> "$ENV_FILE"
 
 echo ".env.local written:"
 grep -o '^[^=]*' "$ENV_FILE"

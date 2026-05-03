@@ -183,12 +183,10 @@ const LovedSection = ({ tracks }) => (
 );
 
 /* ── Main Page ──────────────────────────────────────────────── */
-const LastFmPage = () => {
+const LastFmPage = ({ pendingToken, onTokenConsumed }) => {
   const { user } = useAuth();
 
   const [activeUsername, setActiveUsername] = useState('');
-  // eslint-disable-next-line no-unused-vars
-  const [searchInput,    setSearchInput]    = useState('');
   const [period,         setPeriod]         = useState('1month');
 
   const [userInfo,     setUserInfo]     = useState(null);
@@ -198,33 +196,19 @@ const LastFmPage = () => {
   const [recentTracks, setRecentTracks] = useState([]);
   const [lovedTracks,  setLovedTracks]  = useState([]);
 
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState(null);
+  const [loading,      setLoading]      = useState(false);
+  const [error,        setError]        = useState(null);
+  const [oauthLoading, setOauthLoading] = useState(false);
 
-  const [showConnect, setShowConnect] = useState(false);
-  const [connectInput, setConnectInput] = useState('');
-  const [connectLoading, setConnectLoading] = useState(false);
-  const [connectError, setConnectError] = useState('');
+  /* Manual fallback modal state */
+  const [showManual,    setShowManual]    = useState(false);
+  const [manualInput,   setManualInput]   = useState('');
+  const [manualLoading, setManualLoading] = useState(false);
+  const [manualError,   setManualError]   = useState('');
 
   const SAVED_USER_KEY = 'nova_lastfm_saved_username';
 
-  useEffect(() => {
-    if (user) {
-      const profiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
-      const p = profiles.find((pr) => pr.username === user.username);
-      if (p?.lastfm_username) {
-        setSearchInput(p.lastfm_username);
-        setActiveUsername(p.lastfm_username);
-        return;
-      }
-    }
-    const saved = localStorage.getItem(SAVED_USER_KEY);
-    if (saved) {
-      setSearchInput(saved);
-      setActiveUsername(saved);
-    }
-  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
-
+  /* ── Persist username to localStorage + member profile ──── */
   const saveUsername = useCallback((uname) => {
     localStorage.setItem(SAVED_USER_KEY, uname);
     if (user) {
@@ -239,6 +223,42 @@ const LastFmPage = () => {
     }
   }, [user]);
 
+  /* ── Restore saved username on load ─────────────────────── */
+  useEffect(() => {
+    if (user) {
+      const profiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
+      const p = profiles.find((pr) => pr.username === user.username);
+      if (p?.lastfm_username) { setActiveUsername(p.lastfm_username); return; }
+    }
+    const saved = localStorage.getItem(SAVED_USER_KEY);
+    if (saved) setActiveUsername(saved);
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ── Handle OAuth callback token from App.jsx ───────────── */
+  useEffect(() => {
+    if (!pendingToken) return;
+    onTokenConsumed?.();
+    (async () => {
+      setOauthLoading(true);
+      setError(null);
+      try {
+        const session = await lfm.authGetSession(pendingToken);
+        if (session?.name) {
+          saveUsername(session.name);
+          setActiveUsername(session.name);
+          return;
+        }
+        /* Secret not set → show manual entry so they can still link */
+        setShowManual(true);
+      } catch {
+        setShowManual(true);
+      } finally {
+        setOauthLoading(false);
+      }
+    })();
+  }, [pendingToken]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ── Fetch all stats for a username ─────────────────────── */
   const fetchStats = useCallback(async (uname, per) => {
     if (!uname) return;
     setLoading(true);
@@ -257,10 +277,9 @@ const LastFmPage = () => {
         return;
       }
       if (info._error) {
-        const msg = info._error === 10
+        setError(info._error === 10
           ? 'Last.fm API key is invalid. Contact the site admin.'
-          : `Last.fm error ${info._error}: ${info._message}`;
-        setError(msg);
+          : `Last.fm error ${info._error}: ${info._message}`);
         return;
       }
       setUserInfo(info);
@@ -270,7 +289,7 @@ const LastFmPage = () => {
       setRecentTracks(recent);
       setLovedTracks(loved);
       localStorage.setItem(SAVED_USER_KEY, uname);
-    } catch (e) {
+    } catch {
       setError('Could not reach Last.fm. Check your connection and try again.');
     } finally {
       setLoading(false);
@@ -281,37 +300,43 @@ const LastFmPage = () => {
     if (activeUsername) fetchStats(activeUsername, period);
   }, [activeUsername, period, fetchStats]);
 
-  const handleConnectSubmit = async (e) => {
+  /* ── Sign in via Last.fm redirect ───────────────────────── */
+  const handleSignIn = () => {
+    window.location.href = lfm.getAuthUrl();
+  };
+
+  /* ── Manual username fallback ───────────────────────────── */
+  const handleManualSubmit = async (e) => {
     e?.preventDefault();
-    const uname = connectInput.trim();
+    const uname = manualInput.trim();
     if (!uname) return;
-    setConnectLoading(true);
-    setConnectError('');
+    setManualLoading(true);
+    setManualError('');
     try {
       const info = await lfm.getUserInfo(uname);
       if (!info) {
-        setConnectError(`Username "${uname}" not found on Last.fm. Double-check it and try again.`);
+        setManualError(`"${uname}" not found on Last.fm. Double-check the spelling.`);
         return;
       }
       if (info._error) {
-        setConnectError(info._error === 10
+        setManualError(info._error === 10
           ? 'API key error — contact the site admin.'
           : `Last.fm error: ${info._message}`);
         return;
       }
       saveUsername(uname);
-      setSearchInput(uname);
       setActiveUsername(uname);
-      setShowConnect(false);
-      setConnectInput('');
-      setConnectError('');
+      setShowManual(false);
+      setManualInput('');
+      setManualError('');
     } catch {
-      setConnectError('Could not reach Last.fm. Try again.');
+      setManualError('Could not reach Last.fm. Try again.');
     } finally {
-      setConnectLoading(false);
+      setManualLoading(false);
     }
   };
 
+  /* ── Disconnect ─────────────────────────────────────────── */
   const handleDisconnect = () => {
     localStorage.removeItem(SAVED_USER_KEY);
     if (user) {
@@ -323,59 +348,50 @@ const LastFmPage = () => {
       }
     }
     setActiveUsername('');
-    setSearchInput('');
     setUserInfo(null);
     setError(null);
   };
 
+  /* ── Render ─────────────────────────────────────────────── */
+  const noAccount = !activeUsername && !loading && !oauthLoading && !error;
+
   return (
     <div className="page lfm-page">
-      {showConnect && (
-        <div className="lfm-modal-overlay" onClick={() => setShowConnect(false)}>
+
+      {/* Manual username modal (fallback if no API secret) */}
+      {showManual && (
+        <div className="lfm-modal-overlay" onClick={() => setShowManual(false)}>
           <div className="lfm-modal" onClick={(e) => e.stopPropagation()}>
             <div className="lfm-modal-header">
               <div className="lfm-modal-logo">🎵</div>
-              <h2 className="lfm-modal-title">Connect Last.fm</h2>
-              <p className="lfm-modal-sub">Enter your Last.fm username to link your listening stats</p>
+              <h2 className="lfm-modal-title">Enter Your Username</h2>
+              <p className="lfm-modal-sub">Type your Last.fm username to pull in your stats</p>
             </div>
-            <form className="lfm-modal-form" onSubmit={handleConnectSubmit}>
+            <form className="lfm-modal-form" onSubmit={handleManualSubmit}>
               <input
                 className="lfm-modal-input"
                 type="text"
                 placeholder="Your Last.fm username"
-                value={connectInput}
+                value={manualInput}
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}
-                onChange={(e) => setConnectInput(e.target.value)}
+                onChange={(e) => setManualInput(e.target.value)}
                 autoFocus
               />
-              {connectError && <div className="lfm-modal-error">{connectError}</div>}
+              {manualError && <div className="lfm-modal-error">{manualError}</div>}
               <button
                 className="lfm-modal-btn"
                 type="submit"
-                disabled={!connectInput.trim() || connectLoading}
+                disabled={!manualInput.trim() || manualLoading}
               >
-                {connectLoading ? 'Verifying…' : 'Connect Account'}
+                {manualLoading ? 'Loading…' : 'Show My Stats'}
               </button>
-              <a
-                className="lfm-modal-link"
-                href="https://www.last.fm/join"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Don't have an account? Sign up at last.fm →
-              </a>
-              <a
-                className="lfm-modal-link"
-                href="https://www.last.fm/settings/account"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Find your username in Last.fm settings →
+              <a className="lfm-modal-link" href="https://www.last.fm/settings/account" target="_blank" rel="noreferrer">
+                Find your username at last.fm/settings →
               </a>
             </form>
-            <button className="lfm-modal-close" onClick={() => setShowConnect(false)}>✕</button>
+            <button className="lfm-modal-close" onClick={() => setShowManual(false)}>✕</button>
           </div>
         </div>
       )}
@@ -385,49 +401,60 @@ const LastFmPage = () => {
         <p className="subtitle">Music stats &amp; listening history</p>
       </div>
 
-      <div className="lfm-connect-bar">
-        {activeUsername ? (
-          <>
-            <span className="lfm-connected-label">
-              <span className="lfm-connected-dot" /> Viewing: <strong>{activeUsername}</strong>
-            </span>
-            <button className="lfm-bar-btn" onClick={() => { setShowConnect(true); setConnectInput(''); }}>Switch Account</button>
-            <button className="lfm-bar-btn lfm-bar-btn-ghost" onClick={handleDisconnect}>Disconnect</button>
-          </>
-        ) : (
-          <button className="lfm-connect-big-btn" onClick={() => setShowConnect(true)}>
-            🎵 Connect Your Last.fm Account
-          </button>
-        )}
-      </div>
+      {/* Connected account bar */}
+      {activeUsername && !oauthLoading && (
+        <div className="lfm-connect-bar">
+          <span className="lfm-connected-label">
+            <span className="lfm-connected-dot" /> Connected: <strong>{activeUsername}</strong>
+          </span>
+          <button className="lfm-bar-btn" onClick={handleSignIn}>Switch Account</button>
+          <button className="lfm-bar-btn lfm-bar-btn-ghost" onClick={handleDisconnect}>Disconnect</button>
+        </div>
+      )}
 
-      {loading && (
+      {/* OAuth loading */}
+      {oauthLoading && (
+        <div className="lfm-loading lfm-oauth-loading">
+          <span className="lfm-dot" /><span className="lfm-dot" /><span className="lfm-dot" />
+          <span style={{ marginLeft: 8 }}>Signing you in…</span>
+        </div>
+      )}
+
+      {/* Stats loading */}
+      {loading && !oauthLoading && (
         <div className="lfm-loading">
           <span className="lfm-dot" /><span className="lfm-dot" /><span className="lfm-dot" />
           <span style={{ marginLeft: 8 }}>Loading stats…</span>
         </div>
       )}
 
-      {!loading && error && (
+      {/* Error state */}
+      {!loading && !oauthLoading && error && (
         <div className="lfm-error">
           {error}
-          <button className="lfm-error-retry" onClick={() => { setShowConnect(true); setConnectInput(''); }}>
-            Try a different username
+          <button className="lfm-error-retry" onClick={handleSignIn}>
+            Try signing in again
           </button>
         </div>
       )}
 
-      {!loading && !error && !activeUsername && (
-        <div className="lfm-no-user">
-          <div className="lfm-no-user-icon">🎵</div>
-          <p>Connect your Last.fm account to see your music stats.</p>
-          <button className="lfm-connect-big-btn" style={{ marginTop: 16 }} onClick={() => setShowConnect(true)}>
-            Connect Last.fm
+      {/* No account — big sign-in CTA */}
+      {noAccount && (
+        <div className="lfm-signin-hero">
+          <div className="lfm-signin-logo">🎵</div>
+          <h2 className="lfm-signin-title">Connect Your Last.fm</h2>
+          <p className="lfm-signin-sub">Sign in with Last.fm to instantly see your scrobbles, top artists, top tracks, and more.</p>
+          <button className="lfm-signin-btn" onClick={handleSignIn}>
+            Sign in with Last.fm
+          </button>
+          <button className="lfm-signin-manual" onClick={() => setShowManual(true)}>
+            Enter username manually instead
           </button>
         </div>
       )}
 
-      {!loading && !error && userInfo && (
+      {/* Stats */}
+      {!loading && !oauthLoading && !error && userInfo && (
         <>
           <div className="lfm-profile-header">
             {userInfo.image
