@@ -10,6 +10,19 @@ const LS_KEY  = 'nova_lastfm_api_key';
 const LFM_PLACEHOLDER = '2a96cbd8b46e442fc4';
 
 /* ── API key helpers ──────────────────────────────────────────── */
+/* Auto-persist the bundled env key to localStorage the very first
+   time this module loads on any device.  This means the key entry
+   form is never shown on any device that loads the current build,
+   AND the key survives future builds / cache refreshes. */
+(function seedKey() {
+  try {
+    const envKey = (process.env.REACT_APP_LASTFM_KEY || '').trim();
+    if (envKey && !localStorage.getItem(LS_KEY)) {
+      localStorage.setItem(LS_KEY, envKey);
+    }
+  } catch { /* SSR / private-browsing guard */ }
+}());
+
 function getApiKey() {
   const stored = localStorage.getItem(LS_KEY) || '';
   if (stored.trim()) return stored.trim();

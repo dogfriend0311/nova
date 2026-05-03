@@ -200,15 +200,26 @@ const LastFmPage = () => {
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState(null);
 
+  const SAVED_USER_KEY = 'nova_lastfm_saved_username';
+
   useEffect(() => {
-    if (!user) return;
-    const profiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
-    const p = profiles.find((pr) => pr.username === user.username);
-    if (p?.lastfm_username) {
-      setSearchInput(p.lastfm_username);
-      setActiveUsername(p.lastfm_username);
+    // Priority 1: logged-in member's linked Last.fm username
+    if (user) {
+      const profiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
+      const p = profiles.find((pr) => pr.username === user.username);
+      if (p?.lastfm_username) {
+        setSearchInput(p.lastfm_username);
+        setActiveUsername(p.lastfm_username);
+        return;
+      }
     }
-  }, [user]);
+    // Priority 2: last username searched on this device (works signed-out too)
+    const saved = localStorage.getItem(SAVED_USER_KEY);
+    if (saved) {
+      setSearchInput(saved);
+      setActiveUsername(saved);
+    }
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchStats = useCallback(async (uname, per) => {
     if (!uname) return;
@@ -230,6 +241,7 @@ const LastFmPage = () => {
       setTopTags(tags);
       setRecentTracks(recent);
       setLovedTracks(loved);
+      localStorage.setItem(SAVED_USER_KEY, uname);
     } catch {
       setError('Could not load Last.fm data. Try again shortly.');
     } finally {

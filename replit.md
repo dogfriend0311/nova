@@ -5,10 +5,12 @@ Nova is a space-themed social gaming hub for Roblox sports community. Members ca
 
 ## Architecture
 - **Frontend**: React 18 (Create React App / react-scripts 5.0.1)
-- **Auth/Data**: localStorage only — no Supabase auth
+- **Auth/Data**: localStorage (primary) + Supabase sync layer (cross-device)
+- **Supabase**: `app_data` key/value table syncs all shared data across devices; `member_profiles` table also exists
 - **Styling**: CSS3 with custom neon space theme, CSS variables, animations
 - **State**: React Context API (AuthContext)
 - **Port**: 5000 (HOST=0.0.0.0, DANGEROUSLY_DISABLE_HOST_CHECK=true)
+- **Startup**: `src/index.jsx` loads Supabase → localStorage before React mounts; localStorage proxy auto-pushes writes to Supabase
 
 ## Project Structure
 - `src/App.jsx` — Root app with state-based routing + selectedLeaguePlayer state
