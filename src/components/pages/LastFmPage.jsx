@@ -248,10 +248,9 @@ const LastFmPage = ({ pendingToken, onTokenConsumed }) => {
           setActiveUsername(session.name);
           return;
         }
-        /* Secret not set → show manual entry so they can still link */
-        setShowManual(true);
+        setError('Last.fm sign-in failed. Try again from the button on this page.');
       } catch {
-        setShowManual(true);
+        setError('Last.fm sign-in failed. Try again from the button on this page.');
       } finally {
         setOauthLoading(false);
       }
@@ -313,16 +312,13 @@ const LastFmPage = ({ pendingToken, onTokenConsumed }) => {
     setManualLoading(true);
     setManualError('');
     try {
-      const info = await lfm.getUserInfo(uname);
-      if (!info) {
-        setManualError(`"${uname}" not found on Last.fm. Double-check the spelling.`);
-        return;
-      }
-      if (info._error) {
-        setManualError(info._error === 10
-          ? 'API key error — contact the site admin.'
-          : `Last.fm error: ${info._message}`);
-        return;
+      const session = await lfm.authGetSession(uname);
+      if (!session?.name) {
+        const info = await lfm.getUserInfo(uname);
+        if (!info?.name) {
+          setManualError(`"${uname}" not found on Last.fm. Double-check the spelling.`);
+          return;
+        }
       }
       saveUsername(uname);
       setActiveUsername(uname);
