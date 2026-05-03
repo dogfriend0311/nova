@@ -29,10 +29,10 @@ const Sidebar = ({ currentPage, onNavigate }) => {
   }, []);
 
   const quickLinks = [
-    { id: 'nabb', label: 'NABB League', icon: '⚾' },
-    { id: 'trending', label: 'Trending', icon: '⭐' },
-    { id: 'recent', label: 'Recent Activity', icon: '📊' },
-    { id: 'clips', label: 'Top Clips', icon: '🎬' },
+    { id: 'nabb',      label: 'NABB League',  icon: '⚾' },
+    { id: 'sports',    label: 'Sports',       icon: '🏆' },
+    { id: 'watchlist', label: 'Watch List',   icon: '🎬' },
+    { id: 'members',   label: 'Member Pages', icon: '👥' },
   ];
 
   return (

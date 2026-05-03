@@ -96,6 +96,14 @@ const MILB_SPORT_IDS = {
   milb_singleA: 14,
 };
 
+export const fetchMiLBGameDetail = async (gamePk) => {
+  const [bsRes, lsRes] = await Promise.all([
+    fetch(`${MILB_API}/game/${gamePk}/boxscore`).then((r) => r.json()),
+    fetch(`${MILB_API}/game/${gamePk}/linescore`).then((r) => r.json()),
+  ]);
+  return { boxscore: bsRes, linescore: lsRes };
+};
+
 export const fetchMiLBScoreboard = async (sport) => {
   const sportId = MILB_SPORT_IDS[sport];
   const now     = new Date();

@@ -13,6 +13,7 @@ import {
   normalizeGameSummary,
   fetchMiLBScoreboard,
   normalizeMiLBGame,
+  fetchMiLBGameDetail,
 } from '../../services/sportsDataService';
 import './SportsHub.css';
 
@@ -158,16 +159,175 @@ const ScoresPanel = ({ sport, refreshKey, onSelectGame }) => {
 };
 
 /* ────────────────────────────────────────────
+   MiLB Game Detail View
+   ──────────────────────────────────────────── */
+const MiLBGameDetailView = ({ game, onBack }) => {
+  const [detail, setDetail]   = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    fetchMiLBGameDetail(game.id)
+      .then(setDetail)
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [game.id]);
+
+  const thS = { padding: '6px 10px', color: 'rgba(192,208,255,0.45)', fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: '1px solid rgba(100,120,200,0.18)', textAlign: 'center', whiteSpace: 'nowrap' };
+  const tdS = { padding: '6px 10px', textAlign: 'center', color: 'rgba(192,208,255,0.82)', fontSize: '0.82rem', borderBottom: '1px solid rgba(100,120,200,0.07)' };
+
+  return (
+    <div className="sh-detail-view">
+      <button className="sh-back-btn" onClick={onBack}>← Back to Scores</button>
+
+      <div className="sh-detail-header" style={{ textAlign: 'center', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', flexWrap: 'wrap', marginBottom: '6px' }}>
+          <span style={{ fontSize: '1rem', fontWeight: '700', color: 'rgba(192,208,255,0.9)' }}>{game.awayTeam.name}</span>
+          {game.status !== 'pre' && (
+            <span style={{ fontSize: '1.6rem', fontWeight: '800', color: 'var(--color-cyan)', letterSpacing: '2px' }}>
+              {game.awayTeam.score ?? '—'} – {game.homeTeam.score ?? '—'}
+            </span>
+          )}
+          <span style={{ fontSize: '1rem', fontWeight: '700', color: 'rgba(192,208,255,0.9)' }}>{game.homeTeam.name}</span>
+        </div>
+        <div style={{ fontSize: '0.82rem', color: 'rgba(192,208,255,0.45)' }}>{game.statusDetail}</div>
+      </div>
+
+      {loading && <div className="sh-loading"><div className="sh-spinner" /></div>}
+      {error   && <div className="sh-error">Could not load box score: {error}</div>}
+
+      {!loading && detail && (() => {
+        const ls = detail.linescore;
+        const bs = detail.boxscore;
+
+        return (
+          <>
+            {ls?.innings?.length > 0 ? (
+              <div style={{ overflowX: 'auto', marginBottom: '28px' }}>
+                <h4 style={{ fontSize: '0.78rem', color: 'rgba(192,208,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Linescore</h4>
+                <table style={{ borderCollapse: 'collapse', minWidth: '500px' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ ...thS, textAlign: 'left', minWidth: '70px' }}>Team</th>
+                      {ls.innings.map((inn) => <th key={inn.num} style={thS}>{inn.num}</th>)}
+                      <th style={{ ...thS, borderLeft: '1px solid rgba(100,120,200,0.3)' }}>R</th>
+                      <th style={thS}>H</th>
+                      <th style={thS}>E</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[{ label: game.awayTeam.abbr, k: 'away' }, { label: game.homeTeam.abbr, k: 'home' }].map(({ label, k }) => (
+                      <tr key={k}>
+                        <td style={{ ...tdS, textAlign: 'left', fontWeight: '700', color: 'rgba(192,208,255,0.9)' }}>{label}</td>
+                        {ls.innings.map((inn) => <td key={inn.num} style={tdS}>{inn[k]?.runs ?? '—'}</td>)}
+                        <td style={{ ...tdS, borderLeft: '1px solid rgba(100,120,200,0.3)', fontWeight: '700' }}>{ls.teams?.[k]?.runs ?? '—'}</td>
+                        <td style={tdS}>{ls.teams?.[k]?.hits ?? '—'}</td>
+                        <td style={tdS}>{ls.teams?.[k]?.errors ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div style={{ color: 'rgba(192,208,255,0.4)', fontSize: '0.85rem', marginBottom: '20px', padding: '20px', textAlign: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                {game.status === 'pre' ? 'Game has not started yet — check back at game time.' : 'Linescore not available.'}
+              </div>
+            )}
+
+            {[{ k: 'away', name: game.awayTeam.name }, { k: 'home', name: game.homeTeam.name }].map(({ k, name }) => {
+              const td = bs?.teams?.[k];
+              if (!td) return null;
+              const batters  = (td.battingOrder || td.batters || []).map((id) => td.players?.[`ID${id}`]).filter(Boolean);
+              const pitchers = (td.pitchers || []).map((id) => td.players?.[`ID${id}`]).filter(Boolean);
+              if (!batters.length && !pitchers.length) return null;
+              return (
+                <div key={k} style={{ marginBottom: '28px' }}>
+                  <h4 style={{ fontSize: '0.82rem', color: 'var(--color-cyan)', marginBottom: '12px', borderBottom: '1px solid rgba(100,120,200,0.15)', paddingBottom: '6px' }}>{name}</h4>
+                  {batters.length > 0 && (
+                    <div style={{ overflowX: 'auto', marginBottom: '14px' }}>
+                      <p style={{ fontSize: '0.68rem', color: 'rgba(192,208,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>Batting</p>
+                      <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+                        <thead>
+                          <tr>
+                            <th style={{ ...thS, textAlign: 'left', minWidth: '140px' }}>Player</th>
+                            {['AB','R','H','RBI','BB','K','HR'].map((h) => <th key={h} style={thS}>{h}</th>)}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {batters.map((p, i) => {
+                            const b = p.stats?.batting || {};
+                            return (
+                              <tr key={i}>
+                                <td style={{ ...tdS, textAlign: 'left' }}>{p.person?.fullName}</td>
+                                <td style={tdS}>{b.atBats       ?? '—'}</td>
+                                <td style={tdS}>{b.runs         ?? '—'}</td>
+                                <td style={tdS}>{b.hits         ?? '—'}</td>
+                                <td style={tdS}>{b.rbi          ?? '—'}</td>
+                                <td style={tdS}>{b.baseOnBalls  ?? '—'}</td>
+                                <td style={tdS}>{b.strikeOuts   ?? '—'}</td>
+                                <td style={tdS}>{b.homeRuns     ?? '—'}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  {pitchers.length > 0 && (
+                    <div style={{ overflowX: 'auto' }}>
+                      <p style={{ fontSize: '0.68rem', color: 'rgba(192,208,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>Pitching</p>
+                      <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+                        <thead>
+                          <tr>
+                            <th style={{ ...thS, textAlign: 'left', minWidth: '140px' }}>Pitcher</th>
+                            {['IP','H','R','ER','BB','K','Dec'].map((h) => <th key={h} style={thS}>{h}</th>)}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pitchers.map((p, i) => {
+                            const pt = p.stats?.pitching || {};
+                            return (
+                              <tr key={i}>
+                                <td style={{ ...tdS, textAlign: 'left' }}>{p.person?.fullName}</td>
+                                <td style={tdS}>{pt.inningsPitched ?? '—'}</td>
+                                <td style={tdS}>{pt.hits          ?? '—'}</td>
+                                <td style={tdS}>{pt.runs          ?? '—'}</td>
+                                <td style={tdS}>{pt.earnedRuns    ?? '—'}</td>
+                                <td style={tdS}>{pt.baseOnBalls   ?? '—'}</td>
+                                <td style={tdS}>{pt.strikeOuts    ?? '—'}</td>
+                                <td style={{ ...tdS, color: 'rgba(192,208,255,0.5)', fontStyle: 'italic' }}>{pt.note || '—'}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </>
+        );
+      })()}
+    </div>
+  );
+};
+
+/* ────────────────────────────────────────────
    MiLB Scores Panel
    ──────────────────────────────────────────── */
 const MiLBScoresPanel = ({ sport, refreshKey }) => {
-  const [games, setGames]     = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState(null);
+  const [games, setGames]               = useState(null);
+  const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState(null);
+  const [selectedGame, setSelectedGame] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setSelectedGame(null);
     try {
       const raw = await fetchMiLBScoreboard(sport);
       setGames(raw.map(normalizeMiLBGame));
@@ -183,6 +343,10 @@ const MiLBScoresPanel = ({ sport, refreshKey }) => {
   if (loading) return <div className="sh-loading"><div className="sh-spinner" /></div>;
   if (error)   return <div className="sh-error">Could not load scores: {error}</div>;
 
+  if (selectedGame) {
+    return <MiLBGameDetailView game={selectedGame} onBack={() => setSelectedGame(null)} />;
+  }
+
   const live      = games.filter((g) => g.status === 'in');
   const final     = games.filter((g) => g.status === 'post');
   const scheduled = games.filter((g) => g.status === 'pre');
@@ -197,20 +361,22 @@ const MiLBScoresPanel = ({ sport, refreshKey }) => {
     );
   }
 
-  const Section = ({ title, items }) =>
+  const Section = ({ title, items, clickable }) =>
     items.length === 0 ? null : (
       <>
         <h3 className="sh-section-title">{title} <span className="sh-section-count">{items.length}</span></h3>
         <div className="sh-scores-grid">
-          {items.map((g) => <ScoreCard key={g.id} game={g} />)}
+          {items.map((g) => (
+            <ScoreCard key={g.id} game={g} onSelectGame={clickable ? setSelectedGame : undefined} />
+          ))}
         </div>
       </>
     );
 
   return (
     <div className="sh-scores-wrap">
-      <Section title="🔴 Live"      items={live} />
-      <Section title="✅ Final"     items={final} />
+      <Section title="🔴 Live"      items={live}      clickable />
+      <Section title="✅ Final"     items={final}     clickable />
       <Section title="🕐 Upcoming" items={scheduled} />
     </div>
   );
