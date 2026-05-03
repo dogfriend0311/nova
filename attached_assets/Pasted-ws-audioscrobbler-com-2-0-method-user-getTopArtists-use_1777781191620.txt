@@ -1,0 +1,25 @@
+ws.audioscrobbler.com/2.0/?method=user.getTopArtists&user=X0xcy&period=1month&limit=12&format=json&api_key=44ad7b3e44b1868f6605502d1f85c184:1  Failed to load resource: the server responded with a status of 404 ()
+ws.audioscrobbler.com/2.0/?method=user.getInfo&user=X0xcy&format=json&api_key=44ad7b3e44b1868f6605502d1f85c184:1  Failed to load resource: the server responded with a status of 404 ()
+ws.audioscrobbler.com/2.0/?method=user.getLovedTracks&user=X0xcy&limit=10&format=json&api_key=44ad7b3e44b1868f6605502d1f85c184:1  Failed to load resource: the server responded with a status of 404 ()
+ws.audioscrobbler.com/2.0/?method=user.getTopTracks&user=X0xcy&period=1month&limit=15&format=json&api_key=44ad7b3e44b1868f6605502d1f85c184:1  Failed to load resource: the server responded with a status of 404 ()
+ws.audioscrobbler.com/2.0/?method=user.getRecentTracks&user=X0xcy&limit=15&format=json&api_key=44ad7b3e44b1868f6605502d1f85c184:1  Failed to load resource: the server responded with a status of 404 ()
+chrome-extension://ggaabchcecdbomdcnbahdfddfikjmphe/_locales/en_US/messages.json:1  Failed to load resource: net::ERR_FILE_NOT_FOUND
+bundle.js:1  Uncaught (in promise) TypeError: Failed to fetch
+    at rn (bundle.js:1:156868)
+    at bundle.js:1:248989
+chrome-extension://ggaabchcecdbomdcnbahdfddfikjmphe/_locales/en_US/messages.json:1  Failed to load resource: net::ERR_FILE_NOT_FOUND
+bundle.js:1  Uncaught (in promise) TypeError: Failed to fetch
+    at rn (bundle.js:1:156868)
+    at bundle.js:1:248989
+chrome-extension://ggaabchcecdbomdcnbahdfddfikjmphe/_locales/en_US/messages.json:1  Failed to load resource: net::ERR_FILE_NOT_FOUND
+bundle.js:1  Uncaught (in promise) TypeError: Failed to fetch
+    at rn (bundle.js:1:156868)
+    at bundle.js:1:248989
+chrome-extension://ggaabchcecdbomdcnbahdfddfikjmphe/_locales/en_US/messages.json:1  Failed to load resource: net::ERR_FILE_NOT_FOUND
+bundle.js:1  Uncaught (in promise) TypeError: Failed to fetch
+    at rn (bundle.js:1:156868)
+    at bundle.js:1:248989
+chrome-extension://ggaabchcecdbomdcnbahdfddfikjmphe/_locales/en_US/messages.json:1  Failed to load resource: net::ERR_FILE_NOT_FOUND
+bundle.js:1  Uncaught (in promise) TypeError: Failed to fetch
+    at rn (bundle.js:1:156868)
+    at bundle.js:1:248989

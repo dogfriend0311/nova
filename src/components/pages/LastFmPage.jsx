@@ -223,7 +223,7 @@ const LastFmPage = () => {
         lfm.getRecentTracks(uname, 15),
         lfm.getLovedTracks(uname, 10),
       ]);
-      if (!info) { setError(`User "${uname}" not found on Last.fm.`); }
+      if (!info) { setError(`Last.fm user "${uname}" not found. Check the username and try again.`); return; }
       setUserInfo(info);
       setTopArtists(artists);
       setTopTracks(tracks);
