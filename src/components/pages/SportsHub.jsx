@@ -345,9 +345,23 @@ const PlayerSearchPanel = ({ sport }) => {
     setPlayerData(null);
     try {
       const data = await fetchAthleteSearch(query);
-      const athleteGroup = data.results?.find(r => r.type === 'athlete');
-      const items = athleteGroup?.contents || [];
-      setResults(items);
+      let items = [];
+      if (Array.isArray(data.results)) {
+        const playerTypes = ['athlete', 'player', 'person'];
+        const playerGroups = data.results.filter(r =>
+          playerTypes.includes((r.type || '').toLowerCase())
+        );
+        if (playerGroups.length > 0) {
+          items = playerGroups.flatMap(g => g.contents || []);
+        } else {
+          items = data.results
+            .flatMap(g => g.contents || [])
+            .filter(c => c.id && (c.displayName || c.name));
+        }
+      } else if (Array.isArray(data.athletes)) {
+        items = data.athletes;
+      }
+      setResults(items.slice(0, 10));
       if (!items.length) setError('No players found. Try a different name.');
     } catch (e2) {
       setError('Search failed. Please try again.');

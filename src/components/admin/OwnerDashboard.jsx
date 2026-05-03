@@ -1035,11 +1035,16 @@ const NABBBoxScoresTab = () => {
   const [editFormData, setEditFormData] = useState({});
   const [newGame, setNewGame] = useState({ game_name: '', home_team: '', away_team: '', home_score: 0, away_score: 0, game_date: '' });
   const [showCreateGame, setShowCreateGame] = useState(false);
+  const [formError, setFormError] = useState('');
 
   const selectStyle = { padding: '8px', background: 'rgba(0,255,255,0.05)', border: '1px solid rgba(0,255,255,0.2)', color: '#c0d0ff', borderRadius: '4px', width: '100%' };
 
   const createGame = () => {
-    if (!newGame.game_name) return;
+    if (!newGame.game_name.trim()) {
+      setFormError('Please enter a Game Name before creating.');
+      return;
+    }
+    setFormError('');
     const game = { id: Date.now().toString(), ...newGame };
     const updated = [...bsGames, game];
     setBsGames(updated);
@@ -1235,6 +1240,11 @@ const NABBBoxScoresTab = () => {
                 style={{ padding: '10px', background: 'rgba(0,255,255,0.05)', border: '1px solid rgba(0,255,255,0.2)', color: '#c0d0ff', borderRadius: '4px' }} />
             </div>
             <button className="neon-button" onClick={createGame}>Create Game</button>
+            {formError && (
+              <p style={{ color: '#ff5555', fontSize: '0.82rem', marginTop: '8px', padding: '8px 12px', background: 'rgba(255,60,60,0.08)', border: '1px solid rgba(255,60,60,0.25)', borderRadius: '6px' }}>
+                ⚠️ {formError}
+              </p>
+            )}
           </div>
         </div>
       )}

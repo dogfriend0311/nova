@@ -582,6 +582,7 @@ const CompareTab = () => {
   const [idA, setIdA] = useState('');
   const [idB, setIdB] = useState('');
   const [mode, setMode] = useState('career');
+  const [statFilter, setStatFilter] = useState('all');
 
   const getTeamColor = (name) => teams.find(t => t.team_name === name)?.team_color || null;
   const pA = players.find(p => p.id === idA);
@@ -615,6 +616,8 @@ const CompareTab = () => {
   };
 
   const lowerBetter = new Set(['K (Bat)', 'H All', 'ER']);
+  const hitKeys     = new Set(['H', 'R', 'RBI', 'HR', 'K (Bat)']);
+  const pitchKeys   = new Set(['IP', 'K (Pit)', 'H All', 'ER']);
   const isBetter = (key, a, b) => {
     if (a === b) return null;
     return lowerBetter.has(key) ? a < b : a > b;
@@ -650,8 +653,8 @@ const CompareTab = () => {
         </div>
       </div>
 
-      {/* Mode toggle */}
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '22px' }}>
+      {/* Mode toggle + stat filter */}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '14px' }}>
         {['career','season'].map(m => (
           <button key={m} onClick={() => setMode(m)} style={{
             padding: '8px 22px',
@@ -664,6 +667,21 @@ const CompareTab = () => {
             {m === 'career' ? '⭐ Career' : '📅 Season'}
           </button>
         ))}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '22px' }}>
+        <select
+          value={statFilter}
+          onChange={e => setStatFilter(e.target.value)}
+          style={{
+            padding: '8px 18px', background: 'rgba(10,10,30,0.85)',
+            border: '1px solid rgba(100,120,200,0.28)', color: '#c0d0ff',
+            borderRadius: '8px', fontSize: '0.84rem', cursor: 'pointer',
+          }}
+        >
+          <option value="all">📊 All Stats</option>
+          <option value="hitting">⚾ Hitting Stats</option>
+          <option value="pitching">⚡ Pitching Stats</option>
+        </select>
       </div>
 
       {/* Player cards */}
@@ -706,15 +724,43 @@ const CompareTab = () => {
             <span style={{ color: 'rgba(192,208,255,0.35)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.1em', textAlign: 'center', alignSelf: 'center' }}>STAT</span>
             <span style={{ color: colorB, fontWeight: '800', fontSize: '0.88rem', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pB?.player_name}</span>
           </div>
-          {Object.entries(sA).map(([key, valA]) => {
+          {Object.entries(sA)
+            .filter(([key]) => {
+              if (statFilter === 'hitting')  return hitKeys.has(key);
+              if (statFilter === 'pitching') return pitchKeys.has(key);
+              return true;
+            })
+            .map(([key, valA]) => {
             const valB  = sB[key];
             const aBest = isBetter(key, valA, valB);
             const bBest = isBetter(key, valB, valA);
             return (
-              <div key={key} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 1fr', padding: '11px 14px', borderBottom: '1px solid rgba(100,120,200,0.07)', alignItems: 'center' }}>
-                <span style={{ fontWeight: aBest ? '800' : '400', color: aBest ? colorA : 'rgba(192,208,255,0.55)', fontSize: '0.95rem' }}>{valA}</span>
+              <div key={key} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 1fr', padding: '10px 14px', borderBottom: '1px solid rgba(100,120,200,0.07)', alignItems: 'center' }}>
+                <div>
+                  <span style={{
+                    fontWeight: aBest ? '800' : '400',
+                    color: aBest ? colorA : 'rgba(192,208,255,0.4)',
+                    background: aBest ? `${colorA}22` : 'transparent',
+                    padding: aBest ? '3px 10px' : '0',
+                    borderRadius: '6px',
+                    display: 'inline-block',
+                    fontSize: '0.95rem',
+                    boxShadow: aBest ? `0 0 10px ${colorA}55` : 'none',
+                  }}>{valA}</span>
+                </div>
                 <span style={{ color: 'rgba(192,208,255,0.3)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.07em', textAlign: 'center' }}>{key}</span>
-                <span style={{ fontWeight: bBest ? '800' : '400', color: bBest ? colorB : 'rgba(192,208,255,0.55)', fontSize: '0.95rem', textAlign: 'right' }}>{valB}</span>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{
+                    fontWeight: bBest ? '800' : '400',
+                    color: bBest ? colorB : 'rgba(192,208,255,0.4)',
+                    background: bBest ? `${colorB}22` : 'transparent',
+                    padding: bBest ? '3px 10px' : '0',
+                    borderRadius: '6px',
+                    display: 'inline-block',
+                    fontSize: '0.95rem',
+                    boxShadow: bBest ? `0 0 10px ${colorB}55` : 'none',
+                  }}>{valB}</span>
+                </div>
               </div>
             );
           })}

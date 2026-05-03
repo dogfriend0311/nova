@@ -39,7 +39,7 @@ export const fetchGameSummary = (sport, eventId) =>
   apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/summary?event=${eventId}`);
 
 export const fetchAthleteSearch = (query) =>
-  apiFetch(`${ESPN_WEB}/search?query=${encodeURIComponent(query)}&limit=10&type=athlete`);
+  apiFetch(`${ESPN_WEB}/search?query=${encodeURIComponent(query)}&limit=15`);
 
 export const fetchAthleteProfile = (sport, athleteId) =>
   apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/athletes/${athleteId}`);
