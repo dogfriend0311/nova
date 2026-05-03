@@ -1,4 +1,4 @@
-const API_KEY = process.env.REACT_APP_LASTFM_KEY;
+const API_KEY = (process.env.REACT_APP_LASTFM_KEY || '').trim();
 const BASE    = 'https://ws.audioscrobbler.com/2.0/';
 
 async function lfmFetch(params) {
