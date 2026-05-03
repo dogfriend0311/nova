@@ -366,9 +366,9 @@ const PlayerSearchPanel = ({ sport }) => {
         fetchAthleteProfile(sport, athlete.id),
         fetchAthleteStats(sport, athlete.id),
       ]);
-      const profile  = profileRes.status  === 'fulfilled' ? profileRes.value?.athlete  : null;
-      const statsCat = statsRes.status    === 'fulfilled'
-        ? (statsRes.value?.statistics?.splits?.categories || statsRes.value?.splits?.categories || [])
+      const profile  = profileRes.status === 'fulfilled' ? profileRes.value?.athlete : null;
+      const statsCat = statsRes.status  === 'fulfilled'
+        ? (statsRes.value?.categories || [])
         : [];
       setPlayerData({ profile, statsCat });
     } catch (_) {
@@ -462,25 +462,37 @@ const PlayerSearchPanel = ({ sport }) => {
 
                       {playerData.statsCat.length > 0 ? (
                         <div style={{ marginTop: '16px' }}>
-                          <h4 style={{ fontSize: '0.8rem', color: 'rgba(192,208,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>Season Stats</h4>
-                          {playerData.statsCat.map((cat, ci) => (
+                          <h4 style={{ fontSize: '0.8rem', color: 'rgba(192,208,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>Stats</h4>
+                          {playerData.statsCat.slice(0, 1).map((cat, ci) => (
                             <div key={ci} style={{ marginBottom: '16px' }}>
                               <h5 style={{ fontSize: '0.75rem', color: 'rgba(192,208,255,0.35)', marginBottom: '8px' }}>{cat.displayName || cat.name}</h5>
                               <div style={{ overflowX: 'auto' }}>
                                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                   <thead>
                                     <tr>
-                                      {(cat.stats || []).map((s, si) => (
-                                        <th key={si} style={thS}>{s.abbreviation || s.name}</th>
+                                      <th style={thS}>Year</th>
+                                      {(cat.labels || []).map((lbl, li) => (
+                                        <th key={li} style={thS}>{lbl}</th>
                                       ))}
                                     </tr>
                                   </thead>
                                   <tbody>
-                                    <tr>
-                                      {(cat.stats || []).map((s, si) => (
-                                        <td key={si} style={tdS}>{s.displayValue || s.value || '—'}</td>
-                                      ))}
-                                    </tr>
+                                    {Object.values(cat.statistics || {}).slice(0, 5).map((row, ri) => (
+                                      <tr key={ri}>
+                                        <td style={tdS}>{row.season?.year || '—'}</td>
+                                        {(row.stats || []).map((val, vi) => (
+                                          <td key={vi} style={tdS}>{val}</td>
+                                        ))}
+                                      </tr>
+                                    ))}
+                                    {cat.totals?.length > 0 && (
+                                      <tr style={{ borderTop: '1px solid rgba(100,120,200,0.2)' }}>
+                                        <td style={{ ...tdS, color: 'var(--color-cyan)', fontWeight: '700' }}>Career</td>
+                                        {cat.totals.map((val, vi) => (
+                                          <td key={vi} style={{ ...tdS, fontWeight: '600' }}>{val}</td>
+                                        ))}
+                                      </tr>
+                                    )}
                                   </tbody>
                                 </table>
                               </div>
@@ -489,7 +501,7 @@ const PlayerSearchPanel = ({ sport }) => {
                         </div>
                       ) : (
                         <p style={{ color: 'rgba(192,208,255,0.4)', fontSize: '0.85rem', marginTop: '14px' }}>
-                          No season stats available for this player in {sport.toUpperCase()}.
+                          No stats available for this player.
                         </p>
                       )}
                     </>

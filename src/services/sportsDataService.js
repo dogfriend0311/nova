@@ -3,6 +3,7 @@ const _ORIGIN = process.env.NODE_ENV === 'production'
   : 'https://site.api.espn.com';
 const ESPN    = `${_ORIGIN}/apis/site/v2/sports`;
 const ESPN_V2 = `${_ORIGIN}/apis/v2/sports`;
+const ESPN_V3 = `${_ORIGIN}/apis/common/v3/sports`;
 
 export const SPORT_PATHS = {
   mlb: 'baseball/mlb',
@@ -73,10 +74,10 @@ export const fetchAllAthletes = async (sport) => {
 };
 
 export const fetchAthleteProfile = (sport, athleteId) =>
-  apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/athletes/${athleteId}`);
+  apiFetch(`${ESPN_V3}/${SPORT_PATHS[sport]}/athletes/${athleteId}`);
 
 export const fetchAthleteStats = (sport, athleteId) =>
-  apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/athletes/${athleteId}/statistics`);
+  apiFetch(`${ESPN_V3}/${SPORT_PATHS[sport]}/athletes/${athleteId}/stats`);
 
 /* ── Normalizers ─────────────────────────────────────────────── */
 
