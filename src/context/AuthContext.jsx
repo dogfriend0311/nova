@@ -29,7 +29,9 @@ export const AuthProvider = ({ children }) => {
     return () => clearInterval(interval);
   }, [user]);
 
-  const login = (username, password) => {
+  const login = (rawUsername, rawPassword) => {
+    const username = (rawUsername || '').trim();
+    const password = (rawPassword || '').trim();
     if (username === 'x0afterhoursx0' && password === 'Chiefsfan87') {
       const userData = { username, role: 'owner' };
       setUser(userData);

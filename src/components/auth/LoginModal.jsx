@@ -59,7 +59,7 @@ const LoginModal = ({ onClose }) => {
           <form onSubmit={handleLogin} className="lm-form">
             <div className="form-group">
               <label htmlFor="lm-user">Username</label>
-              <input id="lm-user" type="text" placeholder="Enter your username" value={username} onChange={(e) => setUsername(e.target.value)} disabled={loading} required />
+              <input id="lm-user" type="text" placeholder="Enter your username" value={username} onChange={(e) => setUsername(e.target.value)} disabled={loading} required autoCapitalize="none" autoCorrect="off" autoComplete="username" spellCheck={false} />
             </div>
             <div className="form-group">
               <label htmlFor="lm-pass">Password</label>
@@ -78,7 +78,7 @@ const LoginModal = ({ onClose }) => {
           <form onSubmit={handleSignup} className="lm-form">
             <div className="form-group">
               <label htmlFor="lm-su-user">Username</label>
-              <input id="lm-su-user" type="text" placeholder="Choose a username" value={username} onChange={(e) => setUsername(e.target.value)} disabled={loading} required />
+              <input id="lm-su-user" type="text" placeholder="Choose a username" value={username} onChange={(e) => setUsername(e.target.value)} disabled={loading} required autoCapitalize="none" autoCorrect="off" autoComplete="username" spellCheck={false} />
             </div>
             <div className="form-group">
               <label htmlFor="lm-su-pass">Password</label>
