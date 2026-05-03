@@ -4,7 +4,7 @@ import {
   fetchStandings,
   fetchNews,
   fetchGameSummary,
-  fetchAthleteSearch,
+  fetchAllAthletes,
   fetchAthleteProfile,
   fetchAthleteStats,
   normalizeGame,
@@ -344,25 +344,11 @@ const PlayerSearchPanel = ({ sport }) => {
     setSelectedId(null);
     setPlayerData(null);
     try {
-      const data = await fetchAthleteSearch(query);
-      let items = [];
-      if (Array.isArray(data.results)) {
-        const playerTypes = ['athlete', 'player', 'person'];
-        const playerGroups = data.results.filter(r =>
-          playerTypes.includes((r.type || '').toLowerCase())
-        );
-        if (playerGroups.length > 0) {
-          items = playerGroups.flatMap(g => g.contents || []);
-        } else {
-          items = data.results
-            .flatMap(g => g.contents || [])
-            .filter(c => c.id && (c.displayName || c.name));
-        }
-      } else if (Array.isArray(data.athletes)) {
-        items = data.athletes;
-      }
-      setResults(items.slice(0, 10));
-      if (!items.length) setError('No players found. Try a different name.');
+      const all = await fetchAllAthletes(sport);
+      const q = query.trim().toLowerCase();
+      const filtered = all.filter(a => (a.displayName || '').toLowerCase().includes(q));
+      setResults(filtered.slice(0, 10));
+      if (!filtered.length) setError('No players found. Try a different name.');
     } catch (e2) {
       setError('Search failed. Please try again.');
     } finally {
@@ -411,7 +397,7 @@ const PlayerSearchPanel = ({ sport }) => {
           onChange={e => setQuery(e.target.value)}
         />
         <button className="neon-button sh-search-btn" type="submit" disabled={loading}>
-          {loading ? '…' : 'Search'}
+          {loading ? 'Loading…' : 'Search'}
         </button>
       </form>
 
@@ -427,13 +413,17 @@ const PlayerSearchPanel = ({ sport }) => {
                 onClick={() => handleSelectAthlete(athlete)}
               >
                 <div className="sh-athlete-left">
-                  {(athlete.headshot?.href || athlete.headshot)
-                    ? <img src={athlete.headshot?.href || athlete.headshot} alt={athlete.displayName} className="sh-athlete-photo" />
-                    : <div className="sh-athlete-photo-ph">?</div>
-                  }
+                  <img
+                    src={athlete.headshotUrl}
+                    alt={athlete.displayName}
+                    className="sh-athlete-photo"
+                    onError={e => { e.target.style.display = 'none'; }}
+                  />
                   <div className="sh-athlete-info">
-                    <span className="sh-athlete-name">{athlete.displayName || athlete.name || '—'}</span>
-                    <span className="sh-athlete-meta">{athlete.description || ''}</span>
+                    <span className="sh-athlete-name">{athlete.displayName || '—'}</span>
+                    <span className="sh-athlete-meta">
+                      {[athlete.teamName, athlete.position && `#${athlete.jersey || ''} ${athlete.position}`].filter(Boolean).join(' · ')}
+                    </span>
                   </div>
                 </div>
                 <span className="sh-athlete-toggle">{selectedId === athlete.id ? '▲' : '▼'}</span>

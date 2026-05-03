@@ -38,8 +38,37 @@ export const fetchNews        = (sport) =>
 export const fetchGameSummary = (sport, eventId) =>
   apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/summary?event=${eventId}`);
 
-export const fetchAthleteSearch = (query) =>
-  apiFetch(`${ESPN_WEB}/search?query=${encodeURIComponent(query)}&limit=15`);
+// Module-level cache so re-mounting the component doesn't re-fetch
+const _athleteCache = {};
+
+export const fetchAllAthletes = async (sport) => {
+  if (_athleteCache[sport]) return _athleteCache[sport];
+  const teamsData = await apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/teams?limit=100`);
+  const leagues   = teamsData.sports?.[0]?.leagues || [];
+  const teams     = (leagues[0]?.teams || []).map(t => t.team || t).slice(0, 80);
+  const leagueSlug = SPORT_PATHS[sport].split('/')[1];
+  const rosterResults = await Promise.allSettled(
+    teams.map(team =>
+      apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/teams/${team.id}/roster`)
+        .then(data => (data.athletes || []).flatMap(group =>
+          (group.items || []).map(a => ({
+            id:          a.id,
+            displayName: a.displayName || a.fullName,
+            position:    a.position?.abbreviation || '',
+            jersey:      a.jersey,
+            teamName:    team.displayName,
+            teamAbbrev:  team.abbreviation,
+            headshotUrl: a.headshot?.href ||
+              `https://a.espncdn.com/i/headshots/${leagueSlug}/players/full/${a.id}.png`,
+          }))
+        ))
+        .catch(() => [])
+    )
+  );
+  const athletes = rosterResults.flatMap(r => r.status === 'fulfilled' ? r.value : []);
+  _athleteCache[sport] = athletes;
+  return athletes;
+};
 
 export const fetchAthleteProfile = (sport, athleteId) =>
   apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/athletes/${athleteId}`);
