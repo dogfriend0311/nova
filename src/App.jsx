@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/layout/Layout';
 import Home from './components/pages/Home';
@@ -11,6 +11,7 @@ import NABBRosters from './components/pages/NABBRosters';
 import LeaguePlayerPage from './LeaguePlayerPage';
 import LoginModal from './components/auth/LoginModal';
 import OwnerDashboard from './components/admin/OwnerDashboard';
+import { handleCallback as spotifyHandleCallback } from './services/spotifyService';
 import './styles/globals.css';
 import './styles/theme.css';
 import './styles/animations.css';
@@ -23,6 +24,21 @@ import './components/auth/LoginModal.css';
 const AppContent = () => {
   const { user } = useAuth();
   const [currentPage, setCurrentPage] = useState('home');
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code  = params.get('code');
+    const error = params.get('error');
+    if (error) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return;
+    }
+    if (code) {
+      spotifyHandleCallback(code).then((username) => {
+        if (username) setCurrentPage('profile');
+      });
+    }
+  }, []);
   const [showDashboard, setShowDashboard] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [selectedLeaguePlayer, setSelectedLeaguePlayer] = useState(null);

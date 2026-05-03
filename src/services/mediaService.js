@@ -34,7 +34,10 @@ export const searchMedia = async (query, type) => {
   }
 
   if (type === 'movie') {
-    const key = process.env.REACT_APP_OMDB_KEY;
+    const raw = process.env.REACT_APP_OMDB_KEY || '';
+    // Accept either just the key OR the full demo URL the user may have pasted
+    const keyMatch = raw.match(/apikey=([^&\s]+)/);
+    const key = keyMatch ? keyMatch[1] : raw.trim();
     if (!key) return [];
     const r = await fetch(`https://www.omdbapi.com/?s=${q}&type=movie&apikey=${key}`);
     if (!r.ok) throw new Error('OMDb error');

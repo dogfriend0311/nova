@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { TEAMS, SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl } from '../../data/teams';
 import { getWatchList } from '../../services/mediaService';
+import * as spotifyService from '../../services/spotifyService';
 import './MemberProfile.css';
 
 const roleLabel = (role) => {
@@ -14,7 +15,7 @@ const SPORT_KEYS = ['mlb', 'nfl', 'nba', 'nhl', 'cfb', 'cbb'];
 const DEFAULT_FAV_TEAMS = { mlb: [], nfl: [], nba: [], nhl: [], cfb: [], cbb: [] };
 
 const DEFAULT_PROFILE = {
-  bio: '', top_banner_url: '', avatar_url: '', spotify_url: '',
+  bio: '', top_banner_url: '', avatar_url: '',
   twitter_url: '', twitch_url: '', youtube_url: '', instagram_url: '',
   discord_tag: '', fav_teams: DEFAULT_FAV_TEAMS,
 };
@@ -26,10 +27,7 @@ const ImageField = ({ label, fieldKey, value, onChange }) => {
   const handleFile = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 3 * 1024 * 1024) {
-      alert('Image must be under 3 MB');
-      return;
-    }
+    if (file.size > 3 * 1024 * 1024) { alert('Image must be under 3 MB'); return; }
     const reader = new FileReader();
     reader.onloadend = () => onChange(fieldKey, reader.result);
     reader.readAsDataURL(file);
@@ -51,32 +49,15 @@ const ImageField = ({ label, fieldKey, value, onChange }) => {
         />
         <label className="mp-upload-btn" title="Upload from device">
           📁 Upload
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFile}
-            style={{ display: 'none' }}
-          />
+          <input ref={inputRef} type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} />
         </label>
         {hasImage && (
-          <button
-            className="mp-upload-clear"
-            onClick={() => onChange(fieldKey, '')}
-            title="Remove image"
-          >
-            ✕
-          </button>
+          <button className="mp-upload-clear" onClick={() => onChange(fieldKey, '')} title="Remove image">✕</button>
         )}
       </div>
       {hasImage && (
         <div className="mp-image-preview-wrap">
-          <img
-            src={value}
-            alt="preview"
-            className="mp-image-preview"
-            onError={(e) => { e.target.style.display = 'none'; }}
-          />
+          <img src={value} alt="preview" className="mp-image-preview" onError={(e) => { e.target.style.display = 'none'; }} />
         </div>
       )}
     </div>
@@ -100,11 +81,7 @@ const TeamSelector = ({ favTeams, onChange }) => {
         {SPORT_KEYS.map((s) => {
           const count = (favTeams[s] || []).length;
           return (
-            <button
-              key={s}
-              className={`mp-sport-tab ${activeSport === s ? 'active' : ''}`}
-              onClick={() => setActiveSport(s)}
-            >
+            <button key={s} className={`mp-sport-tab ${activeSport === s ? 'active' : ''}`} onClick={() => setActiveSport(s)}>
               <span>{SPORT_ICONS[s]}</span>
               <span>{SPORT_SHORT[s]}</span>
               {count > 0 && <span className="mp-sport-count">{count}</span>}
@@ -112,7 +89,6 @@ const TeamSelector = ({ favTeams, onChange }) => {
           );
         })}
       </div>
-
       <div className="mp-team-grid">
         {Object.entries(TEAMS[activeSport] || {}).map(([div, teams]) => (
           <div key={div} className="mp-team-division">
@@ -122,20 +98,8 @@ const TeamSelector = ({ favTeams, onChange }) => {
                 const selected = (favTeams[activeSport] || []).includes(t.abbr);
                 const logo = hasLogos ? getTeamLogoUrl(activeSport, t.abbr) : null;
                 return (
-                  <button
-                    key={t.abbr}
-                    className={`mp-team-btn ${selected ? 'selected' : ''}`}
-                    onClick={() => toggle(activeSport, t.abbr)}
-                    title={t.name}
-                  >
-                    {logo && (
-                      <img
-                        src={logo}
-                        alt=""
-                        className="mp-team-logo"
-                        onError={(e) => { e.target.style.display = 'none'; }}
-                      />
-                    )}
+                  <button key={t.abbr} className={`mp-team-btn ${selected ? 'selected' : ''}`} onClick={() => toggle(activeSport, t.abbr)} title={t.name}>
+                    {logo && <img src={logo} alt="" className="mp-team-logo" onError={(e) => { e.target.style.display = 'none'; }} />}
                     {t.abbr}
                   </button>
                 );
@@ -152,7 +116,6 @@ const TeamSelector = ({ favTeams, onChange }) => {
 const FavTeamsDisplay = ({ favTeams }) => {
   const hasSome = SPORT_KEYS.some((s) => (favTeams?.[s] || []).length > 0);
   if (!hasSome) return null;
-
   return (
     <div className="discord-section">
       <div className="discord-section-title">⭐ Favorite Teams</div>
@@ -168,14 +131,7 @@ const FavTeamsDisplay = ({ favTeams }) => {
                 const logo = hasLogos ? getTeamLogoUrl(sport, abbr) : null;
                 return (
                   <span key={abbr} className="mp-fav-team-badge">
-                    {logo && (
-                      <img
-                        src={logo}
-                        alt=""
-                        className="mp-badge-logo"
-                        onError={(e) => { e.target.style.display = 'none'; }}
-                      />
-                    )}
+                    {logo && <img src={logo} alt="" className="mp-badge-logo" onError={(e) => { e.target.style.display = 'none'; }} />}
                     {abbr}
                   </span>
                 );
@@ -202,9 +158,9 @@ const WatchListPreview = ({ username }) => {
     <div className="discord-section">
       <div className="discord-section-title">🎬 Watch List</div>
       <div className="mp-wl-stats">
-        <span className="mp-wl-stat"><span style={{color:'#a5d6a7'}}>✓</span> {watched} watched</span>
-        <span className="mp-wl-stat"><span style={{color:'#66bb6a'}}>▶</span> {watching} watching</span>
-        <span className="mp-wl-stat"><span style={{color:'#64b5f6'}}>📋</span> {plan} planned</span>
+        <span className="mp-wl-stat"><span style={{ color: '#a5d6a7' }}>✓</span> {watched} watched</span>
+        <span className="mp-wl-stat"><span style={{ color: '#66bb6a' }}>▶</span> {watching} watching</span>
+        <span className="mp-wl-stat"><span style={{ color: '#64b5f6' }}>📋</span> {plan} planned</span>
       </div>
       {pinned.length > 0 && (
         <>
@@ -216,13 +172,111 @@ const WatchListPreview = ({ username }) => {
               <div key={item.id} className="mp-pinned-card" title={item.title}>
                 {item.poster
                   ? <img src={item.poster} alt={item.title} />
-                  : <div className="mp-pinned-ph">{TYPE_ICONS[item.type] || '?'}</div>
-                }
+                  : <div className="mp-pinned-ph">{TYPE_ICONS[item.type] || '?'}</div>}
                 {item.rating != null && <div className="mp-pinned-rating">★{item.rating}</div>}
               </div>
             ))}
           </div>
         </>
+      )}
+    </div>
+  );
+};
+
+/* ── Spotify Now Playing ────────────────────────────────────── */
+const SpotifyNowPlaying = ({ username }) => {
+  const [nowPlaying,  setNowPlaying]  = useState(null);
+  const [loading,     setLoading]     = useState(false);
+  const [connecting,  setConnecting]  = useState(false);
+  const [connected,   setConnected]   = useState(() => spotifyService.isConnected(username));
+
+  useEffect(() => {
+    setConnected(spotifyService.isConnected(username));
+  }, [username]);
+
+  useEffect(() => {
+    if (!connected) { setNowPlaying(null); return; }
+    let active = true;
+    const poll = async () => {
+      setLoading(true);
+      const track = await spotifyService.getCurrentlyPlaying(username);
+      if (active) { setNowPlaying(track); setLoading(false); }
+    };
+    poll();
+    const id = setInterval(poll, 30000);
+    return () => { active = false; clearInterval(id); };
+  }, [username, connected]);
+
+  const handleConnect = async () => {
+    setConnecting(true);
+    await spotifyService.initiateAuth(username);
+  };
+
+  const handleDisconnect = () => {
+    spotifyService.disconnect(username);
+    setConnected(false);
+    setNowPlaying(null);
+  };
+
+  if (!spotifyService.hasClientId()) return null;
+
+  if (!connected) {
+    return (
+      <div className="discord-section">
+        <div className="discord-section-title">🎵 Spotify</div>
+        <div className="sp-connect-wrap">
+          <p className="sp-connect-hint">Connect your Spotify to show what you're listening to live.</p>
+          <button className="sp-connect-btn" onClick={handleConnect} disabled={connecting}>
+            {connecting ? 'Redirecting…' : '🎵 Connect Spotify'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="discord-section">
+      <div className="discord-section-title-row">
+        <span className="discord-section-title">🎵 Now Playing</span>
+        <button className="sp-disconnect-btn" onClick={handleDisconnect} title="Disconnect Spotify">Disconnect</button>
+      </div>
+
+      {loading && !nowPlaying ? (
+        <div className="sp-loading">
+          <span className="sp-dot" /><span className="sp-dot" /><span className="sp-dot" />
+        </div>
+      ) : !nowPlaying ? (
+        <div className="sp-idle">
+          <span className="sp-idle-icon">🎵</span>
+          <span className="sp-idle-text">Not playing anything right now</span>
+        </div>
+      ) : (
+        <a
+          className={`sp-track ${nowPlaying.isPlaying ? 'playing' : 'paused'}`}
+          href={nowPlaying.spotifyUrl || '#'}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {nowPlaying.albumArt ? (
+            <img className="sp-art" src={nowPlaying.albumArt} alt={nowPlaying.albumName} />
+          ) : (
+            <div className="sp-art sp-art-placeholder">🎵</div>
+          )}
+          <div className="sp-info">
+            <div className="sp-track-name">{nowPlaying.trackName}</div>
+            <div className="sp-artist-name">{nowPlaying.artistName}</div>
+            <div className="sp-status">
+              {nowPlaying.isPlaying
+                ? <><span className="sp-pulse" /> Playing on Spotify</>
+                : <><span style={{ color: 'rgba(192,208,255,0.4)' }}>⏸</span> Paused</>}
+            </div>
+          </div>
+          <div className="sp-logo">
+            <svg viewBox="0 0 24 24" fill="#1DB954" width="20" height="20">
+              <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
+            </svg>
+          </div>
+        </a>
       )}
     </div>
   );
@@ -274,18 +328,8 @@ const MemberProfile = () => {
 
         {!favTab ? (
           <div className="neon-card p-3">
-            <ImageField
-              label="Banner Image"
-              fieldKey="top_banner_url"
-              value={formData.top_banner_url || ''}
-              onChange={handleField}
-            />
-            <ImageField
-              label="Avatar / Profile Picture"
-              fieldKey="avatar_url"
-              value={formData.avatar_url || ''}
-              onChange={handleField}
-            />
+            <ImageField label="Banner Image" fieldKey="top_banner_url" value={formData.top_banner_url || ''} onChange={handleField} />
+            <ImageField label="Avatar / Profile Picture" fieldKey="avatar_url" value={formData.avatar_url || ''} onChange={handleField} />
             <div className="form-group">
               <label>About Me</label>
               <textarea rows="4" value={formData.bio || ''} onChange={(e) => setFormData({ ...formData, bio: e.target.value })} placeholder="Tell us about yourself…" />
@@ -293,10 +337,6 @@ const MemberProfile = () => {
             <div className="form-group">
               <label>Discord Tag</label>
               <input type="text" value={formData.discord_tag || ''} onChange={(e) => setFormData({ ...formData, discord_tag: e.target.value })} placeholder="username#0000" />
-            </div>
-            <div className="form-group">
-              <label>Spotify Embed URL</label>
-              <input type="text" value={formData.spotify_url || ''} onChange={(e) => setFormData({ ...formData, spotify_url: e.target.value })} placeholder="https://open.spotify.com/embed/…" />
             </div>
 
             <h4 className="gradient-text-cyan" style={{ margin: '20px 0 10px' }}>Socials</h4>
@@ -374,18 +414,7 @@ const MemberProfile = () => {
 
         <WatchListPreview username={profile.username} />
 
-        {profile.spotify_url && (
-          <div className="discord-section discord-spotify">
-            <div className="discord-section-title">🎵 Listening To</div>
-            <iframe
-              title="Spotify"
-              src={profile.spotify_url.includes('/embed/') ? profile.spotify_url : profile.spotify_url.replace('open.spotify.com/', 'open.spotify.com/embed/')}
-              width="100%" height="90" frameBorder="0"
-              allow="autoplay; clipboard-write; encrypted-media"
-              style={{ borderRadius: '8px', marginTop: '8px' }}
-            />
-          </div>
-        )}
+        <SpotifyNowPlaying username={profile.username} />
 
         {socials.length > 0 && (
           <div className="discord-section">
