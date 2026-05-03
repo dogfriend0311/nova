@@ -108,24 +108,32 @@
   }
 
   .navbar-container {
-    padding: 0 15px;
-    gap: 15px;
-    flex-wrap: wrap;
+    padding: 0 10px;
+    gap: 8px;
+    flex-wrap: nowrap;
+    overflow: hidden;
   }
 
   .navbar-logo {
-    order: 1;
+    flex-shrink: 0;
   }
 
   .navbar-tabs {
-    order: 3;
-    width: 100%;
-    gap: 5px;
-    flex: none;
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    gap: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .navbar-tabs::-webkit-scrollbar {
+    display: none;
   }
 
   .navbar-user {
-    order: 2;
+    flex-shrink: 0;
   }
 
   .navbar-logo h1 {
@@ -134,7 +142,7 @@
   }
 
   .logo-icon {
-    font-size: 24px;
+    font-size: 22px;
   }
 
   /* Sidebar positioning */

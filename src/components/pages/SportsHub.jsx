@@ -3,9 +3,14 @@ import {
   fetchScoreboard,
   fetchStandings,
   fetchNews,
+  fetchGameSummary,
+  fetchAthleteSearch,
+  fetchAthleteProfile,
+  fetchAthleteStats,
   normalizeGame,
   normalizeStandings,
   normalizeNews,
+  normalizeGameSummary,
 } from '../../services/sportsDataService';
 import './SportsHub.css';
 
@@ -22,21 +27,22 @@ const SUB_TABS = [
   { id: 'scores',    label: 'Scores',    icon: '📅' },
   { id: 'standings', label: 'Standings', icon: '🏆' },
   { id: 'news',      label: 'News',      icon: '📰' },
+  { id: 'players',   label: 'Players',   icon: '🔍' },
 ];
 
 const timeSince = (iso) => {
   if (!iso) return '';
   const s = Math.floor((Date.now() - new Date(iso)) / 1000);
-  if (s < 60)   return `${s}s ago`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400)return `${Math.floor(s / 3600)}h ago`;
+  if (s < 60)    return `${s}s ago`;
+  if (s < 3600)  return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   return `${Math.floor(s / 86400)}d ago`;
 };
 
 /* ────────────────────────────────────────────
    Score Card
    ──────────────────────────────────────────── */
-const ScoreCard = ({ game }) => {
+const ScoreCard = ({ game, onSelectGame }) => {
   const isLive  = game.status === 'in';
   const isFinal = game.status === 'post';
   const isSched = game.status === 'pre';
@@ -66,11 +72,16 @@ const ScoreCard = ({ game }) => {
   );
 
   return (
-    <div className={`sh-score-card ${isLive ? 'live' : ''} ${isFinal ? 'final' : ''} ${isSched ? 'scheduled' : ''}`}>
+    <div
+      className={`sh-score-card ${isLive ? 'live' : ''} ${isFinal ? 'final' : ''} ${isSched ? 'scheduled' : ''} ${isFinal || isLive ? 'clickable' : ''}`}
+      onClick={() => (isFinal || isLive) && onSelectGame && onSelectGame(game)}
+      title={(isFinal || isLive) ? 'Click for box score' : ''}
+    >
       <div className="sh-card-header">
         {isLive && <><span className="sh-live-dot" /><span className="sh-live-text">LIVE</span></>}
         <span className="sh-status-detail">{game.statusDetail}</span>
         {game.broadcast && <span className="sh-broadcast">{game.broadcast}</span>}
+        {(isFinal || isLive) && <span className="sh-detail-hint">Box Score →</span>}
       </div>
       <TeamRow team={game.awayTeam} winner={awayWins} />
       <TeamRow team={game.homeTeam} winner={homeWins} />
@@ -81,7 +92,7 @@ const ScoreCard = ({ game }) => {
 /* ────────────────────────────────────────────
    Scores Panel
    ──────────────────────────────────────────── */
-const ScoresPanel = ({ sport, refreshKey }) => {
+const ScoresPanel = ({ sport, refreshKey, onSelectGame }) => {
   const [games, setGames]     = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
@@ -91,9 +102,7 @@ const ScoresPanel = ({ sport, refreshKey }) => {
     setError(null);
     try {
       const data = await fetchScoreboard(sport);
-      const normalized = (data.events || [])
-        .map(normalizeGame)
-        .filter(Boolean);
+      const normalized = (data.events || []).map(normalizeGame).filter(Boolean);
       setGames(normalized);
     } catch (e) {
       setError(e.message);
@@ -126,7 +135,7 @@ const ScoresPanel = ({ sport, refreshKey }) => {
       <>
         <h3 className="sh-section-title">{title} <span className="sh-section-count">{items.length}</span></h3>
         <div className="sh-scores-grid">
-          {items.map((g) => <ScoreCard key={g.id} game={g} />)}
+          {items.map((g) => <ScoreCard key={g.id} game={g} onSelectGame={onSelectGame} />)}
         </div>
       </>
     );
@@ -136,6 +145,365 @@ const ScoresPanel = ({ sport, refreshKey }) => {
       <Section title="🔴 Live"      items={live} />
       <Section title="✅ Final"     items={final} />
       <Section title="🕐 Upcoming" items={scheduled} />
+    </div>
+  );
+};
+
+/* ────────────────────────────────────────────
+   Game Detail View
+   ──────────────────────────────────────────── */
+const GameDetailView = ({ game, sport, onBack }) => {
+  const [summary, setSummary]   = useState(null);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState(null);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    fetchGameSummary(sport, game.id)
+      .then(raw => setSummary(normalizeGameSummary(raw)))
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [game.id, sport]);
+
+  const thStyle = { padding: '8px 10px', color: 'rgba(192,208,255,0.5)', fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: '1px solid rgba(100,120,200,0.18)', textAlign: 'center' };
+  const tdStyle = { padding: '8px 10px', textAlign: 'center', color: 'rgba(192,208,255,0.85)', fontSize: '0.85rem', borderBottom: '1px solid rgba(100,120,200,0.07)' };
+
+  return (
+    <div className="sh-detail-view">
+      <button className="neon-button" style={{ marginBottom: '20px' }} onClick={onBack}>← Back to Scores</button>
+
+      {/* Game header */}
+      <div className="sh-detail-header">
+        <div className="sh-detail-team">
+          {game.awayTeam.logo
+            ? <img src={game.awayTeam.logo} alt={game.awayTeam.abbr} className="sh-detail-logo" />
+            : <div className="sh-detail-logo-ph">{game.awayTeam.abbr[0]}</div>
+          }
+          <span className="sh-detail-abbr">{game.awayTeam.abbr}</span>
+          {game.awayTeam.record && <span className="sh-detail-record">{game.awayTeam.record}</span>}
+        </div>
+        <div className="sh-detail-score-block">
+          <div className="sh-detail-scores">
+            <span className={`sh-detail-score ${+game.awayTeam.score > +game.homeTeam.score ? 'winner-score' : ''}`}>{game.awayTeam.score}</span>
+            <span className="sh-detail-dash">—</span>
+            <span className={`sh-detail-score ${+game.homeTeam.score > +game.awayTeam.score ? 'winner-score' : ''}`}>{game.homeTeam.score}</span>
+          </div>
+          <span className="sh-detail-status">{loading ? '…' : (summary?.status || game.statusDetail)}</span>
+        </div>
+        <div className="sh-detail-team">
+          {game.homeTeam.logo
+            ? <img src={game.homeTeam.logo} alt={game.homeTeam.abbr} className="sh-detail-logo" />
+            : <div className="sh-detail-logo-ph">{game.homeTeam.abbr[0]}</div>
+          }
+          <span className="sh-detail-abbr">{game.homeTeam.abbr}</span>
+          {game.homeTeam.record && <span className="sh-detail-record">{game.homeTeam.record}</span>}
+        </div>
+      </div>
+
+      {loading && <div className="sh-loading" style={{ marginTop: '30px' }}><div className="sh-spinner" /></div>}
+      {error && <div className="sh-error" style={{ marginTop: '20px' }}>Box score unavailable: {error}</div>}
+
+      {summary && (
+        <>
+          {/* Line Score */}
+          {summary.lineScore && (
+            <div className="sh-detail-section">
+              <h3 className="sh-detail-section-title">Line Score</h3>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '400px' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ ...thStyle, textAlign: 'left', width: '80px' }}>Team</th>
+                      {summary.lineScore.periods.map((p, i) => (
+                        <th key={i} style={thStyle}>{p.label}</th>
+                      ))}
+                      {summary.lineScore.extras.map((e, i) => (
+                        <th key={`ex-${i}`} style={{ ...thStyle, color: 'var(--color-cyan)' }}>{e.label}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { label: game.awayTeam.abbr, key: 'away' },
+                      { label: game.homeTeam.abbr, key: 'home' },
+                    ].map(row => (
+                      <tr key={row.key}>
+                        <td style={{ ...tdStyle, textAlign: 'left', fontWeight: '700', color: 'var(--color-cyan)' }}>{row.label}</td>
+                        {summary.lineScore.periods.map((p, i) => (
+                          <td key={i} style={tdStyle}>{p[row.key]}</td>
+                        ))}
+                        {summary.lineScore.extras.map((e, i) => (
+                          <td key={`ex-${i}`} style={{ ...tdStyle, fontWeight: '700', color: 'var(--color-cyan)' }}>{e[row.key]}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Team Stats */}
+          {summary.teamStats.length === 2 && summary.teamStats[0].stats.length > 0 && (
+            <div className="sh-detail-section">
+              <h3 className="sh-detail-section-title">Team Stats</h3>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={thStyle}>Stat</th>
+                      <th style={thStyle}>{summary.teamStats[0].abbr || summary.teamStats[0].name}</th>
+                      <th style={thStyle}>{summary.teamStats[1].abbr || summary.teamStats[1].name}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {summary.teamStats[0].stats.slice(0, 12).map((s, i) => {
+                      const s2 = summary.teamStats[1].stats[i];
+                      return (
+                        <tr key={i}>
+                          <td style={{ ...tdStyle, color: 'rgba(192,208,255,0.5)', fontSize: '0.78rem' }}>{s.label}</td>
+                          <td style={tdStyle}>{s.value}</td>
+                          <td style={tdStyle}>{s2?.value || '—'}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Player Stats */}
+          {summary.playerGroups.map((group, gi) => (
+            group.categories.length > 0 && (
+              <div key={gi} className="sh-detail-section">
+                <h3 className="sh-detail-section-title">{group.teamName}</h3>
+                {group.categories.map((cat, ci) => (
+                  cat.athletes.length > 0 && (
+                    <div key={ci} style={{ marginBottom: '16px' }}>
+                      <h4 style={{ fontSize: '0.8rem', color: 'rgba(192,208,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>{cat.name}</h4>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: `${200 + cat.keys.length * 60}px` }}>
+                          <thead>
+                            <tr>
+                              <th style={{ ...thStyle, textAlign: 'left' }}>Player</th>
+                              {cat.keys.map((k, ki) => <th key={ki} style={thStyle}>{k}</th>)}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {cat.athletes.map((a, ai) => (
+                              <tr key={ai}>
+                                <td style={{ ...tdStyle, textAlign: 'left' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    {a.photo && <img src={a.photo} alt={a.name} style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />}
+                                    <span style={{ color: 'rgba(192,208,255,0.9)' }}>{a.name}</span>
+                                    {a.position && <span style={{ fontSize: '0.72rem', color: 'rgba(192,208,255,0.35)' }}>{a.position}</span>}
+                                  </div>
+                                </td>
+                                {a.stats.map((v, vi) => <td key={vi} style={tdStyle}>{v || '—'}</td>)}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )
+                ))}
+              </div>
+            )
+          ))}
+
+          {summary.playerGroups.length === 0 && summary.teamStats.length === 0 && !summary.lineScore && (
+            <div className="sh-empty" style={{ marginTop: '24px' }}>Detailed stats not available for this game.</div>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
+/* ────────────────────────────────────────────
+   Player Search Panel
+   ──────────────────────────────────────────── */
+const PlayerSearchPanel = ({ sport }) => {
+  const [query, setQuery]                 = useState('');
+  const [results, setResults]             = useState([]);
+  const [loading, setLoading]             = useState(false);
+  const [error, setError]                 = useState(null);
+  const [selectedId, setSelectedId]       = useState(null);
+  const [playerData, setPlayerData]       = useState(null);
+  const [statsLoading, setStatsLoading]   = useState(false);
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!query.trim()) return;
+    setLoading(true);
+    setError(null);
+    setResults([]);
+    setSelectedId(null);
+    setPlayerData(null);
+    try {
+      const data = await fetchAthleteSearch(query);
+      const athleteGroup = data.results?.find(r => r.type === 'athlete');
+      const items = athleteGroup?.contents || [];
+      setResults(items);
+      if (!items.length) setError('No players found. Try a different name.');
+    } catch (e2) {
+      setError('Search failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectAthlete = async (athlete) => {
+    if (selectedId === athlete.id) { setSelectedId(null); setPlayerData(null); return; }
+    setSelectedId(athlete.id);
+    setPlayerData(null);
+    setStatsLoading(true);
+    try {
+      const [profileRes, statsRes] = await Promise.allSettled([
+        fetchAthleteProfile(sport, athlete.id),
+        fetchAthleteStats(sport, athlete.id),
+      ]);
+      const profile  = profileRes.status  === 'fulfilled' ? profileRes.value?.athlete  : null;
+      const statsCat = statsRes.status    === 'fulfilled'
+        ? (statsRes.value?.statistics?.splits?.categories || statsRes.value?.splits?.categories || [])
+        : [];
+      setPlayerData({ profile, statsCat });
+    } catch (_) {
+      setPlayerData({ profile: null, statsCat: [] });
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
+  const thS = { padding: '7px 10px', color: 'rgba(192,208,255,0.45)', fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: '1px solid rgba(100,120,200,0.18)', textAlign: 'center' };
+  const tdS = { padding: '7px 10px', textAlign: 'center', color: 'rgba(192,208,255,0.82)', fontSize: '0.83rem', borderBottom: '1px solid rgba(100,120,200,0.07)' };
+
+  return (
+    <div className="sh-players-panel">
+      <div className="sh-players-header">
+        <h3 className="gradient-text-cyan">🔍 Player Lookup</h3>
+        <p style={{ color: 'rgba(192,208,255,0.5)', fontSize: '0.85rem', marginTop: '6px' }}>Search for any player across all ESPN sports</p>
+      </div>
+
+      <form className="sh-search-form" onSubmit={handleSearch}>
+        <input
+          className="sh-search-input"
+          type="text"
+          placeholder="Search player name…"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+        />
+        <button className="neon-button sh-search-btn" type="submit" disabled={loading}>
+          {loading ? '…' : 'Search'}
+        </button>
+      </form>
+
+      {error && <div className="sh-error" style={{ marginTop: '14px' }}>{error}</div>}
+
+      {results.length > 0 && (
+        <div className="sh-search-results">
+          <p style={{ fontSize: '0.78rem', color: 'rgba(192,208,255,0.4)', marginBottom: '10px' }}>{results.length} result{results.length !== 1 ? 's' : ''} found</p>
+          {results.map((athlete) => (
+            <div key={athlete.id} className="sh-athlete-result">
+              <button
+                className={`sh-athlete-btn ${selectedId === athlete.id ? 'selected' : ''}`}
+                onClick={() => handleSelectAthlete(athlete)}
+              >
+                <div className="sh-athlete-left">
+                  {(athlete.headshot?.href || athlete.headshot)
+                    ? <img src={athlete.headshot?.href || athlete.headshot} alt={athlete.displayName} className="sh-athlete-photo" />
+                    : <div className="sh-athlete-photo-ph">?</div>
+                  }
+                  <div className="sh-athlete-info">
+                    <span className="sh-athlete-name">{athlete.displayName || athlete.name || '—'}</span>
+                    <span className="sh-athlete-meta">{athlete.description || ''}</span>
+                  </div>
+                </div>
+                <span className="sh-athlete-toggle">{selectedId === athlete.id ? '▲' : '▼'}</span>
+              </button>
+
+              {selectedId === athlete.id && (
+                <div className="sh-athlete-detail">
+                  {statsLoading && <div className="sh-loading" style={{ padding: '20px 0' }}><div className="sh-spinner" /></div>}
+
+                  {!statsLoading && playerData && (
+                    <>
+                      {playerData.profile && (
+                        <div className="sh-athlete-profile">
+                          {playerData.profile.headshot?.href && (
+                            <img src={playerData.profile.headshot.href} alt={playerData.profile.displayName} className="sh-profile-photo" />
+                          )}
+                          <div className="sh-profile-info">
+                            <h4 style={{ color: 'var(--color-cyan)', margin: '0 0 6px', fontSize: '1rem' }}>{playerData.profile.displayName}</h4>
+                            {playerData.profile.team?.displayName && (
+                              <p style={{ margin: '0 0 4px', color: 'rgba(192,208,255,0.7)', fontSize: '0.85rem' }}>{playerData.profile.team.displayName}</p>
+                            )}
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '6px' }}>
+                              {playerData.profile.position?.displayName && (
+                                <span className="sh-profile-badge">{playerData.profile.position.displayName}</span>
+                              )}
+                              {playerData.profile.jersey && (
+                                <span className="sh-profile-badge">#{playerData.profile.jersey}</span>
+                              )}
+                              {playerData.profile.age && (
+                                <span className="sh-profile-badge">Age {playerData.profile.age}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {playerData.statsCat.length > 0 ? (
+                        <div style={{ marginTop: '16px' }}>
+                          <h4 style={{ fontSize: '0.8rem', color: 'rgba(192,208,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>Season Stats</h4>
+                          {playerData.statsCat.map((cat, ci) => (
+                            <div key={ci} style={{ marginBottom: '16px' }}>
+                              <h5 style={{ fontSize: '0.75rem', color: 'rgba(192,208,255,0.35)', marginBottom: '8px' }}>{cat.displayName || cat.name}</h5>
+                              <div style={{ overflowX: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                  <thead>
+                                    <tr>
+                                      {(cat.stats || []).map((s, si) => (
+                                        <th key={si} style={thS}>{s.abbreviation || s.name}</th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    <tr>
+                                      {(cat.stats || []).map((s, si) => (
+                                        <td key={si} style={tdS}>{s.displayValue || s.value || '—'}</td>
+                                      ))}
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p style={{ color: 'rgba(192,208,255,0.4)', fontSize: '0.85rem', marginTop: '14px' }}>
+                          No season stats available for this player in {sport.toUpperCase()}.
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!loading && !error && results.length === 0 && (
+        <div className="sh-no-games" style={{ marginTop: '30px' }}>
+          <div className="sh-no-games-icon">🔍</div>
+          <p>Search for a player to see their profile and season stats.</p>
+          <p className="sh-no-games-sub">Try "Aaron Judge", "Patrick Mahomes", or any player name.</p>
+        </div>
+      )}
     </div>
   );
 };
@@ -233,29 +601,25 @@ const NewsPanel = ({ sport }) => {
   return (
     <div className="sh-news-grid">
       {articles.map((a) => (
-        a.link
-          ? (
-            <a key={a.id} href={a.link} target="_blank" rel="noreferrer" className="sh-news-card">
-              {a.image && <img src={a.image} alt="" className="sh-news-img" loading="lazy" />}
-              <div className="sh-news-body">
-                <h4 className="sh-news-headline">{a.headline}</h4>
-                {a.description && <p className="sh-news-desc">{a.description}</p>}
-                <span className="sh-news-meta">
-                  {a.byline && <>{a.byline} &nbsp;·&nbsp; </>}
-                  {timeSince(a.published)}
-                </span>
-              </div>
-            </a>
-          ) : (
-            <div key={a.id} className="sh-news-card no-link">
-              {a.image && <img src={a.image} alt="" className="sh-news-img" loading="lazy" />}
-              <div className="sh-news-body">
-                <h4 className="sh-news-headline">{a.headline}</h4>
-                {a.description && <p className="sh-news-desc">{a.description}</p>}
-                <span className="sh-news-meta">{timeSince(a.published)}</span>
-              </div>
+        a.link ? (
+          <a key={a.id} href={a.link} target="_blank" rel="noreferrer" className="sh-news-card">
+            {a.image && <img src={a.image} alt="" className="sh-news-img" loading="lazy" />}
+            <div className="sh-news-body">
+              <h4 className="sh-news-headline">{a.headline}</h4>
+              {a.description && <p className="sh-news-desc">{a.description}</p>}
+              <span className="sh-news-meta">{a.byline && <>{a.byline} &nbsp;·&nbsp; </>}{timeSince(a.published)}</span>
             </div>
-          )
+          </a>
+        ) : (
+          <div key={a.id} className="sh-news-card no-link">
+            {a.image && <img src={a.image} alt="" className="sh-news-img" loading="lazy" />}
+            <div className="sh-news-body">
+              <h4 className="sh-news-headline">{a.headline}</h4>
+              {a.description && <p className="sh-news-desc">{a.description}</p>}
+              <span className="sh-news-meta">{timeSince(a.published)}</span>
+            </div>
+          </div>
+        )
       ))}
     </div>
   );
@@ -269,6 +633,7 @@ const SportsHub = () => {
   const [activeTab,   setActiveTab]   = useState('scores');
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [refreshKey,  setRefreshKey]  = useState(0);
+  const [selectedGame, setSelectedGame] = useState(null);
 
   useEffect(() => {
     const iv = setInterval(() => {
@@ -281,11 +646,20 @@ const SportsHub = () => {
   const handleSportChange = (id) => {
     setActiveSport(id);
     setActiveTab('scores');
+    setSelectedGame(null);
+  };
+
+  const handleTabChange = (id) => {
+    setActiveTab(id);
+    setSelectedGame(null);
+  };
+
+  const handleSelectGame = (game) => {
+    setSelectedGame(game);
   };
 
   return (
     <div className="page sh-page">
-      {/* Header */}
       <div className="page-header sh-header">
         <h1 className="gradient-text">🏆 Sports Hub</h1>
         <p className="subtitle">
@@ -296,7 +670,6 @@ const SportsHub = () => {
         </p>
       </div>
 
-      {/* Sport Tabs */}
       <div className="sh-sport-tabs">
         {SPORTS.map((s) => (
           <button
@@ -310,33 +683,36 @@ const SportsHub = () => {
         ))}
       </div>
 
-      {/* Sub-tabs */}
       <div className="sh-sub-tabs">
         {SUB_TABS.map((t) => (
           <button
             key={t.id}
             className={`sh-sub-tab ${activeTab === t.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(t.id)}
+            onClick={() => handleTabChange(t.id)}
           >
             {t.icon} {t.label}
           </button>
         ))}
       </div>
 
-      {/* Content */}
       <div className="sh-content">
-        {activeTab === 'scores' && (
-          <ScoresPanel
-            key={`${activeSport}-scores`}
-            sport={activeSport}
-            refreshKey={refreshKey}
-          />
-        )}
-        {activeTab === 'standings' && (
-          <StandingsPanel key={`${activeSport}-standings`} sport={activeSport} />
-        )}
-        {activeTab === 'news' && (
-          <NewsPanel key={`${activeSport}-news`} sport={activeSport} />
+        {selectedGame ? (
+          <GameDetailView game={selectedGame} sport={activeSport} onBack={() => setSelectedGame(null)} />
+        ) : (
+          <>
+            {activeTab === 'scores' && (
+              <ScoresPanel key={`${activeSport}-scores`} sport={activeSport} refreshKey={refreshKey} onSelectGame={handleSelectGame} />
+            )}
+            {activeTab === 'standings' && (
+              <StandingsPanel key={`${activeSport}-standings`} sport={activeSport} />
+            )}
+            {activeTab === 'news' && (
+              <NewsPanel key={`${activeSport}-news`} sport={activeSport} />
+            )}
+            {activeTab === 'players' && (
+              <PlayerSearchPanel key={`${activeSport}-players`} sport={activeSport} />
+            )}
+          </>
         )}
       </div>
     </div>

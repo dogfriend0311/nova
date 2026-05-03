@@ -733,3 +733,332 @@
   .sh-roster-big-logo  { width: 54px; height: 54px; }
   .sh-player-grid      { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
 }
+
+/* ── Game Detail View ── */
+.sh-detail-view {
+  max-width: 900px;
+}
+
+.sh-detail-header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 20px;
+  align-items: center;
+  background: rgba(10, 10, 30, 0.85);
+  border: 1px solid rgba(100, 120, 200, 0.2);
+  border-radius: 14px;
+  padding: 22px 24px;
+  margin-bottom: 22px;
+}
+
+.sh-detail-team {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.sh-detail-logo {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+
+.sh-detail-logo-ph {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(100, 120, 200, 0.15);
+  border-radius: 50%;
+  font-size: 1.4rem;
+  color: rgba(192, 208, 255, 0.4);
+}
+
+.sh-detail-abbr {
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: rgba(192, 208, 255, 0.9);
+  letter-spacing: 0.05em;
+}
+
+.sh-detail-record {
+  font-size: 0.75rem;
+  color: rgba(192, 208, 255, 0.4);
+}
+
+.sh-detail-score-block {
+  text-align: center;
+}
+
+.sh-detail-scores {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.sh-detail-score {
+  font-size: 2.4rem;
+  font-weight: 900;
+  color: rgba(192, 208, 255, 0.55);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.sh-detail-score.winner-score {
+  color: var(--color-cyan);
+  text-shadow: 0 0 20px rgba(0, 255, 255, 0.35);
+}
+
+.sh-detail-dash {
+  font-size: 1.4rem;
+  color: rgba(192, 208, 255, 0.2);
+}
+
+.sh-detail-status {
+  display: block;
+  font-size: 0.78rem;
+  color: rgba(192, 208, 255, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-top: 6px;
+}
+
+.sh-detail-section {
+  background: rgba(10, 10, 30, 0.7);
+  border: 1px solid rgba(100, 120, 200, 0.15);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 18px;
+  overflow: hidden;
+}
+
+.sh-detail-section-title {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: rgba(192, 208, 255, 0.45);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin: 0 0 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(100, 120, 200, 0.12);
+}
+
+.sh-score-card.clickable {
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s;
+}
+
+.sh-score-card.clickable:hover {
+  border-color: rgba(0, 200, 255, 0.45);
+  background: rgba(0, 200, 255, 0.05);
+}
+
+.sh-detail-hint {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: rgba(0, 200, 255, 0.45);
+  letter-spacing: 0.04em;
+}
+
+/* ── Player Search Panel ── */
+.sh-players-panel {
+  max-width: 700px;
+}
+
+.sh-players-header {
+  margin-bottom: 20px;
+}
+
+.sh-search-form {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.sh-search-input {
+  flex: 1;
+  padding: 12px 16px;
+  background: rgba(10, 10, 30, 0.85);
+  border: 1px solid rgba(100, 120, 200, 0.3);
+  border-radius: 10px;
+  color: #c0d0ff;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.18s;
+}
+
+.sh-search-input:focus {
+  border-color: rgba(0, 200, 255, 0.55);
+  box-shadow: 0 0 0 2px rgba(0, 200, 255, 0.08);
+}
+
+.sh-search-input::placeholder {
+  color: rgba(192, 208, 255, 0.3);
+}
+
+.sh-search-btn {
+  flex-shrink: 0;
+}
+
+.sh-search-results {
+  margin-top: 18px;
+}
+
+.sh-athlete-result {
+  margin-bottom: 8px;
+}
+
+.sh-athlete-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(10, 10, 30, 0.8);
+  border: 1px solid rgba(100, 120, 200, 0.18);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.18s;
+  color: inherit;
+}
+
+.sh-athlete-btn:hover {
+  background: rgba(0, 200, 255, 0.06);
+  border-color: rgba(0, 200, 255, 0.35);
+}
+
+.sh-athlete-btn.selected {
+  background: rgba(0, 200, 255, 0.08);
+  border-color: rgba(0, 200, 255, 0.45);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.sh-athlete-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.sh-athlete-photo {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(100, 120, 200, 0.3);
+}
+
+.sh-athlete-photo-ph {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(100, 120, 200, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(192, 208, 255, 0.4);
+  flex-shrink: 0;
+}
+
+.sh-athlete-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  text-align: left;
+}
+
+.sh-athlete-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: rgba(192, 208, 255, 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sh-athlete-meta {
+  font-size: 0.75rem;
+  color: rgba(192, 208, 255, 0.4);
+}
+
+.sh-athlete-toggle {
+  font-size: 0.72rem;
+  color: rgba(192, 208, 255, 0.3);
+  flex-shrink: 0;
+  margin-left: 10px;
+}
+
+.sh-athlete-detail {
+  background: rgba(6, 6, 22, 0.9);
+  border: 1px solid rgba(0, 200, 255, 0.25);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  padding: 18px 20px;
+}
+
+.sh-athlete-profile {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(100, 120, 200, 0.12);
+  margin-bottom: 4px;
+}
+
+.sh-profile-photo {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(0, 200, 255, 0.35);
+  flex-shrink: 0;
+}
+
+.sh-profile-info {
+  min-width: 0;
+}
+
+.sh-profile-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  background: rgba(0, 200, 255, 0.1);
+  border: 1px solid rgba(0, 200, 255, 0.25);
+  border-radius: 4px;
+  color: rgba(0, 200, 255, 0.8);
+  margin-right: 4px;
+}
+
+@media (max-width: 640px) {
+  .sh-detail-header {
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .sh-detail-score {
+    font-size: 1.8rem;
+  }
+
+  .sh-detail-logo {
+    width: 42px;
+    height: 42px;
+  }
+
+  .sh-search-form {
+    flex-direction: column;
+  }
+
+  .sh-search-btn {
+    width: 100%;
+  }
+
+  .sh-players-panel {
+    max-width: 100%;
+  }
+}

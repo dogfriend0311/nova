@@ -1,5 +1,6 @@
 const ESPN    = 'https://site.api.espn.com/apis/site/v2/sports';
 const ESPN_V2 = 'https://site.api.espn.com/apis/v2/sports';
+const ESPN_WEB = 'https://site.web.api.espn.com/apis/common/v3';
 
 export const SPORT_PATHS = {
   mlb: 'baseball/mlb',
@@ -23,16 +24,28 @@ const apiFetch = async (url) => {
   return r.json();
 };
 
-export const fetchScoreboard = (sport) =>
+export const fetchScoreboard  = (sport) =>
   apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/scoreboard`);
 
-export const fetchStandings = (sport) => {
+export const fetchStandings   = (sport) => {
   const qs = LEVEL3_SPORTS.includes(sport) ? '?level=3' : '';
   return apiFetch(`${ESPN_V2}/${SPORT_PATHS[sport]}/standings${qs}`);
 };
 
-export const fetchNews = (sport) =>
+export const fetchNews        = (sport) =>
   apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/news?limit=12`);
+
+export const fetchGameSummary = (sport, eventId) =>
+  apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/summary?event=${eventId}`);
+
+export const fetchAthleteSearch = (query) =>
+  apiFetch(`${ESPN_WEB}/search?query=${encodeURIComponent(query)}&limit=10&type=athlete`);
+
+export const fetchAthleteProfile = (sport, athleteId) =>
+  apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/athletes/${athleteId}`);
+
+export const fetchAthleteStats = (sport, athleteId) =>
+  apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/athletes/${athleteId}/statistics`);
 
 /* ── Normalizers ─────────────────────────────────────────────── */
 
@@ -121,4 +134,85 @@ export function normalizeNews(data) {
     image:       a.images?.[0]?.url || null,
     link:        a.links?.web?.href || null,
   }));
+}
+
+export function normalizeGameSummary(data) {
+  if (!data) return null;
+  const comp = data.header?.competitions?.[0];
+  const home = comp?.competitors?.find(c => c.homeAway === 'home');
+  const away = comp?.competitors?.find(c => c.homeAway === 'away');
+
+  // Line score — try linescore.lines first (MLB), fall back to scoring (NFL/NBA/NHL)
+  let lineScore = null;
+  if (data.linescore?.lines?.length) {
+    lineScore = {
+      periods: data.linescore.lines.map((l, i) => ({
+        label: String(l.displayValue || i + 1),
+        home:  l.homeValue ?? '—',
+        away:  l.awayValue ?? '—',
+      })),
+      extras: data.linescore.runs
+        ? [
+            { label: 'R', home: data.linescore.runs?.home ?? '—', away: data.linescore.runs?.away ?? '—' },
+            { label: 'H', home: data.linescore.hits?.home ?? '—', away: data.linescore.hits?.away ?? '—' },
+            { label: 'E', home: data.linescore.errors?.home ?? '—', away: data.linescore.errors?.away ?? '—' },
+          ]
+        : [],
+    };
+  } else if (data.scoring?.length) {
+    // Build period-by-period from scoring plays (take the last play per period)
+    const byPeriod = {};
+    for (const play of data.scoring) {
+      const p = play.period?.number ?? play.period;
+      byPeriod[p] = play;
+    }
+    lineScore = {
+      periods: Object.entries(byPeriod).map(([p, play]) => ({
+        label: String(p),
+        home:  play.homeScore ?? '—',
+        away:  play.awayScore ?? '—',
+      })),
+      extras: [],
+    };
+  }
+
+  // Team stats comparison
+  const teamStats = (data.boxscore?.teams || []).map(t => ({
+    name:  t.team?.displayName || '?',
+    abbr:  t.team?.abbreviation || '?',
+    logo:  t.team?.logo || null,
+    color: t.team?.color || null,
+    stats: (t.statistics || []).map(s => ({
+      label: s.displayName || s.name || '',
+      value: s.displayValue || String(s.value ?? '—'),
+    })),
+  }));
+
+  // Player stats by team
+  const playerGroups = (data.boxscore?.players || []).map(g => ({
+    teamName: g.team?.displayName || '?',
+    categories: (g.statistics || [])
+      .filter(cat => cat.athletes?.length > 0)
+      .map(cat => ({
+        name:     cat.displayName || cat.name || '',
+        keys:     cat.keys || [],
+        athletes: (cat.athletes || []).map(a => ({
+          name:     a.athlete?.displayName || '?',
+          photo:    a.athlete?.headshot?.href || null,
+          position: a.athlete?.position?.abbreviation || '',
+          stats:    a.stats || [],
+          didNotPlay: a.didNotPlay || false,
+        })).filter(a => !a.didNotPlay),
+      }))
+      .filter(cat => cat.athletes.length > 0),
+  }));
+
+  return {
+    status:   comp?.status?.type?.description || '',
+    home:     { name: home?.team?.displayName || '?', abbr: home?.team?.abbreviation || '?', logo: home?.team?.logo || null, score: home?.score || '0', record: home?.record?.[0]?.summary || null },
+    away:     { name: away?.team?.displayName || '?', abbr: away?.team?.abbreviation || '?', logo: away?.team?.logo || null, score: away?.score || '0', record: away?.record?.[0]?.summary || null },
+    lineScore,
+    teamStats,
+    playerGroups,
+  };
 }
