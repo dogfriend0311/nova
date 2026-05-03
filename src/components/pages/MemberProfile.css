@@ -458,7 +458,16 @@
   border-radius: 3px;
 }
 
-/* ── Spotify Now Playing ─────────────────────────────────────── */
+/* ── Last.fm mini link ───────────────────────────────────────── */
+.lfm-mini-link {
+  font-size: 0.75rem;
+  color: rgba(213, 16, 7, 0.7);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.lfm-mini-link:hover { color: #d51007; }
+
+/* ── Now Playing (shared) ────────────────────────────────────── */
 .discord-section-title-row {
   display: flex;
   align-items: center;

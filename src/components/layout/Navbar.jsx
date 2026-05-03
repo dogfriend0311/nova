@@ -8,6 +8,7 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, user }) => {
     { id: 'watchlist', label: 'Watch List',   icon: '🎬' },
     { id: 'nabb',      label: 'NABB',         icon: '⚾' },
     { id: 'members',   label: 'Member Pages', icon: '👥' },
+    { id: 'lastfm',    label: 'Last.fm',      icon: '🎵' },
   ];
 
   return (

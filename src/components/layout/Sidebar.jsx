@@ -33,6 +33,7 @@ const Sidebar = ({ currentPage, onNavigate }) => {
     { id: 'sports',    label: 'Sports',       icon: '🏆' },
     { id: 'watchlist', label: 'Watch List',   icon: '🎬' },
     { id: 'members',   label: 'Member Pages', icon: '👥' },
+    { id: 'lastfm',    label: 'Last.fm',      icon: '🎵' },
   ];
 
   return (

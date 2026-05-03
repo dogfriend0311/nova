@@ -1,0 +1,495 @@
+.lfm-page {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding-bottom: 60px;
+}
+
+/* ── Setup / No-key states ───────────────────────────────────── */
+.lfm-setup-card {
+  background: rgba(213, 16, 7, 0.07);
+  border: 1px solid rgba(213, 16, 7, 0.25);
+  border-radius: 14px;
+  padding: 36px;
+  text-align: center;
+  max-width: 520px;
+  margin: 60px auto;
+}
+
+.lfm-setup-card h2 { font-size: 1.4rem; color: #e8efff; margin-bottom: 10px; }
+.lfm-setup-card p  { color: rgba(192,208,255,0.6); font-size: 0.9rem; line-height: 1.6; margin-bottom: 18px; }
+.lfm-setup-card a  { color: #d51007; }
+
+/* ── Search bar ──────────────────────────────────────────────── */
+.lfm-search-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 28px;
+  align-items: center;
+}
+
+.lfm-search-input {
+  flex: 1;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(192,208,255,0.15);
+  border-radius: 10px;
+  padding: 10px 16px;
+  color: #e8efff;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.lfm-search-input:focus { border-color: #d51007; }
+.lfm-search-input::placeholder { color: rgba(192,208,255,0.3); }
+
+.lfm-search-btn {
+  background: #d51007;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 22px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+}
+
+.lfm-search-btn:hover    { opacity: 0.85; }
+.lfm-search-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── User profile header ─────────────────────────────────────── */
+.lfm-profile-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: rgba(213,16,7,0.06);
+  border: 1px solid rgba(213,16,7,0.18);
+  border-radius: 14px;
+  padding: 20px 24px;
+  margin-bottom: 22px;
+}
+
+.lfm-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(213,16,7,0.4);
+  flex-shrink: 0;
+  background: rgba(213,16,7,0.1);
+}
+
+.lfm-avatar-ph {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(213,16,7,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  flex-shrink: 0;
+}
+
+.lfm-profile-info { flex: 1; min-width: 0; }
+.lfm-profile-name { font-size: 1.3rem; font-weight: 700; color: #e8efff; }
+.lfm-profile-real { font-size: 0.82rem; color: rgba(192,208,255,0.5); margin-top: 2px; }
+
+.lfm-profile-stats {
+  display: flex;
+  gap: 20px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.lfm-stat-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px;
+  padding: 6px 14px;
+  min-width: 80px;
+}
+
+.lfm-stat-val  { font-size: 1.1rem; font-weight: 700; color: #d51007; }
+.lfm-stat-lbl  { font-size: 0.7rem; color: rgba(192,208,255,0.45); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
+
+.lfm-profile-link {
+  color: #d51007;
+  font-size: 0.8rem;
+  text-decoration: none;
+  margin-top: 6px;
+  display: inline-block;
+}
+
+/* ── Now Playing ─────────────────────────────────────────────── */
+.lfm-now-playing {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(213,16,7,0.08);
+  border: 1px solid rgba(213,16,7,0.35);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 22px;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.lfm-now-playing:hover { background: rgba(213,16,7,0.14); }
+
+.lfm-np-art {
+  width: 52px;
+  height: 52px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.lfm-np-art-ph {
+  width: 52px;
+  height: 52px;
+  border-radius: 6px;
+  background: rgba(213,16,7,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+
+.lfm-np-info    { flex: 1; min-width: 0; }
+.lfm-np-label   { font-size: 0.7rem; color: #d51007; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; gap: 5px; margin-bottom: 3px; }
+.lfm-np-track   { font-size: 0.95rem; font-weight: 700; color: #e8efff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lfm-np-artist  { font-size: 0.8rem; color: rgba(192,208,255,0.55); margin-top: 2px; }
+
+.lfm-np-pulse {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #d51007;
+  animation: lfm-pulse 1.4s infinite;
+}
+
+@keyframes lfm-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.35; transform: scale(0.7); }
+}
+
+/* ── Period selector ─────────────────────────────────────────── */
+.lfm-period-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.lfm-period-btn {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(192,208,255,0.12);
+  color: rgba(192,208,255,0.5);
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lfm-period-btn:hover  { border-color: rgba(213,16,7,0.4); color: rgba(192,208,255,0.85); }
+.lfm-period-btn.active { background: rgba(213,16,7,0.15); border-color: rgba(213,16,7,0.5); color: #e8efff; font-weight: 700; }
+
+/* ── Two-column grid ─────────────────────────────────────────── */
+.lfm-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+  margin-bottom: 22px;
+}
+
+@media (max-width: 700px) { .lfm-two-col { grid-template-columns: 1fr; } }
+
+/* ── Section card ────────────────────────────────────────────── */
+.lfm-card {
+  background: rgba(20,20,40,0.7);
+  border: 1px solid rgba(192,208,255,0.08);
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.lfm-card-full { margin-bottom: 22px; }
+
+.lfm-card-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: rgba(192,208,255,0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* ── Artists grid ────────────────────────────────────────────── */
+.lfm-artists-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 700px) { .lfm-artists-grid { grid-template-columns: repeat(3, 1fr); } }
+
+.lfm-artist-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  padding: 8px 4px;
+  border-radius: 10px;
+  transition: background 0.2s;
+  cursor: pointer;
+}
+
+.lfm-artist-card:hover { background: rgba(255,255,255,0.05); }
+
+.lfm-artist-img {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(213,16,7,0.1);
+  border: 2px solid transparent;
+  transition: border-color 0.2s;
+}
+
+.lfm-artist-card:hover .lfm-artist-img { border-color: rgba(213,16,7,0.5); }
+
+.lfm-artist-ph {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: rgba(213,16,7,0.12);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.lfm-artist-rank {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: rgba(192,208,255,0.35);
+}
+
+.lfm-artist-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #c8d8ff;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.lfm-artist-plays {
+  font-size: 0.68rem;
+  color: rgba(192,208,255,0.4);
+}
+
+/* ── Track list ──────────────────────────────────────────────── */
+.lfm-track-list { display: flex; flex-direction: column; gap: 6px; }
+
+.lfm-track-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.lfm-track-row:hover { background: rgba(255,255,255,0.05); }
+
+.lfm-track-rank {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: rgba(192,208,255,0.3);
+  min-width: 18px;
+  text-align: right;
+}
+
+.lfm-track-img {
+  width: 36px; height: 36px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: rgba(213,16,7,0.1);
+}
+
+.lfm-track-ph {
+  width: 36px; height: 36px;
+  border-radius: 4px;
+  background: rgba(213,16,7,0.1);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.lfm-track-info { flex: 1; min-width: 0; }
+.lfm-track-name   { font-size: 0.84rem; font-weight: 600; color: #d8e8ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lfm-track-artist { font-size: 0.74rem; color: rgba(192,208,255,0.45); margin-top: 1px; }
+
+.lfm-track-plays {
+  font-size: 0.72rem;
+  color: rgba(213,16,7,0.7);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ── Tags/Genres ─────────────────────────────────────────────── */
+.lfm-tags-wrap { display: flex; flex-wrap: wrap; gap: 7px; }
+
+.lfm-tag {
+  display: inline-block;
+  padding: 4px 11px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid rgba(213,16,7,0.3);
+  color: rgba(192,208,255,0.75);
+  background: rgba(213,16,7,0.07);
+  transition: all 0.2s;
+}
+
+.lfm-tag:hover { background: rgba(213,16,7,0.15); border-color: rgba(213,16,7,0.5); color: #e8efff; }
+
+.lfm-tag-count {
+  font-size: 0.68rem;
+  color: rgba(213,16,7,0.6);
+  margin-left: 4px;
+}
+
+/* ── Recent tracks ───────────────────────────────────────────── */
+.lfm-recent-list { display: flex; flex-direction: column; gap: 4px; }
+
+.lfm-recent-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  transition: background 0.2s;
+  text-decoration: none;
+}
+
+.lfm-recent-row:hover    { background: rgba(255,255,255,0.04); }
+.lfm-recent-row.is-now   { background: rgba(213,16,7,0.07); }
+
+.lfm-recent-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: rgba(192,208,255,0.15);
+}
+
+.lfm-recent-dot.playing { background: #d51007; animation: lfm-pulse 1.4s infinite; }
+
+.lfm-recent-art {
+  width: 32px; height: 32px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: rgba(213,16,7,0.08);
+}
+
+.lfm-recent-ph {
+  width: 32px; height: 32px;
+  border-radius: 4px;
+  background: rgba(213,16,7,0.08);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.lfm-recent-info { flex: 1; min-width: 0; }
+.lfm-recent-name   { font-size: 0.83rem; font-weight: 600; color: #d0dcf8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lfm-recent-artist { font-size: 0.72rem; color: rgba(192,208,255,0.4); }
+
+.lfm-recent-time {
+  font-size: 0.7rem;
+  color: rgba(192,208,255,0.3);
+  white-space: nowrap;
+}
+
+/* ── Loved tracks ────────────────────────────────────────────── */
+.lfm-loved-list { display: flex; flex-direction: column; gap: 4px; }
+
+/* ── Loading / Error / Empty ─────────────────────────────────── */
+.lfm-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 40px;
+  color: rgba(192,208,255,0.4);
+  font-size: 0.9rem;
+}
+
+.lfm-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #d51007;
+  animation: lfm-bounce 1.2s infinite;
+}
+
+.lfm-dot:nth-child(2) { animation-delay: 0.2s; }
+.lfm-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes lfm-bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40%           { transform: translateY(-7px); opacity: 1; }
+}
+
+.lfm-error {
+  text-align: center;
+  padding: 30px;
+  color: rgba(255,100,100,0.7);
+  font-size: 0.88rem;
+}
+
+.lfm-empty {
+  text-align: center;
+  padding: 20px;
+  color: rgba(192,208,255,0.3);
+  font-size: 0.84rem;
+}
+
+/* ── Loved hearts ────────────────────────────────────────────── */
+.lfm-loved-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  transition: background 0.2s;
+  text-decoration: none;
+}
+
+.lfm-loved-row:hover { background: rgba(255,255,255,0.04); }
+.lfm-loved-heart { color: #d51007; font-size: 0.75rem; flex-shrink: 0; }
+
+/* ── No content ──────────────────────────────────────────────── */
+.lfm-no-user {
+  text-align: center;
+  padding: 60px 20px;
+  color: rgba(192,208,255,0.35);
+}
+
+.lfm-no-user-icon { font-size: 3rem; margin-bottom: 12px; }
+.lfm-no-user p    { font-size: 0.88rem; }

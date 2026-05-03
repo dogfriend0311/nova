@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { TEAMS, SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl } from '../../data/teams';
 import { getWatchList } from '../../services/mediaService';
-import * as spotifyService from '../../services/spotifyService';
+import * as lfm from '../../services/lastfmService';
 import './MemberProfile.css';
 
 const roleLabel = (role) => {
@@ -15,7 +15,7 @@ const SPORT_KEYS = ['mlb', 'nfl', 'nba', 'nhl', 'cfb', 'cbb'];
 const DEFAULT_FAV_TEAMS = { mlb: [], nfl: [], nba: [], nhl: [], cfb: [], cbb: [] };
 
 const DEFAULT_PROFILE = {
-  bio: '', top_banner_url: '', avatar_url: '',
+  bio: '', top_banner_url: '', avatar_url: '', lastfm_username: '',
   twitter_url: '', twitch_url: '', youtube_url: '', instagram_url: '',
   discord_tag: '', fav_teams: DEFAULT_FAV_TEAMS,
 };
@@ -23,7 +23,6 @@ const DEFAULT_PROFILE = {
 /* ── Image upload field ─────────────────────────────────────── */
 const ImageField = ({ label, fieldKey, value, onChange }) => {
   const inputRef = useRef(null);
-
   const handleFile = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -32,28 +31,18 @@ const ImageField = ({ label, fieldKey, value, onChange }) => {
     reader.onloadend = () => onChange(fieldKey, reader.result);
     reader.readAsDataURL(file);
   };
-
   const isBase64 = value && value.startsWith('data:');
   const hasImage = !!value;
-
   return (
     <div className="form-group mp-image-field">
       <label>{label}</label>
       <div className="mp-image-upload-row">
-        <input
-          type="text"
-          value={isBase64 ? '' : (value || '')}
-          onChange={(e) => onChange(fieldKey, e.target.value)}
-          placeholder={isBase64 ? '(uploaded file)' : 'Paste image URL…'}
-          style={{ flex: 1 }}
-        />
+        <input type="text" value={isBase64 ? '' : (value || '')} onChange={(e) => onChange(fieldKey, e.target.value)} placeholder={isBase64 ? '(uploaded file)' : 'Paste image URL…'} style={{ flex: 1 }} />
         <label className="mp-upload-btn" title="Upload from device">
           📁 Upload
           <input ref={inputRef} type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} />
         </label>
-        {hasImage && (
-          <button className="mp-upload-clear" onClick={() => onChange(fieldKey, '')} title="Remove image">✕</button>
-        )}
+        {hasImage && <button className="mp-upload-clear" onClick={() => onChange(fieldKey, '')} title="Remove image">✕</button>}
       </div>
       {hasImage && (
         <div className="mp-image-preview-wrap">
@@ -68,13 +57,11 @@ const ImageField = ({ label, fieldKey, value, onChange }) => {
 const TeamSelector = ({ favTeams, onChange }) => {
   const [activeSport, setActiveSport] = useState('mlb');
   const hasLogos = ['mlb', 'nfl', 'nba', 'nhl'].includes(activeSport);
-
   const toggle = (sport, abbr) => {
     const current = favTeams[sport] || [];
     const next = current.includes(abbr) ? current.filter((a) => a !== abbr) : [...current, abbr];
     onChange({ ...favTeams, [sport]: next });
   };
-
   return (
     <div className="mp-team-selector">
       <div className="mp-sport-tabs">
@@ -82,8 +69,7 @@ const TeamSelector = ({ favTeams, onChange }) => {
           const count = (favTeams[s] || []).length;
           return (
             <button key={s} className={`mp-sport-tab ${activeSport === s ? 'active' : ''}`} onClick={() => setActiveSport(s)}>
-              <span>{SPORT_ICONS[s]}</span>
-              <span>{SPORT_SHORT[s]}</span>
+              <span>{SPORT_ICONS[s]}</span><span>{SPORT_SHORT[s]}</span>
               {count > 0 && <span className="mp-sport-count">{count}</span>}
             </button>
           );
@@ -148,12 +134,10 @@ const FavTeamsDisplay = ({ favTeams }) => {
 const WatchListPreview = ({ username }) => {
   const list = getWatchList(username);
   if (!list.length) return null;
-
   const pinned   = list.filter((i) => i.pinned);
   const watched  = list.filter((i) => i.status === 'watched').length;
   const watching = list.filter((i) => i.status === 'watching').length;
   const plan     = list.filter((i) => i.status === 'plan').length;
-
   return (
     <div className="discord-section">
       <div className="discord-section-title">🎬 Watch List</div>
@@ -170,9 +154,7 @@ const WatchListPreview = ({ username }) => {
           <div className="mp-pinned-grid">
             {pinned.slice(0, 6).map((item) => (
               <div key={item.id} className="mp-pinned-card" title={item.title}>
-                {item.poster
-                  ? <img src={item.poster} alt={item.title} />
-                  : <div className="mp-pinned-ph">{TYPE_ICONS[item.type] || '?'}</div>}
+                {item.poster ? <img src={item.poster} alt={item.title} /> : <div className="mp-pinned-ph">{TYPE_ICONS[item.type] || '?'}</div>}
                 {item.rating != null && <div className="mp-pinned-rating">★{item.rating}</div>}
               </div>
             ))}
@@ -183,101 +165,50 @@ const WatchListPreview = ({ username }) => {
   );
 };
 
-/* ── Spotify Now Playing ────────────────────────────────────── */
-const SpotifyNowPlaying = ({ username }) => {
-  const [nowPlaying,  setNowPlaying]  = useState(null);
-  const [loading,     setLoading]     = useState(false);
-  const [connecting,  setConnecting]  = useState(false);
-  const [connected,   setConnected]   = useState(() => spotifyService.isConnected(username));
+/* ── Last.fm Now Playing Widget ─────────────────────────────── */
+const LastFmWidget = ({ lastfmUsername }) => {
+  const [track, setTrack] = useState(undefined);
 
   useEffect(() => {
-    setConnected(spotifyService.isConnected(username));
-  }, [username]);
-
-  useEffect(() => {
-    if (!connected) { setNowPlaying(null); return; }
+    if (!lastfmUsername || !lfm.hasApiKey()) { setTrack(null); return; }
     let active = true;
     const poll = async () => {
-      setLoading(true);
-      const track = await spotifyService.getCurrentlyPlaying(username);
-      if (active) { setNowPlaying(track); setLoading(false); }
+      const t = await lfm.getNowPlaying(lastfmUsername);
+      if (active) setTrack(t);
     };
     poll();
     const id = setInterval(poll, 30000);
     return () => { active = false; clearInterval(id); };
-  }, [username, connected]);
+  }, [lastfmUsername]);
 
-  const handleConnect = async () => {
-    setConnecting(true);
-    await spotifyService.initiateAuth(username);
-  };
-
-  const handleDisconnect = () => {
-    spotifyService.disconnect(username);
-    setConnected(false);
-    setNowPlaying(null);
-  };
-
-  if (!spotifyService.hasClientId()) return null;
-
-  if (!connected) {
-    return (
-      <div className="discord-section">
-        <div className="discord-section-title">🎵 Spotify</div>
-        <div className="sp-connect-wrap">
-          <p className="sp-connect-hint">Connect your Spotify to show what you're listening to live.</p>
-          <button className="sp-connect-btn" onClick={handleConnect} disabled={connecting}>
-            {connecting ? 'Redirecting…' : '🎵 Connect Spotify'}
-          </button>
-        </div>
-      </div>
-    );
-  }
+  if (!lastfmUsername || !lfm.hasApiKey() || track === null) return null;
+  if (track === undefined) return null;
 
   return (
     <div className="discord-section">
       <div className="discord-section-title-row">
-        <span className="discord-section-title">🎵 Now Playing</span>
-        <button className="sp-disconnect-btn" onClick={handleDisconnect} title="Disconnect Spotify">Disconnect</button>
+        <span className="discord-section-title">
+          {track.isPlaying ? '🎵 Now Playing' : '🎵 Last Scrobbled'}
+        </span>
+        <a className="lfm-mini-link" href={track.userUrl} target="_blank" rel="noreferrer">Last.fm →</a>
       </div>
-
-      {loading && !nowPlaying ? (
-        <div className="sp-loading">
-          <span className="sp-dot" /><span className="sp-dot" /><span className="sp-dot" />
-        </div>
-      ) : !nowPlaying ? (
-        <div className="sp-idle">
-          <span className="sp-idle-icon">🎵</span>
-          <span className="sp-idle-text">Not playing anything right now</span>
-        </div>
-      ) : (
-        <a
-          className={`sp-track ${nowPlaying.isPlaying ? 'playing' : 'paused'}`}
-          href={nowPlaying.spotifyUrl || '#'}
-          target="_blank"
-          rel="noreferrer"
-        >
-          {nowPlaying.albumArt ? (
-            <img className="sp-art" src={nowPlaying.albumArt} alt={nowPlaying.albumName} />
-          ) : (
-            <div className="sp-art sp-art-placeholder">🎵</div>
-          )}
-          <div className="sp-info">
-            <div className="sp-track-name">{nowPlaying.trackName}</div>
-            <div className="sp-artist-name">{nowPlaying.artistName}</div>
-            <div className="sp-status">
-              {nowPlaying.isPlaying
-                ? <><span className="sp-pulse" /> Playing on Spotify</>
-                : <><span style={{ color: 'rgba(192,208,255,0.4)' }}>⏸</span> Paused</>}
-            </div>
+      <a className={`sp-track ${track.isPlaying ? 'playing' : 'paused'}`} href={track.trackUrl || '#'} target="_blank" rel="noreferrer" style={{ '--sp-color': '#d51007' }}>
+        {track.albumArt
+          ? <img className="sp-art" src={track.albumArt} alt="" onError={(e) => { e.target.style.display = 'none'; }} />
+          : <div className="sp-art sp-art-placeholder">🎵</div>}
+        <div className="sp-info">
+          <div className="sp-track-name">{track.trackName}</div>
+          <div className="sp-artist-name">{track.artistName}</div>
+          <div className="sp-status" style={{ color: track.isPlaying ? '#d51007' : undefined }}>
+            {track.isPlaying
+              ? <><span className="sp-pulse" style={{ background: '#d51007' }} /> Playing on Spotify</>
+              : <span style={{ color: 'rgba(192,208,255,0.4)' }}>Last played</span>}
           </div>
-          <div className="sp-logo">
-            <svg viewBox="0 0 24 24" fill="#1DB954" width="20" height="20">
-              <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
-            </svg>
-          </div>
-        </a>
-      )}
+        </div>
+        <svg viewBox="0 0 512 512" fill="#d51007" width="18" height="18" style={{ flexShrink: 0, opacity: 0.7 }}>
+          <path d="M256 0C114.6 0 0 114.6 0 256s114.6 256 256 256 256-114.6 256-256S397.4 0 256 0zm117.4 369.3c-4.6 7.5-14.4 9.9-21.9 5.3-60-36.7-135.5-45-224.5-24.7-8.6 2-17.1-3.4-19.1-12-2-8.6 3.4-17.1 12-19.1 97.3-22.2 180.8-12.7 248.2 28.5 7.5 4.7 9.9 14.5 5.3 22zm31.3-69.6c-5.8 9.4-18.1 12.4-27.5 6.6-68.7-42.3-173.4-54.5-254.5-29.8-10.5 3.2-21.6-2.8-24.7-13.3-3.2-10.5 2.8-21.6 13.3-24.7 92.7-28.2 207.8-14.5 286.8 34 9.4 5.8 12.4 18.1 6.6 27.2zm2.7-72.4c-82.4-48.9-218.4-53.4-297-29.5-12.6 3.8-25.9-3.3-29.7-15.9-3.8-12.6 3.3-25.9 15.9-29.7 90.2-27.4 240.2-22.1 335 34.1 11.3 6.7 15 21.3 8.3 32.6-6.7 11.2-21.4 14.9-32.5 8.4z" />
+        </svg>
+      </a>
     </div>
   );
 };
@@ -320,12 +251,10 @@ const MemberProfile = () => {
           <h1 className="gradient-text">Edit Profile</h1>
           <button className="neon-button" onClick={() => { setEditing(false); setFavTab(false); }}>Cancel</button>
         </div>
-
         <div className="mp-edit-tabs">
           <button className={`sh-sub-tab ${!favTab ? 'active' : ''}`} onClick={() => setFavTab(false)}>👤 Profile</button>
           <button className={`sh-sub-tab ${favTab ? 'active' : ''}`} onClick={() => setFavTab(true)}>⭐ Favorite Teams</button>
         </div>
-
         {!favTab ? (
           <div className="neon-card p-3">
             <ImageField label="Banner Image" fieldKey="top_banner_url" value={formData.top_banner_url || ''} onChange={handleField} />
@@ -338,7 +267,11 @@ const MemberProfile = () => {
               <label>Discord Tag</label>
               <input type="text" value={formData.discord_tag || ''} onChange={(e) => setFormData({ ...formData, discord_tag: e.target.value })} placeholder="username#0000" />
             </div>
-
+            <div className="form-group">
+              <label>Last.fm Username</label>
+              <input type="text" value={formData.lastfm_username || ''} onChange={(e) => setFormData({ ...formData, lastfm_username: e.target.value })} placeholder="your-lastfm-username" />
+              <small style={{ color: 'rgba(192,208,255,0.4)', fontSize: '0.75rem' }}>Shows your now-playing track on your profile. Free at last.fm</small>
+            </div>
             <h4 className="gradient-text-cyan" style={{ margin: '20px 0 10px' }}>Socials</h4>
             {[
               { key: 'twitter_url',   label: 'Twitter URL' },
@@ -351,7 +284,6 @@ const MemberProfile = () => {
                 <input type="text" value={formData[key] || ''} onChange={(e) => setFormData({ ...formData, [key]: e.target.value })} placeholder="https://…" />
               </div>
             ))}
-
             <div className="form-actions">
               <button className="neon-button" onClick={handleSave}>Save Profile</button>
               <button className="neon-button" onClick={() => { setEditing(false); setFavTab(false); }}>Cancel</button>
@@ -362,10 +294,7 @@ const MemberProfile = () => {
             <p style={{ color: 'rgba(192,208,255,0.5)', fontSize: '0.85rem', marginBottom: '16px' }}>
               Pick your favorite teams for each sport. You can select multiple.
             </p>
-            <TeamSelector
-              favTeams={formData.fav_teams || DEFAULT_FAV_TEAMS}
-              onChange={(ft) => setFormData({ ...formData, fav_teams: ft })}
-            />
+            <TeamSelector favTeams={formData.fav_teams || DEFAULT_FAV_TEAMS} onChange={(ft) => setFormData({ ...formData, fav_teams: ft })} />
             <div className="form-actions" style={{ marginTop: '20px' }}>
               <button className="neon-button" onClick={handleSave}>Save</button>
               <button className="neon-button" onClick={() => { setEditing(false); setFavTab(false); }}>Cancel</button>
@@ -390,9 +319,7 @@ const MemberProfile = () => {
         <div className="discord-avatar">
           {profile.avatar_url ? <img src={profile.avatar_url} alt="avatar" /> : '🚀'}
         </div>
-
         <button className="neon-button discord-edit-btn" onClick={() => setEditing(true)}>Edit Profile</button>
-
         <div style={{ marginTop: '8px' }}>
           <div className="discord-username-row">
             <h2 className="discord-username">{profile.username}</h2>
@@ -402,20 +329,15 @@ const MemberProfile = () => {
             <p style={{ color: 'rgba(192,208,255,0.45)', fontSize: '0.85rem', margin: '0 0 6px 0' }}>{profile.discord_tag}</p>
           )}
         </div>
-
         {profile.bio && (
           <div className="discord-section">
             <div className="discord-section-title">About Me</div>
             <p className="discord-section-text">{profile.bio}</p>
           </div>
         )}
-
         <FavTeamsDisplay favTeams={profile.fav_teams} />
-
         <WatchListPreview username={profile.username} />
-
-        <SpotifyNowPlaying username={profile.username} />
-
+        <LastFmWidget lastfmUsername={profile.lastfm_username} />
         {socials.length > 0 && (
           <div className="discord-section">
             <div className="discord-section-title">Connections</div>
