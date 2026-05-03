@@ -1,6 +1,5 @@
 const ESPN    = 'https://site.api.espn.com/apis/site/v2/sports';
 const ESPN_V2 = 'https://site.api.espn.com/apis/v2/sports';
-const ESPN_WEB = 'https://site.web.api.espn.com/apis/common/v3';
 
 export const SPORT_PATHS = {
   mlb: 'baseball/mlb',
