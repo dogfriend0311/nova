@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import * as lfm from '../../services/lastfmService';
 import './LastFmPage.css';
@@ -259,55 +259,6 @@ const LastFmPage = () => {
     if (trimmed) setActiveUsername(trimmed);
   };
 
-  const [keyInput,  setKeyInput]  = useState('');
-  const [keyError,  setKeyError]  = useState('');
-  const [keyReady,  setKeyReady]  = useState(lfm.hasApiKey());
-  const keyRef = useRef(null);
-
-  const handleSaveKey = (e) => {
-    e.preventDefault();
-    const k = keyInput.trim();
-    if (!k) { setKeyError('Please paste your API key.'); return; }
-    if (k.length < 20) { setKeyError('That doesn\'t look like a valid key — it\'s too short.'); return; }
-    lfm.saveApiKey(k);
-    setKeyError('');
-    setKeyReady(true);
-  };
-
-  if (!keyReady) {
-    return (
-      <div className="page lfm-page">
-        <div className="page-header">
-          <h1 className="gradient-text">Last.fm</h1>
-        </div>
-        <div className="lfm-setup-card">
-          <div className="lfm-setup-icon">🎵</div>
-          <h2>Connect Last.fm</h2>
-          <p>
-            A free API key is needed. Get one in seconds at{' '}
-            <a href="https://www.last.fm/api/account/create" target="_blank" rel="noreferrer">
-              last.fm/api/account/create
-            </a>
-            {' '}— then paste it below.
-          </p>
-          <form className="lfm-key-form" onSubmit={handleSaveKey}>
-            <input
-              ref={keyRef}
-              className="lfm-key-input"
-              type="text"
-              placeholder="Paste your Last.fm API key here…"
-              value={keyInput}
-              onChange={(e) => { setKeyInput(e.target.value); setKeyError(''); }}
-              autoFocus
-            />
-            <button className="lfm-key-btn" type="submit">Save Key</button>
-          </form>
-          {keyError && <div className="lfm-key-error">{keyError}</div>}
-          <p className="lfm-key-note">The key is stored in your browser only — never sent anywhere except Last.fm.</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="page lfm-page">
