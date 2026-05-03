@@ -11,17 +11,25 @@ import {
   normalizeStandings,
   normalizeNews,
   normalizeGameSummary,
+  fetchMiLBScoreboard,
+  normalizeMiLBGame,
 } from '../../services/sportsDataService';
 import './SportsHub.css';
 
 const SPORTS = [
-  { id: 'mlb', label: 'MLB',              icon: '⚾' },
-  { id: 'nfl', label: 'NFL',              icon: '🏈' },
-  { id: 'nba', label: 'NBA',              icon: '🏀' },
-  { id: 'nhl', label: 'NHL',              icon: '🏒' },
-  { id: 'cfb', label: 'College Football', icon: '🎓' },
-  { id: 'cbb', label: 'College Baseball', icon: '🎓' },
+  { id: 'mlb',          label: 'MLB',              icon: '⚾' },
+  { id: 'nfl',          label: 'NFL',              icon: '🏈' },
+  { id: 'nba',          label: 'NBA',              icon: '🏀' },
+  { id: 'nhl',          label: 'NHL',              icon: '🏒' },
+  { id: 'cfb',          label: 'College Football', icon: '🎓' },
+  { id: 'cbb',          label: 'College Baseball', icon: '🎓' },
+  { id: 'milb_aaa',     label: 'Triple-A',         icon: '⚾' },
+  { id: 'milb_aa',      label: 'Double-A',         icon: '⚾' },
+  { id: 'milb_highA',   label: 'High-A',           icon: '⚾' },
+  { id: 'milb_singleA', label: 'Single-A',         icon: '⚾' },
 ];
+
+const isMiLB = (sport) => sport.startsWith('milb_');
 
 const SUB_TABS = [
   { id: 'scores',    label: 'Scores',    icon: '📅' },
@@ -136,6 +144,65 @@ const ScoresPanel = ({ sport, refreshKey, onSelectGame }) => {
         <h3 className="sh-section-title">{title} <span className="sh-section-count">{items.length}</span></h3>
         <div className="sh-scores-grid">
           {items.map((g) => <ScoreCard key={g.id} game={g} onSelectGame={onSelectGame} />)}
+        </div>
+      </>
+    );
+
+  return (
+    <div className="sh-scores-wrap">
+      <Section title="🔴 Live"      items={live} />
+      <Section title="✅ Final"     items={final} />
+      <Section title="🕐 Upcoming" items={scheduled} />
+    </div>
+  );
+};
+
+/* ────────────────────────────────────────────
+   MiLB Scores Panel
+   ──────────────────────────────────────────── */
+const MiLBScoresPanel = ({ sport, refreshKey }) => {
+  const [games, setGames]     = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const raw = await fetchMiLBScoreboard(sport);
+      setGames(raw.map(normalizeMiLBGame));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [sport]);
+
+  useEffect(() => { load(); }, [load, refreshKey]);
+
+  if (loading) return <div className="sh-loading"><div className="sh-spinner" /></div>;
+  if (error)   return <div className="sh-error">Could not load scores: {error}</div>;
+
+  const live      = games.filter((g) => g.status === 'in');
+  const final     = games.filter((g) => g.status === 'post');
+  const scheduled = games.filter((g) => g.status === 'pre');
+
+  if (!games.length) {
+    return (
+      <div className="sh-no-games">
+        <div className="sh-no-games-icon">⚾</div>
+        <p>No games scheduled today.</p>
+        <p className="sh-no-games-sub">Check back later for the next game day.</p>
+      </div>
+    );
+  }
+
+  const Section = ({ title, items }) =>
+    items.length === 0 ? null : (
+      <>
+        <h3 className="sh-section-title">{title} <span className="sh-section-count">{items.length}</span></h3>
+        <div className="sh-scores-grid">
+          {items.map((g) => <ScoreCard key={g.id} game={g} />)}
         </div>
       </>
     );
@@ -385,7 +452,10 @@ const PlayerSearchPanel = ({ sport }) => {
     <div className="sh-players-panel">
       <div className="sh-players-header">
         <h3 className="gradient-text-cyan">🔍 Player Lookup</h3>
-        <p style={{ color: 'rgba(192,208,255,0.5)', fontSize: '0.85rem', marginTop: '6px' }}>Search for any player across all ESPN sports</p>
+        <p style={{ color: 'rgba(192,208,255,0.5)', fontSize: '0.85rem', marginTop: '6px' }}>
+          Search for any player across all ESPN sports
+          {(sport === 'cfb' || sport === 'cbb') && ' · First search loads all rosters (may take ~10s)'}
+        </p>
       </div>
 
       <form className="sh-search-form" onSubmit={handleSearch}>
@@ -679,7 +749,11 @@ const SportsHub = () => {
       <div className="page-header sh-header">
         <h1 className="gradient-text">🏆 Sports Hub</h1>
         <p className="subtitle">
-          Powered by ESPN &nbsp;·&nbsp; Live scores · Standings · News &nbsp;·&nbsp;
+          {isMiLB(activeSport)
+            ? <>Powered by MLB Stats API &nbsp;·&nbsp; Live scores</>
+            : <>Powered by ESPN &nbsp;·&nbsp; Live scores · Standings · News</>
+          }
+          &nbsp;·&nbsp;
           <span className="sh-updated">
             {lastUpdated.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
           </span>
@@ -700,7 +774,7 @@ const SportsHub = () => {
       </div>
 
       <div className="sh-sub-tabs">
-        {SUB_TABS.map((t) => (
+        {(isMiLB(activeSport) ? SUB_TABS.filter((t) => t.id === 'scores') : SUB_TABS).map((t) => (
           <button
             key={t.id}
             className={`sh-sub-tab ${activeTab === t.id ? 'active' : ''}`}
@@ -716,7 +790,10 @@ const SportsHub = () => {
           <GameDetailView game={selectedGame} sport={activeSport} onBack={() => setSelectedGame(null)} />
         ) : (
           <>
-            {activeTab === 'scores' && (
+            {activeTab === 'scores' && isMiLB(activeSport) && (
+              <MiLBScoresPanel key={`${activeSport}-milb`} sport={activeSport} refreshKey={refreshKey} />
+            )}
+            {activeTab === 'scores' && !isMiLB(activeSport) && (
               <ScoresPanel key={`${activeSport}-scores`} sport={activeSport} refreshKey={refreshKey} onSelectGame={handleSelectGame} />
             )}
             {activeTab === 'standings' && (

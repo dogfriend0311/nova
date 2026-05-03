@@ -46,32 +46,112 @@ const _athleteCache = {};
 
 export const fetchAllAthletes = async (sport) => {
   if (_athleteCache[sport]) return _athleteCache[sport];
-  const teamsData = await apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/teams?limit=100`);
-  const leagues   = teamsData.sports?.[0]?.leagues || [];
-  const teams     = (leagues[0]?.teams || []).map(t => t.team || t).slice(0, 80);
+
+  const isCollege  = sport === 'cfb' || sport === 'cbb';
+  const teamLimit  = isCollege ? 1000 : 100;
+  const teamsData  = await apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/teams?limit=${teamLimit}`);
+  const leagues    = teamsData.sports?.[0]?.leagues || [];
+  const allTeams   = (leagues[0]?.teams || []).map(t => t.team || t);
+  const teamList   = isCollege ? allTeams : allTeams.slice(0, 80);
+
   const leagueSlug = SPORT_PATHS[sport].split('/')[1];
-  const rosterResults = await Promise.allSettled(
-    teams.map(team =>
-      apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/teams/${team.id}/roster`)
-        .then(data => (data.athletes || []).flatMap(group =>
-          (group.items || []).map(a => ({
-            id:          a.id,
-            displayName: a.displayName || a.fullName,
-            position:    a.position?.abbreviation || '',
-            jersey:      a.jersey,
-            teamName:    team.displayName,
-            teamAbbrev:  team.abbreviation,
-            headshotUrl: a.headshot?.href ||
-              `https://a.espncdn.com/i/headshots/${leagueSlug}/players/full/${a.id}.png`,
-          }))
-        ))
-        .catch(() => [])
-    )
-  );
-  const athletes = rosterResults.flatMap(r => r.status === 'fulfilled' ? r.value : []);
+  const BATCH      = isCollege ? 50 : teamList.length;
+  const athletes   = [];
+
+  for (let i = 0; i < teamList.length; i += BATCH) {
+    const batch = teamList.slice(i, i + BATCH);
+    const results = await Promise.allSettled(
+      batch.map(team =>
+        apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/teams/${team.id}/roster`)
+          .then(data => (data.athletes || []).flatMap(group =>
+            (group.items || []).map(a => ({
+              id:          a.id,
+              displayName: a.displayName || a.fullName,
+              position:    a.position?.abbreviation || '',
+              jersey:      a.jersey,
+              teamName:    team.displayName,
+              teamAbbrev:  team.abbreviation,
+              headshotUrl: a.headshot?.href ||
+                `https://a.espncdn.com/i/headshots/${leagueSlug}/players/full/${a.id}.png`,
+            }))
+          ))
+          .catch(() => [])
+      )
+    );
+    athletes.push(...results.flatMap(r => r.status === 'fulfilled' ? r.value : []));
+  }
+
   _athleteCache[sport] = athletes;
   return athletes;
 };
+
+/* ── Minor League Baseball (MLB Stats API) ───────────────────── */
+
+const MILB_API = 'https://statsapi.mlb.com/api/v1';
+
+const MILB_SPORT_IDS = {
+  milb_aaa:     11,
+  milb_aa:      12,
+  milb_highA:   13,
+  milb_singleA: 14,
+};
+
+export const fetchMiLBScoreboard = async (sport) => {
+  const sportId = MILB_SPORT_IDS[sport];
+  const today   = new Date().toISOString().split('T')[0];
+  const r = await fetch(`${MILB_API}/schedule?sportId=${sportId}&date=${today}`);
+  if (!r.ok) throw new Error(`HTTP_${r.status}`);
+  const d = await r.json();
+  return (d.dates || []).flatMap(dt => dt.games || []);
+};
+
+const milbAbbr = (name) => {
+  if (!name) return '???';
+  return name.split(' ')[0].slice(0, 3).toUpperCase();
+};
+
+export function normalizeMiLBGame(game) {
+  const state     = game.status?.abstractGameState || 'Preview';
+  const statusMap = { Preview: 'pre', Live: 'in', Final: 'post' };
+  const status    = statusMap[state] || 'pre';
+  const h = game.teams?.home;
+  const a = game.teams?.away;
+
+  let statusDetail = game.status?.detailedState || '';
+  if (status === 'pre' && game.gameDate) {
+    statusDetail = new Date(game.gameDate).toLocaleTimeString('en-US', {
+      hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+    });
+  }
+
+  const mkRecord = (side) => {
+    const lr = side?.leagueRecord;
+    return lr ? `${lr.wins}-${lr.losses}` : null;
+  };
+
+  return {
+    id:           String(game.gamePk),
+    status,
+    statusDetail,
+    homeTeam: {
+      abbr:      milbAbbr(h?.team?.name),
+      name:      h?.team?.name || '?',
+      shortName: h?.team?.name || '?',
+      logo:      null,
+      score:     h?.score ?? null,
+      record:    mkRecord(h),
+    },
+    awayTeam: {
+      abbr:      milbAbbr(a?.team?.name),
+      name:      a?.team?.name || '?',
+      shortName: a?.team?.name || '?',
+      logo:      null,
+      score:     a?.score ?? null,
+      record:    mkRecord(a),
+    },
+    broadcast: null,
+  };
+}
 
 export const fetchAthleteProfile = (sport, athleteId) =>
   apiFetch(`${ESPN_V3}/${SPORT_PATHS[sport]}/athletes/${athleteId}`);
