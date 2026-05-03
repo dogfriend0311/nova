@@ -86,15 +86,25 @@ async function getTrackArtwork(artistName, trackName) {
 /* ── Last.fm fetch helper ─────────────────────────────────────── */
 async function lfmFetch(params) {
   const key = getApiKey();
-  if (!key) return null;
+  if (!key) {
+    console.error('[Last.fm] No API key available – check REACT_APP_LASTFM_KEY');
+    return null;
+  }
   try {
     const q   = new URLSearchParams({ ...params, format: 'json', api_key: key });
     const res = await fetch(`${BASE}?${q}`);
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error('[Last.fm] HTTP error:', res.status, params.method);
+      return null;
+    }
     const data = await res.json();
-    if (data.error) return null;
+    if (data.error) {
+      console.error('[Last.fm] API error', data.error, ':', data.message, '| method:', params.method);
+      return { _lfmError: data.error, _lfmMessage: data.message };
+    }
     return data;
-  } catch {
+  } catch (e) {
+    console.error('[Last.fm] Fetch failed:', e?.message || e, '| method:', params.method);
     return null;
   }
 }
@@ -125,7 +135,9 @@ async function enrichWithTrackArtwork(items) {
 /* ── User info ────────────────────────────────────────────────── */
 export async function getUserInfo(username) {
   const data = await lfmFetch({ method: 'user.getInfo', user: username });
-  if (!data?.user) return null;
+  if (!data) return null;
+  if (data._lfmError) return { _error: data._lfmError, _message: data._lfmMessage };
+  if (!data.user) return null;
   const u = data.user;
   let avatar = pickImage(u.image, 'extralarge');
   if (!avatar) {
