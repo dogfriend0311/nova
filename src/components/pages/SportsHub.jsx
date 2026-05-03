@@ -402,6 +402,21 @@ const PlayerSearchPanel = ({ sport }) => {
   const [playerData, setPlayerData]       = useState(null);
   const [statsLoading, setStatsLoading]   = useState(false);
 
+  if (sport === 'cbb') {
+    return (
+      <div className="sh-players-panel">
+        <div className="sh-players-header">
+          <h3 className="gradient-text-cyan">🔍 Player Lookup</h3>
+        </div>
+        <div className="sh-no-games" style={{ marginTop: '30px' }}>
+          <div className="sh-no-games-icon">⚾</div>
+          <p>Player search is not available for College Baseball.</p>
+          <p className="sh-no-games-sub">ESPN does not provide roster data for college baseball teams.</p>
+        </div>
+      </div>
+    );
+  }
+
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!query.trim()) return;
@@ -413,9 +428,12 @@ const PlayerSearchPanel = ({ sport }) => {
     try {
       const all = await fetchAllAthletes(sport);
       const q = query.trim().toLowerCase();
-      const filtered = all.filter(a => (a.displayName || '').toLowerCase().includes(q));
-      setResults(filtered.slice(0, 10));
-      if (!filtered.length) setError('No players found. Try a different name.');
+      const filtered = all.filter(a =>
+        (a.displayName || '').toLowerCase().includes(q) ||
+        (a.teamName   || '').toLowerCase().includes(q)
+      );
+      setResults(filtered.slice(0, 20));
+      if (!filtered.length) setError('No players found. Try a different name or school.');
     } catch (e2) {
       setError('Search failed. Please try again.');
     } finally {
@@ -453,8 +471,8 @@ const PlayerSearchPanel = ({ sport }) => {
       <div className="sh-players-header">
         <h3 className="gradient-text-cyan">🔍 Player Lookup</h3>
         <p style={{ color: 'rgba(192,208,255,0.5)', fontSize: '0.85rem', marginTop: '6px' }}>
-          Search for any player across all ESPN sports
-          {(sport === 'cfb' || sport === 'cbb') && ' · First search loads all rosters (may take ~10s)'}
+          Search by player name or school name
+          {sport === 'cfb' && ' · First search loads all rosters (~10s)'}
         </p>
       </div>
 
@@ -462,7 +480,7 @@ const PlayerSearchPanel = ({ sport }) => {
         <input
           className="sh-search-input"
           type="text"
-          placeholder="Search player name…"
+          placeholder="Search player name or school (e.g. Texas Tech)…"
           value={query}
           onChange={e => setQuery(e.target.value)}
         />

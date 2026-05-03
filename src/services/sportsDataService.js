@@ -98,7 +98,8 @@ const MILB_SPORT_IDS = {
 
 export const fetchMiLBScoreboard = async (sport) => {
   const sportId = MILB_SPORT_IDS[sport];
-  const today   = new Date().toISOString().split('T')[0];
+  const now     = new Date();
+  const today   = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const r = await fetch(`${MILB_API}/schedule?sportId=${sportId}&date=${today}`);
   if (!r.ok) throw new Error(`HTTP_${r.status}`);
   const d = await r.json();
