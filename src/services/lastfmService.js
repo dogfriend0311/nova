@@ -1,10 +1,32 @@
-const API_KEY = (process.env.REACT_APP_LASTFM_KEY || '').trim();
-const BASE    = 'https://ws.audioscrobbler.com/2.0/';
+/* ── Last.fm Service ─────────────────────────────────────────────
+   Key priority: localStorage (runtime) → REACT_APP env var (build)
+   Using localStorage means admins can set the key without a rebuild.
+──────────────────────────────────────────────────────────────── */
+const BASE = 'https://ws.audioscrobbler.com/2.0/';
+const LS_KEY = 'nova_lastfm_api_key';
 
+function getApiKey() {
+  const stored = localStorage.getItem(LS_KEY) || '';
+  if (stored.trim()) return stored.trim();
+  return (process.env.REACT_APP_LASTFM_KEY || '').trim();
+}
+
+export function hasApiKey() { return !!getApiKey(); }
+
+export function saveApiKey(key) {
+  localStorage.setItem(LS_KEY, key.trim());
+}
+
+export function clearApiKey() {
+  localStorage.removeItem(LS_KEY);
+}
+
+/* ── Internal fetch helper ────────────────────────────────────── */
 async function lfmFetch(params) {
-  if (!API_KEY) return null;
+  const key = getApiKey();
+  if (!key) return null;
   try {
-    const q   = new URLSearchParams({ ...params, format: 'json', api_key: API_KEY });
+    const q   = new URLSearchParams({ ...params, format: 'json', api_key: key });
     const res = await fetch(`${BASE}?${q}`);
     if (!res.ok) return null;
     const data = await res.json();
@@ -25,8 +47,6 @@ function pickImage(images, preferSize = 'large') {
   return null;
 }
 
-export function hasApiKey() { return !!API_KEY; }
-
 /* ── User info ────────────────────────────────────────────────── */
 export async function getUserInfo(username) {
   const data = await lfmFetch({ method: 'user.getInfo', user: username });
@@ -45,14 +65,12 @@ export async function getUserInfo(username) {
 
 /* ── Now playing / recent ─────────────────────────────────────── */
 export async function getNowPlaying(username) {
-  if (!API_KEY || !username) return null;
+  if (!username) return null;
   const data = await lfmFetch({ method: 'user.getRecentTracks', user: username, limit: 1 });
   if (!data?.recenttracks?.track) return null;
-
   const tracks    = data.recenttracks.track;
   const track     = Array.isArray(tracks) ? tracks[0] : tracks;
   const isPlaying = track?.['@attr']?.nowplaying === 'true';
-
   return {
     isPlaying,
     trackName:  track.name || '',

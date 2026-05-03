@@ -16,9 +16,59 @@
   margin: 60px auto;
 }
 
+.lfm-setup-icon { font-size: 3rem; margin-bottom: 12px; }
 .lfm-setup-card h2 { font-size: 1.4rem; color: #e8efff; margin-bottom: 10px; }
 .lfm-setup-card p  { color: rgba(192,208,255,0.6); font-size: 0.9rem; line-height: 1.6; margin-bottom: 18px; }
 .lfm-setup-card a  { color: #d51007; }
+
+.lfm-key-form {
+  display: flex;
+  gap: 8px;
+  margin: 18px 0 10px;
+}
+
+.lfm-key-input {
+  flex: 1;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(192,208,255,0.2);
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: #e8efff;
+  font-size: 0.9rem;
+  outline: none;
+  font-family: monospace;
+  transition: border-color 0.2s;
+}
+
+.lfm-key-input:focus { border-color: #d51007; }
+.lfm-key-input::placeholder { color: rgba(192,208,255,0.3); font-family: inherit; }
+
+.lfm-key-btn {
+  background: #d51007;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+
+.lfm-key-btn:hover { background: #b50d06; }
+
+.lfm-key-error {
+  color: #ff6b6b;
+  font-size: 0.82rem;
+  margin-top: 6px;
+}
+
+.lfm-key-note {
+  color: rgba(192,208,255,0.35) !important;
+  font-size: 0.75rem !important;
+  margin-top: 12px !important;
+  margin-bottom: 0 !important;
+}
 
 /* ── Search bar ──────────────────────────────────────────────── */
 .lfm-search-row {
