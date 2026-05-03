@@ -1,5 +1,8 @@
-const ESPN    = 'https://site.api.espn.com/apis/site/v2/sports';
-const ESPN_V2 = 'https://site.api.espn.com/apis/v2/sports';
+const _ORIGIN = process.env.NODE_ENV === 'production'
+  ? '/espn-proxy'
+  : 'https://site.api.espn.com';
+const ESPN    = `${_ORIGIN}/apis/site/v2/sports`;
+const ESPN_V2 = `${_ORIGIN}/apis/v2/sports`;
 
 export const SPORT_PATHS = {
   mlb: 'baseball/mlb',
