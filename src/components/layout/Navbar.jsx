@@ -1,24 +1,24 @@
 import React from 'react';
 import './Navbar.css';
 
-const Navbar = ({ currentPage, onPageChange, onDashboard, user }) => {
+const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, user }) => {
   const tabs = [
-    { id: 'home', label: 'Home Page', icon: '🏠' },
-    { id: 'hub', label: 'Hub', icon: '🌐' },
-    { id: 'nabb', label: 'NABB', icon: '⚾' },
-    { id: 'members', label: 'Member Pages', icon: '👥' },
+    { id: 'home',      label: 'Home',        icon: '🏠' },
+    { id: 'sports',    label: 'Sports',       icon: '🏆' },
+    { id: 'watchlist', label: 'Watch List',   icon: '🎬' },
+    { id: 'nabb',      label: 'NABB',         icon: '⚾' },
+    { id: 'members',   label: 'Member Pages', icon: '👥' },
+    { id: 'lastfm',    label: 'Last.fm',      icon: '🎵' },
   ];
 
   return (
     <nav className="navbar">
       <div className="navbar-container">
-        {/* Logo */}
-        <div className="navbar-logo">
+        <div className="navbar-logo" onClick={() => onPageChange('home')}>
           <div className="logo-icon">🚀</div>
           <h1>NOVA</h1>
         </div>
 
-        {/* Navigation Tabs */}
         <div className="navbar-tabs">
           {tabs.map((tab) => (
             <button
@@ -32,19 +32,26 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, user }) => {
           ))}
         </div>
 
-        {/* User Account / Admin */}
         <div className="navbar-user">
-          {user?.role !== 'guest' && (
-            <button className="user-button" onClick={() => onPageChange('profile')}>
-              <span className="user-icon">👤</span>
-              <span className="user-label">Profile</span>
+          {user ? (
+            <>
+              <button className="user-button" onClick={() => onPageChange('profile')}>
+                <span className="user-icon">👤</span>
+                <span className="user-label">{user.username}</span>
+              </button>
+              {['owner', 'cofounder', 'mod'].includes(user.role) && (
+                <button className="user-button" onClick={onDashboard}>
+                  <span className="user-icon">⚙️</span>
+                  <span className="user-label">Admin</span>
+                </button>
+              )}
+            </>
+          ) : (
+            <button className="user-button signin-btn" onClick={onSignIn}>
+              <span className="user-icon">🔑</span>
+              <span className="user-label">Sign In</span>
             </button>
           )}
-
-          <button className="user-button" onClick={onDashboard}>
-            <span className="user-icon">⚙️</span>
-            <span className="user-label">Admin</span>
-          </button>
         </div>
       </div>
     </nav>

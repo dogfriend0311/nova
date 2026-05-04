@@ -1,74 +1,247 @@
-/**
- * Last.fm Service
- * Handles all Last.fm API interactions for music stats
- */
+/* ── Last.fm Service ─────────────────────────────────────────────
+   Key priority: REACT_APP env var (build) → localStorage (fallback)
+   OAuth: redirect → Last.fm auth → return with ?token → getSession
+   Images: Last.fm CDN removed artist images in 2019; iTunes fallback.
+──────────────────────────────────────────────────────────────── */
+import md5 from 'blueimp-md5';
 
-const LASTFM_API_URL = 'https://ws.audioscrobbler.com/2.0/';
-const API_KEY = process.env.REACT_APP_LASTFM_KEY;
-const API_SECRET = process.env.REACT_APP_LASTFM_SECRET;
+const BASE = 'https://ws.audioscrobbler.com/2.0/';
+const LS_KEY = 'nova_lastfm_api_key';
+const CALLBACK_PATH = '/lastfm';
 
-export const lastfmService = {
-  /**
-   * Get user's top tracks
-   */
-  async getTopTracks(username, limit = 10) {
-    try {
-      const response = await fetch(
-        `${LASTFM_API_URL}?method=user.gettoptracks&user=${username}&limit=${limit}&api_key=${API_KEY}&format=json`
-      );
-      const data = await response.json();
-      return data.toptracks?.track || [];
-    } catch (error) {
-      console.error('Error fetching top tracks:', error);
-      return [];
-    }
-  },
+/* Last.fm's universal "no image" placeholder hash — treat as null */
+const LFM_PLACEHOLDER = '2a96cbd8b46e442fc4';
 
-  /**
-   * Get user's top artists
-   */
-  async getTopArtists(username, limit = 10) {
-    try {
-      const response = await fetch(
-        `${LASTFM_API_URL}?method=user.gettopartists&user=${username}&limit=${limit}&api_key=${API_KEY}&format=json`
-      );
-      const data = await response.json();
-      return data.topartists?.artist || [];
-    } catch (error) {
-      console.error('Error fetching top artists:', error);
-      return [];
-    }
-  },
+/* ── API key / secret helpers ─────────────────────────────────── */
+function getApiKey() {
+  const envKey = (process.env.REACT_APP_LASTFM_KEY || '').trim();
+  if (envKey) return envKey;
+  return (localStorage.getItem(LS_KEY) || '').trim();
+}
+function getApiSecret() {
+  return (process.env.REACT_APP_LASTFM_SECRET || '').trim();
+}
+export function hasApiKey() { return !!getApiKey(); }
+export function hasSecret() { return !!getApiSecret(); }
 
-  /**
-   * Get user info
-   */
-  async getUserInfo(username) {
-    try {
-      const response = await fetch(
-        `${LASTFM_API_URL}?method=user.getinfo&user=${username}&api_key=${API_KEY}&format=json`
-      );
-      const data = await response.json();
-      return data.user || null;
-    } catch (error) {
-      console.error('Error fetching user info:', error);
-      return null;
-    }
-  },
+/* ── Last.fm OAuth helpers ────────────────────────────────────── */
+export function getAuthUrl() {
+  const key = getApiKey();
+  const origin = window.location.origin;
+  const callback = `${origin}${CALLBACK_PATH}`;
+  return `https://www.last.fm/api/auth/?api_key=${key}&cb=${encodeURIComponent(callback)}`;
+}
 
-  /**
-   * Get recent tracks
-   */
-  async getRecentTracks(username, limit = 20) {
-    try {
-      const response = await fetch(
-        `${LASTFM_API_URL}?method=user.getrecenttracks&user=${username}&limit=${limit}&api_key=${API_KEY}&format=json`
-      );
-      const data = await response.json();
-      return data.recenttracks?.track || [];
-    } catch (error) {
-      console.error('Error fetching recent tracks:', error);
-      return [];
-    }
+export async function authGetSession(token) {
+  const key = getApiKey();
+  const secret = getApiSecret();
+  if (!key || !secret || !token) return null;
+  try {
+    const params = { api_key: key, method: 'auth.getSession', token };
+    const sigStr = Object.keys(params).sort().map((k) => k + params[k]).join('') + secret;
+    const api_sig = md5(sigStr);
+    const q = new URLSearchParams({ ...params, api_sig, format: 'json' });
+    const res = await fetch(`${BASE}?${q}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.error) return null;
+    return data.session || null;
+  } catch {
+    return null;
   }
-};
+}
+
+/* ── Detect & strip Last.fm placeholder images ────────────────── */
+function isPlaceholder(url) {
+  return !url || url.includes(LFM_PLACEHOLDER);
+}
+
+function pickImage(images, preferSize = 'large') {
+  if (!images || !images.length) return null;
+  const order = [preferSize, 'extralarge', 'mega', 'large', 'medium', 'small'];
+  for (const size of order) {
+    const img = images.find((i) => i.size === size);
+    if (img?.['#text'] && !isPlaceholder(img['#text'])) return img['#text'];
+  }
+  return null;
+}
+
+const itunesCache = new Map();
+
+async function itunesFetch(term, entity) {
+  const key = `${entity}::${term.toLowerCase()}`;
+  if (itunesCache.has(key)) return itunesCache.get(key);
+  try {
+    const url = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=${entity}&limit=1&media=music`;
+    const res = await fetch(url);
+    if (!res.ok) { itunesCache.set(key, null); return null; }
+    const data = await res.json();
+    const result = data?.results?.[0] || null;
+    itunesCache.set(key, result);
+    return result;
+  } catch {
+    itunesCache.set(key, null);
+    return null;
+  }
+}
+
+function itunesArtwork(result, size = 600) {
+  const raw = result?.artworkUrl100;
+  if (!raw) return null;
+  return raw.replace('100x100bb', `${size}x${size}bb`);
+}
+
+async function getArtistImage(artistName) {
+  const result = await itunesFetch(artistName, 'song');
+  return itunesArtwork(result, 300);
+}
+
+async function getTrackArtwork(artistName, trackName) {
+  const result = await itunesFetch(`${artistName} ${trackName}`, 'song');
+  return itunesArtwork(result, 300);
+}
+
+async function lfmFetch(params) {
+  const key = getApiKey();
+  if (!key) return null;
+  try {
+    const q = new URLSearchParams({ ...params, format: 'json', api_key: key });
+    const res = await fetch(`${BASE}?${q}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.error) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+async function enrichWithArtistImages(items) {
+  await Promise.all(items.map(async (item) => {
+    if (!item.image) item.image = await getArtistImage(item.name);
+  }));
+  return items;
+}
+
+async function enrichWithTrackArtwork(items) {
+  await Promise.all(items.map(async (item) => {
+    if (!item.image) item.image = await getTrackArtwork(item.artist || '', item.name);
+  }));
+  return items;
+}
+
+export async function getUserInfo(username) {
+  const data = await lfmFetch({ method: 'user.getInfo', user: username });
+  if (!data?.user) return null;
+  const u = data.user;
+  let avatar = pickImage(u.image, 'extralarge');
+  if (!avatar) {
+    const itunes = await itunesFetch(u.name, 'musicArtist');
+    avatar = itunesArtwork(itunes, 300);
+  }
+  return {
+    name: u.name,
+    realname: u.realname || '',
+    url: u.url,
+    image: avatar,
+    playcount: parseInt(u.playcount, 10) || 0,
+    country: u.country || '',
+    registered: u.registered?.['#text'] || '',
+  };
+}
+
+export async function getNowPlaying(username) {
+  if (!username) return null;
+  const data = await lfmFetch({ method: 'user.getRecentTracks', user: username, limit: 1 });
+  if (!data?.recenttracks?.track) return null;
+  const tracks = data.recenttracks.track;
+  const track = Array.isArray(tracks) ? tracks[0] : tracks;
+  const isPlaying = track?.['@attr']?.nowplaying === 'true';
+  const artistName = track.artist?.['#text'] || track.artist || '';
+  let albumArt = pickImage(track.image);
+  if (!albumArt) albumArt = await getTrackArtwork(artistName, track.name || '');
+  return {
+    isPlaying,
+    trackName: track.name || '',
+    artistName,
+    albumName: track.album?.['#text'] || '',
+    albumArt,
+    trackUrl: track.url || null,
+    userUrl: `https://www.last.fm/user/${username}`,
+  };
+}
+
+export async function getRecentTracks(username, limit = 10) {
+  const data = await lfmFetch({ method: 'user.getRecentTracks', user: username, limit });
+  const raw = data?.recenttracks?.track;
+  if (!raw) return [];
+  const tracks = Array.isArray(raw) ? raw : [raw];
+  const list = tracks.map((t) => ({
+    name: t.name,
+    artist: t.artist?.['#text'] || t.artist || '',
+    album: t.album?.['#text'] || '',
+    image: pickImage(t.image, 'medium'),
+    url: t.url,
+    nowplaying: t?.['@attr']?.nowplaying === 'true',
+    date: t.date?.['#text'] || null,
+    dateUts: t.date?.uts ? parseInt(t.date.uts, 10) * 1000 : null,
+  }));
+  return enrichWithTrackArtwork(list);
+}
+
+export async function getTopArtists(username, period = '1month', limit = 12) {
+  const data = await lfmFetch({ method: 'user.getTopArtists', user: username, period, limit });
+  const raw = data?.topartists?.artist;
+  if (!raw) return [];
+  const list = Array.isArray(raw) ? raw : [raw];
+  const artists = list.map((a, i) => ({
+    rank: i + 1,
+    name: a.name,
+    playcount: parseInt(a.playcount, 10) || 0,
+    image: pickImage(a.image, 'extralarge'),
+    url: a.url,
+  }));
+  return enrichWithArtistImages(artists);
+}
+
+export async function getTopTracks(username, period = '1month', limit = 15) {
+  const data = await lfmFetch({ method: 'user.getTopTracks', user: username, period, limit });
+  const raw = data?.toptracks?.track;
+  if (!raw) return [];
+  const list = Array.isArray(raw) ? raw : [raw];
+  const tracks = list.map((t, i) => ({
+    rank: i + 1,
+    name: t.name,
+    artist: t.artist?.name || '',
+    playcount: parseInt(t.playcount, 10) || 0,
+    image: pickImage(t.image, 'medium'),
+    url: t.url,
+  }));
+  return enrichWithTrackArtwork(tracks);
+}
+
+export async function getTopTags(username, limit = 20) {
+  const data = await lfmFetch({ method: 'user.getTopTags', user: username, limit });
+  const raw = data?.toptags?.tag;
+  if (!raw) return [];
+  const list = Array.isArray(raw) ? raw : [raw];
+  return list.map((t) => ({
+    name: t.name,
+    count: parseInt(t.count, 10) || 0,
+    url: t.url,
+  }));
+}
+
+export async function getLovedTracks(username, limit = 10) {
+  const data = await lfmFetch({ method: 'user.getLovedTracks', user: username, limit });
+  const raw = data?.lovedtracks?.track;
+  if (!raw) return [];
+  const list = Array.isArray(raw) ? raw : [raw];
+  const tracks = list.map((t) => ({
+    name: t.name,
+    artist: t.artist?.name || t.artist || '',
+    image: pickImage(t.image, 'medium'),
+    url: t.url,
+  }));
+  return enrichWithTrackArtwork(tracks);
+}

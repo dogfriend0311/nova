@@ -90,6 +90,94 @@
   cursor: pointer;
 }
 
+/* ── Savant Card ─────────────────────────────────────────────── */
+.savant-card {
+  padding: 20px;
+}
+
+.sv-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.sv-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.sv-subtitle {
+  font-size: 0.75rem;
+  color: rgba(192, 208, 255, 0.45);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.sv-legend {
+  display: flex;
+  gap: 16px;
+  font-size: 0.72rem;
+  margin-bottom: 16px;
+  letter-spacing: 0.5px;
+}
+
+.sv-section-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: rgba(192, 208, 255, 0.5);
+  margin: 14px 0 8px;
+}
+
+.sv-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sv-bar-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sv-bar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sv-bar-label {
+  font-size: 0.8rem;
+  color: rgba(192, 208, 255, 0.75);
+}
+
+.sv-bar-val {
+  font-size: 0.88rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.sv-bar-track {
+  height: 6px;
+  background: rgba(192, 208, 255, 0.08);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.sv-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sv-bar-pct {
+  font-size: 0.68rem;
+  color: rgba(192, 208, 255, 0.35);
+  text-align: right;
+}
+
 @media (max-width: 900px) {
   .player-container {
     grid-template-columns: 1fr;

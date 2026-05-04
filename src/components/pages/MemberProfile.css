@@ -1,178 +1,648 @@
-.member-profile {
+/* ── Discord-style Member Profile ─────────────────────── */
+
+.discord-profile-page {
   width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
 }
 
-.profile-banner {
+.discord-profile-page .page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+/* Banner */
+.discord-banner {
   width: 100%;
-  height: 250px;
+  height: 200px;
+  background: linear-gradient(135deg, #0d1b2e 0%, #001a2e 50%, #0d1229 100%);
   background-size: cover;
   background-position: center;
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
-  padding: 20px;
-  border-radius: 8px;
+  border-radius: 12px 12px 0 0;
   position: relative;
-  margin-bottom: 30px;
 }
 
-.profile-banner::before {
-  content: '';
+/* Card body */
+.discord-card {
+  background: #1a1d2e;
+  border: 1px solid rgba(0, 255, 255, 0.12);
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  padding: 60px 20px 24px 20px;
+  position: relative;
+}
+
+/* Avatar */
+.discord-avatar {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-cyan), var(--color-magenta));
+  border: 5px solid #1a1d2e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.5) 100%);
-  border-radius: 8px;
-  z-index: 1;
+  top: -45px;
+  left: 20px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 255, 255, 0.25);
 }
 
-.profile-banner button {
-  position: relative;
-  z-index: 2;
-}
-
-.profile-content {
-  display: grid;
-  grid-template-columns: 200px 1fr 200px;
-  gap: 30px;
-}
-
-.profile-left, .profile-right {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.profile-banner-side {
+.discord-avatar img {
   width: 100%;
-  border-radius: 8px;
-  border: 1px solid rgba(0, 255, 255, 0.2);
+  height: 100%;
+  object-fit: cover;
 }
 
-.profile-main {
+/* Edit button top-right */
+.discord-edit-btn {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+}
+
+/* Username row */
+.discord-username-row {
   display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.profile-main h1 {
-  font-size: 2.5rem;
-  margin-bottom: 10px;
-}
-
-.profile-bio {
-  font-size: 1rem;
-  color: rgba(192, 208, 255, 0.8);
-  line-height: 1.6;
-}
-
-.profile-spotify, .profile-socials {
-  padding: 20px;
-  background: rgba(0, 255, 255, 0.05);
-  border: 1px solid rgba(0, 255, 255, 0.2);
-  border-radius: 8px;
-}
-
-.profile-socials h3 {
-  margin-bottom: 15px;
-}
-
-.socials-list {
-  display: flex;
-  gap: 15px;
+  align-items: center;
+  gap: 10px;
   flex-wrap: wrap;
+  margin-bottom: 6px;
 }
 
-.socials-list a {
-  padding: 8px 16px;
-  background: rgba(0, 255, 255, 0.1);
-  border: 1px solid rgba(0, 255, 255, 0.3);
-  border-radius: 4px;
+.discord-username {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+}
+
+.discord-role-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: rgba(0, 255, 255, 0.15);
+  border: 1px solid rgba(0, 255, 255, 0.35);
   color: var(--color-cyan);
-  transition: all 0.3s ease;
 }
 
-.socials-list a:hover {
-  background: rgba(0, 255, 255, 0.2);
-  box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+.discord-role-badge.owner { background: rgba(255, 215, 0, 0.15); border-color: rgba(255, 215, 0, 0.4); color: #ffd700; }
+.discord-role-badge.cofounder { background: rgba(255, 100, 0, 0.15); border-color: rgba(255, 100, 0, 0.4); color: #ff6400; }
+.discord-role-badge.mod { background: rgba(0, 200, 100, 0.15); border-color: rgba(0, 200, 100, 0.4); color: #00c864; }
+
+/* Sections */
+.discord-section {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-top: 14px;
 }
 
-.edit-form {
-  max-width: 600px;
+.discord-section-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: rgba(192, 208, 255, 0.45);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
 }
 
-.form-group {
+.discord-section-text {
+  color: rgba(192, 208, 255, 0.9);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+/* Socials */
+.discord-connections {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.discord-conn-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: rgba(192, 208, 255, 0.85);
+  font-size: 0.85rem;
+  text-decoration: none;
+  cursor: pointer;
+  font-family: 'Space Mono', monospace;
+  transition: all 0.2s;
+}
+
+.discord-conn-btn:hover {
+  background: rgba(0, 255, 255, 0.1);
+  border-color: rgba(0, 255, 255, 0.35);
+  color: var(--color-cyan);
+}
+
+/* Spotify */
+.discord-spotify iframe {
+  border-radius: 8px;
+  margin-top: 10px;
+}
+
+/* Edit form */
+.discord-edit-page {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.discord-edit-page .form-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin-bottom: 20px;
 }
 
-.form-group label {
-  font-size: 0.9rem;
+.discord-edit-page .form-group label {
+  font-size: 0.85rem;
   font-weight: 600;
-  color: rgba(192, 208, 255, 0.9);
+  color: rgba(192, 208, 255, 0.7);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
-.form-group input, .form-group textarea {
-  padding: 12px;
+.discord-edit-page input,
+.discord-edit-page textarea {
+  padding: 11px;
   border: 1px solid rgba(0, 255, 255, 0.2);
   background: rgba(0, 255, 255, 0.05);
   color: #c0d0ff;
-  border-radius: 4px;
+  border-radius: 6px;
   font-family: 'Space Mono', monospace;
+  transition: all 0.2s;
 }
 
-.form-group input:focus, .form-group textarea:focus {
+.discord-edit-page input:focus,
+.discord-edit-page textarea:focus {
   outline: none;
-  border-color: rgba(0, 255, 255, 0.5);
-  background: rgba(0, 255, 255, 0.1);
+  border-color: rgba(0, 255, 255, 0.45);
+  background: rgba(0, 255, 255, 0.08);
 }
 
-.socials-section {
-  margin-top: 30px;
-  padding-top: 30px;
-  border-top: 1px solid rgba(0, 255, 255, 0.1);
-}
-
-.socials-section h3 {
-  margin-bottom: 20px;
-}
-
-.form-actions {
+.discord-edit-page .form-actions {
   display: flex;
   gap: 10px;
-  margin-top: 30px;
+  margin-top: 24px;
 }
 
-.form-actions button {
+.discord-edit-page .form-actions button { flex: 1; }
+
+@media (max-width: 600px) {
+  .discord-banner { height: 140px; }
+  .discord-card { padding: 55px 14px 20px 14px; }
+  .discord-avatar { width: 74px; height: 74px; font-size: 32px; top: -37px; }
+  .discord-username { font-size: 1.1rem; }
+}
+
+/* ── Image upload field ──────────────────────────────────── */
+.mp-image-field { margin-bottom: 6px; }
+
+.mp-image-upload-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.mp-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 14px;
+  background: rgba(0, 200, 255, 0.07);
+  border: 1px solid rgba(0, 200, 255, 0.3);
+  border-radius: 6px;
+  color: #00c8ff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  font-family: 'Space Mono', monospace;
+  flex-shrink: 0;
+}
+
+.mp-upload-btn:hover { background: rgba(0, 200, 255, 0.14); border-color: #00c8ff; }
+
+.mp-upload-clear {
+  background: rgba(255, 60, 60, 0.07);
+  border: 1px solid rgba(255, 60, 60, 0.3);
+  color: #ff6b6b;
+  border-radius: 6px;
+  padding: 8px 11px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.mp-upload-clear:hover { background: rgba(255, 60, 60, 0.15); }
+
+.mp-image-preview-wrap {
+  margin-top: 8px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(100, 120, 200, 0.2);
+  max-height: 100px;
+  max-width: 300px;
+}
+
+.mp-image-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  max-height: 100px;
+}
+
+/* ── Team logo in buttons / badges ───────────────────────── */
+.mp-team-logo {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.mp-badge-logo {
+  width: 15px;
+  height: 15px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.mp-team-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mp-fav-team-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Edit page section tabs ──────────────────────────────── */
+.mp-edit-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid rgba(100, 120, 200, 0.18);
+  padding-bottom: 12px;
+}
+
+/* ── Favorite Teams Selector ─────────────────────────────── */
+.mp-team-selector { display: flex; flex-direction: column; gap: 14px; }
+
+.mp-sport-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mp-sport-tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px;
+  background: rgba(15, 15, 40, 0.85);
+  border: 1px solid rgba(100, 120, 200, 0.22);
+  border-radius: 8px;
+  color: rgba(192, 208, 255, 0.5);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.02em;
+}
+
+.mp-sport-tab:hover { border-color: rgba(100, 200, 255, 0.4); color: rgba(192, 208, 255, 0.88); }
+.mp-sport-tab.active { border-color: #00c8ff; color: #00c8ff; background: rgba(0, 200, 255, 0.07); }
+
+.mp-sport-count {
+  background: #00c8ff;
+  color: #000;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  font-size: 0.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+.mp-team-division { margin-bottom: 10px; }
+
+.mp-div-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(192, 208, 255, 0.35);
+  margin-bottom: 6px;
+}
+
+.mp-team-row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.mp-team-btn {
+  padding: 5px 11px;
+  background: rgba(15, 15, 40, 0.7);
+  border: 1px solid rgba(100, 120, 200, 0.22);
+  border-radius: 7px;
+  color: rgba(192, 208, 255, 0.55);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.04em;
+}
+
+.mp-team-btn:hover { border-color: rgba(100, 200, 255, 0.4); color: rgba(192, 208, 255, 0.9); }
+.mp-team-btn.selected { background: rgba(0, 200, 255, 0.1); border-color: #00c8ff; color: #00c8ff; }
+
+/* ── Fav teams display ──────────────────────────────────── */
+.mp-fav-sport-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 7px;
+}
+
+.mp-fav-sport-label {
+  font-size: 0.72rem;
+  color: rgba(192, 208, 255, 0.38);
+  min-width: 60px;
+  flex-shrink: 0;
+}
+
+.mp-fav-teams { display: flex; gap: 5px; flex-wrap: wrap; }
+
+.mp-fav-team-badge {
+  padding: 2px 9px;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  background: rgba(0, 200, 255, 0.08);
+  border: 1px solid rgba(0, 200, 255, 0.3);
+  color: #00c8ff;
+  letter-spacing: 0.04em;
+}
+
+/* ── Watch list preview (own profile) ───────────────────── */
+.mp-wl-stats {
+  display: flex;
+  gap: 14px;
+  font-size: 0.82rem;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.mp-wl-stat { display: flex; align-items: center; gap: 4px; color: rgba(192, 208, 255, 0.7); }
+
+.mp-pinned-grid { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+
+.mp-pinned-card {
+  width: 52px;
+  height: 74px;
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+  background: rgba(20, 20, 50, 0.8);
+  border: 1px solid rgba(100, 120, 200, 0.25);
+  flex-shrink: 0;
+}
+
+.mp-pinned-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.mp-pinned-ph {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  opacity: 0.5;
+}
+
+.mp-pinned-rating {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fbbf24;
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 1px 3px;
+  border-radius: 3px;
+}
+
+/* ── Last.fm mini link ───────────────────────────────────────── */
+.lfm-mini-link {
+  font-size: 0.75rem;
+  color: rgba(213, 16, 7, 0.7);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.lfm-mini-link:hover { color: #d51007; }
+
+/* ── Now Playing (shared) ────────────────────────────────────── */
+.discord-section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.discord-section-title-row .discord-section-title {
+  margin-bottom: 0;
+}
+
+.sp-connect-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.sp-connect-hint {
+  font-size: 0.82rem;
+  color: rgba(192, 208, 255, 0.5);
+  margin: 0;
+}
+
+.sp-connect-btn {
+  background: #1DB954;
+  color: #000;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+  letter-spacing: 0.03em;
+}
+
+.sp-connect-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+.sp-connect-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.sp-disconnect-btn {
+  background: transparent;
+  border: 1px solid rgba(192, 208, 255, 0.2);
+  color: rgba(192, 208, 255, 0.4);
+  border-radius: 12px;
+  padding: 3px 10px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.sp-disconnect-btn:hover {
+  color: rgba(255, 100, 100, 0.7);
+  border-color: rgba(255, 100, 100, 0.3);
+}
+
+.sp-loading {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.sp-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #1DB954;
+  animation: sp-bounce 1.2s infinite;
+}
+
+.sp-dot:nth-child(2) { animation-delay: 0.2s; }
+.sp-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes sp-bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40%           { transform: translateY(-6px); opacity: 1; }
+}
+
+.sp-idle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(192, 208, 255, 0.4);
+  font-size: 0.84rem;
+  padding: 6px 0;
+}
+
+.sp-track {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(29, 185, 84, 0.07);
+  border: 1px solid rgba(29, 185, 84, 0.2);
+  border-radius: 10px;
+  padding: 10px 12px;
+  text-decoration: none;
+  transition: background 0.2s, border-color 0.2s;
+  cursor: pointer;
+}
+
+.sp-track:hover {
+  background: rgba(29, 185, 84, 0.13);
+  border-color: rgba(29, 185, 84, 0.4);
+}
+
+.sp-track.paused {
+  border-color: rgba(192, 208, 255, 0.12);
+  background: rgba(192, 208, 255, 0.03);
+}
+
+.sp-art {
+  width: 50px;
+  height: 50px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.sp-art-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(29, 185, 84, 0.15);
+  font-size: 1.4rem;
+}
+
+.sp-info {
   flex: 1;
+  min-width: 0;
 }
 
-@media (max-width: 1024px) {
-  .profile-content {
-    grid-template-columns: 1fr;
-  }
-
-  .profile-left, .profile-right {
-    display: none;
-  }
+.sp-track-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #e8efff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-@media (max-width: 768px) {
-  .profile-banner {
-    height: 150px;
-  }
+.sp-artist-name {
+  font-size: 0.78rem;
+  color: rgba(192, 208, 255, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
 
-  .profile-main h1 {
-    font-size: 1.5rem;
-  }
+.sp-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  color: #1DB954;
+  margin-top: 4px;
+}
 
-  .edit-form {
-    max-width: 100%;
-  }
+.sp-pulse {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #1DB954;
+  animation: sp-pulse-anim 1.5s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes sp-pulse-anim {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.75); }
+}
+
+.sp-logo {
+  flex-shrink: 0;
+  opacity: 0.7;
 }

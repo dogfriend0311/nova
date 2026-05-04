@@ -4,7 +4,6 @@ import './Login.css';
 
 const Signup = ({ onSwitchToLogin }) => {
   const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -14,26 +13,20 @@ const Signup = ({ onSwitchToLogin }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
-
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
-
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (password.length < 4) {
+      setError('Password must be at least 4 characters');
       return;
     }
-
     setLoading(true);
-
     setTimeout(() => {
-      const result = signup(username, password, email);
-      if (!result.success) {
-        setError(result.error || 'Signup failed');
-      }
+      const result = signup(username, password);
+      if (!result.success) setError(result.error || 'Signup failed');
       setLoading(false);
-    }, 500);
+    }, 300);
   };
 
   return (
@@ -47,9 +40,9 @@ const Signup = ({ onSwitchToLogin }) => {
 
         <form onSubmit={handleSubmit} className="login-form">
           <div className="form-group">
-            <label htmlFor="username">Username</label>
+            <label htmlFor="su-username">Username</label>
             <input
-              id="username"
+              id="su-username"
               type="text"
               placeholder="Choose a username"
               value={username}
@@ -60,22 +53,9 @@ const Signup = ({ onSwitchToLogin }) => {
           </div>
 
           <div className="form-group">
-            <label htmlFor="email">Email</label>
+            <label htmlFor="su-password">Password</label>
             <input
-              id="email"
-              type="email"
-              placeholder="Your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={loading}
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
+              id="su-password"
               type="password"
               placeholder="Create a password"
               value={password}
@@ -86,11 +66,11 @@ const Signup = ({ onSwitchToLogin }) => {
           </div>
 
           <div className="form-group">
-            <label htmlFor="confirm">Confirm Password</label>
+            <label htmlFor="su-confirm">Confirm Password</label>
             <input
-              id="confirm"
+              id="su-confirm"
               type="password"
-              placeholder="Confirm password"
+              placeholder="Confirm your password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               disabled={loading}
@@ -110,13 +90,7 @@ const Signup = ({ onSwitchToLogin }) => {
             Already have an account?{' '}
             <button
               onClick={onSwitchToLogin}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--color-cyan)',
-                cursor: 'pointer',
-                textDecoration: 'underline',
-              }}
+              style={{ background: 'none', border: 'none', color: 'var(--color-cyan)', cursor: 'pointer', textDecoration: 'underline' }}
             >
               Login here
             </button>
