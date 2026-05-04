@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { supabaseSync } from '../../services/supabaseSync';
 import './OwnerDashboard.css';
 
 const OwnerDashboard = ({ onExit }) => {
@@ -455,20 +456,29 @@ const UserRolesTab = () => {
 
 // NABB TEAMS TAB
 const NABBTeamsTab = () => {
-  const [teams, setTeams] = useState(
-    JSON.parse(localStorage.getItem('nabb_teams') || '[]')
-  );
+  const [teams, setTeams] = useState([]);
   const [newTeam, setNewTeam] = useState({ 
     team_name: '', 
     team_color: '#00ffff',
     logo_url: ''
   });
 
+  useEffect(() => {
+    const loadTeams = async () => {
+      const data = await supabaseSync.getNABBTeams();
+      setTeams(data);
+    };
+    loadTeams();
+  }, []);
+
+  const handleAddTeam = async (teamData) => {
+    const newTeamData = await supabaseSync.addNABBTeam(teamData);
+    setTeams([...teams, newTeamData]);
+  };
+
   const addTeam = () => {
     if (newTeam.team_name) {
-      const updated = [...teams, { id: Date.now().toString(), ...newTeam }];
-      setTeams(updated);
-      localStorage.setItem('nabb_teams', JSON.stringify(updated));
+      handleAddTeam(newTeam);
       setNewTeam({ team_name: '', team_color: '#00ffff', logo_url: '' });
     }
   };
@@ -476,7 +486,6 @@ const NABBTeamsTab = () => {
   const deleteTeam = (id) => {
     const updated = teams.filter(t => t.id !== id);
     setTeams(updated);
-    localStorage.setItem('nabb_teams', JSON.stringify(updated));
   };
 
   return (
