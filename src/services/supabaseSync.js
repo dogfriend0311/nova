@@ -3,7 +3,7 @@
  * Handles all Supabase data synchronization for NABB data
  */
 
-import { supabase } from './supabase';
+import { supabase } from './supabaseClient';
 
 export const supabaseSync = {
   /**
