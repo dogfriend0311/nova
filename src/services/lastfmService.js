@@ -41,7 +41,7 @@ export async function authGetSession(token) {
     const sigStr = Object.keys(params).sort().map((k) => k + params[k]).join('') + secret;
     const api_sig = md5(sigStr);
     const q = new URLSearchParams({ ...params, api_sig, format: 'json' });
-    const res = await fetch(`${BASE}?${q}`);
+    const res = await fetch(BASE, { method: 'POST', body: q });
     if (!res.ok) return null;
     const data = await res.json();
     if (data.error) return null;
