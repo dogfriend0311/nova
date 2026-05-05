@@ -3,7 +3,7 @@
  * Handles all Supabase data synchronization for NABB data
  */
 
-import { supabase } from './supabaseClient';
+import { supabase } from './supabase';
 
 export const supabaseSync = {
   /**
@@ -11,7 +11,7 @@ export const supabaseSync = {
    */
   async getNABBTeams() {
     try {
-      const { data, error } = await supabaseClient
+      const { data, error } = await supabase
         .from('nabb_teams')
         .select('*');
       
@@ -28,7 +28,7 @@ export const supabaseSync = {
    */
   async addNABBTeam(teamData) {
     try {
-      const { data, error } = await supabaseClient
+      const { data, error } = await supabase
         .from('nabb_teams')
         .insert([teamData])
         .select()
@@ -47,7 +47,7 @@ export const supabaseSync = {
    */
   async updateNABBTeam(teamId, updates) {
     try {
-      const { data, error } = await supabaseClient
+      const { data, error } = await supabase
         .from('nabb_teams')
         .update(updates)
         .eq('id', teamId)
@@ -67,7 +67,7 @@ export const supabaseSync = {
    */
   async deleteNABBTeam(teamId) {
     try {
-      const { error } = await supabaseClient
+      const { error } = await supabase
         .from('nabb_teams')
         .delete()
         .eq('id', teamId);
@@ -85,7 +85,7 @@ export const supabaseSync = {
    */
   async getNABBPlayers() {
     try {
-      const { data, error } = await supabaseClient
+      const { data, error } = await supabase
         .from('nabb_players')
         .select('*');
       
@@ -102,7 +102,7 @@ export const supabaseSync = {
    */
   async addNABBPlayer(playerData) {
     try {
-      const { data, error } = await supabaseClient
+      const { data, error } = await supabase
         .from('nabb_players')
         .insert([playerData])
         .select()
@@ -121,7 +121,7 @@ export const supabaseSync = {
    */
   async updateNABBPlayer(playerId, updates) {
     try {
-      const { data, error } = await supabaseClient
+      const { data, error } = await supabase
         .from('nabb_players')
         .update(updates)
         .eq('id', playerId)
@@ -141,7 +141,7 @@ export const supabaseSync = {
    */
   async deleteNABBPlayer(playerId) {
     try {
-      const { error } = await supabaseClient
+      const { error } = await supabase
         .from('nabb_players')
         .delete()
         .eq('id', playerId);
@@ -159,7 +159,7 @@ export const supabaseSync = {
    */
   async getMemberProfiles() {
     try {
-      const { data, error } = await supabaseClient
+      const { data, error } = await supabase
         .from('member_profiles')
         .select('*');
       
@@ -176,7 +176,7 @@ export const supabaseSync = {
    */
   async updateMemberProfile(username, updates) {
     try {
-      const { data, error } = await supabaseClient
+      const { data, error } = await supabase
         .from('member_profiles')
         .update(updates)
         .eq('username', username)
