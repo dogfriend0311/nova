@@ -575,9 +575,11 @@ const LeagueBoxScoresTab = ({ prefix }) => {
           <div className="neon-card p-3" style={{ overflowX: 'auto' }}>
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.82rem' }}>
               <thead>
-                <tr>{['Player','Team','H','R','RBI','HR','K','IP','KP','HA','ER',''].map(h=>(
-                  <th key={h} style={{ padding:'8px', color:'rgba(192,208,255,0.6)', textAlign:'center', borderBottom:'1px solid rgba(0,255,255,0.1)' }}>{h}</th>
-                ))}</table>
+                <tr>
+                  {['Player','Team','H','R','RBI','HR','K','IP','KP','HA','ER',''].map(h=>(
+                    <th key={h} style={{ padding:'8px', color:'rgba(192,208,255,0.6)', textAlign:'center', borderBottom:'1px solid rgba(0,255,255,0.1)' }}>{h}</th>
+                  ))}
+                </tr>
               </thead>
               <tbody>
                 {gameScores.map(score => {
