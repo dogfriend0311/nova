@@ -1,4 +1,4 @@
-.nabb-league {
+﻿.nabb-league {
   width: 100%;
 }
 
@@ -340,10 +340,4 @@
   }
 }
 
-/* ── RBML dark red title override ────────────────────────────── */
-.rbml-title {
-  background: linear-gradient(90deg, #cc0000, #8b0000) !important;
-  -webkit-background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
-  background-clip: text !important;
-}
+.rbml-title { background: linear-gradient(90deg, #cc0000, #8b0000) !important; -webkit-background-clip: text !important; -webkit-text-fill-color: transparent !important; background-clip: text !important; }

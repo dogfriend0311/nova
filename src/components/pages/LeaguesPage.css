@@ -1,36 +1,5 @@
-.leagues-page {
-  width: 100%;
-}
-
-.leagues-switcher {
-  display: flex;
-  gap: 12px;
-  padding: 16px 20px 0;
-  border-bottom: 1px solid rgba(0,255,255,0.1);
-  margin-bottom: 0;
-}
-
-.league-switch-btn {
-  padding: 10px 28px;
-  background: rgba(0,255,255,0.05);
-  border: 2px solid rgba(0,255,255,0.2);
-  color: rgba(192,208,255,0.6);
-  border-radius: 8px 8px 0 0;
-  cursor: pointer;
-  font-size: 1rem;
-  font-weight: 700;
-  transition: all 0.2s;
-  letter-spacing: 0.04em;
-}
-
-.league-switch-btn:hover {
-  background: rgba(0,255,255,0.1);
-  color: var(--color-cyan);
-}
-
-.league-switch-btn.active {
-  background: rgba(0,255,255,0.15);
-  border-color: var(--color-cyan);
-  color: var(--color-cyan);
-  border-bottom-color: transparent;
-}
+﻿.leagues-page { width: 100%; }
+.leagues-switcher { display: flex; gap: 12px; padding: 16px 20px 0; border-bottom: 1px solid rgba(0,255,255,0.1); margin-bottom: 0; }
+.league-switch-btn { padding: 10px 28px; background: rgba(0,255,255,0.05); border: 2px solid rgba(0,255,255,0.2); color: rgba(192,208,255,0.6); border-radius: 8px 8px 0 0; cursor: pointer; font-size: 1rem; font-weight: 700; transition: all 0.2s; letter-spacing: 0.04em; }
+.league-switch-btn:hover { background: rgba(0,255,255,0.1); color: var(--color-cyan); }
+.league-switch-btn.active { background: rgba(0,255,255,0.15); border-color: var(--color-cyan); color: var(--color-cyan); border-bottom-color: transparent; }
