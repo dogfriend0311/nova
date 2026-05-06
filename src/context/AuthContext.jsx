@@ -8,22 +8,17 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const savedUser = localStorage.getItem('nova_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
+    if (savedUser) setUser(JSON.parse(savedUser));
     setLoading(false);
   }, []);
 
-  // Online heartbeat: update every 30s while logged in
   useEffect(() => {
     if (!user || user.role === 'guest') return;
-
     const updateOnline = () => {
       const online = JSON.parse(localStorage.getItem('nova_online') || '{}');
       online[user.username] = Date.now();
       localStorage.setItem('nova_online', JSON.stringify(online));
     };
-
     updateOnline();
     const interval = setInterval(updateOnline, 30000);
     return () => clearInterval(interval);
@@ -36,37 +31,21 @@ export const AuthProvider = ({ children }) => {
       const userData = { username, role: 'owner' };
       setUser(userData);
       localStorage.setItem('nova_user', JSON.stringify(userData));
-
       const memberProfiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
       if (!memberProfiles.find(p => p.username === username)) {
-        memberProfiles.push({
-          username,
-          bio: 'Nova Owner',
-          top_banner_url: '',
-          left_banner_url: '',
-          right_banner_url: '',
-          spotify_url: '',
-          twitter_url: '',
-          twitch_url: '',
-          youtube_url: '',
-          instagram_url: ''
-        });
+        memberProfiles.push({ username, bio: 'Nova Owner', top_banner_url: '', left_banner_url: '', right_banner_url: '', spotify_url: '', twitter_url: '', twitch_url: '', youtube_url: '', instagram_url: '' });
         localStorage.setItem('member_profiles', JSON.stringify(memberProfiles));
       }
-
       return { success: true };
     }
-
     const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
     const foundUser = users.find(u => u.username === username && u.password === password);
-
     if (foundUser) {
       const userData = { username: foundUser.username, role: foundUser.role || 'member' };
       setUser(userData);
       localStorage.setItem('nova_user', JSON.stringify(userData));
       return { success: true };
     }
-
     return { success: false, error: 'Invalid credentials' };
   };
 
@@ -78,33 +57,16 @@ export const AuthProvider = ({ children }) => {
 
   const signup = (username, password) => {
     const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
-    if (users.find(u => u.username === username)) {
-      return { success: false, error: 'Username already exists' };
-    }
-
+    if (users.find(u => u.username === username)) return { success: false, error: 'Username already exists' };
     const newUser = { username, password, role: 'member' };
     users.push(newUser);
     localStorage.setItem('nova_users', JSON.stringify(users));
-
     const memberProfiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
-    memberProfiles.push({
-      username,
-      bio: '',
-      top_banner_url: '',
-      left_banner_url: '',
-      right_banner_url: '',
-      spotify_url: '',
-      twitter_url: '',
-      twitch_url: '',
-      youtube_url: '',
-      instagram_url: ''
-    });
+    memberProfiles.push({ username, bio: '', top_banner_url: '', left_banner_url: '', right_banner_url: '', spotify_url: '', twitter_url: '', twitch_url: '', youtube_url: '', instagram_url: '' });
     localStorage.setItem('member_profiles', JSON.stringify(memberProfiles));
-
     const userData = { username, role: 'member' };
     setUser(userData);
     localStorage.setItem('nova_user', JSON.stringify(userData));
-
     return { success: true };
   };
 
@@ -132,28 +94,24 @@ export const AuthProvider = ({ children }) => {
   const hasPermission = (requiredRole) => {
     if (!user) return false;
     const permissions = {
-      owner: ['owner', 'cofounder', 'mod', 'nabb_helper', 'member'],
-      cofounder: ['cofounder', 'mod', 'nabb_helper', 'member'],
-      mod: ['mod', 'nabb_helper', 'member'],
+      owner:       ['owner', 'cofounder', 'mod', 'nabb_helper', 'rbml_helper', 'member'],
+      cofounder:   ['cofounder', 'mod', 'nabb_helper', 'rbml_helper', 'member'],
+      mod:         ['mod', 'nabb_helper', 'rbml_helper', 'member'],
       nabb_helper: ['nabb_helper', 'member'],
-      member: ['member'],
-      guest: []
+      rbml_helper: ['rbml_helper', 'member'],
+      member:      ['member'],
+      guest:       []
     };
-    const userPerms = permissions[user.role] || [];
-    return userPerms.includes(requiredRole);
+    return (permissions[user.role] || []).includes(requiredRole);
+  };
+
+  const canAccessDashboard = () => {
+    if (!user) return false;
+    return ['owner', 'cofounder', 'mod', 'nabb_helper', 'rbml_helper'].includes(user.role);
   };
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      login,
-      loginAsGuest,
-      signup,
-      logout,
-      updateUserRole,
-      hasPermission,
-      loading
-    }}>
+    <AuthContext.Provider value={{ user, login, loginAsGuest, signup, logout, updateUserRole, hasPermission, canAccessDashboard, loading }}>
       {children}
     </AuthContext.Provider>
   );

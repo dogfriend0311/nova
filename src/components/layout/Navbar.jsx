@@ -6,10 +6,12 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, user }) => {
     { id: 'home',      label: 'Home',        icon: '🏠' },
     { id: 'sports',    label: 'Sports',       icon: '🏆' },
     { id: 'watchlist', label: 'Watch List',   icon: '🎬' },
-    { id: 'nabb',      label: 'NABB',         icon: '⚾' },
+    { id: 'leagues',   label: 'Leagues',      icon: '⚾' },
     { id: 'members',   label: 'Member Pages', icon: '👥' },
     { id: 'lastfm',    label: 'Last.fm',      icon: '🎵' },
   ];
+
+  const staffRoles = ['owner', 'cofounder', 'mod', 'nabb_helper', 'rbml_helper'];
 
   return (
     <nav className="navbar">
@@ -23,7 +25,7 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, user }) => {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              className={`nav-tab ${currentPage === tab.id ? 'active' : ''}`}
+              className={`nav-tab ${(currentPage === tab.id || (tab.id === 'leagues' && (currentPage === 'nabb' || currentPage === 'rbml'))) ? 'active' : ''}`}
               onClick={() => onPageChange(tab.id)}
             >
               <span className="tab-icon">{tab.icon}</span>
@@ -39,7 +41,7 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, user }) => {
                 <span className="user-icon">👤</span>
                 <span className="user-label">{user.username}</span>
               </button>
-              {['owner', 'cofounder', 'mod'].includes(user.role) && (
+              {staffRoles.includes(user.role) && (
                 <button className="user-button" onClick={onDashboard}>
                   <span className="user-icon">⚙️</span>
                   <span className="user-label">Admin</span>

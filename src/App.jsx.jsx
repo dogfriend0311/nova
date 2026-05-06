@@ -6,8 +6,7 @@ import SportsHub from './components/pages/SportsHub';
 import WatchList from './components/pages/WatchList';
 import MemberPages from './components/pages/MemberPages';
 import MemberProfile from './components/pages/MemberProfile';
-import NABBLeague from './NABBLeague';
-import NABBRosters from './components/pages/NABBRosters';
+import LeaguesPage from './components/pages/LeaguesPage';
 import LeaguePlayerPage from './LeaguePlayerPage';
 import LoginModal from './components/auth/LoginModal';
 import OwnerDashboard from './components/admin/OwnerDashboard';
@@ -25,12 +24,11 @@ const AppContent = () => {
   const { user } = useAuth();
   const [currentPage, setCurrentPage] = useState('home');
   const [lfmToken, setLfmToken] = useState(null);
-
   const [showDashboard, setShowDashboard] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [selectedLeaguePlayer, setSelectedLeaguePlayer] = useState(null);
+  const [selectedLeague, setSelectedLeague] = useState('nabb');
 
-  /* Detect Last.fm OAuth callback: ?token=XXX in the URL */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
@@ -40,14 +38,16 @@ const AppContent = () => {
       setCurrentPage('lastfm');
     }
   }, []);
+
   if (showDashboard) return (
     <div style={{ height: '100vh', overflowY: 'auto', overflowX: 'hidden', background: '#0a0a23' }}>
       <OwnerDashboard onExit={() => setShowDashboard(false)} />
     </div>
   );
 
-  const handleSelectPlayer = (player) => {
+  const handleSelectPlayer = (player, league = 'nabb') => {
     setSelectedLeaguePlayer(player);
+    setSelectedLeague(league);
     setCurrentPage('player');
   };
 
@@ -58,16 +58,21 @@ const AppContent = () => {
 
   const renderPage = () => {
     switch (currentPage) {
-      case 'home':         return <Home />;
-      case 'sports':       return <SportsHub />;
-      case 'watchlist':    return <WatchList onSignIn={() => setShowLoginModal(true)} />;
-      case 'nabb':         return <NABBLeague onSelectPlayer={handleSelectPlayer} />;
-      case 'members':      return <MemberPages />;
-      case 'profile':      return user ? <MemberProfile /> : <Home />;
-      case 'lastfm':       return <LastFmPage pendingToken={lfmToken} onTokenConsumed={() => setLfmToken(null)} />;
-      case 'nabb-rosters': return <NABBRosters />;
-      case 'player':       return <LeaguePlayerPage player={selectedLeaguePlayer} onBack={() => setCurrentPage('nabb')} />;
-      default:             return <Home />;
+      case 'home':     return <Home />;
+      case 'sports':   return <SportsHub />;
+      case 'watchlist': return <WatchList onSignIn={() => setShowLoginModal(true)} />;
+      case 'leagues':  return <LeaguesPage onSelectPlayer={handleSelectPlayer} />;
+      case 'members':  return <MemberPages />;
+      case 'profile':  return user ? <MemberProfile /> : <Home />;
+      case 'lastfm':   return <LastFmPage pendingToken={lfmToken} onTokenConsumed={() => setLfmToken(null)} />;
+      case 'player':   return (
+        <LeaguePlayerPage
+          player={selectedLeaguePlayer}
+          onBack={() => setCurrentPage('leagues')}
+          leaguePrefix={selectedLeague}
+        />
+      );
+      default: return <Home />;
     }
   };
 
