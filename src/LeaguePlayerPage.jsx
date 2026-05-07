@@ -126,12 +126,13 @@ const LeaguePlayerPage = ({ player, onBack }) => {
     );
   }
 
-  const boxScores = JSON.parse(localStorage.getItem('nabb_box_scores') || '[]');
+  const leaguePrefix = props.leaguePrefix || 'nabb';
+  const boxScores = JSON.parse(localStorage.getItem(`${leaguePrefix}_box_scores`) || '[]');
   const playerScores = boxScores.filter(b => b.player_id === player.id);
   const gamesPlayed = playerScores.length;
   const gamesPitched = playerScores.filter(b => safe(b.innings_pitched) > 0).length;
 
-  // Season aggregates (box scores + editable season base stats)
+  // Season aggregates (box scores + editable season base stats from dashboard)
   const sH   = playerScores.reduce((s, b) => s + safeInt(b.hits), 0)               + safeInt(player.season_hits);
   const sR   = playerScores.reduce((s, b) => s + safeInt(b.runs), 0)               + safeInt(player.season_runs);
   const sRBI = playerScores.reduce((s, b) => s + safeInt(b.rbis), 0)               + safeInt(player.season_rbis);
@@ -141,34 +142,60 @@ const LeaguePlayerPage = ({ player, onBack }) => {
   const sKP  = playerScores.reduce((s, b) => s + safeInt(b.strikeouts_pitched), 0) + safeInt(player.season_strikeouts_pitched);
   const sHA  = playerScores.reduce((s, b) => s + safeInt(b.hits_allowed), 0)       + safeInt(player.season_hits_allowed);
   const sER  = playerScores.reduce((s, b) => s + safeInt(b.earned_runs), 0)        + safeInt(player.season_earned_runs);
+  const sG   = safeInt(player.season_g) || playerScores.length;
+  const sAB  = safeInt(player.season_ab);
+  const sAVG = player.season_avg || (sAB > 0 ? (sH/sAB).toFixed(3) : '—');
+  const sOBP = player.season_obp || '—';
+  const sSLG = player.season_slg || '—';
+  const sOPS = player.season_ops || '—';
 
-  // Career aggregates (box scores + player base stats)
-  const cH   = sH   + safeInt(player.hits);
-  const cR   = sR   + safeInt(player.runs);
-  const cRBI = sRBI + safeInt(player.rbis);
-  const cHR  = sHR  + safeInt(player.home_runs);
-  const cSO  = sSO  + safeInt(player.strike_outs);
-  const cIP  = sIP  + safe(player.innings_pitched);
-  const cKP  = sKP  + safeInt(player.strikeouts_pitched);
-  const cHA  = sHA  + safeInt(player.hits_allowed);
-  const cER  = sER  + safeInt(player.earned_runs);
+  // Career aggregates (career base stats from dashboard)
+  const cH   = safeInt(player.hits)   || sH;
+  const cR   = safeInt(player.runs)   || sR;
+  const cRBI = safeInt(player.rbis)   || sRBI;
+  const cHR  = safeInt(player.home_runs) || sHR;
+  const cSO  = safeInt(player.strike_outs) || sSO;
+  const cIP  = safe(player.innings_pitched) || sIP;
+  const cKP  = safeInt(player.strikeouts_pitched) || sKP;
+  const cHA  = safeInt(player.hits_allowed) || sHA;
+  const cER  = safeInt(player.earned_runs) || sER;
+  const cG   = safeInt(player.career_g) || sG;
+  const cAB  = safeInt(player.career_ab) || sAB;
+  const cAVG = player.career_avg || (cAB > 0 ? (cH/cAB).toFixed(3) : '—');
+  const cOBP = player.career_obp || '—';
+  const cSLG = player.career_slg || '—';
+  const cOPS = player.career_ops || '—';
 
   // Build stat rows
   const hitBasicSeason = [
-    { label: 'Games Played', value: gamesPlayed },
-    { label: 'Hits',         value: sH },
-    { label: 'Runs',         value: sR },
-    { label: 'RBIs',         value: sRBI },
-    { label: 'Home Runs',    value: sHR },
-    { label: 'Strike Outs',  value: sSO },
+    { label: 'G',   value: sG },
+    { label: 'AB',  value: sAB || '—' },
+    { label: 'AVG', value: sAVG },
+    { label: 'OBP', value: sOBP },
+    { label: 'SLG', value: sSLG },
+    { label: 'OPS', value: sOPS },
+    { label: 'H',   value: sH },
+    { label: 'R',   value: sR },
+    { label: 'RBI', value: sRBI },
+    { label: 'HR',  value: sHR },
+    { label: 'K',   value: sSO },
+    { label: 'BB',  value: player.season_bb || '—' },
+    { label: 'SB',  value: player.season_sb || '—' },
   ];
   const hitBasicCareer = [
-    { label: 'Games Played', value: gamesPlayed },
-    { label: 'Hits',         value: cH },
-    { label: 'Runs',         value: cR },
-    { label: 'RBIs',         value: cRBI },
-    { label: 'Home Runs',    value: cHR },
-    { label: 'Strike Outs',  value: cSO },
+    { label: 'G',   value: cG },
+    { label: 'AB',  value: cAB || '—' },
+    { label: 'AVG', value: cAVG },
+    { label: 'OBP', value: cOBP },
+    { label: 'SLG', value: cSLG },
+    { label: 'OPS', value: cOPS },
+    { label: 'H',   value: cH },
+    { label: 'R',   value: cR },
+    { label: 'RBI', value: cRBI },
+    { label: 'HR',  value: cHR },
+    { label: 'K',   value: cSO },
+    { label: 'BB',  value: player.career_bb || '—' },
+    { label: 'SB',  value: player.career_sb || '—' },
   ];
 
   const sGP = Math.max(gamesPlayed, sH > 0 || sR > 0 || sHR > 0 ? 1 : 0);

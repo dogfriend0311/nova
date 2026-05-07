@@ -6,23 +6,53 @@ import './OwnerDashboard.css';
 const SI = { padding: '10px', background: 'rgba(0,255,255,0.05)', border: '1px solid rgba(0,255,255,0.2)', color: '#c0d0ff', borderRadius: '4px', width: '100%' };
 const SS = { ...SI };
 
-const HITTING_STATS = [
-  ['h_g','G'],['h_ab','AB'],['h_avg','AVG'],['h_obp','OBP'],['h_slg','SLG'],
-  ['h_ops','OPS'],['h_r','R'],['h_h','H'],['h_2b','2B'],['h_3b','3B'],
-  ['h_hr','HR'],['h_rbi','RBI'],['h_bb','BB'],['h_k','K'],['h_sb','SB'],
+// Season hitting fields (match LeaguePlayerPage season_ prefix)
+const S_HIT = [
+  ['season_g','G'],['season_ab','AB'],['season_avg','AVG'],['season_obp','OBP'],
+  ['season_slg','SLG'],['season_ops','OPS'],['season_hits','H'],['season_runs','R'],
+  ['season_2b','2B'],['season_3b','3B'],['season_home_runs','HR'],['season_rbis','RBI'],
+  ['season_bb','BB'],['season_strike_outs','K'],['season_sb','SB'],
 ];
-const PITCHING_STATS = [
-  ['p_w','W'],['p_l','L'],['p_era','ERA'],['p_g','G'],['p_gs','GS'],
-  ['p_ip','IP'],['p_k','K'],['p_bb','BB'],['p_h','H'],['p_er','ER'],
-  ['p_whip','WHIP'],['p_sv','SV'],['p_hld','HLD'],
+// Season pitching
+const S_PIT = [
+  ['season_w','W'],['season_l','L'],['season_era','ERA'],['season_pg','G'],
+  ['season_gs','GS'],['season_innings_pitched','IP'],['season_strikeouts_pitched','K'],
+  ['season_pit_bb','BB'],['season_hits_allowed','H'],['season_earned_runs','ER'],
+  ['season_whip','WHIP'],['season_sv','SV'],['season_hld','HLD'],
+];
+// Career hitting
+const C_HIT = [
+  ['career_g','G'],['career_ab','AB'],['career_avg','AVG'],['career_obp','OBP'],
+  ['career_slg','SLG'],['career_ops','OPS'],['hits','H'],['runs','R'],
+  ['career_2b','2B'],['career_3b','3B'],['home_runs','HR'],['rbis','RBI'],
+  ['career_bb','BB'],['strike_outs','K'],['career_sb','SB'],
+];
+// Career pitching
+const C_PIT = [
+  ['career_w','W'],['career_l','L'],['career_era','ERA'],['career_pg','G'],
+  ['career_gs','GS'],['innings_pitched','IP'],['strikeouts_pitched','K'],
+  ['career_pit_bb','BB'],['hits_allowed','H'],['earned_runs','ER'],
+  ['career_whip','WHIP'],['career_sv','SV'],['career_hld','HLD'],
 ];
 
 const emptyPlayer = {
-  player_name:'', position:'', number:'', overall:75, team:'', avatar_data:'',
-  h_g:'',h_ab:'',h_avg:'',h_obp:'',h_slg:'',h_ops:'',h_r:'',h_h:'',h_2b:'',h_3b:'',
-  h_hr:'',h_rbi:'',h_bb:'',h_k:'',h_sb:'',
-  p_w:'',p_l:'',p_era:'',p_g:'',p_gs:'',p_ip:'',p_k:'',p_bb:'',p_h:'',p_er:'',
-  p_whip:'',p_sv:'',p_hld:'',
+  player_name:'', position:'', number:'', overall:75, avatar_data:'',
+  // Season hitting
+  season_g:'',season_ab:'',season_avg:'',season_obp:'',season_slg:'',season_ops:'',
+  season_hits:'',season_runs:'',season_2b:'',season_3b:'',season_home_runs:'',
+  season_rbis:'',season_bb:'',season_strike_outs:'',season_sb:'',
+  // Season pitching
+  season_w:'',season_l:'',season_era:'',season_pg:'',season_gs:'',
+  season_innings_pitched:'',season_strikeouts_pitched:'',season_pit_bb:'',
+  season_hits_allowed:'',season_earned_runs:'',season_whip:'',season_sv:'',season_hld:'',
+  // Career hitting
+  career_g:'',career_ab:'',career_avg:'',career_obp:'',career_slg:'',career_ops:'',
+  hits:'',runs:'',career_2b:'',career_3b:'',home_runs:'',
+  rbis:'',career_bb:'',strike_outs:'',career_sb:'',
+  // Career pitching
+  career_w:'',career_l:'',career_era:'',career_pg:'',career_gs:'',
+  innings_pitched:'',strikeouts_pitched:'',career_pit_bb:'',
+  hits_allowed:'',earned_runs:'',career_whip:'',career_sv:'',career_hld:'',
 };
 
 /* ══════════════ ROW 1 — NOVA ══════════════ */
@@ -121,7 +151,7 @@ const LeaguePlayersTab = ({ prefix }) => {
   const [offsetY, setOffsetY] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x:0, y:0 });
-  const [statTab, setStatTab] = useState('hitting');
+  const [statTab, setStatTab] = useState({ period: 'season', type: 'hitting' });
   const canvasRef = useRef(null);
   const imgRef = useRef(null);
   const [loading, setLoading] = useState(true);
@@ -186,7 +216,7 @@ const LeaguePlayersTab = ({ prefix }) => {
         <div className="edit-form">
           {/* Basic Info */}
           <h4 style={{ color:'rgba(192,208,255,0.7)', margin:'10px 0 8px', fontSize:'0.85rem', textTransform:'uppercase', letterSpacing:'0.08em' }}>Basic Info</h4>
-          {[['player_name','Player Name','text'],['position','Position','text'],['number','Jersey #','number'],['overall','Overall Rating','number'],['team','Team','text']].map(([f,l,t]) => (
+          {[['player_name','Player Name','text'],['position','Position','text'],['number','Jersey #','number'],['overall','Overall Rating','number']].map(([f,l,t]) => (
             <div className="form-field" key={f}>
               <label>{l}</label>
               <input type={t} value={form[f]} onChange={e=>setForm({...form,[f]:e.target.value})} placeholder={l} style={SI} />
@@ -221,18 +251,26 @@ const LeaguePlayersTab = ({ prefix }) => {
             )}
           </div>
 
-          {/* Stats */}
-          <h4 style={{ color:'rgba(192,208,255,0.7)', margin:'18px 0 8px', fontSize:'0.85rem', textTransform:'uppercase', letterSpacing:'0.08em' }}>Season Stats</h4>
-          <div style={{ display:'flex', gap:'10px', marginBottom:'14px' }}>
-            {['hitting','pitching'].map(t => (
-              <button key={t} type="button" onClick={() => setStatTab(t)}
-                style={{ padding:'6px 18px', background: statTab===t?'rgba(0,255,255,0.15)':'rgba(0,255,255,0.05)', border:`1px solid ${statTab===t?'var(--color-cyan)':'rgba(0,255,255,0.2)'}`, color: statTab===t?'var(--color-cyan)':'rgba(192,208,255,0.6)', borderRadius:'4px', cursor:'pointer', textTransform:'capitalize', fontWeight:600 }}>
+          {/* Stats — Season / Career × Hitting / Pitching */}
+          <h4 style={{ color:'rgba(192,208,255,0.7)', margin:'18px 0 8px', fontSize:'0.85rem', textTransform:'uppercase', letterSpacing:'0.08em' }}>Stats</h4>
+          <div style={{ display:'flex', gap:'8px', marginBottom:'8px', flexWrap:'wrap' }}>
+            {['season','career'].map(t => (
+              <button key={t} type="button" onClick={() => setStatTab(prev => ({ ...prev, period: t }))}
+                style={{ padding:'6px 16px', background: statTab.period===t?'rgba(0,255,255,0.15)':'rgba(0,255,255,0.05)', border:`1px solid ${statTab.period===t?'var(--color-cyan)':'rgba(0,255,255,0.2)'}`, color: statTab.period===t?'var(--color-cyan)':'rgba(192,208,255,0.6)', borderRadius:'4px', cursor:'pointer', textTransform:'capitalize', fontWeight:600, fontSize:'0.85rem' }}>
                 {t}
               </button>
             ))}
           </div>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(120px, 1fr))', gap:'8px' }}>
-            {(statTab === 'hitting' ? HITTING_STATS : PITCHING_STATS).map(([f, l]) => (
+          <div style={{ display:'flex', gap:'8px', marginBottom:'14px', flexWrap:'wrap' }}>
+            {['hitting','pitching'].map(t => (
+              <button key={t} type="button" onClick={() => setStatTab(prev => ({ ...prev, type: t }))}
+                style={{ padding:'5px 14px', background: statTab.type===t?'rgba(255,0,255,0.15)':'rgba(0,255,255,0.05)', border:`1px solid ${statTab.type===t?'var(--color-magenta)':'rgba(0,255,255,0.15)'}`, color: statTab.type===t?'var(--color-magenta)':'rgba(192,208,255,0.5)', borderRadius:'4px', cursor:'pointer', textTransform:'capitalize', fontWeight:600, fontSize:'0.8rem' }}>
+                {t}
+              </button>
+            ))}
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(110px, 1fr))', gap:'8px' }}>
+            {(statTab.period==='season' ? (statTab.type==='hitting' ? S_HIT : S_PIT) : (statTab.type==='hitting' ? C_HIT : C_PIT)).map(([f, l]) => (
               <div key={f}>
                 <label style={{ fontSize:'0.75rem', color:'rgba(192,208,255,0.6)', display:'block', marginBottom:'3px' }}>{l}</label>
                 <input type="text" value={form[f]||''} onChange={e=>setForm({...form,[f]:e.target.value})} placeholder="—" style={{ ...SI, padding:'7px', fontSize:'0.9rem' }} />
