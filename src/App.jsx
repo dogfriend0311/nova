@@ -16,9 +16,6 @@ import './styles/theme.css';
 import './styles/animations.css';
 import './styles/space.css';
 import './styles/responsive.css';
-import './Login.css';
-import './OwnerDashboard.css';
-import './components/auth/LoginModal.css';
 
 const AppContent = () => {
   const { user } = useAuth();
@@ -45,9 +42,9 @@ const AppContent = () => {
     </div>
   );
 
-  const handleSelectPlayer = (player, league = 'nabb') => {
+  const handleSelectPlayer = (player, league) => {
     setSelectedLeaguePlayer(player);
-    setSelectedLeague(league);
+    setSelectedLeague(league || 'nabb');
     setCurrentPage('player');
   };
 
@@ -58,14 +55,14 @@ const AppContent = () => {
 
   const renderPage = () => {
     switch (currentPage) {
-      case 'home':     return <Home />;
-      case 'sports':   return <SportsHub />;
+      case 'home':      return <Home />;
+      case 'sports':    return <SportsHub />;
       case 'watchlist': return <WatchList onSignIn={() => setShowLoginModal(true)} />;
-      case 'leagues':  return <LeaguesPage onSelectPlayer={handleSelectPlayer} />;
-      case 'members':  return <MemberPages />;
-      case 'profile':  return user ? <MemberProfile /> : <Home />;
-      case 'lastfm':   return <LastFmPage pendingToken={lfmToken} onTokenConsumed={() => setLfmToken(null)} />;
-      case 'player':   return (
+      case 'leagues':   return <LeaguesPage onSelectPlayer={handleSelectPlayer} />;
+      case 'members':   return <MemberPages />;
+      case 'profile':   return user ? <MemberProfile /> : <Home />;
+      case 'lastfm':    return <LastFmPage pendingToken={lfmToken} onTokenConsumed={() => setLfmToken(null)} />;
+      case 'player':    return (
         <LeaguePlayerPage
           player={selectedLeaguePlayer}
           onBack={() => setCurrentPage('leagues')}
