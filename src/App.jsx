@@ -18,11 +18,12 @@ import './styles/space.css';
 import './styles/responsive.css';
 
 const AppContent = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [currentPage, setCurrentPage] = useState('home');
   const [lfmToken, setLfmToken] = useState(null);
   const [showDashboard, setShowDashboard] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [signUpMode, setSignUpMode] = useState(false);
   const [selectedLeaguePlayer, setSelectedLeaguePlayer] = useState(null);
   const [selectedLeague, setSelectedLeague] = useState('nabb');
 
@@ -42,9 +43,9 @@ const AppContent = () => {
     </div>
   );
 
-  const handleSelectPlayer = (player, league) => {
+  const handleSelectPlayer = (player, league = 'nabb') => {
     setSelectedLeaguePlayer(player);
-    setSelectedLeague(league || 'nabb');
+    setSelectedLeague(league);
     setCurrentPage('player');
   };
 
@@ -55,14 +56,14 @@ const AppContent = () => {
 
   const renderPage = () => {
     switch (currentPage) {
-      case 'home':      return <Home />;
-      case 'sports':    return <SportsHub />;
+      case 'home':     return <Home />;
+      case 'sports':   return <SportsHub />;
       case 'watchlist': return <WatchList onSignIn={() => setShowLoginModal(true)} />;
-      case 'leagues':   return <LeaguesPage onSelectPlayer={handleSelectPlayer} />;
-      case 'members':   return <MemberPages />;
-      case 'profile':   return user ? <MemberProfile /> : <Home />;
-      case 'lastfm':    return <LastFmPage pendingToken={lfmToken} onTokenConsumed={() => setLfmToken(null)} />;
-      case 'player':    return (
+      case 'leagues':  return <LeaguesPage onSelectPlayer={handleSelectPlayer} />;
+      case 'members':  return <MemberPages />;
+      case 'profile':  return user ? <MemberProfile /> : <Home />;
+      case 'lastfm':   return <LastFmPage pendingToken={lfmToken} onTokenConsumed={() => setLfmToken(null)} />;
+      case 'player':   return (
         <LeaguePlayerPage
           player={selectedLeaguePlayer}
           onBack={() => setCurrentPage('leagues')}
@@ -79,12 +80,14 @@ const AppContent = () => {
         currentPage={currentPage}
         onPageChange={handlePageChange}
         onDashboard={() => setShowDashboard(true)}
-        onSignIn={() => setShowLoginModal(true)}
+        onSignIn={() => { setSignUpMode(false); setShowLoginModal(true); }}
+        onSignUp={() => { setSignUpMode(true); setShowLoginModal(true); }}
+        onLogout={logout}
         user={user}
       >
         {renderPage()}
       </Layout>
-      {showLoginModal && <LoginModal onClose={() => setShowLoginModal(false)} />}
+      {showLoginModal && <LoginModal initialTab={signUpMode ? 'signup' : 'login'} onClose={() => setShowLoginModal(false)} />}
     </>
   );
 };

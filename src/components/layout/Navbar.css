@@ -252,3 +252,22 @@
     font-size: 15px;
   }
 }
+
+.signout-btn {
+  border-color: rgba(255, 80, 80, 0.4) !important;
+  color: rgba(255, 120, 120, 0.85) !important;
+}
+.signout-btn:hover {
+  background: rgba(255, 60, 60, 0.15) !important;
+  border-color: #ff5555 !important;
+  color: #ff8888 !important;
+}
+.signup-btn {
+  border-color: rgba(180, 0, 255, 0.4) !important;
+  color: rgba(200, 100, 255, 0.85) !important;
+}
+.signup-btn:hover {
+  background: rgba(180, 0, 255, 0.15) !important;
+  border-color: #b400ff !important;
+  color: #cc66ff !important;
+}

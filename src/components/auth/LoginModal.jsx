@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 
-const LoginModal = ({ onClose }) => {
-  const [tab, setTab]           = useState('login');
+const LoginModal = ({ onClose, initialTab }) => {
+  const [tab, setTab]           = useState(initialTab || 'login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirm,  setConfirm]  = useState('');

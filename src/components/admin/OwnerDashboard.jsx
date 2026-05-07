@@ -113,19 +113,63 @@ const UserRolesTab = () => {
 const LeaguePlayersTab = ({ prefix }) => {
   const label = prefix.toUpperCase();
   const [players, setPlayers] = useState(JSON.parse(localStorage.getItem(`${prefix}_players`) || '[]'));
-  const [form, setForm] = useState({ player_name: '', position: '', number: '', overall: 75, roblox_id: '', team: '' });
+  const [form, setForm] = useState({ player_name: '', position: '', number: '', overall: 75, team: '', avatar_data: '' });
+  const [avatarPreview, setAvatarPreview] = useState(null);
+  const [zoom, setZoom] = useState(1);
+  const [offsetX, setOffsetX] = useState(0);
+  const [offsetY, setOffsetY] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const canvasRef = React.useRef(null);
+  const imgRef = React.useRef(null);
+
+  const handleAvatarUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      setAvatarPreview(ev.target.result);
+      setZoom(1); setOffsetX(0); setOffsetY(0);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const bakeAvatar = () => {
+    const canvas = canvasRef.current;
+    if (!canvas || !avatarPreview) return;
+    const ctx = canvas.getContext('2d');
+    const img = imgRef.current;
+    const size = 120;
+    canvas.width = size; canvas.height = size;
+    ctx.clearRect(0, 0, size, size);
+    const iw = img.naturalWidth * zoom;
+    const ih = img.naturalHeight * zoom;
+    const dx = (size - iw) / 2 + offsetX;
+    const dy = (size - ih) / 2 + offsetY;
+    ctx.drawImage(img, dx, dy, iw, ih);
+    const dataUrl = canvas.toDataURL('image/png');
+    setForm(prev => ({ ...prev, avatar_data: dataUrl }));
+    return dataUrl;
+  };
+
+  const handleMouseDown = (e) => { setDragging(true); setDragStart({ x: e.clientX - offsetX, y: e.clientY - offsetY }); };
+  const handleMouseMove = (e) => { if (!dragging) return; setOffsetX(e.clientX - dragStart.x); setOffsetY(e.clientY - dragStart.y); };
+  const handleMouseUp = () => { setDragging(false); bakeAvatar(); };
   const [editing, setEditing] = useState(null);
 
   const save = () => {
+    const bakedData = bakeAvatar() || form.avatar_data;
+    const finalForm = { ...form, avatar_data: bakedData || form.avatar_data || '' };
     let updated;
     if (editing) {
-      updated = players.map(p => p.id === editing ? { ...p, ...form } : p);
+      updated = players.map(p => p.id === editing ? { ...p, ...finalForm } : p);
     } else {
-      updated = [...players, { id: Date.now().toString(), ...form }];
+      updated = [...players, { id: Date.now().toString(), ...finalForm }];
     }
     setPlayers(updated);
     localStorage.setItem(`${prefix}_players`, JSON.stringify(updated));
-    setForm({ player_name: '', position: '', number: '', overall: 75, roblox_id: '', team: '' });
+    setForm({ player_name: '', position: '', number: '', overall: 75, team: '', avatar_data: '' });
+    setAvatarPreview(null); setZoom(1); setOffsetX(0); setOffsetY(0);
     setEditing(null);
   };
 
@@ -137,7 +181,9 @@ const LeaguePlayersTab = ({ prefix }) => {
 
   const startEdit = (p) => {
     setEditing(p.id);
-    setForm({ player_name: p.player_name||'', position: p.position||'', number: p.number||'', overall: p.overall||75, roblox_id: p.roblox_id||'', team: p.team||'' });
+    setForm({ player_name: p.player_name||'', position: p.position||'', number: p.number||'', overall: p.overall||75, team: p.team||'', avatar_data: p.avatar_data||'' });
+    if (p.avatar_data) { setAvatarPreview(p.avatar_data); }
+    setZoom(1); setOffsetX(0); setOffsetY(0);
   };
 
   return (
@@ -146,15 +192,47 @@ const LeaguePlayersTab = ({ prefix }) => {
       <div className="neon-card p-3" style={{ marginTop: '20px', marginBottom: '30px' }}>
         <h3 className="gradient-text-magenta">{editing ? 'Edit Player' : 'Add Player'}</h3>
         <div className="edit-form">
-          {[['player_name','Player Name','text'],['position','Position','text'],['number','Jersey #','number'],['overall','Overall Rating','number'],['roblox_id','Roblox User ID','text'],['team','Team','text']].map(([f,l,t]) => (
+          {[['player_name','Player Name','text'],['position','Position','text'],['number','Jersey #','number'],['overall','Overall Rating','number'],['team','Team','text']].map(([f,l,t]) => (
             <div className="form-field" key={f}>
               <label>{l}</label>
               <input type={t} value={form[f]} onChange={e=>setForm({...form,[f]:e.target.value})} placeholder={l} style={SI} />
             </div>
           ))}
+          <div className="form-field">
+            <label>Player Avatar Photo</label>
+            <input type="file" accept="image/*" onChange={handleAvatarUpload} style={{ color: '#c0d0ff', padding: '8px 0' }} />
+            {avatarPreview && (
+              <div style={{ marginTop: '12px' }}>
+                <div
+                  style={{ width: '120px', height: '120px', overflow: 'hidden', border: '2px solid rgba(0,255,255,0.3)', borderRadius: '8px', cursor: dragging ? 'grabbing' : 'grab', position: 'relative', background: '#0a0a23' }}
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
+                >
+                  <img
+                    ref={imgRef}
+                    src={avatarPreview}
+                    alt="avatar preview"
+                    style={{ position: 'absolute', width: `${120 * zoom}px`, left: `${(120 - 120*zoom)/2 + offsetX}px`, top: `${(120 - 120*zoom)/2 + offsetY}px`, userSelect: 'none', pointerEvents: 'none' }}
+                    onLoad={bakeAvatar}
+                  />
+                </div>
+                <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <label style={{ fontSize: '0.8rem', color: 'rgba(192,208,255,0.7)' }}>Zoom</label>
+                  <input type="range" min="0.5" max="3" step="0.05" value={zoom}
+                    onChange={e => { setZoom(parseFloat(e.target.value)); setTimeout(bakeAvatar, 50); }}
+                    style={{ flex: 1 }} />
+                  <span style={{ fontSize: '0.8rem', color: 'var(--color-cyan)', minWidth: '35px' }}>{Math.round(zoom*100)}%</span>
+                </div>
+                <p style={{ fontSize: '0.75rem', color: 'rgba(192,208,255,0.4)', marginTop: '6px' }}>Drag to reposition • Slider to zoom</p>
+                <canvas ref={canvasRef} style={{ display: 'none' }} />
+              </div>
+            )}
+          </div>
           <div className="form-actions">
             <button className="neon-button" onClick={save}>{editing ? 'Save Changes' : 'Add Player'}</button>
-            {editing && <button className="neon-button" onClick={() => { setEditing(null); setForm({ player_name:'',position:'',number:'',overall:75,roblox_id:'',team:'' }); }}>Cancel</button>}
+            {editing && <button className="neon-button" onClick={() => { setEditing(null); setForm({ player_name:'',position:'',number:'',overall:75,team:'',avatar_data:'' }); setAvatarPreview(null); }}>Cancel</button>}
           </div>
         </div>
       </div>

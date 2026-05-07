@@ -1,7 +1,7 @@
 import React from 'react';
 import './Navbar.css';
 
-const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, user }) => {
+const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, onLogout, user }) => {
   const tabs = [
     { id: 'home',      label: 'Home',        icon: '🏠' },
     { id: 'sports',    label: 'Sports',       icon: '🏆' },
@@ -20,6 +20,7 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, user }) => {
           <div className="logo-icon">🚀</div>
           <h1>NOVA</h1>
         </div>
+
         <div className="navbar-tabs">
           {tabs.map((tab) => (
             <button
@@ -32,6 +33,7 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, user }) => {
             </button>
           ))}
         </div>
+
         <div className="navbar-user">
           {user ? (
             <>
@@ -45,12 +47,22 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, user }) => {
                   <span className="user-label">Admin</span>
                 </button>
               )}
+              <button className="user-button signout-btn" onClick={onLogout}>
+                <span className="user-icon">🚪</span>
+                <span className="user-label">Logout</span>
+              </button>
             </>
           ) : (
-            <button className="user-button signin-btn" onClick={onSignIn}>
-              <span className="user-icon">🔑</span>
-              <span className="user-label">Sign In</span>
-            </button>
+            <>
+              <button className="user-button signin-btn" onClick={onSignIn}>
+                <span className="user-icon">🔑</span>
+                <span className="user-label">Sign In</span>
+              </button>
+              <button className="user-button signup-btn" onClick={onSignUp}>
+                <span className="user-icon">✨</span>
+                <span className="user-label">Sign Up</span>
+              </button>
+            </>
           )}
         </div>
       </div>

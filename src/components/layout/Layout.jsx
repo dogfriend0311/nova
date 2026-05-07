@@ -4,12 +4,12 @@ import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 import './Layout.css';
 
-const Layout = ({ currentPage, onPageChange, onDashboard, onSignIn, children, user }) => {
+const Layout = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, onLogout, children, user }) => {
   return (
     <div className="layout-container">
       <SpaceBackground />
       
-      <Navbar currentPage={currentPage} onPageChange={onPageChange} onDashboard={onDashboard} onSignIn={onSignIn} user={user} />
+      <Navbar currentPage={currentPage} onPageChange={onPageChange} onDashboard={onDashboard} onSignIn={onSignIn} onSignUp={onSignUp} onLogout={onLogout} user={user} />
       
       <div className="layout-wrapper">
         <Sidebar currentPage={currentPage} onNavigate={onPageChange} />
