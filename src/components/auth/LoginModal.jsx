@@ -1,3 +1,4 @@
+import './LoginModal.css';
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -43,10 +44,10 @@ const LoginModal = ({ onClose, initialTab }) => {
   return (
     <div className="lm-overlay" onClick={handleOverlay}>
       <div className="lm-card neon-card">
-        <button className="lm-close" onClick={onClose} aria-label="Close">✕</button>
+        <button className="lm-close" onClick={onClose} aria-label="Close">âœ•</button>
 
         <div className="lm-header">
-          <span className="lm-rocket">🚀</span>
+          <span className="lm-rocket">ðŸš€</span>
           <h2 className="gradient-text" style={{ margin: 0, fontSize: '1.6rem' }}>Nova</h2>
         </div>
 
@@ -67,7 +68,7 @@ const LoginModal = ({ onClose, initialTab }) => {
             </div>
             {error && <div className="error-message">{error}</div>}
             <button type="submit" className="neon-button lm-submit" disabled={loading}>
-              {loading ? 'Signing in…' : 'Sign In'}
+              {loading ? 'Signing inâ€¦' : 'Sign In'}
             </button>
             <p className="lm-switch-hint">
               No account?{' '}
@@ -90,7 +91,7 @@ const LoginModal = ({ onClose, initialTab }) => {
             </div>
             {error && <div className="error-message">{error}</div>}
             <button type="submit" className="neon-button lm-submit" disabled={loading}>
-              {loading ? 'Creating account…' : 'Create Account'}
+              {loading ? 'Creating accountâ€¦' : 'Create Account'}
             </button>
             <p className="lm-switch-hint">
               Already have an account?{' '}
