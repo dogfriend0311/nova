@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from './context/AuthContext';
+﻿import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import './OwnerDashboard.css';
 
 const OwnerDashboard = () => {
@@ -58,19 +58,19 @@ const OwnerDashboard = () => {
           className={`tab ${activeTab === 'players' ? 'active' : ''}`}
           onClick={() => setActiveTab('players')}
         >
-          🎮 League Players
+          ðŸŽ® League Players
         </button>
         <button
           className={`tab ${activeTab === 'teams' ? 'active' : ''}`}
           onClick={() => setActiveTab('teams')}
         >
-          👥 Teams
+          ðŸ‘¥ Teams
         </button>
         <button
           className={`tab ${activeTab === 'league' ? 'active' : ''}`}
           onClick={() => setActiveTab('league')}
         >
-          ⚙️ League Settings
+          âš™ï¸ League Settings
         </button>
       </div>
 
@@ -123,7 +123,7 @@ const PlayersTab = ({
             <div className="player-info">
               <div className="player-name">{player.player_name}</div>
               <div className="player-details">
-                {player.position} • Overall {player.overall}
+                {player.position} â€¢ Overall {player.overall}
               </div>
             </div>
             <button
@@ -133,7 +133,7 @@ const PlayersTab = ({
                 onEditPlayer(player);
               }}
             >
-              ✏️
+              âœï¸
             </button>
           </div>
         ))}
