@@ -55,15 +55,25 @@ export const searchMedia = async (query, type) => {
   return [];
 };
 
-export const getWatchList = (username) => {
-  const all = JSON.parse(localStorage.getItem('nova_watchlists') || '{}');
-  return all[username] || [];
+export const getWatchList = async (username) => {
+  try {
+    const { db } = await import('./db');
+    return await db.getWatchlist(username);
+  } catch {
+    const all = JSON.parse(localStorage.getItem('nova_watchlists') || '{}');
+    return all[username] || [];
+  }
 };
 
-export const saveWatchList = (username, list) => {
-  const all = JSON.parse(localStorage.getItem('nova_watchlists') || '{}');
-  all[username] = list;
-  localStorage.setItem('nova_watchlists', JSON.stringify(all));
+export const saveWatchList = async (username, list) => {
+  try {
+    const { db } = await import('./db');
+    await db.saveWatchlist(username, list);
+  } catch {
+    const all = JSON.parse(localStorage.getItem('nova_watchlists') || '{}');
+    all[username] = list;
+    localStorage.setItem('nova_watchlists', JSON.stringify(all));
+  }
 };
 
 export const getAllReviews = () => {
