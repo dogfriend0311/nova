@@ -1,0 +1,347 @@
+/* ── Wrapper ─────────────────────────────────────────────────── */
+.pbp-wrapper {
+  padding: 20px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.pbp-back { margin-bottom: 20px; }
+
+.pbp-game-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+.pbp-game-sport {
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  color: var(--color-cyan);
+  opacity: 0.6;
+}
+.pbp-game-title {
+  font-size: 1.4rem;
+  margin: 6px 0 4px;
+  color: #c0d0ff;
+}
+.pbp-refresh-hint {
+  font-size: 0.72rem;
+  color: rgba(192,208,255,0.3);
+}
+
+/* ── Scoreboard ──────────────────────────────────────────────── */
+.pbp-scoreboard {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 30px;
+  background: rgba(0,0,40,0.6);
+  border: 1px solid rgba(0,255,255,0.15);
+  border-radius: 12px;
+  padding: 20px 30px;
+  margin-bottom: 16px;
+}
+.pbp-team {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.pbp-team-name {
+  font-size: 0.85rem;
+  color: rgba(192,208,255,0.7);
+  letter-spacing: 0.06em;
+}
+.pbp-score {
+  font-size: 2.4rem;
+  font-weight: 900;
+  color: var(--color-cyan);
+  line-height: 1;
+}
+.pbp-inning-info {
+  text-align: center;
+}
+.pbp-inning {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #c0d0ff;
+}
+.pbp-outs {
+  font-size: 0.8rem;
+  color: rgba(192,208,255,0.5);
+  margin-top: 4px;
+}
+
+/* ── Line Score ──────────────────────────────────────────────── */
+.pbp-linescore-wrap {
+  overflow-x: auto;
+  margin-bottom: 20px;
+}
+.pbp-linescore {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  text-align: center;
+}
+.pbp-linescore th, .pbp-linescore td {
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(0,255,255,0.08);
+  color: rgba(192,208,255,0.7);
+  min-width: 28px;
+}
+.pbp-linescore th {
+  color: rgba(192,208,255,0.4);
+  font-weight: 600;
+  font-size: 0.72rem;
+}
+.pbp-ls-team {
+  font-weight: 700;
+  color: var(--color-cyan) !important;
+  text-align: left;
+}
+.pbp-ls-total {
+  font-weight: 700;
+  color: #c0d0ff !important;
+}
+
+/* ── Current At-Bat ──────────────────────────────────────────── */
+.pbp-current-ab {
+  background: rgba(0,255,255,0.03);
+  border: 1px solid rgba(0,255,255,0.15);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.pbp-matchup {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  gap: 10px;
+}
+.pbp-matchup-side { flex: 1; }
+.pbp-matchup-side.right { text-align: right; }
+.pbp-player-role {
+  font-size: 0.7rem;
+  color: rgba(192,208,255,0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.pbp-player-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-cyan);
+  margin: 2px 0;
+}
+.pbp-player-sub {
+  font-size: 0.75rem;
+  color: rgba(192,208,255,0.5);
+}
+.pbp-matchup-vs {
+  font-size: 0.9rem;
+  font-weight: 900;
+  color: rgba(192,208,255,0.3);
+}
+
+.pbp-live-row {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+/* ── Strike Zone ─────────────────────────────────────────────── */
+.pbp-zone-wrap { flex-shrink: 0; }
+.pbp-zone-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(192,208,255,0.4);
+  margin-bottom: 8px;
+}
+.pbp-zone { width: 180px; height: 180px; }
+.pbp-zone-legend { margin-top: 8px; }
+
+/* ── Count ───────────────────────────────────────────────────── */
+.pbp-state { display: flex; flex-direction: column; gap: 16px; }
+.pbp-count { display: flex; flex-direction: column; gap: 8px; }
+.pbp-count-row { display: flex; align-items: center; gap: 6px; }
+.pbp-count-label {
+  width: 14px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: rgba(192,208,255,0.5);
+}
+.pbp-dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(192,208,255,0.2);
+  background: transparent;
+  transition: all 0.2s;
+}
+.pbp-dot.on.ball   { background: #3399ff; border-color: #3399ff; }
+.pbp-dot.on.strike { background: #ff4444; border-color: #ff4444; }
+.pbp-dot.on.out    { background: #ff9900; border-color: #ff9900; }
+
+/* ── Base Diagram ────────────────────────────────────────────── */
+.pbp-runners { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.pbp-base-row { display: flex; gap: 6px; align-items: center; }
+.pbp-base {
+  width: 20px; height: 20px;
+  background: rgba(192,208,255,0.08);
+  border: 1.5px solid rgba(192,208,255,0.2);
+  transform: rotate(45deg);
+  transition: all 0.2s;
+}
+.pbp-base.on {
+  background: #ffcc00;
+  border-color: #ffcc00;
+  box-shadow: 0 0 8px rgba(255,204,0,0.6);
+}
+.pbp-home-plate {
+  width: 20px; height: 20px;
+  background: rgba(192,208,255,0.06);
+  border: 1.5px solid rgba(192,208,255,0.15);
+  clip-path: polygon(50% 0%, 100% 35%, 100% 100%, 0% 100%, 0% 35%);
+}
+
+/* ── Pitch List ──────────────────────────────────────────────── */
+.pbp-pitch-list { margin-top: 16px; }
+.pbp-pitch-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+  background: rgba(0,0,40,0.4);
+  font-size: 0.82rem;
+}
+.pbp-pitch-num   { color: rgba(192,208,255,0.4); font-size: 0.72rem; min-width: 22px; }
+.pbp-pitch-type  { color: #c0d0ff; font-weight: 600; min-width: 80px; }
+.pbp-pitch-mph   { color: var(--color-cyan); font-weight: 700; }
+.pbp-pitch-result { font-weight: 700; }
+.pbp-pitch-exit  { color: #ffcc00; }
+.pbp-pitch-angle { color: #ff9944; }
+.pbp-pitch-dist  { color: #88ff88; }
+
+.pbp-result-ball          .pbp-pitch-result { color: #4488ff; }
+.pbp-result-called-strike .pbp-pitch-result { color: #ff4444; }
+.pbp-result-swinging-strike .pbp-pitch-result { color: #ff6666; }
+.pbp-result-foul          .pbp-pitch-result { color: #ffcc00; }
+.pbp-result-in-play       .pbp-pitch-result { color: #00ff88; }
+
+/* ── Play Log ────────────────────────────────────────────────── */
+.pbp-log { margin-top: 20px; }
+.pbp-section-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(192,208,255,0.4);
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(0,255,255,0.08);
+}
+
+.pbp-ab-row {
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  background: rgba(0,0,40,0.35);
+  border: 1px solid rgba(0,255,255,0.07);
+  border-radius: 6px;
+  font-size: 0.82rem;
+}
+.pbp-ab-row.pbp-hit  { border-left: 3px solid #00ff88; }
+.pbp-ab-row.pbp-hr   { border-left: 3px solid #ffcc00; background: rgba(255,204,0,0.05); }
+.pbp-ab-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.pbp-ab-inning  { color: rgba(192,208,255,0.4); font-size: 0.75rem; min-width: 30px; }
+.pbp-ab-batter  { color: var(--color-cyan); font-weight: 600; flex: 1; }
+.pbp-ab-result  { color: #c0d0ff; font-weight: 700; }
+.pbp-ab-pitches { color: rgba(192,208,255,0.35); font-size: 0.72rem; }
+.pbp-ab-desc    { color: rgba(192,208,255,0.55); font-size: 0.78rem; margin-top: 4px; }
+.pbp-ab-hitdata { color: #ffcc00; font-size: 0.78rem; margin-top: 4px; }
+
+/* ── Football ────────────────────────────────────────────────── */
+.pbp-football-situation {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: rgba(0,0,40,0.4);
+  border: 1px solid rgba(0,255,255,0.1);
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+}
+.pbp-situation-item { display: flex; flex-direction: column; gap: 2px; }
+.pbp-sit-label { font-size: 0.68rem; color: rgba(192,208,255,0.4); text-transform: uppercase; letter-spacing: 0.08em; }
+.pbp-sit-val   { font-size: 0.95rem; font-weight: 700; color: var(--color-cyan); }
+
+.pbp-current-drive {
+  background: rgba(0,255,255,0.03);
+  border: 1px solid rgba(0,255,255,0.12);
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+.pbp-drive-summary {
+  display: flex;
+  gap: 16px;
+  margin: 8px 0 12px;
+  font-size: 0.82rem;
+  color: rgba(192,208,255,0.6);
+}
+
+/* ── Generic Play Row ────────────────────────────────────────── */
+.pbp-play-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  padding: 8px 10px;
+  border-radius: 5px;
+  margin-bottom: 4px;
+  background: rgba(0,0,40,0.3);
+  font-size: 0.82rem;
+}
+.pbp-play-row.pbp-scoring { background: rgba(255,204,0,0.07); border-left: 3px solid #ffcc00; }
+.pbp-play-row.pbp-make    { background: rgba(0,255,100,0.05); border-left: 3px solid #00ff64; }
+.pbp-play-row.pbp-foul    { background: rgba(255,80,80,0.05); }
+.pbp-play-row.pbp-shot    { background: rgba(0,100,255,0.05); }
+
+.pbp-play-clock {
+  color: rgba(192,208,255,0.4);
+  font-size: 0.72rem;
+  min-width: 60px;
+  flex-shrink: 0;
+}
+.pbp-play-text    { color: #c0d0ff; flex: 1; }
+.pbp-play-pts     { color: #00ff88; font-weight: 700; font-size: 0.9rem; }
+.pbp-play-score-badge   { background: rgba(255,204,0,0.2); color: #ffcc00; padding: 1px 8px; border-radius: 10px; font-size: 0.72rem; font-weight: 700; }
+.pbp-play-penalty-badge { background: rgba(255,80,80,0.2); color: #ff6666; padding: 1px 8px; border-radius: 10px; font-size: 0.72rem; font-weight: 700; }
+
+/* ── Loading / Error / Empty ─────────────────────────────────── */
+.pbp-loading, .pbp-empty {
+  text-align: center;
+  color: rgba(192,208,255,0.4);
+  padding: 40px 20px;
+  font-size: 0.9rem;
+}
+.pbp-error {
+  color: #ff6666;
+  padding: 20px;
+  text-align: center;
+  background: rgba(255,50,50,0.08);
+  border-radius: 8px;
+}
+
+@media (max-width: 600px) {
+  .pbp-zone { width: 140px; height: 140px; }
+  .pbp-live-row { flex-direction: column; }
+  .pbp-scoreboard { gap: 16px; padding: 14px 16px; }
+  .pbp-score { font-size: 1.8rem; }
+}

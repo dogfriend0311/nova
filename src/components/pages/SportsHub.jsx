@@ -16,6 +16,7 @@ import {
   fetchMiLBGameDetail,
 } from '../../services/sportsDataService';
 import './SportsHub.css';
+import PlayByPlay from './PlayByPlay';
 
 const SPORTS = [
   { id: 'mlb',          label: 'MLB',              icon: '⚾' },
@@ -162,6 +163,14 @@ const ScoresPanel = ({ sport, refreshKey, onSelectGame }) => {
    MiLB Game Detail View
    ──────────────────────────────────────────── */
 const MiLBGameDetailView = ({ game, onBack }) => {
+  const [showMilbPbp, setShowMilbPbp] = React.useState(false);
+  if (showMilbPbp) return (
+    <PlayByPlay
+      game={{ ...game, away_team: game.awayTeam, home_team: game.homeTeam, gamePk: game.id }}
+      sport={game.sport || 'milb_aaa'}
+      onBack={() => setShowMilbPbp(false)}
+    />
+  );
   const [detail, setDetail]   = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
@@ -402,9 +411,24 @@ const GameDetailView = ({ game, sport, onBack }) => {
   const thStyle = { padding: '8px 10px', color: 'rgba(192,208,255,0.5)', fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: '1px solid rgba(100,120,200,0.18)', textAlign: 'center' };
   const tdStyle = { padding: '8px 10px', textAlign: 'center', color: 'rgba(192,208,255,0.85)', fontSize: '0.85rem', borderBottom: '1px solid rgba(100,120,200,0.07)' };
 
+  const [showPbp, setShowPbp] = useState(false);
+
+  if (showPbp) return (
+    <PlayByPlay
+      game={{ ...game, away_team: game.awayTeam?.abbr, home_team: game.homeTeam?.abbr, away_score: game.awayTeam?.score, home_score: game.homeTeam?.score, gamePk: game.id, espnId: game.id }}
+      sport={sport}
+      onBack={() => setShowPbp(false)}
+    />
+  );
+
   return (
     <div className="sh-detail-view">
-      <button className="neon-button" style={{ marginBottom: '20px' }} onClick={onBack}>← Back to Scores</button>
+      <div style={{ display:'flex', gap:'10px', marginBottom:'20px', flexWrap:'wrap' }}>
+        <button className="neon-button" onClick={onBack}>← Back to Scores</button>
+        <button className="neon-button" onClick={() => setShowPbp(true)} style={{ borderColor:'rgba(0,255,255,0.5)', color:'var(--color-cyan)' }}>
+          📡 Live Play-by-Play
+        </button>
+      </div>
 
       {/* Game header */}
       <div className="sh-detail-header">
