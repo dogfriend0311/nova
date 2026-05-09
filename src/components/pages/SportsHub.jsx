@@ -163,7 +163,11 @@ const ScoresPanel = ({ sport, refreshKey, onSelectGame }) => {
    MiLB Game Detail View
    ──────────────────────────────────────────── */
 const MiLBGameDetailView = ({ game, onBack }) => {
-  const [showMilbPbp, setShowMilbPbp] = React.useState(false);
+  const [showMilbPbp, setShowMilbPbp] = useState(false);
+  const [detail, setDetail]   = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
+
   if (showMilbPbp) return (
     <PlayByPlay
       game={{ ...game, away_team: game.awayTeam, home_team: game.homeTeam, gamePk: game.id }}
@@ -171,9 +175,6 @@ const MiLBGameDetailView = ({ game, onBack }) => {
       onBack={() => setShowMilbPbp(false)}
     />
   );
-  const [detail, setDetail]   = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState(null);
 
   useEffect(() => {
     setLoading(true);
@@ -398,6 +399,7 @@ const GameDetailView = ({ game, sport, onBack }) => {
   const [summary, setSummary]   = useState(null);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
+  const [showPbp, setShowPbp]   = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -411,7 +413,6 @@ const GameDetailView = ({ game, sport, onBack }) => {
   const thStyle = { padding: '8px 10px', color: 'rgba(192,208,255,0.5)', fontSize: '0.75rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: '1px solid rgba(100,120,200,0.18)', textAlign: 'center' };
   const tdStyle = { padding: '8px 10px', textAlign: 'center', color: 'rgba(192,208,255,0.85)', fontSize: '0.85rem', borderBottom: '1px solid rgba(100,120,200,0.07)' };
 
-  const [showPbp, setShowPbp] = useState(false);
 
   if (showPbp) return (
     <PlayByPlay

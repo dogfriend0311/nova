@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import db from './services/db';
 import './RBMLLeague.css';
 
 const RBMLLeague = ({ onSelectPlayer }) => {
@@ -52,9 +53,9 @@ const RBMLLeague = ({ onSelectPlayer }) => {
 };
 
 const OverviewTab = () => {
-  const teams = JSON.parse(localStorage.getItem('rbml_teams') || '[]');
-  const players = JSON.parse(localStorage.getItem('rbml_players') || '[]');
-  const bsGames = JSON.parse(localStorage.getItem('rbml_bs_games') || '[]');
+  // NOTE: teams loaded via useEffect from db.js
+  // NOTE: players loaded via useEffect from db.js
+  // NOTE: bsGames loaded via useEffect from db.js
   const recentGames = [...bsGames].reverse().slice(0, 3);
 
   return (
@@ -124,8 +125,10 @@ const rosterColorDark = (color) => {
 };
 
 const RostersTab = ({ onSelectPlayer }) => {
-  const [teams] = useState(JSON.parse(localStorage.getItem('rbml_teams') || '[]'));
-  const [players] = useState(JSON.parse(localStorage.getItem('rbml_players') || '[]'));
+  const [teams, setTeams] = useState([]);
+  useEffect(() => { db.getTeams('rbml').then(setTeams); }, []);
+  const [players, setPlayers] = useState([]);
+  useEffect(() => { db.getPlayers('rbml').then(setPlayers); }, []);
   const [selectedTeam, setSelectedTeam] = useState(null);
 
   if (selectedTeam) {
@@ -188,7 +191,7 @@ const RostersTab = ({ onSelectPlayer }) => {
                 }}
                 onClick={() => {
                   if (onSelectPlayer) {
-                    const fresh = JSON.parse(localStorage.getItem('rbml_players') || '[]');
+                    // fresh data loaded from Supabase via db.js
                     onSelectPlayer(fresh.find(p => p.id === player.id) || player);
                   }
                 }}
@@ -270,7 +273,8 @@ const RostersTab = ({ onSelectPlayer }) => {
 };
 
 const PlayersTab = ({ onSelectPlayer }) => {
-  const [players] = useState(JSON.parse(localStorage.getItem('rbml_players') || '[]'));
+  const [players, setPlayers] = useState([]);
+  useEffect(() => { db.getPlayers('rbml').then(setPlayers); }, []);
   const [search, setSearch] = useState('');
 
   const filtered = players.filter(p =>
@@ -305,7 +309,7 @@ const PlayersTab = ({ onSelectPlayer }) => {
               style={{ cursor: 'pointer' }}
               onClick={() => {
                 if (onSelectPlayer) {
-                  const fresh = JSON.parse(localStorage.getItem('rbml_players') || '[]');
+                  // fresh data loaded from Supabase via db.js
                   onSelectPlayer(fresh.find(p => p.id === player.id) || player);
                 }
               }}
@@ -336,8 +340,8 @@ const PlayersTab = ({ onSelectPlayer }) => {
 };
 
 const LeagueLeadersTab = ({ onSelectPlayer }) => {
-  const players = JSON.parse(localStorage.getItem('rbml_players') || '[]');
-  const boxScores = JSON.parse(localStorage.getItem('rbml_box_scores') || '[]');
+  // NOTE: players loaded via useEffect from db.js
+  // NOTE: boxScores loaded via useEffect from db.js
 
   const withStats = players.map(p => {
     const scores = boxScores.filter(b => b.player_id === p.id);
@@ -377,7 +381,7 @@ const LeagueLeadersTab = ({ onSelectPlayer }) => {
                 style={{ cursor: 'pointer', borderBottom: '1px solid rgba(0,255,255,0.06)' }}
                 onClick={() => {
                   if (onSelectPlayer) {
-                    const fresh = JSON.parse(localStorage.getItem('rbml_players') || '[]');
+                    // fresh data loaded from Supabase via db.js
                     onSelectPlayer(fresh.find(fp => fp.id === p.id) || p);
                   }
                 }}
@@ -406,7 +410,7 @@ const LeagueLeadersTab = ({ onSelectPlayer }) => {
 };
 
 const GameFeedTab = () => {
-  const feed = JSON.parse(localStorage.getItem('rbml_feed') || '[]');
+  // NOTE: feed loaded via useEffect from db.js
   const sorted = [...feed].reverse();
 
   return (
@@ -434,10 +438,14 @@ const GameFeedTab = () => {
 };
 
 const BoxScoresTab = () => {
-  const [bsGames] = useState(JSON.parse(localStorage.getItem('rbml_bs_games') || '[]'));
-  const [boxScores] = useState(JSON.parse(localStorage.getItem('rbml_box_scores') || '[]'));
-  const [players] = useState(JSON.parse(localStorage.getItem('rbml_players') || '[]'));
-  const [teams] = useState(JSON.parse(localStorage.getItem('rbml_teams') || '[]'));
+  const [bsGames, setBsGames] = useState([]);
+  useEffect(() => { db.getBsGames('rbml').then(setBsGames); }, []);
+  const [boxScores, setBoxScores] = useState([]);
+  useEffect(() => { db.getBoxScores('rbml').then(setBoxScores); }, []);
+  const [players, setPlayers] = useState([]);
+  useEffect(() => { db.getPlayers('rbml').then(setPlayers); }, []);
+  const [teams, setTeams] = useState([]);
+  useEffect(() => { db.getTeams('rbml').then(setTeams); }, []);
   const [selectedGame, setSelectedGame] = useState(null);
 
   const getTeamColor = (name) => teams.find(t => t.team_name === name)?.team_color || null;
@@ -577,8 +585,10 @@ const BoxScoresTab = () => {
 };
 
 const CompareTab = () => {
-  const [players] = useState(JSON.parse(localStorage.getItem('rbml_players') || '[]'));
-  const [teams]   = useState(JSON.parse(localStorage.getItem('rbml_teams')   || '[]'));
+  const [players, setPlayers] = useState([]);
+  useEffect(() => { db.getPlayers('rbml').then(setPlayers); }, []);
+  const [teams, setTeams2] = useState([]);
+  useEffect(() => { db.getTeams('rbml').then(setTeams2); }, []);
   const [idA, setIdA] = useState('');
   const [idB, setIdB] = useState('');
   const [mode, setMode] = useState('career');
@@ -777,7 +787,7 @@ const CompareTab = () => {
 };
 
 const HallOfFameTab = () => {
-  const hof = JSON.parse(localStorage.getItem('rbml_hof') || '[]');
+  // NOTE: hof loaded via useEffect from db.js
 
   return (
     <div className="card-container">
