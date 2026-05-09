@@ -126,8 +126,8 @@ const LeaguePlayerPage = ({ player, onBack }) => {
     );
   }
 
-  const leaguePrefix = props.leaguePrefix || 'nabb';
-  const boxScores = JSON.parse(localStorage.getItem(`${leaguePrefix}_box_scores`) || '[]');
+  
+  const boxScores = JSON.parse(localStorage.getItem(`${leaguePrefix || 'nabb'}_box_scores`) || '[]');
   const playerScores = boxScores.filter(b => b.player_id === player.id);
   const gamesPlayed = playerScores.length;
   const gamesPitched = playerScores.filter(b => safe(b.innings_pitched) > 0).length;

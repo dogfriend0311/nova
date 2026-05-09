@@ -53,9 +53,14 @@ const RBMLLeague = ({ onSelectPlayer }) => {
 };
 
 const OverviewTab = () => {
-  // NOTE: teams loaded via useEffect from db.js
-  // NOTE: players loaded via useEffect from db.js
-  // NOTE: bsGames loaded via useEffect from db.js
+  const [teams, setTeams] = useState([]);
+  const [players, setPlayers] = useState([]);
+  const [bsGames, setBsGames] = useState([]);
+  useEffect(() => {
+    db.getTeams('rbml').then(setTeams);
+    db.getPlayers('rbml').then(setPlayers);
+    db.getBsGames('rbml').then(setBsGames);
+  }, []);
   const recentGames = [...bsGames].reverse().slice(0, 3);
 
   return (
@@ -191,8 +196,7 @@ const RostersTab = ({ onSelectPlayer }) => {
                 }}
                 onClick={() => {
                   if (onSelectPlayer) {
-                    // fresh data loaded from Supabase via db.js
-                    onSelectPlayer(fresh.find(p => p.id === player.id) || player);
+                      onSelectPlayer(player);
                   }
                 }}
                 onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
@@ -309,8 +313,7 @@ const PlayersTab = ({ onSelectPlayer }) => {
               style={{ cursor: 'pointer' }}
               onClick={() => {
                 if (onSelectPlayer) {
-                  // fresh data loaded from Supabase via db.js
-                  onSelectPlayer(fresh.find(p => p.id === player.id) || player);
+                  onSelectPlayer(player);
                 }
               }}
             >
@@ -340,8 +343,12 @@ const PlayersTab = ({ onSelectPlayer }) => {
 };
 
 const LeagueLeadersTab = ({ onSelectPlayer }) => {
-  // NOTE: players loaded via useEffect from db.js
-  // NOTE: boxScores loaded via useEffect from db.js
+  const [players, setPlayers] = useState([]);
+  const [boxScores, setBoxScores] = useState([]);
+  useEffect(() => {
+    db.getPlayers('rbml').then(setPlayers);
+    db.getBoxScores('rbml').then(setBoxScores);
+  }, []);
 
   const withStats = players.map(p => {
     const scores = boxScores.filter(b => b.player_id === p.id);
@@ -381,8 +388,7 @@ const LeagueLeadersTab = ({ onSelectPlayer }) => {
                 style={{ cursor: 'pointer', borderBottom: '1px solid rgba(0,255,255,0.06)' }}
                 onClick={() => {
                   if (onSelectPlayer) {
-                    // fresh data loaded from Supabase via db.js
-                    onSelectPlayer(fresh.find(fp => fp.id === p.id) || p);
+                      onSelectPlayer(p);
                   }
                 }}
               >
@@ -410,7 +416,8 @@ const LeagueLeadersTab = ({ onSelectPlayer }) => {
 };
 
 const GameFeedTab = () => {
-  // NOTE: feed loaded via useEffect from db.js
+  const [feed, setFeed] = useState([]);
+  useEffect(() => { db.getFeed('rbml').then(setFeed); }, []);
   const sorted = [...feed].reverse();
 
   return (
@@ -587,8 +594,8 @@ const BoxScoresTab = () => {
 const CompareTab = () => {
   const [players, setPlayers] = useState([]);
   useEffect(() => { db.getPlayers('rbml').then(setPlayers); }, []);
-  const [teams, setTeams2] = useState([]);
-  useEffect(() => { db.getTeams('rbml').then(setTeams2); }, []);
+  const [teams, setTeams] = useState([]);
+  useEffect(() => { db.getTeams('rbml').then(setTeams); }, []);
   const [idA, setIdA] = useState('');
   const [idB, setIdB] = useState('');
   const [mode, setMode] = useState('career');
@@ -787,12 +794,13 @@ const CompareTab = () => {
 };
 
 const HallOfFameTab = () => {
-  // NOTE: hof loaded via useEffect from db.js
+  const [hof, setHof] = useState([]);
+  useEffect(() => { db.getHof('rbml').then(setHof); }, []);
 
   return (
     <div className="card-container">
       <div className="neon-card p-3">
-        <h3 className="gradient-text-magenta">🏆 Hall of Fame</h3>
+        <h3 className="gradient-text-magenta">Hall of Fame</h3>
         {hof.length === 0 ? (
           <p style={{ marginTop: '15px', color: 'rgba(192,208,255,0.7)' }}>Hall of Fame players will appear here</p>
         ) : (

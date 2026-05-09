@@ -168,14 +168,6 @@ const MiLBGameDetailView = ({ game, onBack }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
 
-  if (showMilbPbp) return (
-    <PlayByPlay
-      game={{ ...game, away_team: game.awayTeam, home_team: game.homeTeam, gamePk: game.id }}
-      sport={game.sport || 'milb_aaa'}
-      onBack={() => setShowMilbPbp(false)}
-    />
-  );
-
   useEffect(() => {
     setLoading(true);
     setError(null);
@@ -184,6 +176,14 @@ const MiLBGameDetailView = ({ game, onBack }) => {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [game.id]);
+
+  if (showMilbPbp) return (
+    <PlayByPlay
+      game={{ ...game, away_team: game.awayTeam, home_team: game.homeTeam, gamePk: game.id }}
+      sport={game.sport || 'milb_aaa'}
+      onBack={() => setShowMilbPbp(false)}
+    />
+  );
 
   const thS = { padding: '6px 10px', color: 'rgba(192,208,255,0.45)', fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', borderBottom: '1px solid rgba(100,120,200,0.18)', textAlign: 'center', whiteSpace: 'nowrap' };
   const tdS = { padding: '6px 10px', textAlign: 'center', color: 'rgba(192,208,255,0.82)', fontSize: '0.82rem', borderBottom: '1px solid rgba(100,120,200,0.07)' };
