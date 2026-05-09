@@ -10,13 +10,8 @@ import './PlayByPlay.css';
 const MLB_API = 'https://statsapi.mlb.com/api/v1';
 const ESPN    = 'https://site.api.espn.com';
 
-/* ── Helpers ─────────────────────────────────────────────────── */
-const today = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-};
+/* â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
-const MILB_IDS = { milb_aaa: 11, milb_aa: 12, milb_highA: 13, milb_singleA: 14 };
 
 const ESPN_PATHS = {
   nfl:  'football/nfl',
@@ -26,9 +21,8 @@ const ESPN_PATHS = {
   cbb:  'baseball/college-baseball',
 };
 
-const isMlbFamily = (s) => s === 'mlb' || s.startsWith('milb_') || s === 'cbb_milb';
 
-/* ── Strike Zone ─────────────────────────────────────────────── */
+/* â”€â”€ Strike Zone â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const StrikeZone = ({ pitches = [] }) => {
   const S = 180;
   const ZX = 45, ZY = 30, ZW = 90, ZH = 110;
@@ -74,7 +68,7 @@ const StrikeZone = ({ pitches = [] }) => {
   );
 };
 
-/* ── Base Runner Diagram ─────────────────────────────────────── */
+/* â”€â”€ Base Runner Diagram â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const Runners = ({ first, second, third }) => (
   <div className="pbp-runners">
     <div className={`pbp-base pbp-second ${second?'on':''}`}/>
@@ -86,7 +80,7 @@ const Runners = ({ first, second, third }) => (
   </div>
 );
 
-/* ── Count Dots ──────────────────────────────────────────────── */
+/* â”€â”€ Count Dots â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const Count = ({ balls, strikes, outs }) => (
   <div className="pbp-count">
     <div className="pbp-count-row">
@@ -104,9 +98,9 @@ const Count = ({ balls, strikes, outs }) => (
   </div>
 );
 
-/* ══════════════════════════════════════════════════════════════
-   BASEBALL PBP — MLB Stats API live feed
-══════════════════════════════════════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   BASEBALL PBP â€” MLB Stats API live feed
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 const BaseballPBP = ({ gamePk, game }) => {
   const [feed, setFeed]   = useState(null);
   const [error, setError] = useState(null);
@@ -130,7 +124,7 @@ const BaseballPBP = ({ gamePk, game }) => {
   }, [fetchFeed]);
 
   if (error) return <div className="pbp-error">Could not load live feed: {error}</div>;
-  if (!feed)  return <div className="pbp-loading">Loading live data…</div>;
+  if (!feed)  return <div className="pbp-loading">Loading live dataâ€¦</div>;
 
   const ld  = feed.liveData;
   const gd  = feed.gameData;
@@ -163,8 +157,8 @@ const BaseballPBP = ({ gamePk, game }) => {
   };
 
   const inningLabel = ls.currentInning
-    ? `${ls.inningHalf === 'Top' ? '▲' : '▼'} ${ls.currentInning}`
-    : '—';
+    ? `${ls.inningHalf === 'Top' ? 'â–²' : 'â–¼'} ${ls.currentInning}`
+    : 'â€”';
 
   // Build at-bat log from all plays (reverse = newest first)
   const atBats = [...plays].reverse().slice(0, 30);
@@ -205,9 +199,9 @@ const BaseballPBP = ({ gamePk, game }) => {
                   {innings.map((inn,i)=>(
                     <td key={i}>{inn[side]?.runs ?? ''}</td>
                   ))}
-                  <td className="pbp-ls-total">{ls.teams?.[side]?.runs ?? '—'}</td>
-                  <td className="pbp-ls-total">{ls.teams?.[side]?.hits ?? '—'}</td>
-                  <td className="pbp-ls-total">{ls.teams?.[side]?.errors ?? '—'}</td>
+                  <td className="pbp-ls-total">{ls.teams?.[side]?.runs ?? 'â€”'}</td>
+                  <td className="pbp-ls-total">{ls.teams?.[side]?.hits ?? 'â€”'}</td>
+                  <td className="pbp-ls-total">{ls.teams?.[side]?.errors ?? 'â€”'}</td>
                 </tr>
               ))}
             </tbody>
@@ -239,7 +233,7 @@ const BaseballPBP = ({ gamePk, game }) => {
               <StrikeZone pitches={pitches}/>
               <div className="pbp-zone-legend">
                 {[['#4488ff','Ball'],['#ff4444','Strike'],['#ffcc00','Foul'],['#00ff88','In Play']].map(([c,l])=>(
-                  <span key={l} style={{ color:c, fontSize:'0.72rem', marginRight:'8px' }}>● {l}</span>
+                  <span key={l} style={{ color:c, fontSize:'0.72rem', marginRight:'8px' }}>â— {l}</span>
                 ))}
               </div>
             </div>
@@ -262,7 +256,7 @@ const BaseballPBP = ({ gamePk, game }) => {
                   {p.mph && <span className="pbp-pitch-mph">{p.mph} mph</span>}
                   <span className="pbp-pitch-result">{p.result}</span>
                   {p.exitVelo && <span className="pbp-pitch-exit">EV {p.exitVelo} mph</span>}
-                  {p.launchAngle && <span className="pbp-pitch-angle">LA {p.launchAngle}°</span>}
+                  {p.launchAngle && <span className="pbp-pitch-angle">LA {p.launchAngle}Â°</span>}
                   {p.distance && <span className="pbp-pitch-dist">{p.distance} ft</span>}
                 </div>
               ))}
@@ -279,7 +273,7 @@ const BaseballPBP = ({ gamePk, game }) => {
           const about = ab.about;
           const abPitches = (ab.playEvents||[]).filter(e=>e.isPitch);
           const lastPitch = abPitches[abPitches.length-1];
-          const inning = about ? `${about.halfInning==='top'?'▲':'▼'}${about.inning}` : '';
+          const inning = about ? `${about.halfInning==='top'?'â–²':'â–¼'}${about.inning}` : '';
           const isHit = ['Single','Double','Triple','Home Run'].includes(res?.event);
           const isHR  = res?.event === 'Home Run';
           return (
@@ -296,8 +290,8 @@ const BaseballPBP = ({ gamePk, game }) => {
               {lastPitch?.hitData?.launchSpeed && (
                 <div className="pbp-ab-hitdata">
                   EV {lastPitch.hitData.launchSpeed.toFixed(0)} mph
-                  {lastPitch.hitData.launchAngle ? ` · LA ${lastPitch.hitData.launchAngle.toFixed(0)}°` : ''}
-                  {lastPitch.hitData.totalDistance ? ` · ${lastPitch.hitData.totalDistance.toFixed(0)} ft` : ''}
+                  {lastPitch.hitData.launchAngle ? ` Â· LA ${lastPitch.hitData.launchAngle.toFixed(0)}Â°` : ''}
+                  {lastPitch.hitData.totalDistance ? ` Â· ${lastPitch.hitData.totalDistance.toFixed(0)} ft` : ''}
                 </div>
               )}
             </div>
@@ -308,9 +302,9 @@ const BaseballPBP = ({ gamePk, game }) => {
   );
 };
 
-/* ══════════════════════════════════════════════════════════════
-   FOOTBALL PBP — ESPN API
-══════════════════════════════════════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   FOOTBALL PBP â€” ESPN API
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 const FootballPBP = ({ eventId, sport, game }) => {
   const [data, setData]   = useState(null);
   const [error, setError] = useState(null);
@@ -335,7 +329,7 @@ const FootballPBP = ({ eventId, sport, game }) => {
   }, [fetchData]);
 
   if (error) return <div className="pbp-error">Could not load data: {error}</div>;
-  if (!data)  return <div className="pbp-loading">Loading play-by-play…</div>;
+  if (!data)  return <div className="pbp-loading">Loading play-by-playâ€¦</div>;
 
   const header   = data.header;
   const comps    = header?.competitions?.[0];
@@ -384,7 +378,7 @@ const FootballPBP = ({ eventId, sport, game }) => {
             <div className="pbp-situation-item">
               <span className="pbp-sit-label">Possession</span>
               <span className="pbp-sit-val">
-                {comps?.competitors?.find(c=>c.team?.id===situation.possession)?.team?.abbreviation || '—'}
+                {comps?.competitors?.find(c=>c.team?.id===situation.possession)?.team?.abbreviation || 'â€”'}
               </span>
             </div>
           )}
@@ -394,7 +388,7 @@ const FootballPBP = ({ eventId, sport, game }) => {
       {/* Current drive */}
       {curDrive && (
         <div className="pbp-current-drive">
-          <div className="pbp-section-label">Current Drive — {curDrive.team?.abbreviation}</div>
+          <div className="pbp-section-label">Current Drive â€” {curDrive.team?.abbreviation}</div>
           <div className="pbp-drive-summary">
             {curDrive.yardLine && <span>{curDrive.yards || 0} yds</span>}
             {curDrive.plays?.length && <span>{curDrive.plays.length} plays</span>}
@@ -417,7 +411,7 @@ const FootballPBP = ({ eventId, sport, game }) => {
           <div key={i} className={`pbp-play-row ${p.scoringPlay?'pbp-scoring':''}`}>
             <span className="pbp-play-clock">{p.period?.number && `Q${p.period.number}`} {p.clock?.displayValue}</span>
             <span className="pbp-play-text">{p.text || p.type?.text}</span>
-            {p.scoringPlay && <span className="pbp-play-score-badge">⭐ Score</span>}
+            {p.scoringPlay && <span className="pbp-play-score-badge">â­ Score</span>}
           </div>
         ))}
         {plays.length === 0 && <p className="pbp-empty">No plays yet.</p>}
@@ -426,9 +420,9 @@ const FootballPBP = ({ eventId, sport, game }) => {
   );
 };
 
-/* ══════════════════════════════════════════════════════════════
-   BASKETBALL PBP — ESPN API
-══════════════════════════════════════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   BASKETBALL PBP â€” ESPN API
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 const BasketballPBP = ({ eventId, sport, game }) => {
   const [data, setData]   = useState(null);
   const [error, setError] = useState(null);
@@ -445,7 +439,7 @@ const BasketballPBP = ({ eventId, sport, game }) => {
   useEffect(() => { fetchData(); intervalRef.current = setInterval(fetchData, 15000); return ()=>clearInterval(intervalRef.current); }, [fetchData]);
 
   if (error) return <div className="pbp-error">Could not load data: {error}</div>;
-  if (!data)  return <div className="pbp-loading">Loading…</div>;
+  if (!data)  return <div className="pbp-loading">Loadingâ€¦</div>;
 
   const comps   = data.header?.competitions?.[0];
   const home    = comps?.competitors?.find(c=>c.homeAway==='home');
@@ -491,9 +485,9 @@ const BasketballPBP = ({ eventId, sport, game }) => {
   );
 };
 
-/* ══════════════════════════════════════════════════════════════
-   HOCKEY PBP — ESPN API
-══════════════════════════════════════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   HOCKEY PBP â€” ESPN API
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 const HockeyPBP = ({ eventId, game }) => {
   const [data, setData]   = useState(null);
   const [error, setError] = useState(null);
@@ -510,7 +504,7 @@ const HockeyPBP = ({ eventId, game }) => {
   useEffect(() => { fetchData(); intervalRef.current = setInterval(fetchData, 15000); return ()=>clearInterval(intervalRef.current); }, [fetchData]);
 
   if (error) return <div className="pbp-error">Could not load data: {error}</div>;
-  if (!data)  return <div className="pbp-loading">Loading…</div>;
+  if (!data)  return <div className="pbp-loading">Loadingâ€¦</div>;
 
   const comps  = data.header?.competitions?.[0];
   const home   = comps?.competitors?.find(c=>c.homeAway==='home');
@@ -535,8 +529,8 @@ const HockeyPBP = ({ eventId, game }) => {
             <div key={i} className={`pbp-play-row ${isGoal?'pbp-scoring':''} ${isPenalty?'pbp-foul':''} ${isShot?'pbp-shot':''}`}>
               <span className="pbp-play-clock">P{p.period?.number} {p.clock?.displayValue}</span>
               <span className="pbp-play-text">{p.text}</span>
-              {isGoal && <span className="pbp-play-score-badge">🚨 GOAL</span>}
-              {isPenalty && <span className="pbp-play-penalty-badge">🔲 PEN</span>}
+              {isGoal && <span className="pbp-play-score-badge">ðŸš¨ GOAL</span>}
+              {isPenalty && <span className="pbp-play-penalty-badge">ðŸ”² PEN</span>}
             </div>
           );
         })}
@@ -546,9 +540,9 @@ const HockeyPBP = ({ eventId, game }) => {
   );
 };
 
-/* ══════════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    MAIN COMPONENT
-══════════════════════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 const PlayByPlay = ({ game, sport, onBack }) => {
   const isBaseball = sport === 'mlb' || sport.startsWith('milb_') || sport === 'cbb';
   const isFootball = sport === 'nfl' || sport === 'cfb';
@@ -561,7 +555,7 @@ const PlayByPlay = ({ game, sport, onBack }) => {
 
   return (
     <div className="pbp-wrapper">
-      <button className="pbp-back neon-button" onClick={onBack}>← Back to Scores</button>
+      <button className="pbp-back neon-button" onClick={onBack}>â† Back to Scores</button>
 
       <div className="pbp-game-header">
         <span className="pbp-game-sport">{sport.toUpperCase()}</span>
