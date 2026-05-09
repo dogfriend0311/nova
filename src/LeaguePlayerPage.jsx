@@ -9,9 +9,9 @@ const toSpotifyEmbed = (url) => {
 
 const safe = (n) => parseFloat(n) || 0;
 const safeInt = (n) => parseInt(n) || 0;
-const fmt = (n, decimals = 2) => isNaN(n) || !isFinite(n) ? '—' : Number(n).toFixed(decimals);
+const fmt = (n, decimals = 2) => isNaN(n) || !isFinite(n) ? 'â€”' : Number(n).toFixed(decimals);
 
-// ── Savant Card ─────────────────────────────────────────────────────────────
+// â”€â”€ Savant Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const SavantCard = ({ player }) => {
   const pctColor = (p) => {
     const n = parseFloat(p);
@@ -29,7 +29,7 @@ const SavantCard = ({ player }) => {
       <div className="sv-bar-item">
         <div className="sv-bar-header">
           <span className="sv-bar-label">{label}</span>
-          <span className="sv-bar-val" style={{ color }}>{value || '—'}</span>
+          <span className="sv-bar-val" style={{ color }}>{value || 'â€”'}</span>
         </div>
         <div className="sv-bar-track">
           <div className="sv-bar-fill" style={{ width: `${Math.min(Math.max(p, 0), 100)}%`, background: color }} />
@@ -58,13 +58,13 @@ const SavantCard = ({ player }) => {
   return (
     <div className="savant-card neon-card">
       <div className="sv-header">
-        <h3 className="gradient-text-cyan">⭐ Savant Card</h3>
+        <h3 className="gradient-text-cyan">â­ Savant Card</h3>
         <span className="sv-subtitle">Percentile Rankings</span>
       </div>
       <div className="sv-legend">
-        <span style={{ color: '#ff4d4d' }}>● POOR</span>
-        <span style={{ color: '#ffd700' }}>● AVERAGE</span>
-        <span style={{ color: '#00d4f5' }}>● GREAT</span>
+        <span style={{ color: '#ff4d4d' }}>â— POOR</span>
+        <span style={{ color: '#ffd700' }}>â— AVERAGE</span>
+        <span style={{ color: '#00d4f5' }}>â— GREAT</span>
       </div>
       {batting.length > 0 && (
         <>
@@ -105,7 +105,7 @@ const StatSection = ({ title, color, stats, isCareer, onToggle }) => (
   </div>
 );
 
-const LeaguePlayerPage = ({ player, onBack }) => {
+const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
   const [toggles, setToggles] = useState({
     hitBasic: false,
     hitAdv: false,
@@ -120,7 +120,7 @@ const LeaguePlayerPage = ({ player, onBack }) => {
       <div className="league-player-page">
         <div className="neon-card p-3" style={{ textAlign: 'center' }}>
           <p style={{ color: 'rgba(192,208,255,0.6)' }}>No player selected.</p>
-          {onBack && <button className="neon-button" style={{ marginTop: '15px' }} onClick={onBack}>← Back</button>}
+          {onBack && <button className="neon-button" style={{ marginTop: '15px' }} onClick={onBack}>â† Back</button>}
         </div>
       </div>
     );
@@ -144,10 +144,10 @@ const LeaguePlayerPage = ({ player, onBack }) => {
   const sER  = playerScores.reduce((s, b) => s + safeInt(b.earned_runs), 0)        + safeInt(player.season_earned_runs);
   const sG   = safeInt(player.season_g) || playerScores.length;
   const sAB  = safeInt(player.season_ab);
-  const sAVG = player.season_avg || (sAB > 0 ? (sH/sAB).toFixed(3) : '—');
-  const sOBP = player.season_obp || '—';
-  const sSLG = player.season_slg || '—';
-  const sOPS = player.season_ops || '—';
+  const sAVG = player.season_avg || (sAB > 0 ? (sH/sAB).toFixed(3) : 'â€”');
+  const sOBP = player.season_obp || 'â€”';
+  const sSLG = player.season_slg || 'â€”';
+  const sOPS = player.season_ops || 'â€”';
 
   // Career aggregates (career base stats from dashboard)
   const cH   = safeInt(player.hits)   || sH;
@@ -161,15 +161,15 @@ const LeaguePlayerPage = ({ player, onBack }) => {
   const cER  = safeInt(player.earned_runs) || sER;
   const cG   = safeInt(player.career_g) || sG;
   const cAB  = safeInt(player.career_ab) || sAB;
-  const cAVG = player.career_avg || (cAB > 0 ? (cH/cAB).toFixed(3) : '—');
-  const cOBP = player.career_obp || '—';
-  const cSLG = player.career_slg || '—';
-  const cOPS = player.career_ops || '—';
+  const cAVG = player.career_avg || (cAB > 0 ? (cH/cAB).toFixed(3) : 'â€”');
+  const cOBP = player.career_obp || 'â€”';
+  const cSLG = player.career_slg || 'â€”';
+  const cOPS = player.career_ops || 'â€”';
 
   // Build stat rows
   const hitBasicSeason = [
     { label: 'G',   value: sG },
-    { label: 'AB',  value: sAB || '—' },
+    { label: 'AB',  value: sAB || 'â€”' },
     { label: 'AVG', value: sAVG },
     { label: 'OBP', value: sOBP },
     { label: 'SLG', value: sSLG },
@@ -179,12 +179,12 @@ const LeaguePlayerPage = ({ player, onBack }) => {
     { label: 'RBI', value: sRBI },
     { label: 'HR',  value: sHR },
     { label: 'K',   value: sSO },
-    { label: 'BB',  value: player.season_bb || '—' },
-    { label: 'SB',  value: player.season_sb || '—' },
+    { label: 'BB',  value: player.season_bb || 'â€”' },
+    { label: 'SB',  value: player.season_sb || 'â€”' },
   ];
   const hitBasicCareer = [
     { label: 'G',   value: cG },
-    { label: 'AB',  value: cAB || '—' },
+    { label: 'AB',  value: cAB || 'â€”' },
     { label: 'AVG', value: cAVG },
     { label: 'OBP', value: cOBP },
     { label: 'SLG', value: cSLG },
@@ -194,24 +194,24 @@ const LeaguePlayerPage = ({ player, onBack }) => {
     { label: 'RBI', value: cRBI },
     { label: 'HR',  value: cHR },
     { label: 'K',   value: cSO },
-    { label: 'BB',  value: player.career_bb || '—' },
-    { label: 'SB',  value: player.career_sb || '—' },
+    { label: 'BB',  value: player.career_bb || 'â€”' },
+    { label: 'SB',  value: player.career_sb || 'â€”' },
   ];
 
   const sGP = Math.max(gamesPlayed, sH > 0 || sR > 0 || sHR > 0 ? 1 : 0);
   const hitAdvSeason = [
-    { label: 'H / Game',   value: player.adv_s_h_per_game   || (sGP ? fmt(sH   / sGP) : '—') },
-    { label: 'R / Game',   value: player.adv_s_r_per_game   || (sGP ? fmt(sR   / sGP) : '—') },
-    { label: 'RBI / Game', value: player.adv_s_rbi_per_game || (sGP ? fmt(sRBI / sGP) : '—') },
-    { label: 'HR / Game',  value: player.adv_s_hr_per_game  || (sGP ? fmt(sHR  / sGP) : '—') },
-    { label: 'K / Game',   value: player.adv_s_k_per_game   || (sGP ? fmt(sSO  / sGP) : '—') },
+    { label: 'H / Game',   value: player.adv_s_h_per_game   || (sGP ? fmt(sH   / sGP) : 'â€”') },
+    { label: 'R / Game',   value: player.adv_s_r_per_game   || (sGP ? fmt(sR   / sGP) : 'â€”') },
+    { label: 'RBI / Game', value: player.adv_s_rbi_per_game || (sGP ? fmt(sRBI / sGP) : 'â€”') },
+    { label: 'HR / Game',  value: player.adv_s_hr_per_game  || (sGP ? fmt(sHR  / sGP) : 'â€”') },
+    { label: 'K / Game',   value: player.adv_s_k_per_game   || (sGP ? fmt(sSO  / sGP) : 'â€”') },
   ];
   const hitAdvCareer = [
-    { label: 'H / Game',   value: player.adv_h_per_game   || (gamesPlayed ? fmt(cH   / gamesPlayed) : '—') },
-    { label: 'R / Game',   value: player.adv_r_per_game   || (gamesPlayed ? fmt(cR   / gamesPlayed) : '—') },
-    { label: 'RBI / Game', value: player.adv_rbi_per_game || (gamesPlayed ? fmt(cRBI / gamesPlayed) : '—') },
-    { label: 'HR / Game',  value: player.adv_hr_per_game  || (gamesPlayed ? fmt(cHR  / gamesPlayed) : '—') },
-    { label: 'K / Game',   value: player.adv_k_per_game   || (gamesPlayed ? fmt(cSO  / gamesPlayed) : '—') },
+    { label: 'H / Game',   value: player.adv_h_per_game   || (gamesPlayed ? fmt(cH   / gamesPlayed) : 'â€”') },
+    { label: 'R / Game',   value: player.adv_r_per_game   || (gamesPlayed ? fmt(cR   / gamesPlayed) : 'â€”') },
+    { label: 'RBI / Game', value: player.adv_rbi_per_game || (gamesPlayed ? fmt(cRBI / gamesPlayed) : 'â€”') },
+    { label: 'HR / Game',  value: player.adv_hr_per_game  || (gamesPlayed ? fmt(cHR  / gamesPlayed) : 'â€”') },
+    { label: 'K / Game',   value: player.adv_k_per_game   || (gamesPlayed ? fmt(cSO  / gamesPlayed) : 'â€”') },
   ];
 
   const pitchBasicSeason = [
@@ -230,10 +230,10 @@ const LeaguePlayerPage = ({ player, onBack }) => {
   ];
 
   const calcAdv = (ip, er, k, ha) => ({
-    era:  ip > 0 ? fmt((er / ip) * 9) : '—',
-    k9:   ip > 0 ? fmt((k  / ip) * 9) : '—',
-    h9:   ip > 0 ? fmt((ha / ip) * 9) : '—',
-    kPer: ip > 0 ? fmt(k / (ip / 9)) : '—',
+    era:  ip > 0 ? fmt((er / ip) * 9) : 'â€”',
+    k9:   ip > 0 ? fmt((k  / ip) * 9) : 'â€”',
+    h9:   ip > 0 ? fmt((ha / ip) * 9) : 'â€”',
+    kPer: ip > 0 ? fmt(k / (ip / 9)) : 'â€”',
   });
 
   const sAdv = calcAdv(sIP, sER, sKP, sHA);
@@ -243,15 +243,15 @@ const LeaguePlayerPage = ({ player, onBack }) => {
     { label: 'ERA',        value: player.adv_s_era || sAdv.era },
     { label: 'K/9',        value: player.adv_s_k9  || sAdv.k9 },
     { label: 'H/9',        value: player.adv_s_h9  || sAdv.h9 },
-    { label: 'K Per Game', value: gamesPitched ? fmt(sKP / gamesPitched) : '—' },
-    { label: 'ER/9',       value: player.adv_s_er9 || (sIP > 0 ? fmt((sER / sIP) * 9) : '—') },
+    { label: 'K Per Game', value: gamesPitched ? fmt(sKP / gamesPitched) : 'â€”' },
+    { label: 'ER/9',       value: player.adv_s_er9 || (sIP > 0 ? fmt((sER / sIP) * 9) : 'â€”') },
   ];
   const pitchAdvCareer = [
     { label: 'ERA',        value: player.adv_era || cAdv.era },
     { label: 'K/9',        value: player.adv_k9  || cAdv.k9 },
     { label: 'H/9',        value: player.adv_h9  || cAdv.h9 },
-    { label: 'K Per Game', value: gamesPitched ? fmt(cKP / gamesPitched) : '—' },
-    { label: 'ER/9',       value: player.adv_er9 || (cIP > 0 ? fmt((cER / cIP) * 9) : '—') },
+    { label: 'K Per Game', value: gamesPitched ? fmt(cKP / gamesPitched) : 'â€”' },
+    { label: 'ER/9',       value: player.adv_er9 || (cIP > 0 ? fmt((cER / cIP) * 9) : 'â€”') },
   ];
 
   const avatarSrc = player.avatar_data || null;
@@ -260,29 +260,29 @@ const LeaguePlayerPage = ({ player, onBack }) => {
     <div className="league-player-page">
       {onBack && (
         <button className="neon-button" style={{ marginBottom: '20px', fontSize: '0.9rem' }} onClick={onBack}>
-          ← Back to League
+          â† Back to League
         </button>
       )}
 
       <div className="player-container">
-        {/* LEFT — Trading Card */}
+        {/* LEFT â€” Trading Card */}
         <div className="player-card neon-card">
           <div className="card-avatar">
             {avatarSrc ? (
               <img src={avatarSrc} alt={player.player_name} />
             ) : (
-              <div className="avatar-placeholder">🎮</div>
+              <div className="avatar-placeholder">ðŸŽ®</div>
             )}
           </div>
 
           <div className="card-content">
             <h2 className="card-name">{player.player_name}</h2>
             <div className="card-team">{player.team || 'Free Agent'}</div>
-            <div className="card-position">{player.position || '—'}</div>
+            <div className="card-position">{player.position || 'â€”'}</div>
 
             <div className="card-overall">
               <span className="label">Overall</span>
-              <span className="value">{player.overall || '—'}</span>
+              <span className="value">{player.overall || 'â€”'}</span>
             </div>
 
             {player.number && (
@@ -296,7 +296,7 @@ const LeaguePlayerPage = ({ player, onBack }) => {
 
             {player.spotify_url && (
               <div className="card-spotify">
-                <div className="spotify-label">🎵 Favorite Song</div>
+                <div className="spotify-label">ðŸŽµ Favorite Song</div>
                 <iframe
                   title="Spotify player"
                   src={toSpotifyEmbed(player.spotify_url)}
@@ -311,7 +311,7 @@ const LeaguePlayerPage = ({ player, onBack }) => {
           </div>
         </div>
 
-        {/* RIGHT — Stats */}
+        {/* RIGHT â€” Stats */}
         <div className="player-stats">
           <SavantCard player={player} />
           <StatSection
@@ -346,7 +346,7 @@ const LeaguePlayerPage = ({ player, onBack }) => {
           {/* Game Log */}
           {playerScores.length > 0 && (
             <div className="stats-section neon-card">
-              <h3 className="gradient-text-cyan" style={{ marginBottom: '15px' }}>📋 Game Log</h3>
+              <h3 className="gradient-text-cyan" style={{ marginBottom: '15px' }}>ðŸ“‹ Game Log</h3>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                   <thead>
