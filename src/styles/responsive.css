@@ -579,3 +579,181 @@
     color: black;
   }
 }
+
+/* ── Nova Mobile Fixes ───────────────────────────────────────── */
+
+/* Dashboard section rows → stack vertically on mobile */
+@media (max-width: 768px) {
+  .dashboard-section {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .section-label {
+    border-right: none;
+    border-bottom: 1px solid rgba(0,255,255,0.1);
+    width: 100%;
+    min-width: unset;
+  }
+  .dashboard-tabs {
+    padding: 8px;
+    gap: 6px;
+  }
+  .tab {
+    padding: 7px 10px;
+    font-size: 0.78rem;
+  }
+  .teams-grid {
+    grid-template-columns: 1fr;
+  }
+  .hof-grid {
+    grid-template-columns: 1fr;
+  }
+  .edit-form {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* League player page - stack left/right panels */
+  .lp-layout {
+    flex-direction: column !important;
+    gap: 20px !important;
+  }
+  .lp-card-col, .lp-stats-col {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* NABB/RBML tabs - scrollable */
+  .league-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .league-tabs::-webkit-scrollbar { display: none; }
+  .league-tab {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Leagues switcher */
+  .leagues-switcher {
+    gap: 8px;
+    padding: 12px 12px 0;
+  }
+  .league-switch-btn {
+    padding: 8px 16px;
+    font-size: 0.9rem;
+  }
+
+  /* Sports hub score cards */
+  .score-card {
+    padding: 12px !important;
+  }
+
+  /* Play-by-play on mobile */
+  .pbp-scoreboard {
+    gap: 12px;
+    padding: 14px 12px;
+  }
+  .pbp-score {
+    font-size: 1.8rem;
+  }
+  .pbp-live-row {
+    flex-direction: column;
+  }
+  .pbp-zone {
+    width: 150px;
+    height: 150px;
+  }
+
+  /* Compare tab - stack VS */
+  .compare-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  /* Owner dashboard header */
+  .dashboard-header {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start !important;
+  }
+  .header-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Roster grid - stack */
+  .roster-grid-2col {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Member profile banners */
+  .profile-banners {
+    flex-direction: column;
+  }
+
+  /* Box score table - scrollable */
+  .box-score-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Game feed event buttons */
+  .feed-events-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+
+  /* Line score */
+  .pbp-linescore-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Tighter padding everywhere */
+  .main-content {
+    padding: 12px 8px !important;
+  }
+
+  /* League tabs font smaller */
+  .league-tab {
+    font-size: 0.78rem;
+    padding: 7px 10px;
+  }
+
+  /* Player cards in league */
+  .player-card-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Stat grid tighter */
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 6px !important;
+  }
+
+  /* Compare VS label hide on very small */
+  .compare-vs-label {
+    display: none;
+  }
+
+  /* Dashboard tabs wrap tighter */
+  .tab {
+    padding: 6px 8px;
+    font-size: 0.74rem;
+  }
+
+  /* Form fields full width */
+  .form-field {
+    grid-column: 1 / -1;
+  }
+
+  /* Navbar logo text smaller */
+  .navbar-logo h1 {
+    font-size: 14px;
+    letter-spacing: 1px;
+  }
+}

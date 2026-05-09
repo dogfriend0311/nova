@@ -41,7 +41,7 @@ export const db = {
         if (!error) { _syncLs(league, 'teams', data[0], 'add'); return data[0]; }
       } else {
         const { data, error } = await supabase.from('nova_teams')
-          .update(record).eq('id', team.id).select();
+          .update({ ...record, id: undefined }).eq('id', team.id).select();
         if (!error) { _syncLs(league, 'teams', data[0], 'update'); return data[0]; }
       }
     }
@@ -86,8 +86,10 @@ export const db = {
         const { data, error } = await supabase.from('nova_players').insert([record]).select();
         if (!error) { _syncLs(league, 'players', data[0], 'add'); return data[0]; }
       } else {
+        const updateRecord = { ...record };
+        delete updateRecord.id;
         const { data, error } = await supabase.from('nova_players')
-          .update(record).eq('id', player.id).select();
+          .update(updateRecord).eq('id', player.id).select();
         if (!error) { _syncLs(league, 'players', data[0], 'update'); return data[0]; }
       }
     }
@@ -132,7 +134,7 @@ export const db = {
         if (!error) { _syncLs(league, 'games', data[0], 'add'); return data[0]; }
       } else {
         const { data, error } = await supabase.from('nova_games')
-          .update(record).eq('id', game.id).select();
+          .update({ ...record, id: undefined }).eq('id', game.id).select();
         if (!error) { _syncLs(league, 'games', data[0], 'update'); return data[0]; }
       }
     }
@@ -175,7 +177,7 @@ export const db = {
         const { data, error } = await supabase.from('nova_bs_games').insert([record]).select();
         if (!error) { _syncLs(league, 'bs_games', data[0], 'add'); return data[0]; }
       } else {
-        const { data, error } = await supabase.from('nova_bs_games').update(record).eq('id', game.id).select();
+        const { data, error } = await supabase.from('nova_bs_games').update({ ...record, id: undefined }).eq('id', game.id).select();
         if (!error) { _syncLs(league, 'bs_games', data[0], 'update'); return data[0]; }
       }
     }
@@ -221,7 +223,7 @@ export const db = {
         const { data, error } = await supabase.from('nova_box_scores').insert([record]).select();
         if (!error) { _syncLs(league, 'box_scores', data[0], 'add'); return data[0]; }
       } else {
-        const { data, error } = await supabase.from('nova_box_scores').update(record).eq('id', score.id).select();
+        const { data, error } = await supabase.from('nova_box_scores').update({ ...record, id: undefined }).eq('id', score.id).select();
         if (!error) { _syncLs(league, 'box_scores', data[0], 'update'); return data[0]; }
       }
     }

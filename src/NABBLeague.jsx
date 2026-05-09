@@ -593,9 +593,12 @@ const BoxScoresTab = () => {
 
 const CompareTab = () => {
   const [players, setPlayers] = useState([]);
-  useEffect(() => { db.getPlayers('nabb').then(setPlayers); }, []);
   const [teams, setTeams] = useState([]);
-  useEffect(() => { db.getTeams('nabb').then(setTeams); }, []);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    Promise.all([db.getPlayers('nabb'), db.getTeams('nabb')])
+      .then(([p, t]) => { setPlayers(p); setTeams(t); setLoading(false); });
+  }, []);
   const [idA, setIdA] = useState('');
   const [idB, setIdB] = useState('');
   const [mode, setMode] = useState('career');
@@ -648,6 +651,9 @@ const CompareTab = () => {
     border: `1px solid ${border}55`, color: '#c0d0ff',
     borderRadius: '8px', fontSize: '0.88rem', width: '100%', cursor: 'pointer',
   });
+
+  if (loading) return <p style={{ color: 'rgba(192,208,255,0.5)', padding: '20px', textAlign: 'center' }}>Loading players...</p>;
+  if (players.length === 0) return <p style={{ color: 'rgba(192,208,255,0.5)', padding: '20px', textAlign: 'center' }}>No players found. Add players in the dashboard first.</p>;
 
   return (
     <div>

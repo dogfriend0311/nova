@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import db from '../../services/db';
 import './NABBRosters.css';
 
 const isColorDark = (color) => {
@@ -17,11 +18,11 @@ const NABBRosters = () => {
   const [selectedTeam, setSelectedTeam] = useState(null);
 
   useEffect(() => {
-    const loadedTeams = JSON.parse(localStorage.getItem('nabb_teams') || '[]');
-    const loadedPlayers = JSON.parse(localStorage.getItem('nabb_players') || '[]');
-    setTeams(loadedTeams);
-    setPlayers(loadedPlayers);
-    if (loadedTeams.length > 0) setSelectedTeam(loadedTeams[0]);
+    Promise.all([db.getTeams('nabb'), db.getPlayers('nabb')]).then(([t, p]) => {
+      setTeams(t);
+      setPlayers(p);
+      if (t.length > 0) setSelectedTeam(t[0]);
+    });
   }, []);
 
   const teamPlayers = selectedTeam
