@@ -575,8 +575,8 @@ const CompareTab = ({ onSelectPlayer }) => {
   const getTeamColor = (name) => teams.find(t => t.team_name === name)?.team_color || null;
 
   // ── Player stats ──────────────────────────────────────────────
-  const pA = players.find(p => p.id === idA);
-  const pB = players.find(p => p.id === idB);
+  const pA = players.find(p => String(p.id) === String(idA));
+  const pB = players.find(p => String(p.id) === String(idB));
   const colorA = (pA && getTeamColor(pA.team)) || '#00ffff';
   const colorB = (pB && getTeamColor(pB.team)) || '#ff00ff';
 
@@ -631,8 +631,8 @@ const CompareTab = ({ onSelectPlayer }) => {
   };
 
   // ── Team stats (aggregate all players on that team) ───────────
-  const teamA_obj = teams.find(t => t.id === idA);
-  const teamB_obj = teams.find(t => t.id === idB);
+  const teamA_obj = teams.find(t => String(t.id) === String(idA));
+  const teamB_obj = teams.find(t => String(t.id) === String(idB));
   const colorTA = teamA_obj?.team_color || '#00ffff';
   const colorTB = teamB_obj?.team_color || '#ff00ff';
 
@@ -697,12 +697,12 @@ const CompareTab = ({ onSelectPlayer }) => {
           {compareMode === 'player' ? (
             <select value={idA} onChange={e=>setIdA(e.target.value)} style={selSty(colorA)}>
               <option value="">Select player…</option>
-              {players.map(p=><option key={p.id} value={p.id}>{p.player_name}{p.team?` (${p.team})`:''} OVR {p.overall}</option>)}
+              {players.map(p=><option key={p.id} value={String(p.id)}>{p.player_name}{p.team?` (${p.team})`:''} OVR {p.overall}</option>)}
             </select>
           ) : (
             <select value={idA} onChange={e=>setIdA(e.target.value)} style={selSty(colorTA)}>
               <option value="">Select team…</option>
-              {teams.map(t=><option key={t.id} value={t.id}>{t.team_name}</option>)}
+              {teams.map(t=><option key={t.id} value={String(t.id)}>{t.team_name}</option>)}
             </select>
           )}
         </div>
@@ -712,12 +712,12 @@ const CompareTab = ({ onSelectPlayer }) => {
           {compareMode === 'player' ? (
             <select value={idB} onChange={e=>setIdB(e.target.value)} style={selSty(colorB)}>
               <option value="">Select player…</option>
-              {players.map(p=><option key={p.id} value={p.id}>{p.player_name}{p.team?` (${p.team})`:''} OVR {p.overall}</option>)}
+              {players.map(p=><option key={p.id} value={String(p.id)}>{p.player_name}{p.team?` (${p.team})`:''} OVR {p.overall}</option>)}
             </select>
           ) : (
             <select value={idB} onChange={e=>setIdB(e.target.value)} style={selSty(colorTB)}>
               <option value="">Select team…</option>
-              {teams.map(t=><option key={t.id} value={t.id}>{t.team_name}</option>)}
+              {teams.map(t=><option key={t.id} value={String(t.id)}>{t.team_name}</option>)}
             </select>
           )}
         </div>

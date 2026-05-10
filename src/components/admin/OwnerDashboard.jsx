@@ -689,7 +689,7 @@ const LeagueBoxScoresTab = ({ prefix }) => {
               </tr></thead>
               <tbody>
                 {gameScores.map(score => {
-                  const player = players.find(p => p.id === score.player_id);
+                  const player = players.find(p => String(p.id) === String(score.player_id));
                   return (
                     <tr key={score.id} style={{ borderBottom:'1px solid rgba(0,255,255,0.05)' }}>
                       <td style={{ padding:'8px', color:'var(--color-cyan)' }}>{player?.player_name||'?'}</td>
@@ -783,7 +783,7 @@ const LeagueGameFeedTab = ({ prefix }) => {
 
   const logEvent = async () => {
     if (!selectedPlayer || !selectedEvent) return;
-    const player = players.find(p => p.id === selectedPlayer);
+    const player = players.find(p => String(p.id) === String(selectedPlayer));
     const saved = await db.addFeedEvent(prefix, { game_id: selectedGame.id, player_id: selectedPlayer, player_name: player?.player_name, team: player?.team, event_type: selectedEvent });
     setFeed(prev => [...prev, saved]);
     setSelectedPlayer(null); setSelectedEvent('');
