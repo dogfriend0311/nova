@@ -316,11 +316,11 @@ const WatchList = () => {
   const [activeTab,    setActiveTab]    = useState('mylist');
 
   useEffect(() => {
-    if (user?.username) setList(getWatchList(user.username));
+    if (user?.username) getWatchList(user.username).then(data => setList(Array.isArray(data) ? data : []));
   }, [user]);
 
   const persist = useCallback((newList) => {
-    setList(newList);
+    setList(Array.isArray(newList) ? newList : []);
     if (user?.username) saveWatchList(user.username, newList);
   }, [user]);
 

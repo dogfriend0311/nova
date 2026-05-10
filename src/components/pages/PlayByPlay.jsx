@@ -144,8 +144,13 @@ const BaseballPBP = ({ gamePk, game }) => {
   const fetchFeed = useCallback(async () => {
     if (!resolvedPk) return;
     try {
-      const r = await fetch(`${MLB_API}/game/${resolvedPk}/feed/live`);
-      if (!r.ok) throw new Error(`Game not found in MLB Stats API (${r.status}). Try clicking a live MLB game from the Scores page.`);
+      // Try MLB first, then MiLB endpoint
+      let r = await fetch(`${MLB_API}/game/${resolvedPk}/feed/live`);
+      if (r.status === 404) {
+        // Try with different sport context
+        r = await fetch(`https://statsapi.mlb.com/api/v1.1/game/${resolvedPk}/feed/live`);
+      }
+      if (!r.ok) throw new Error(`Live feed unavailable (${r.status}). This game may not have live data yet — try during an active game.`);
       const d = await r.json();
       setFeed(d);
     } catch (e) {

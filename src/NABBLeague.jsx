@@ -605,8 +605,18 @@ const CompareTab = ({ onSelectPlayer }) => {
   const getVal = (p, label, sKey, cKey) => {
     if (!p) return null;
     const raw = mode === 'season' ? p[sKey] : p[cKey];
+    // Supabase returns null for unset fields
     if (raw === null || raw === undefined || raw === '') return '—';
-    return raw;
+    // Show the value as-is (string stats like AVG show '0.000', counts show '0')
+    return String(raw);
+  };
+
+  const hasAnyStats = (p) => {
+    if (!p) return false;
+    const keys = mode === 'season'
+      ? ['season_hits','season_home_runs','season_rbis','season_avg','season_era']
+      : ['hits','home_runs','rbis','career_avg','career_era'];
+    return keys.some(k => p[k] !== null && p[k] !== undefined && p[k] !== '');
   };
 
   const numVal = (v) => {
@@ -764,6 +774,11 @@ const CompareTab = ({ onSelectPlayer }) => {
           )}
 
           {/* Stats table */}
+          {pA && pB && !hasAnyStats(pA) && !hasAnyStats(pB) && (
+            <div style={{ background:'rgba(255,160,0,0.08)', border:'1px solid rgba(255,160,0,0.3)', borderRadius:'8px', padding:'14px 18px', marginBottom:'16px', textAlign:'center' }}>
+              <p style={{ margin:0, color:'#ffaa00', fontSize:'0.85rem' }}>No stats found for these players. Enter stats in the Owner Dashboard → Players tab.</p>
+            </div>
+          )}
           {pA && pB ? (
             <div style={{ background:'rgba(10,10,30,0.8)', border:'1px solid rgba(100,120,200,0.13)', borderRadius:'10px', overflow:'hidden' }}>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 60px 1fr', background:'rgba(0,0,0,0.3)', padding:'10px 14px', borderBottom:'1px solid rgba(100,120,200,0.15)' }}>
