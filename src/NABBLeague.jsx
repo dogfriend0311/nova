@@ -685,8 +685,8 @@ const CompareTab = ({ onSelectPlayer }) => {
     <div>
       {/* Compare mode toggle */}
       <div style={{ display:'flex', justifyContent:'center', gap:'8px', marginBottom:'18px' }}>
-        <button style={{...btnSty(compareMode==='player')}} onClick={()=>{setCompareMode('player');setIdA('');setIdB('');}}> Players</button>
-        <button style={{...btnSty(compareMode==='team')}}   onClick={()=>{setCompareMode('team');setIdA('');setIdB('');}}> Teams</button>
+        <button style={...btnSty(compareMode==='player')} onClick={()=>{setCompareMode('player');setIdA('');setIdB('');}}> Players</button>
+        <button style={...btnSty(compareMode==='team')}   onClick={()=>{setCompareMode('team');setIdA('');setIdB('');}}> Teams</button>
       </div>
 
       {/* Selectors */}
@@ -694,12 +694,12 @@ const CompareTab = ({ onSelectPlayer }) => {
         <div>
           <label style={{ display:'block', fontSize:'0.72rem', color:'rgba(192,208,255,0.5)', marginBottom:'6px', textTransform:'uppercase' }}>{compareMode === 'player' ? 'Player A' : 'Team A'}</label>
           {compareMode === 'player' ? (
-            <select value={idA} onChange={e=>setIdA(e.target.value)} style={{selSty(colorA)}}>
+            <select value={idA} onChange={e=>setIdA(e.target.value)} style={selSty(colorA)}>
               <option value="">Select player…</option>
               {players.map(p=><option key={p.id} value={p.id}>{p.player_name}{p.team?` (${p.team})`:''} OVR {p.overall}</option>)}
             </select>
           ) : (
-            <select value={idA} onChange={e=>setIdA(e.target.value)} style={{selSty(colorTA)}}>
+            <select value={idA} onChange={e=>setIdA(e.target.value)} style={selSty(colorTA)}>
               <option value="">Select team…</option>
               {teams.map(t=><option key={t.id} value={t.id}>{t.team_name}</option>)}
             </select>
@@ -709,12 +709,12 @@ const CompareTab = ({ onSelectPlayer }) => {
         <div>
           <label style={{ display:'block', fontSize:'0.72rem', color:'rgba(192,208,255,0.5)', marginBottom:'6px', textTransform:'uppercase' }}>{compareMode === 'player' ? 'Player B' : 'Team B'}</label>
           {compareMode === 'player' ? (
-            <select value={idB} onChange={e=>setIdB(e.target.value)} style={{selSty(colorB)}}>
+            <select value={idB} onChange={e=>setIdB(e.target.value)} style={selSty(colorB)}>
               <option value="">Select player…</option>
               {players.map(p=><option key={p.id} value={p.id}>{p.player_name}{p.team?` (${p.team})`:''} OVR {p.overall}</option>)}
             </select>
           ) : (
-            <select value={idB} onChange={e=>setIdB(e.target.value)} style={{selSty(colorTB)}}>
+            <select value={idB} onChange={e=>setIdB(e.target.value)} style={selSty(colorTB)}>
               <option value="">Select team…</option>
               {teams.map(t=><option key={t.id} value={t.id}>{t.team_name}</option>)}
             </select>
@@ -725,7 +725,7 @@ const CompareTab = ({ onSelectPlayer }) => {
       {/* Mode + stat filter */}
       <div style={{ display:'flex', justifyContent:'center', gap:'8px', marginBottom:'10px', flexWrap:'wrap' }}>
         {['season','career'].map(m=>(
-          <button key={m} style={{...btnSty(mode===m)}} onClick={()=>setMode(m)}>{m}</button>
+          <button key={m} style={...btnSty(mode===m)} onClick={()=>setMode(m)}>{m}</button>
         ))}
       </div>
       {compareMode === 'player' && (
