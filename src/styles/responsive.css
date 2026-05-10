@@ -40,11 +40,14 @@
 
   .tab-label,
   .user-label {
-    display: none;
+    display: block;
+    font-size: 0.65rem;
   }
 
   .nav-tab {
-    padding: 10px 12px;
+    padding: 8px 10px;
+    flex-direction: column;
+    gap: 2px;
   }
 
   /* Sidebar */

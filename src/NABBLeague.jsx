@@ -130,151 +130,124 @@ const rosterColorDark = (color) => {
 };
 
 const RostersTab = ({ onSelectPlayer }) => {
-  const [teams, setTeams] = useState([]);
-  useEffect(() => { db.getTeams('nabb').then(setTeams); }, []);
+  const [teams, setTeams]     = useState([]);
   const [players, setPlayers] = useState([]);
-  useEffect(() => { db.getPlayers('nabb').then(setPlayers); }, []);
   const [selectedTeam, setSelectedTeam] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  if (selectedTeam) {
-    const color    = selectedTeam.team_color || '#00ffff';
-    const onColor  = rosterColorDark(color) ? '#ffffff' : '#111111';
-    const teamPlayers = players.filter(p => p.team === selectedTeam.team_name);
+  useEffect(() => {
+    Promise.all([db.getTeams('nabb'), db.getPlayers('nabb')])
+      .then(([t, p]) => { setTeams(t); setPlayers(p); setLoading(false); });
+  }, []);
 
-    return (
-      <div>
-        {/* Themed banner */}
-        <div style={{
-          borderRadius: '12px',
-          padding: '20px 24px',
-          marginBottom: '22px',
-          background: `linear-gradient(135deg, ${color}20 0%, #07071a 70%)`,
-          borderBottom: `3px solid ${color}`,
-          boxShadow: `0 4px 28px ${color}14`,
-        }}>
-          <button
-            className="neon-button"
-            style={{ marginBottom: '16px', fontSize: '0.85rem', borderColor: `${color}88`, color }}
-            onClick={() => setSelectedTeam(null)}
-          >
-            ← Back to Teams
-          </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
-            {selectedTeam.logo_url ? (
-              <img src={selectedTeam.logo_url} alt="logo" style={{ width: '68px', height: '68px', objectFit: 'contain', borderRadius: '8px', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }} />
-            ) : (
-              <div style={{ width: '68px', height: '68px', borderRadius: '8px', background: `${color}22`, border: `2px solid ${color}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>⚾</div>
-            )}
+  if (loading) return <p style={{ color:'rgba(192,208,255,0.5)', padding:'40px', textAlign:'center' }}>Loading...</p>;
+
+  if (!selectedTeam) return (
+    <div>
+      <h2 className="gradient-text-cyan">Rosters</h2>
+      <div className="card-container" style={{ marginTop:'20px' }}>
+        {teams.length === 0 && <p style={{ color:'rgba(192,208,255,0.5)' }}>No teams yet.</p>}
+        {teams.map(team => (
+          <div key={team.id} className="neon-card p-3" style={{ cursor:'pointer', display:'flex', alignItems:'center', gap:'16px' }}
+            onClick={()=>setSelectedTeam(team)}>
+            {team.logo_url
+              ? <img src={team.logo_url} alt={team.team_name} style={{ width:'44px', height:'44px', objectFit:'contain', borderRadius:'6px' }} />
+              : <div style={{ width:'44px', height:'44px', background:team.team_color, borderRadius:'6px', flexShrink:0 }} />
+            }
             <div>
-              <h3 style={{ margin: '0 0 5px', fontSize: '1.6rem', fontWeight: '900', color, letterSpacing: '1px' }}>
-                {selectedTeam.team_name}
-              </h3>
-              <p style={{ margin: 0, color: 'rgba(192,208,255,0.5)', fontSize: '0.88rem' }}>
-                {teamPlayers.length} player{teamPlayers.length !== 1 ? 's' : ''} on roster
+              <p style={{ margin:'0 0 3px', color:'var(--color-cyan)', fontWeight:700, fontSize:'1rem' }}>{team.team_name}</p>
+              <p style={{ margin:0, fontSize:'0.8rem', color:'rgba(192,208,255,0.5)' }}>
+                {players.filter(p=>p.team===team.team_name).length} players
               </p>
             </div>
           </div>
-        </div>
-
-        {teamPlayers.length === 0 ? (
-          <div className="neon-card p-3">
-            <p style={{ color: 'rgba(192,208,255,0.5)', textAlign: 'center' }}>No players on this roster yet</p>
-          </div>
-        ) : (
-          <div className="card-grid">
-            {teamPlayers.map(player => (
-              <div
-                key={player.id}
-                style={{
-                  background: `linear-gradient(160deg, ${color}0e 0%, rgba(8,8,26,0.95) 100%)`,
-                  border: `1px solid ${color}33`,
-                  borderTop: `3px solid ${color}`,
-                  borderRadius: '10px',
-                  padding: '14px',
-                  cursor: 'pointer',
-                  transition: 'transform 0.12s',
-                }}
-                onClick={() => {
-                  if (onSelectPlayer) {
-                      onSelectPlayer(player);
-                  }
-                }}
-                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = ''; }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <h4 style={{ margin: 0, color, fontWeight: '800' }}>{player.player_name}</h4>
-                  {player.number && (
-                    <span style={{ background: color, color: onColor, fontWeight: '800', fontSize: '0.75rem', padding: '2px 8px', borderRadius: '5px' }}>
-                      #{player.number}
-                    </span>
-                  )}
-                </div>
-                <div className="data-row">
-                  <span className="data-label">Position</span>
-                  <span className="data-value">{player.position || '—'}</span>
-                </div>
-                <div className="data-row">
-                  <span className="data-label">Overall</span>
-                  <span style={{ fontWeight: '800', color }}>{player.overall || '—'}</span>
-                </div>
-                <p style={{ marginTop: '10px', fontSize: '0.78rem', color: `${color}99`, textAlign: 'center' }}>Click to view stats →</p>
-              </div>
-            ))}
-          </div>
-        )}
+        ))}
       </div>
-    );
-  }
+    </div>
+  );
+
+  const teamPlayers = players.filter(p => p.team === selectedTeam.team_name);
+
+  // Aggregate team stats
+  const sum = (key) => teamPlayers.reduce((s,p) => s + (parseFloat(p[key])||0), 0);
+  const avg = (key) => {
+    const vals = teamPlayers.map(p=>parseFloat(p[key])).filter(v=>!isNaN(v)&&v>0);
+    return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(3) : '—';
+  };
+  const teamStats = [
+    {label:'Players', value: teamPlayers.length},
+    {label:'Avg OVR', value: teamPlayers.length ? Math.round(teamPlayers.reduce((s,p)=>s+(parseInt(p.overall)||0),0)/teamPlayers.length) : '—'},
+    {label:'Team AVG', value: avg('season_avg')},
+    {label:'Team OBP', value: avg('season_obp')},
+    {label:'Team SLG', value: avg('season_slg')},
+    {label:'Team OPS', value: avg('season_ops')},
+    {label:'Total H',  value: sum('season_hits')},
+    {label:'Total R',  value: sum('season_runs')},
+    {label:'Total HR', value: sum('season_home_runs')},
+    {label:'Total RBI',value: sum('season_rbis')},
+    {label:'Total SB', value: sum('season_sb')},
+    {label:'Team ERA', value: avg('season_era')},
+    {label:'Team WHIP',value: avg('season_whip')},
+    {label:'Total W',  value: sum('season_w')},
+    {label:'Total K',  value: sum('season_strikeouts_pitched')},
+    {label:'Total SV', value: sum('season_sv')},
+  ];
+
+  const teamColor = selectedTeam.team_color || 'var(--color-cyan)';
 
   return (
     <div>
-      {teams.length === 0 ? (
+      <button className="neon-button" onClick={()=>setSelectedTeam(null)} style={{ marginBottom:'20px' }}>← Back to Teams</button>
+      <div style={{ display:'flex', alignItems:'center', gap:'14px', marginBottom:'24px' }}>
+        {selectedTeam.logo_url
+          ? <img src={selectedTeam.logo_url} alt={selectedTeam.team_name} style={{ width:'52px', height:'52px', objectFit:'contain', borderRadius:'8px' }} />
+          : <div style={{ width:'52px', height:'52px', background:teamColor, borderRadius:'8px', flexShrink:0 }} />
+        }
+        <h2 style={{ margin:0, color:teamColor, fontWeight:900 }}>{selectedTeam.team_name}</h2>
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px' }}>
+        {/* LEFT: Roster list */}
         <div className="neon-card p-3">
-          <p style={{ color: 'rgba(192,208,255,0.5)', textAlign: 'center' }}>No teams created yet</p>
-        </div>
-      ) : (
-        <div className="card-grid">
-          {teams.map(team => {
-            const color = team.team_color || '#00ffff';
-            const teamPlayers = players.filter(p => p.team === team.team_name);
-            return (
-              <div
-                key={team.id}
-                style={{
-                  background: `linear-gradient(160deg, ${color}0a 0%, rgba(8,8,26,0.95) 100%)`,
-                  border: `1px solid ${color}2a`,
-                  borderTop: `3px solid ${color}`,
-                  borderRadius: '10px',
-                  padding: '16px',
-                  cursor: 'pointer',
-                  transition: 'transform 0.12s',
-                }}
-                onClick={() => setSelectedTeam(team)}
-                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = ''; }}
+          <h4 style={{ color:'var(--color-cyan)', marginBottom:'14px' }}>Roster ({teamPlayers.length})</h4>
+          {teamPlayers.length === 0
+            ? <p style={{ color:'rgba(192,208,255,0.4)', fontSize:'0.85rem' }}>No players assigned</p>
+            : teamPlayers.map(p => (
+              <div key={p.id}
+                onClick={()=>onSelectPlayer && onSelectPlayer(p)}
+                style={{ display:'flex', alignItems:'center', gap:'10px', padding:'10px', marginBottom:'6px', background:'rgba(0,255,255,0.04)', borderRadius:'6px', border:'1px solid rgba(0,255,255,0.08)', cursor: onSelectPlayer?'pointer':'default', transition:'all 0.15s' }}
+                onMouseEnter={e=>{if(onSelectPlayer) e.currentTarget.style.background='rgba(0,255,255,0.1)';}}
+                onMouseLeave={e=>{e.currentTarget.style.background='rgba(0,255,255,0.04)';}}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px' }}>
-                  {team.logo_url ? (
-                    <img src={team.logo_url} alt="logo" style={{ width: '50px', height: '50px', objectFit: 'contain', borderRadius: '6px' }} />
-                  ) : (
-                    <div style={{ width: '50px', height: '50px', borderRadius: '8px', background: `${color}22`, border: `2px solid ${color}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem' }}>⚾</div>
-                  )}
-                  <h4 style={{ margin: 0, color, fontWeight: '800' }}>{team.team_name}</h4>
+                {p.avatar_data
+                  ? <img src={p.avatar_data} alt={p.player_name} style={{ width:'36px', height:'36px', borderRadius:'50%', objectFit:'cover', border:`1px solid ${teamColor}44` }} />
+                  : <div style={{ width:'36px', height:'36px', borderRadius:'50%', background:`${teamColor}22`, border:`1px solid ${teamColor}33`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1rem', flexShrink:0 }}>🎮</div>
+                }
+                <div style={{ flex:1, minWidth:0 }}>
+                  <p style={{ margin:0, color:'var(--color-cyan)', fontWeight:600, fontSize:'0.88rem', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.player_name}</p>
+                  <p style={{ margin:0, fontSize:'0.72rem', color:'rgba(192,208,255,0.5)' }}>{p.position||'—'} · OVR {p.overall||'?'}</p>
                 </div>
-                <div className="data-row">
-                  <span className="data-label">Players</span>
-                  <span className="data-value">{teamPlayers.length}</span>
-                </div>
-                <p style={{ marginTop: '12px', fontSize: '0.8rem', color: `${color}88`, textAlign: 'center' }}>Click to view roster →</p>
+                {onSelectPlayer && <span style={{ color:`${teamColor}66`, fontSize:'0.75rem' }}>→</span>}
               </div>
-            );
-          })}
+            ))
+          }
         </div>
-      )}
+
+        {/* RIGHT: Team stats */}
+        <div className="neon-card p-3">
+          <h4 style={{ color:teamColor, marginBottom:'14px' }}>Team Stats (Season)</h4>
+          {teamStats.map(({label,value})=>(
+            <div key={label} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 0', borderBottom:'1px solid rgba(0,255,255,0.06)' }}>
+              <span style={{ fontSize:'0.78rem', color:'rgba(192,208,255,0.55)' }}>{label}</span>
+              <span style={{ fontWeight:700, color: value==='—'?'rgba(192,208,255,0.25)':teamColor, fontSize:'0.88rem' }}>{value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };
+
 
 const PlayersTab = ({ onSelectPlayer }) => {
   const [players, setPlayers] = useState([]);
@@ -591,213 +564,306 @@ const BoxScoresTab = () => {
   );
 };
 
-const CompareTab = () => {
+const CompareTab = ({ onSelectPlayer }) => {
   const [players, setPlayers] = useState([]);
-  const [teams, setTeams] = useState([]);
+  const [teams, setTeams]     = useState([]);
   const [loading, setLoading] = useState(true);
+  const [compareMode, setCompareMode] = useState('player'); // 'player' | 'team'
+  const [idA, setIdA] = useState('');
+  const [idB, setIdB] = useState('');
+  const [mode, setMode]       = useState('season');
+  const [statFilter, setStatFilter] = useState('hitting');
+
   useEffect(() => {
     Promise.all([db.getPlayers('nabb'), db.getTeams('nabb')])
       .then(([p, t]) => { setPlayers(p); setTeams(t); setLoading(false); });
   }, []);
-  const [idA, setIdA] = useState('');
-  const [idB, setIdB] = useState('');
-  const [mode, setMode] = useState('career');
-  const [statFilter, setStatFilter] = useState('all');
+
+  if (loading) return <p style={{ color:'rgba(192,208,255,0.5)', padding:'40px', textAlign:'center' }}>Loading...</p>;
 
   const getTeamColor = (name) => teams.find(t => t.team_name === name)?.team_color || null;
+
+  // ── Player stats ──────────────────────────────────────────────
   const pA = players.find(p => p.id === idA);
   const pB = players.find(p => p.id === idB);
   const colorA = (pA && getTeamColor(pA.team)) || '#00ffff';
   const colorB = (pB && getTeamColor(pB.team)) || '#ff00ff';
 
-  const getStats = (p) => {
+  const HIT_STATS = [
+    ['G','season_g','career_g'],['AB','season_ab','career_ab'],
+    ['AVG','season_avg','career_avg'],['OBP','season_obp','career_obp'],
+    ['SLG','season_slg','career_slg'],['OPS','season_ops','career_ops'],
+    ['H','season_hits','hits'],['R','season_runs','runs'],
+    ['2B','season_2b','career_2b'],['3B','season_3b','career_3b'],
+    ['HR','season_home_runs','home_runs'],['RBI','season_rbis','rbis'],
+    ['BB','season_bb','career_bb'],['K','season_strike_outs','strike_outs'],
+    ['SB','season_sb','career_sb'],
+  ];
+  const PIT_STATS = [
+    ['W','season_w','career_w'],['L','season_l','career_l'],
+    ['ERA','season_era','career_era'],['G','season_pg','career_pg'],
+    ['GS','season_gs','career_gs'],['IP','season_innings_pitched','innings_pitched'],
+    ['K','season_strikeouts_pitched','strikeouts_pitched'],
+    ['BB','season_pit_bb','career_pit_bb'],['H','season_hits_allowed','hits_allowed'],
+    ['ER','season_earned_runs','earned_runs'],['WHIP','season_whip','career_whip'],
+    ['SV','season_sv','career_sv'],['HLD','season_hld','career_hld'],
+  ];
+  const STAT_LIST = statFilter === 'hitting' ? HIT_STATS : PIT_STATS;
+  const lowerBetter = new Set(['L','ERA','K','BB','H','ER','WHIP']);
+
+  const getVal = (p, label, sKey, cKey) => {
     if (!p) return null;
-    return mode === 'season' ? {
-      'H':       parseInt(p.season_hits)              || 0,
-      'R':       parseInt(p.season_runs)              || 0,
-      'RBI':     parseInt(p.season_rbis)              || 0,
-      'HR':      parseInt(p.season_home_runs)         || 0,
-      'K (Bat)': parseInt(p.season_strike_outs)       || 0,
-      'IP':      parseFloat(p.season_innings_pitched) || 0,
-      'K (Pit)': parseInt(p.season_strikeouts_pitched)|| 0,
-      'H All':   parseInt(p.season_hits_allowed)      || 0,
-      'ER':      parseInt(p.season_earned_runs)       || 0,
-    } : {
-      'H':       parseInt(p.hits)              || 0,
-      'R':       parseInt(p.runs)              || 0,
-      'RBI':     parseInt(p.rbis)              || 0,
-      'HR':      parseInt(p.home_runs)         || 0,
-      'K (Bat)': parseInt(p.strike_outs)       || 0,
-      'IP':      parseFloat(p.innings_pitched) || 0,
-      'K (Pit)': parseInt(p.strikeouts_pitched)|| 0,
-      'H All':   parseInt(p.hits_allowed)      || 0,
-      'ER':      parseInt(p.earned_runs)       || 0,
+    const raw = mode === 'season' ? p[sKey] : p[cKey];
+    if (raw === null || raw === undefined || raw === '') return '—';
+    return raw;
+  };
+
+  const numVal = (v) => {
+    if (v === '—' || v === null || v === undefined) return null;
+    return parseFloat(v);
+  };
+
+  const isBetter = (key, a, b) => {
+    const na = numVal(a), nb = numVal(b);
+    if (na === null || nb === null || na === nb) return null;
+    return lowerBetter.has(key) ? na < nb : na > nb;
+  };
+
+  // ── Team stats (aggregate all players on that team) ───────────
+  const teamA_obj = teams.find(t => t.id === idA);
+  const teamB_obj = teams.find(t => t.id === idB);
+  const colorTA = teamA_obj?.team_color || '#00ffff';
+  const colorTB = teamB_obj?.team_color || '#ff00ff';
+
+  const aggregateTeam = (teamName) => {
+    const roster = players.filter(p => p.team === teamName);
+    if (roster.length === 0) return null;
+    const sum = (key) => roster.reduce((s, p) => s + (parseFloat(p[key]) || 0), 0);
+    const avg = (key) => {
+      const vals = roster.map(p => parseFloat(p[key])).filter(v => !isNaN(v));
+      return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(3) : '—';
+    };
+    const suf = mode === 'season' ? 'season_' : '';
+    return {
+      'Players': roster.length,
+      'Team AVG': avg(suf ? 'season_avg' : 'career_avg'),
+      'Team OBP': avg(suf ? 'season_obp' : 'career_obp'),
+      'Team SLG': avg(suf ? 'season_slg' : 'career_slg'),
+      'Team OPS': avg(suf ? 'season_ops' : 'career_ops'),
+      'Total H':  sum(suf ? 'season_hits' : 'hits'),
+      'Total R':  sum(suf ? 'season_runs' : 'runs'),
+      'Total HR': sum(suf ? 'season_home_runs' : 'home_runs'),
+      'Total RBI':sum(suf ? 'season_rbis' : 'rbis'),
+      'Total K':  sum(suf ? 'season_strike_outs' : 'strike_outs'),
+      'Total SB': sum(suf ? 'season_sb' : 'career_sb'),
+      'Team ERA': avg(suf ? 'season_era' : 'career_era'),
+      'Team WHIP':avg(suf ? 'season_whip' : 'career_whip'),
+      'Total W':  sum(suf ? 'season_w' : 'career_w'),
+      'Total SV': sum(suf ? 'season_sv' : 'career_sv'),
     };
   };
 
-  const lowerBetter = new Set(['K (Bat)', 'H All', 'ER']);
-  const hitKeys     = new Set(['H', 'R', 'RBI', 'HR', 'K (Bat)']);
-  const pitchKeys   = new Set(['IP', 'K (Pit)', 'H All', 'ER']);
-  const isBetter = (key, a, b) => {
-    if (a === b) return null;
-    return lowerBetter.has(key) ? a < b : a > b;
-  };
+  const tA = compareMode === 'team' ? aggregateTeam(teamA_obj?.team_name) : null;
+  const tB = compareMode === 'team' ? aggregateTeam(teamB_obj?.team_name) : null;
 
-  const sA = getStats(pA);
-  const sB = getStats(pB);
-
-  const selStyle = (border) => ({
-    padding: '10px 12px', background: 'rgba(10,10,30,0.85)',
-    border: `1px solid ${border}55`, color: '#c0d0ff',
-    borderRadius: '8px', fontSize: '0.88rem', width: '100%', cursor: 'pointer',
+  const selSty = (col) => ({
+    padding:'10px 12px', background:'rgba(10,10,30,0.85)',
+    border:`1px solid ${col}55`, color:'#c0d0ff',
+    borderRadius:'8px', fontSize:'0.88rem', width:'100%', cursor:'pointer',
   });
 
-  if (loading) return <p style={{ color: 'rgba(192,208,255,0.5)', padding: '20px', textAlign: 'center' }}>Loading players...</p>;
-  if (players.length === 0) return <p style={{ color: 'rgba(192,208,255,0.5)', padding: '20px', textAlign: 'center' }}>No players found. Add players in the dashboard first.</p>;
+  const btnSty = (active) => ({
+    padding:'7px 18px',
+    background: active ? 'rgba(0,255,255,0.12)' : 'rgba(10,10,30,0.7)',
+    border: active ? '1px solid rgba(0,255,255,0.45)' : '1px solid rgba(100,120,200,0.18)',
+    color: active ? 'var(--color-cyan)' : 'rgba(192,208,255,0.45)',
+    borderRadius:'8px', cursor:'pointer', fontWeight:'700',
+    fontSize:'0.8rem', textTransform:'uppercase', letterSpacing:'0.08em',
+  });
 
   return (
     <div>
-      {/* Player selectors */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '14px', alignItems: 'center', marginBottom: '20px' }}>
+      {/* Compare mode toggle */}
+      <div style={{ display:'flex', justifyContent:'center', gap:'8px', marginBottom:'18px' }}>
+        <button style={{...btnSty(compareMode==='player')}} onClick={()=>{setCompareMode('player');setIdA('');setIdB('');}}> Players</button>
+        <button style={{...btnSty(compareMode==='team')}}   onClick={()=>{setCompareMode('team');setIdA('');setIdB('');}}> Teams</button>
+      </div>
+
+      {/* Selectors */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr auto 1fr', gap:'14px', alignItems:'center', marginBottom:'20px' }}>
         <div>
-          <label style={{ display: 'block', fontSize: '0.72rem', color: 'rgba(192,208,255,0.5)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Player A</label>
-          <select value={idA} onChange={e => setIdA(e.target.value)} style={selStyle(colorA)}>
-            <option value="">Select player…</option>
-            {players.map(p => <option key={p.id} value={p.id}>{p.player_name}{p.team ? ` (${p.team})` : ''}</option>)}
-          </select>
+          <label style={{ display:'block', fontSize:'0.72rem', color:'rgba(192,208,255,0.5)', marginBottom:'6px', textTransform:'uppercase' }}>{compareMode === 'player' ? 'Player A' : 'Team A'}</label>
+          {compareMode === 'player' ? (
+            <select value={idA} onChange={e=>setIdA(e.target.value)} style={{selSty(colorA)}}>
+              <option value="">Select player…</option>
+              {players.map(p=><option key={p.id} value={p.id}>{p.player_name}{p.team?` (${p.team})`:''} OVR {p.overall}</option>)}
+            </select>
+          ) : (
+            <select value={idA} onChange={e=>setIdA(e.target.value)} style={{selSty(colorTA)}}>
+              <option value="">Select team…</option>
+              {teams.map(t=><option key={t.id} value={t.id}>{t.team_name}</option>)}
+            </select>
+          )}
         </div>
-        <span style={{ color: 'rgba(192,208,255,0.3)', fontWeight: '800', fontSize: '1rem' }}>VS</span>
+        <span style={{ color:'rgba(192,208,255,0.3)', fontWeight:'800', fontSize:'1rem' }}>VS</span>
         <div>
-          <label style={{ display: 'block', fontSize: '0.72rem', color: 'rgba(192,208,255,0.5)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Player B</label>
-          <select value={idB} onChange={e => setIdB(e.target.value)} style={selStyle(colorB)}>
-            <option value="">Select player…</option>
-            {players.map(p => <option key={p.id} value={p.id}>{p.player_name}{p.team ? ` (${p.team})` : ''}</option>)}
-          </select>
+          <label style={{ display:'block', fontSize:'0.72rem', color:'rgba(192,208,255,0.5)', marginBottom:'6px', textTransform:'uppercase' }}>{compareMode === 'player' ? 'Player B' : 'Team B'}</label>
+          {compareMode === 'player' ? (
+            <select value={idB} onChange={e=>setIdB(e.target.value)} style={{selSty(colorB)}}>
+              <option value="">Select player…</option>
+              {players.map(p=><option key={p.id} value={p.id}>{p.player_name}{p.team?` (${p.team})`:''} OVR {p.overall}</option>)}
+            </select>
+          ) : (
+            <select value={idB} onChange={e=>setIdB(e.target.value)} style={{selSty(colorTB)}}>
+              <option value="">Select team…</option>
+              {teams.map(t=><option key={t.id} value={t.id}>{t.team_name}</option>)}
+            </select>
+          )}
         </div>
       </div>
 
-      {/* Mode toggle + stat filter */}
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '14px' }}>
-        {['career','season'].map(m => (
-          <button key={m} onClick={() => setMode(m)} style={{
-            padding: '8px 22px',
-            background: mode === m ? 'rgba(0,255,255,0.12)' : 'rgba(10,10,30,0.7)',
-            border: mode === m ? '1px solid rgba(0,255,255,0.45)' : '1px solid rgba(100,120,200,0.18)',
-            color: mode === m ? 'var(--color-cyan)' : 'rgba(192,208,255,0.45)',
-            borderRadius: '8px', cursor: 'pointer', fontWeight: '700',
-            fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '0.08em',
-          }}>
-            {m === 'career' ? '⭐ Career' : '📅 Season'}
-          </button>
+      {/* Mode + stat filter */}
+      <div style={{ display:'flex', justifyContent:'center', gap:'8px', marginBottom:'10px', flexWrap:'wrap' }}>
+        {['season','career'].map(m=>(
+          <button key={m} style={{...btnSty(mode===m)}} onClick={()=>setMode(m)}>{m}</button>
         ))}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '22px' }}>
-        <select
-          value={statFilter}
-          onChange={e => setStatFilter(e.target.value)}
-          style={{
-            padding: '8px 18px', background: 'rgba(10,10,30,0.85)',
-            border: '1px solid rgba(100,120,200,0.28)', color: '#c0d0ff',
-            borderRadius: '8px', fontSize: '0.84rem', cursor: 'pointer',
-          }}
-        >
-          <option value="all">📊 All Stats</option>
-          <option value="hitting">⚾ Hitting Stats</option>
-          <option value="pitching">⚡ Pitching Stats</option>
-        </select>
-      </div>
-
-      {/* Player cards */}
-      {(pA || pB) && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '22px' }}>
-          {[{ p: pA, color: colorA, side: 'A' }, { p: pB, color: colorB, side: 'B' }].map(({ p, color, side }) => (
-            <div key={side} style={{
-              background: p ? `linear-gradient(160deg,${color}0d 0%,rgba(8,8,26,0.95) 100%)` : 'rgba(10,10,30,0.5)',
-              border: `1px solid ${p ? color + '30' : 'rgba(100,120,200,0.1)'}`,
-              borderTop: `3px solid ${p ? color : 'rgba(100,120,200,0.2)'}`,
-              borderRadius: '10px', padding: '16px', textAlign: 'center',
-              minHeight: '140px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: p ? 'flex-start' : 'center',
-            }}>
-              {p ? (
-                <>
-                  {p.avatar_data
-                    ? <img src={p.avatar_data} alt={p.player_name} style={{ width: '60px', height: '60px', borderRadius: '50%', objectFit: 'cover', border: `2px solid ${color}55`, marginBottom: '8px' }} />
-                    : <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: `${color}18`, border: `2px solid ${color}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.6rem', marginBottom: '8px' }}>🎮</div>
-                  }
-                  <h4 style={{ margin: '0 0 3px', color, fontWeight: '800', fontSize: '0.95rem' }}>{p.player_name}</h4>
-                  {p.team && <span style={{ fontSize: '0.75rem', color: `${color}99`, marginBottom: '5px' }}>{p.team}</span>}
-                  <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '4px' }}>
-                    {p.position && <span style={{ fontSize: '0.7rem', background: `${color}1a`, color, padding: '2px 7px', borderRadius: '4px' }}>{p.position}</span>}
-                    {p.overall   && <span style={{ fontSize: '0.7rem', background: 'rgba(255,215,0,0.12)', color: '#ffd700', padding: '2px 7px', borderRadius: '4px' }}>OVR {p.overall}</span>}
-                  </div>
-                </>
-              ) : (
-                <span style={{ color: 'rgba(192,208,255,0.3)', fontSize: '0.82rem' }}>Select Player {side}</span>
-              )}
-            </div>
+      {compareMode === 'player' && (
+        <div style={{ display:'flex', justifyContent:'center', gap:'8px', marginBottom:'20px' }}>
+          {['hitting','pitching'].map(f=>(
+            <button key={f} style={{...btnSty(statFilter===f), borderColor: statFilter===f?'rgba(255,0,255,0.5)':'rgba(100,120,200,0.18)', color: statFilter===f?'var(--color-magenta)':'rgba(192,208,255,0.45)', background: statFilter===f?'rgba(255,0,255,0.1)':'rgba(10,10,30,0.7)'}} onClick={()=>setStatFilter(f)}>{f}</button>
           ))}
         </div>
       )}
 
-      {/* Stats table */}
-      {sA && sB && (
-        <div style={{ background: 'rgba(10,10,30,0.8)', border: '1px solid rgba(100,120,200,0.13)', borderRadius: '10px', overflow: 'hidden' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 1fr', background: 'rgba(0,0,0,0.3)', padding: '10px 14px', borderBottom: '1px solid rgba(100,120,200,0.15)' }}>
-            <span style={{ color: colorA, fontWeight: '800', fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pA?.player_name}</span>
-            <span style={{ color: 'rgba(192,208,255,0.35)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.1em', textAlign: 'center', alignSelf: 'center' }}>STAT</span>
-            <span style={{ color: colorB, fontWeight: '800', fontSize: '0.88rem', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pB?.player_name}</span>
-          </div>
-          {Object.entries(sA)
-            .filter(([key]) => {
-              if (statFilter === 'hitting')  return hitKeys.has(key);
-              if (statFilter === 'pitching') return pitchKeys.has(key);
-              return true;
-            })
-            .map(([key, valA]) => {
-            const valB  = sB[key];
-            const aBest = isBetter(key, valA, valB);
-            const bBest = isBetter(key, valB, valA);
-            return (
-              <div key={key} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 1fr', padding: '10px 14px', borderBottom: '1px solid rgba(100,120,200,0.07)', alignItems: 'center' }}>
-                <div>
-                  <span style={{
-                    fontWeight: aBest ? '800' : '400',
-                    color: aBest ? colorA : 'rgba(192,208,255,0.4)',
-                    background: aBest ? `${colorA}22` : 'transparent',
-                    padding: aBest ? '3px 10px' : '0',
-                    borderRadius: '6px',
-                    display: 'inline-block',
-                    fontSize: '0.95rem',
-                    boxShadow: aBest ? `0 0 10px ${colorA}55` : 'none',
-                  }}>{valA}</span>
+      {/* ── PLAYER COMPARE ── */}
+      {compareMode === 'player' && (
+        <>
+          {/* Player cards */}
+          {(pA || pB) && (
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px', marginBottom:'22px' }}>
+              {[{p:pA,color:colorA,side:'A'},{p:pB,color:colorB,side:'B'}].map(({p,color,side})=>(
+                <div key={side} style={{
+                  background: p?`linear-gradient(160deg,${color}0d,rgba(8,8,26,0.95))`:'rgba(10,10,30,0.5)',
+                  border:`1px solid ${p?color+'30':'rgba(100,120,200,0.1)'}`,
+                  borderTop:`3px solid ${p?color:'rgba(100,120,200,0.2)'}`,
+                  borderRadius:'10px', padding:'16px', textAlign:'center',
+                  minHeight:'120px', display:'flex', flexDirection:'column', alignItems:'center', justifyContent: p?'flex-start':'center',
+                }}>
+                  {p ? (
+                    <>
+                      {p.avatar_data
+                        ? <img src={p.avatar_data} alt={p.player_name} style={{ width:'56px', height:'56px', borderRadius:'50%', objectFit:'cover', border:`2px solid ${color}55`, marginBottom:'8px' }} />
+                        : <div style={{ width:'56px', height:'56px', borderRadius:'50%', background:`${color}18`, border:`2px solid ${color}33`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.5rem', marginBottom:'8px' }}>🎮</div>
+                      }
+                      <h4 style={{ margin:'0 0 3px', color, fontWeight:'800', fontSize:'0.9rem' }}>{p.player_name}</h4>
+                      {p.team && <span style={{ fontSize:'0.72rem', color:`${color}99` }}>{p.team}</span>}
+                      <div style={{ display:'flex', gap:'5px', flexWrap:'wrap', justifyContent:'center', marginTop:'6px' }}>
+                        {p.position && <span style={{ fontSize:'0.68rem', background:`${color}1a`, color, padding:'2px 6px', borderRadius:'4px' }}>{p.position}</span>}
+                        {p.overall   && <span style={{ fontSize:'0.68rem', background:'rgba(255,215,0,0.12)', color:'#ffd700', padding:'2px 6px', borderRadius:'4px' }}>OVR {p.overall}</span>}
+                      </div>
+                      {onSelectPlayer && <button onClick={()=>onSelectPlayer(p)} style={{ marginTop:'10px', background:'none', border:`1px solid ${color}44`, color, borderRadius:'6px', padding:'4px 12px', cursor:'pointer', fontSize:'0.72rem' }}>View Stats</button>}
+                    </>
+                  ) : (
+                    <span style={{ color:'rgba(192,208,255,0.3)', fontSize:'0.82rem' }}>Select Player {side}</span>
+                  )}
                 </div>
-                <span style={{ color: 'rgba(192,208,255,0.3)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.07em', textAlign: 'center' }}>{key}</span>
-                <div style={{ textAlign: 'right' }}>
-                  <span style={{
-                    fontWeight: bBest ? '800' : '400',
-                    color: bBest ? colorB : 'rgba(192,208,255,0.4)',
-                    background: bBest ? `${colorB}22` : 'transparent',
-                    padding: bBest ? '3px 10px' : '0',
-                    borderRadius: '6px',
-                    display: 'inline-block',
-                    fontSize: '0.95rem',
-                    boxShadow: bBest ? `0 0 10px ${colorB}55` : 'none',
-                  }}>{valB}</span>
-                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Stats table */}
+          {pA && pB ? (
+            <div style={{ background:'rgba(10,10,30,0.8)', border:'1px solid rgba(100,120,200,0.13)', borderRadius:'10px', overflow:'hidden' }}>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 60px 1fr', background:'rgba(0,0,0,0.3)', padding:'10px 14px', borderBottom:'1px solid rgba(100,120,200,0.15)' }}>
+                <span style={{ color:colorA, fontWeight:'800', fontSize:'0.88rem', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{pA.player_name}</span>
+                <span style={{ color:'rgba(192,208,255,0.35)', fontSize:'0.7rem', textAlign:'center', alignSelf:'center' }}>STAT</span>
+                <span style={{ color:colorB, fontWeight:'800', fontSize:'0.88rem', textAlign:'right', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{pB.player_name}</span>
               </div>
-            );
-          })}
-        </div>
+              {STAT_LIST.map(([label, sKey, cKey]) => {
+                const valA = getVal(pA, label, sKey, cKey);
+                const valB = getVal(pB, label, sKey, cKey);
+                const aBetter = isBetter(label, valA, valB);
+                const bBetter = isBetter(label, valB, valA);
+                return (
+                  <div key={label} style={{ display:'grid', gridTemplateColumns:'1fr 60px 1fr', padding:'9px 14px', borderBottom:'1px solid rgba(100,120,200,0.06)', alignItems:'center' }}>
+                    <div>
+                      <span style={{ fontWeight:aBetter?'800':'400', color:aBetter?colorA:'rgba(192,208,255,0.55)', background:aBetter?`${colorA}22`:'transparent', padding:aBetter?'3px 8px':'0', borderRadius:'6px', display:'inline-block', fontSize:'0.93rem', boxShadow:aBetter?`0 0 8px ${colorA}44`:'none' }}>{valA}</span>
+                    </div>
+                    <span style={{ color:'rgba(192,208,255,0.3)', fontSize:'0.68rem', textTransform:'uppercase', letterSpacing:'0.07em', textAlign:'center' }}>{label}</span>
+                    <div style={{ textAlign:'right' }}>
+                      <span style={{ fontWeight:bBetter?'800':'400', color:bBetter?colorB:'rgba(192,208,255,0.55)', background:bBetter?`${colorB}22`:'transparent', padding:bBetter?'3px 8px':'0', borderRadius:'6px', display:'inline-block', fontSize:'0.93rem', boxShadow:bBetter?`0 0 8px ${colorB}44`:'none' }}>{valB}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{ textAlign:'center', color:'rgba(192,208,255,0.3)', padding:'40px 20px', background:'rgba(10,10,30,0.5)', borderRadius:'10px', border:'1px dashed rgba(100,120,200,0.15)' }}>
+              <p style={{ margin:0, fontSize:'0.9rem' }}>Select two players to compare their stats</p>
+              <p style={{ margin:'8px 0 0', fontSize:'0.78rem', opacity:0.6 }}>Make sure players have stats entered in the dashboard</p>
+            </div>
+          )}
+        </>
       )}
 
-      {!pA && !pB && (
-        <div className="neon-card p-3" style={{ textAlign: 'center', marginTop: '10px' }}>
-          <p style={{ color: 'rgba(192,208,255,0.4)' }}>Select two players above to compare their stats head-to-head</p>
-        </div>
+      {/* ── TEAM COMPARE ── */}
+      {compareMode === 'team' && (
+        <>
+          {(teamA_obj || teamB_obj) && (
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px', marginBottom:'22px' }}>
+              {[{t:teamA_obj,ta:tA,color:colorTA,side:'A'},{t:teamB_obj,ta:tB,color:colorTB,side:'B'}].map(({t,ta,color,side})=>(
+                <div key={side} style={{ background:t?`linear-gradient(160deg,${color}0d,rgba(8,8,26,0.95))`:'rgba(10,10,30,0.5)', border:`1px solid ${t?color+'30':'rgba(100,120,200,0.1)'}`, borderTop:`3px solid ${t?color:'rgba(100,120,200,0.2)'}`, borderRadius:'10px', padding:'16px', textAlign:'center', minHeight:'100px', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
+                  {t ? (
+                    <>
+                      {t.logo_url
+                        ? <img src={t.logo_url} alt={t.team_name} style={{ width:'50px', height:'50px', objectFit:'contain', marginBottom:'8px' }} />
+                        : <div style={{ width:'50px', height:'50px', background:color, borderRadius:'8px', marginBottom:'8px' }} />
+                      }
+                      <h4 style={{ margin:0, color, fontWeight:'800', fontSize:'0.9rem' }}>{t.team_name}</h4>
+                      <span style={{ fontSize:'0.72rem', color:`${color}88`, marginTop:'4px' }}>{players.filter(p=>p.team===t.team_name).length} players</span>
+                    </>
+                  ) : <span style={{ color:'rgba(192,208,255,0.3)', fontSize:'0.82rem' }}>Select Team {side}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {teamA_obj && teamB_obj && tA && tB ? (
+            <div style={{ background:'rgba(10,10,30,0.8)', border:'1px solid rgba(100,120,200,0.13)', borderRadius:'10px', overflow:'hidden' }}>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 80px 1fr', background:'rgba(0,0,0,0.3)', padding:'10px 14px', borderBottom:'1px solid rgba(100,120,200,0.15)' }}>
+                <span style={{ color:colorTA, fontWeight:'800', fontSize:'0.88rem' }}>{teamA_obj.team_name}</span>
+                <span style={{ color:'rgba(192,208,255,0.35)', fontSize:'0.7rem', textAlign:'center', alignSelf:'center' }}>STAT</span>
+                <span style={{ color:colorTB, fontWeight:'800', fontSize:'0.88rem', textAlign:'right' }}>{teamB_obj.team_name}</span>
+              </div>
+              {Object.entries(tA).map(([key,valA])=>{
+                const valB = tB[key];
+                const na = parseFloat(valA), nb = parseFloat(valB);
+                const lowerKeys = new Set(['Team ERA','Team WHIP']);
+                const aBetter = !isNaN(na)&&!isNaN(nb)&&na!==nb ? (lowerKeys.has(key)?na<nb:na>nb) : null;
+                const bBetter = !isNaN(na)&&!isNaN(nb)&&na!==nb ? (lowerKeys.has(key)?nb<na:nb>na) : null;
+                return (
+                  <div key={key} style={{ display:'grid', gridTemplateColumns:'1fr 80px 1fr', padding:'9px 14px', borderBottom:'1px solid rgba(100,120,200,0.06)', alignItems:'center' }}>
+                    <span style={{ fontWeight:aBetter?'800':'400', color:aBetter?colorTA:'rgba(192,208,255,0.55)', background:aBetter?`${colorTA}22`:'transparent', padding:aBetter?'3px 8px':'0', borderRadius:'6px', display:'inline-block', fontSize:'0.93rem' }}>{typeof valA==='number'?valA.toFixed?valA:valA:valA}</span>
+                    <span style={{ color:'rgba(192,208,255,0.3)', fontSize:'0.68rem', textTransform:'uppercase', letterSpacing:'0.07em', textAlign:'center' }}>{key}</span>
+                    <div style={{ textAlign:'right' }}>
+                      <span style={{ fontWeight:bBetter?'800':'400', color:bBetter?colorTB:'rgba(192,208,255,0.55)', background:bBetter?`${colorTB}22`:'transparent', padding:bBetter?'3px 8px':'0', borderRadius:'6px', display:'inline-block', fontSize:'0.93rem' }}>{typeof valB==='number'?valB.toFixed?valB:valB:valB}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (teamA_obj && teamB_obj) ? (
+            <p style={{ textAlign:'center', color:'rgba(192,208,255,0.4)', padding:'20px' }}>No players on these rosters yet.</p>
+          ) : (
+            <div style={{ textAlign:'center', color:'rgba(192,208,255,0.3)', padding:'40px', background:'rgba(10,10,30,0.5)', borderRadius:'10px', border:'1px dashed rgba(100,120,200,0.15)' }}>Select two teams to compare</div>
+          )}
+        </>
       )}
     </div>
   );
 };
+
 
 const HallOfFameTab = () => {
   const [hof, setHof] = useState([]);
