@@ -22,20 +22,20 @@ const RBMLLeague = ({ onSelectPlayer }) => {
   return (
     <div className="page nabb-league">
       <div className="page-header">
-        <h1 className="gradient-text rbml-title">⚾ RBML</h1>
+        <h1 className="gradient-text rbml-title">âš¾ RBML</h1>
         <p className="subtitle">Roblox Baseball League</p>
       </div>
 
       <div className="league-tabs">
         {[
-          { id: 'overview', label: '🏟️ Overview' },
-          { id: 'rosters', label: '👥 Rosters' },
-          { id: 'players', label: '🎮 Players' },
-          { id: 'leaders', label: '📊 League Leaders' },
-          { id: 'feed', label: '📰 Game Feed' },
-          { id: 'scores', label: '📈 Box Scores' },
-          { id: 'compare', label: '⚔️ Compare' },
-          { id: 'halloffame', label: '🏆 Hall of Fame' },
+          { id: 'overview', label: 'ðŸŸï¸ Overview' },
+          { id: 'rosters', label: 'ðŸ‘¥ Rosters' },
+          { id: 'players', label: 'ðŸŽ® Players' },
+          { id: 'leaders', label: 'ðŸ“Š League Leaders' },
+          { id: 'feed', label: 'ðŸ“° Game Feed' },
+          { id: 'scores', label: 'ðŸ“ˆ Box Scores' },
+          { id: 'compare', label: 'âš”ï¸ Compare' },
+          { id: 'halloffame', label: 'ðŸ† Hall of Fame' },
         ].map(tab => (
           <button
             key={tab.id}
@@ -108,7 +108,7 @@ const OverviewTab = () => {
               <div key={game.id} className="data-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px', padding: '10px 0', borderBottom: '1px solid rgba(0,255,255,0.08)' }}>
                 <span style={{ color: 'var(--color-cyan)', fontWeight: '600', fontSize: '0.9rem' }}>{game.game_name}</span>
                 <span style={{ color: 'rgba(192,208,255,0.8)' }}>
-                  {game.home_team} <strong>{game.home_score}</strong> — <strong>{game.away_score}</strong> {game.away_team}
+                  {game.home_team} <strong>{game.home_score}</strong> â€” <strong>{game.away_score}</strong> {game.away_team}
                 </span>
               </div>
             ))}
@@ -118,8 +118,6 @@ const OverviewTab = () => {
     </div>
   );
 };
-
-const rosterColorDark = (color) => {
   if (!color) return true;
   const hex = color.replace('#', '');
   if (hex.length < 6) return true;
@@ -172,11 +170,11 @@ const RostersTab = ({ onSelectPlayer }) => {
   const sum = (key) => teamPlayers.reduce((s,p) => s + (parseFloat(p[key])||0), 0);
   const avg = (key) => {
     const vals = teamPlayers.map(p=>parseFloat(p[key])).filter(v=>!isNaN(v)&&v>0);
-    return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(3) : '—';
+    return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(3) : 'â€”';
   };
   const teamStats = [
     {label:'Players', value: teamPlayers.length},
-    {label:'Avg OVR', value: teamPlayers.length ? Math.round(teamPlayers.reduce((s,p)=>s+(parseInt(p.overall)||0),0)/teamPlayers.length) : '—'},
+    {label:'Avg OVR', value: teamPlayers.length ? Math.round(teamPlayers.reduce((s,p)=>s+(parseInt(p.overall)||0),0)/teamPlayers.length) : 'â€”'},
     {label:'Team AVG', value: avg('season_avg')},
     {label:'Team OBP', value: avg('season_obp')},
     {label:'Team SLG', value: avg('season_slg')},
@@ -197,7 +195,7 @@ const RostersTab = ({ onSelectPlayer }) => {
 
   return (
     <div>
-      <button className="neon-button" onClick={()=>setSelectedTeam(null)} style={{ marginBottom:'20px' }}>← Back to Teams</button>
+      <button className="neon-button" onClick={()=>setSelectedTeam(null)} style={{ marginBottom:'20px' }}>â† Back to Teams</button>
       <div style={{ display:'flex', alignItems:'center', gap:'14px', marginBottom:'24px' }}>
         {selectedTeam.logo_url
           ? <img src={selectedTeam.logo_url} alt={selectedTeam.team_name} style={{ width:'52px', height:'52px', objectFit:'contain', borderRadius:'8px' }} />
@@ -221,13 +219,13 @@ const RostersTab = ({ onSelectPlayer }) => {
               >
                 {p.avatar_data
                   ? <img src={p.avatar_data} alt={p.player_name} style={{ width:'36px', height:'36px', borderRadius:'50%', objectFit:'cover', border:`1px solid ${teamColor}44` }} />
-                  : <div style={{ width:'36px', height:'36px', borderRadius:'50%', background:`${teamColor}22`, border:`1px solid ${teamColor}33`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1rem', flexShrink:0 }}>🎮</div>
+                  : <div style={{ width:'36px', height:'36px', borderRadius:'50%', background:`${teamColor}22`, border:`1px solid ${teamColor}33`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1rem', flexShrink:0 }}>ðŸŽ®</div>
                 }
                 <div style={{ flex:1, minWidth:0 }}>
                   <p style={{ margin:0, color:'var(--color-cyan)', fontWeight:600, fontSize:'0.88rem', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.player_name}</p>
-                  <p style={{ margin:0, fontSize:'0.72rem', color:'rgba(192,208,255,0.5)' }}>{p.position||'—'} · OVR {p.overall||'?'}</p>
+                  <p style={{ margin:0, fontSize:'0.72rem', color:'rgba(192,208,255,0.5)' }}>{p.position||'â€”'} Â· OVR {p.overall||'?'}</p>
                 </div>
-                {onSelectPlayer && <span style={{ color:`${teamColor}66`, fontSize:'0.75rem' }}>→</span>}
+                {onSelectPlayer && <span style={{ color:`${teamColor}66`, fontSize:'0.75rem' }}>â†’</span>}
               </div>
             ))
           }
@@ -239,7 +237,7 @@ const RostersTab = ({ onSelectPlayer }) => {
           {teamStats.map(({label,value})=>(
             <div key={label} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 0', borderBottom:'1px solid rgba(0,255,255,0.06)' }}>
               <span style={{ fontSize:'0.78rem', color:'rgba(192,208,255,0.55)' }}>{label}</span>
-              <span style={{ fontWeight:700, color: value==='—'?'rgba(192,208,255,0.25)':teamColor, fontSize:'0.88rem' }}>{value}</span>
+              <span style={{ fontWeight:700, color: value==='â€”'?'rgba(192,208,255,0.25)':teamColor, fontSize:'0.88rem' }}>{value}</span>
             </div>
           ))}
         </div>
@@ -300,13 +298,13 @@ const PlayersTab = ({ onSelectPlayer }) => {
               </div>
               <div className="data-row">
                 <span className="data-label">Position</span>
-                <span className="data-value">{player.position || '—'}</span>
+                <span className="data-value">{player.position || 'â€”'}</span>
               </div>
               <div className="data-row">
                 <span className="data-label">Overall</span>
-                <span className="data-value">{player.overall || '—'}</span>
+                <span className="data-value">{player.overall || 'â€”'}</span>
               </div>
-              <p style={{ marginTop: '10px', fontSize: '0.8rem', color: 'rgba(0,255,255,0.6)', textAlign: 'center' }}>Click to view stat page →</p>
+              <p style={{ marginTop: '10px', fontSize: '0.8rem', color: 'rgba(0,255,255,0.6)', textAlign: 'center' }}>Click to view stat page â†’</p>
             </div>
           ))}
         </div>
@@ -380,10 +378,10 @@ const LeagueLeadersTab = ({ onSelectPlayer }) => {
 
   return (
     <div>
-      <LeaderTable title="🏠 Home Run Leaders" leaders={hrLeaders} statKey="total_hr" statLabel="HR" color="cyan" />
-      <LeaderTable title="⚾ Hits Leaders" leaders={hitsLeaders} statKey="total_hits" statLabel="H" color="magenta" />
-      <LeaderTable title="🏃 RBI Leaders" leaders={rbiLeaders} statKey="total_rbis" statLabel="RBI" color="cyan" />
-      <LeaderTable title="⚡ Strikeout Leaders (Pitching)" leaders={kLeaders} statKey="total_k" statLabel="K" color="magenta" />
+      <LeaderTable title="ðŸ  Home Run Leaders" leaders={hrLeaders} statKey="total_hr" statLabel="HR" color="cyan" />
+      <LeaderTable title="âš¾ Hits Leaders" leaders={hitsLeaders} statKey="total_hits" statLabel="H" color="magenta" />
+      <LeaderTable title="ðŸƒ RBI Leaders" leaders={rbiLeaders} statKey="total_rbis" statLabel="RBI" color="cyan" />
+      <LeaderTable title="âš¡ Strikeout Leaders (Pitching)" leaders={kLeaders} statKey="total_k" statLabel="K" color="magenta" />
     </div>
   );
 };
@@ -396,7 +394,7 @@ const GameFeedTab = () => {
   return (
     <div className="card-container">
       <div className="neon-card p-3">
-        <h3 className="gradient-text-cyan">📰 Game Feed</h3>
+        <h3 className="gradient-text-cyan">ðŸ“° Game Feed</h3>
         {sorted.length === 0 ? (
           <p style={{ marginTop: '15px', color: 'rgba(192,208,255,0.7)' }}>Game updates and news will appear here</p>
         ) : (
@@ -467,7 +465,7 @@ const BoxScoresTab = () => {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         {p?.avatar_data
                           ? <img src={p.avatar_data} alt="" style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: `1px solid ${color || accent}44` }} />
-                          : <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: `${color || accent}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', flexShrink: 0 }}>🎮</div>
+                          : <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: `${color || accent}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', flexShrink: 0 }}>ðŸŽ®</div>
                         }
                         <span style={{ color: color || 'var(--color-cyan)', fontWeight: '600' }}>{p?.player_name || '?'}</span>
                       </div>
@@ -497,7 +495,7 @@ const BoxScoresTab = () => {
     return (
       <div>
         <button className="neon-button" style={{ marginBottom: '20px', fontSize: '0.9rem' }} onClick={() => setSelectedGame(null)}>
-          ← Back to Box Scores
+          â† Back to Box Scores
         </button>
 
         {/* Score header */}
@@ -510,7 +508,7 @@ const BoxScoresTab = () => {
               <p style={{ margin: 0, fontSize: homeWin ? '2rem' : '1.6rem', fontWeight: '800', color: homeWin ? 'var(--color-cyan)' : 'rgba(192,208,255,0.6)' }}>{selectedGame.home_score}</p>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <span style={{ color: 'rgba(192,208,255,0.3)', fontSize: '1.2rem' }}>—</span>
+              <span style={{ color: 'rgba(192,208,255,0.3)', fontSize: '1.2rem' }}>â€”</span>
               {selectedGame.game_date && <p style={{ margin: '6px 0 0', color: 'rgba(192,208,255,0.4)', fontSize: '0.75rem' }}>{new Date(selectedGame.game_date).toLocaleDateString()}</p>}
             </div>
             <div style={{ textAlign: 'center' }}>
@@ -537,7 +535,7 @@ const BoxScoresTab = () => {
   return (
     <div className="card-container">
       <div className="neon-card p-3">
-        <h3 className="gradient-text-cyan">📈 Box Scores</h3>
+        <h3 className="gradient-text-cyan">ðŸ“ˆ Box Scores</h3>
         {bsGames.length === 0 ? (
           <p style={{ marginTop: '15px', color: 'rgba(192,208,255,0.7)' }}>No box scores logged yet</p>
         ) : (
@@ -552,7 +550,7 @@ const BoxScoresTab = () => {
               >
                 <p style={{ margin: '0 0 6px 0', fontWeight: '700', color: 'var(--color-cyan)' }}>{game.game_name}</p>
                 <p style={{ margin: 0, color: 'rgba(192,208,255,0.8)' }}>
-                  {game.home_team} <strong>{game.home_score}</strong> — <strong>{game.away_score}</strong> {game.away_team}
+                  {game.home_team} <strong>{game.home_score}</strong> â€” <strong>{game.away_score}</strong> {game.away_team}
                 </p>
                 {game.game_date && <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'rgba(192,208,255,0.4)' }}>{new Date(game.game_date).toLocaleDateString()}</p>}
               </div>
@@ -583,7 +581,7 @@ const CompareTab = ({ onSelectPlayer }) => {
 
   const getTeamColor = (name) => teams.find(t => t.team_name === name)?.team_color || null;
 
-  // ── Player stats ──────────────────────────────────────────────
+  // â”€â”€ Player stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const pA = players.find(p => p.id === idA);
   const pB = players.find(p => p.id === idB);
   const colorA = (pA && getTeamColor(pA.team)) || '#00ffff';
@@ -614,12 +612,12 @@ const CompareTab = ({ onSelectPlayer }) => {
   const getVal = (p, label, sKey, cKey) => {
     if (!p) return null;
     const raw = mode === 'season' ? p[sKey] : p[cKey];
-    if (raw === null || raw === undefined || raw === '') return '—';
+    if (raw === null || raw === undefined || raw === '') return 'â€”';
     return raw;
   };
 
   const numVal = (v) => {
-    if (v === '—' || v === null || v === undefined) return null;
+    if (v === 'â€”' || v === null || v === undefined) return null;
     return parseFloat(v);
   };
 
@@ -629,7 +627,7 @@ const CompareTab = ({ onSelectPlayer }) => {
     return lowerBetter.has(key) ? na < nb : na > nb;
   };
 
-  // ── Team stats (aggregate all players on that team) ───────────
+  // â”€â”€ Team stats (aggregate all players on that team) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const teamA_obj = teams.find(t => t.id === idA);
   const teamB_obj = teams.find(t => t.id === idB);
   const colorTA = teamA_obj?.team_color || '#00ffff';
@@ -641,7 +639,7 @@ const CompareTab = ({ onSelectPlayer }) => {
     const sum = (key) => roster.reduce((s, p) => s + (parseFloat(p[key]) || 0), 0);
     const avg = (key) => {
       const vals = roster.map(p => parseFloat(p[key])).filter(v => !isNaN(v));
-      return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(3) : '—';
+      return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(3) : 'â€”';
     };
     const suf = mode === 'season' ? 'season_' : '';
     return {
@@ -695,12 +693,12 @@ const CompareTab = ({ onSelectPlayer }) => {
           <label style={{ display:'block', fontSize:'0.72rem', color:'rgba(192,208,255,0.5)', marginBottom:'6px', textTransform:'uppercase' }}>{compareMode === 'player' ? 'Player A' : 'Team A'}</label>
           {compareMode === 'player' ? (
             <select value={idA} onChange={e=>setIdA(e.target.value)} style={selSty(colorA)}>
-              <option value="">Select player…</option>
+              <option value="">Select playerâ€¦</option>
               {players.map(p=><option key={p.id} value={p.id}>{p.player_name}{p.team?` (${p.team})`:''} OVR {p.overall}</option>)}
             </select>
           ) : (
             <select value={idA} onChange={e=>setIdA(e.target.value)} style={selSty(colorTA)}>
-              <option value="">Select team…</option>
+              <option value="">Select teamâ€¦</option>
               {teams.map(t=><option key={t.id} value={t.id}>{t.team_name}</option>)}
             </select>
           )}
@@ -710,12 +708,12 @@ const CompareTab = ({ onSelectPlayer }) => {
           <label style={{ display:'block', fontSize:'0.72rem', color:'rgba(192,208,255,0.5)', marginBottom:'6px', textTransform:'uppercase' }}>{compareMode === 'player' ? 'Player B' : 'Team B'}</label>
           {compareMode === 'player' ? (
             <select value={idB} onChange={e=>setIdB(e.target.value)} style={selSty(colorB)}>
-              <option value="">Select player…</option>
+              <option value="">Select playerâ€¦</option>
               {players.map(p=><option key={p.id} value={p.id}>{p.player_name}{p.team?` (${p.team})`:''} OVR {p.overall}</option>)}
             </select>
           ) : (
             <select value={idB} onChange={e=>setIdB(e.target.value)} style={selSty(colorTB)}>
-              <option value="">Select team…</option>
+              <option value="">Select teamâ€¦</option>
               {teams.map(t=><option key={t.id} value={t.id}>{t.team_name}</option>)}
             </select>
           )}
@@ -736,7 +734,7 @@ const CompareTab = ({ onSelectPlayer }) => {
         </div>
       )}
 
-      {/* ── PLAYER COMPARE ── */}
+      {/* â”€â”€ PLAYER COMPARE â”€â”€ */}
       {compareMode === 'player' && (
         <>
           {/* Player cards */}
@@ -754,7 +752,7 @@ const CompareTab = ({ onSelectPlayer }) => {
                     <>
                       {p.avatar_data
                         ? <img src={p.avatar_data} alt={p.player_name} style={{ width:'56px', height:'56px', borderRadius:'50%', objectFit:'cover', border:`2px solid ${color}55`, marginBottom:'8px' }} />
-                        : <div style={{ width:'56px', height:'56px', borderRadius:'50%', background:`${color}18`, border:`2px solid ${color}33`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.5rem', marginBottom:'8px' }}>🎮</div>
+                        : <div style={{ width:'56px', height:'56px', borderRadius:'50%', background:`${color}18`, border:`2px solid ${color}33`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.5rem', marginBottom:'8px' }}>ðŸŽ®</div>
                       }
                       <h4 style={{ margin:'0 0 3px', color, fontWeight:'800', fontSize:'0.9rem' }}>{p.player_name}</h4>
                       {p.team && <span style={{ fontSize:'0.72rem', color:`${color}99` }}>{p.team}</span>}
@@ -807,7 +805,7 @@ const CompareTab = ({ onSelectPlayer }) => {
         </>
       )}
 
-      {/* ── TEAM COMPARE ── */}
+      {/* â”€â”€ TEAM COMPARE â”€â”€ */}
       {compareMode === 'team' && (
         <>
           {(teamA_obj || teamB_obj) && (
