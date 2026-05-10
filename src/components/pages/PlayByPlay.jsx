@@ -11,12 +11,7 @@ const MLB_API = 'https://statsapi.mlb.com/api/v1';
 const ESPN    = 'https://site.api.espn.com';
 
 /* ── Helpers ─────────────────────────────────────────────────── */
-const today = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-};
 
-const MILB_IDS = { milb_aaa: 11, milb_aa: 12, milb_highA: 13, milb_singleA: 14 };
 
 const ESPN_PATHS = {
   nfl:  'football/nfl',
@@ -26,7 +21,6 @@ const ESPN_PATHS = {
   cbb:  'baseball/college-baseball',
 };
 
-const isMlbFamily = (s) => s === 'mlb' || s.startsWith('milb_') || s === 'cbb_milb';
 
 /* ── Strike Zone ─────────────────────────────────────────────── */
 const StrikeZone = ({ pitches = [] }) => {
