@@ -685,8 +685,8 @@ const CompareTab = ({ onSelectPlayer }) => {
     <div>
       {/* Compare mode toggle */}
       <div style={{ display:'flex', justifyContent:'center', gap:'8px', marginBottom:'18px' }}>
-        <button style={...btnSty(compareMode==='player')} onClick={()=>{setCompareMode('player');setIdA('');setIdB('');}}> Players</button>
-        <button style={...btnSty(compareMode==='team')}   onClick={()=>{setCompareMode('team');setIdA('');setIdB('');}}> Teams</button>
+        <button style={{...btnSty(compareMode==='player')}} onClick={()=>{setCompareMode('player');setIdA('');setIdB('');}}> Players</button>
+        <button style={{...btnSty(compareMode==='team')}}   onClick={()=>{setCompareMode('team');setIdA('');setIdB('');}}> Teams</button>
       </div>
 
       {/* Selectors */}
@@ -725,7 +725,7 @@ const CompareTab = ({ onSelectPlayer }) => {
       {/* Mode + stat filter */}
       <div style={{ display:'flex', justifyContent:'center', gap:'8px', marginBottom:'10px', flexWrap:'wrap' }}>
         {['season','career'].map(m=>(
-          <button key={m} style={...btnSty(mode===m)} onClick={()=>setMode(m)}>{m}</button>
+          <button key={m} style={{...btnSty(mode===m)}} onClick={()=>setMode(m)}>{m}</button>
         ))}
       </div>
       {compareMode === 'player' && (
