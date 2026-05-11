@@ -86,3 +86,40 @@ export const getAllReviews = () => {
   });
   return reviews.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 };
+
+/* ── Fetch episode list for anime (Jikan) ──────────────────── */
+export const fetchAnimeEpisodes = async (malId) => {
+  try {
+    const episodes = [];
+    let page = 1;
+    while (true) {
+      const r = await fetch(`https://api.jikan.moe/v4/anime/${malId}/episodes?page=${page}`);
+      if (!r.ok) break;
+      const d = await r.json();
+      const items = d.data || [];
+      episodes.push(...items.map(e => ({
+        number: e.mal_id,
+        title:  e.title || e.title_romanji || `Episode ${e.mal_id}`,
+      })));
+      if (!d.pagination?.has_next_page) break;
+      page++;
+      if (page > 20) break; // cap at 500 eps
+      await new Promise(res => setTimeout(res, 350)); // Jikan rate limit
+    }
+    return episodes;
+  } catch { return []; }
+};
+
+/* ── Fetch episode list for TV shows (TVMaze) ──────────────── */
+export const fetchTVEpisodes = async (tvmazeId) => {
+  try {
+    const r = await fetch(`https://api.tvmaze.com/shows/${tvmazeId}/episodes`);
+    if (!r.ok) return [];
+    const d = await r.json();
+    return (d || []).map(e => ({
+      number: e.number,
+      season: e.season,
+      title:  e.name || `Episode ${e.number}`,
+    }));
+  } catch { return []; }
+};

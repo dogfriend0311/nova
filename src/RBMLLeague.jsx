@@ -307,77 +307,134 @@ const PlayersTab = ({ onSelectPlayer }) => {
 };
 
 const LeagueLeadersTab = ({ onSelectPlayer }) => {
-  const [players, setPlayers] = useState([]);
-  const [boxScores, setBoxScores] = useState([]);
+  const [players,  setPlayers]  = useState([]);
+  const [boxScores,setBoxScores]= useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [mode,     setMode]     = useState('season');
+  const [statType, setStatType] = useState('hitting');
+
   useEffect(() => {
-    db.getPlayers('rbml').then(setPlayers);
-    db.getBoxScores('rbml').then(setBoxScores);
+    Promise.all([db.getPlayers('rbml'), db.getBoxScores('rbml')])
+      .then(([p, b]) => { setPlayers(p); setBoxScores(Array.isArray(b)?b:[]); setLoading(false); });
   }, []);
 
+  if (loading) return <p style={{ color:'rgba(192,208,255,0.5)', padding:'40px', textAlign:'center' }}>Loading...</p>;
+
+  // Compute stats per player combining box scores + entered stats
   const withStats = players.map(p => {
-    const scores = boxScores.filter(b => b.player_id === p.id);
-    return {
-      ...p,
-      total_hr: scores.reduce((s, b) => s + (parseInt(b.home_runs) || 0), 0) + (parseInt(p.home_runs) || 0),
-      total_hits: scores.reduce((s, b) => s + (parseInt(b.hits) || 0), 0) + (parseInt(p.hits) || 0),
-      total_rbis: scores.reduce((s, b) => s + (parseInt(b.rbis) || 0), 0) + (parseInt(p.rbis) || 0),
-      total_runs: scores.reduce((s, b) => s + (parseInt(b.runs) || 0), 0) + (parseInt(p.runs) || 0),
-      total_k: scores.reduce((s, b) => s + (parseInt(b.strikeouts_pitched) || 0), 0) + (parseInt(p.strikeouts_pitched) || 0),
+    const scores = boxScores.filter(b => String(b.player_id) === String(p.id));
+    const sumBox = (key) => scores.reduce((s,b) => s + (parseFloat(b[key])||0), 0);
+    const sH  = sumBox('hits')         + (parseFloat(p.season_hits)||0);
+    const sHR = sumBox('home_runs')    + (parseFloat(p.season_home_runs)||0);
+    const sRBI= sumBox('rbis')         + (parseFloat(p.season_rbis)||0);
+    const sR  = sumBox('runs')         + (parseFloat(p.season_runs)||0);
+    const sK  = sumBox('strike_outs')  + (parseFloat(p.season_strike_outs)||0);
+    const sSB = parseFloat(p.season_sb)||0;
+    const sAVG= parseFloat(p.season_avg)||0;
+    const sOPS= parseFloat(p.season_ops)||0;
+    const sERA= parseFloat(p.season_era)||9.99;
+    const sIP = sumBox('innings_pitched') + (parseFloat(p.season_innings_pitched)||0);
+    const sKP = sumBox('strikeouts_pitched') + (parseFloat(p.season_strikeouts_pitched)||0);
+    const sW  = parseFloat(p.season_w)||0;
+    const sSV = parseFloat(p.season_sv)||0;
+
+    const cH  = parseFloat(p.hits)||sH;
+    const cHR = parseFloat(p.home_runs)||sHR;
+    const cRBI= parseFloat(p.rbis)||sRBI;
+    const cAVG= parseFloat(p.career_avg)||sAVG;
+    const cOPS= parseFloat(p.career_ops)||sOPS;
+    const cERA= parseFloat(p.career_era)||sERA;
+    const cIP = parseFloat(p.innings_pitched)||sIP;
+    const cKP = parseFloat(p.strikeouts_pitched)||sKP;
+    const cW  = parseFloat(p.career_w)||sW;
+    const cSV = parseFloat(p.career_sv)||sSV;
+
+    return { ...p,
+      _sH:sH, _sHR:sHR, _sRBI:sRBI, _sR:sR, _sK:sK, _sSB:sSB, _sAVG:sAVG, _sOPS:sOPS,
+      _sERA:sERA, _sIP:sIP, _sKP:sKP, _sW:sW, _sSV:sSV,
+      _cH:cH, _cHR:cHR, _cRBI:cRBI, _cAVG:cAVG, _cOPS:cOPS,
+      _cERA:cERA, _cIP:cIP, _cKP:cKP, _cW:cW, _cSV:cSV,
     };
   });
 
-  const hrLeaders = [...withStats].sort((a, b) => b.total_hr - a.total_hr).slice(0, 8);
-  const hitsLeaders = [...withStats].sort((a, b) => b.total_hits - a.total_hits).slice(0, 8);
-  const rbiLeaders = [...withStats].sort((a, b) => b.total_rbis - a.total_rbis).slice(0, 8);
-  const kLeaders = [...withStats].sort((a, b) => b.total_k - a.total_k).slice(0, 8);
+  const m = mode === 'season' ? 's' : 'c';
 
-  const LeaderTable = ({ title, leaders, statKey, statLabel, color }) => (
-    <div className="neon-card p-3" style={{ marginBottom: '20px' }}>
-      <h3 className={color === 'cyan' ? 'gradient-text-cyan' : 'gradient-text-magenta'} style={{ marginBottom: '15px' }}>{title}</h3>
-      {leaders.length === 0 || leaders[0][statKey] === 0 ? (
-        <p style={{ color: 'rgba(192,208,255,0.5)' }}>No data yet</p>
-      ) : (
-        <table style={{ width: '100%' }}>
-          <thead>
-            <tr>
-              <th style={{ textAlign: 'left', padding: '8px', color: 'rgba(192,208,255,0.6)', fontSize: '0.8rem' }}>Player</th>
-              <th style={{ textAlign: 'left', padding: '8px', color: 'rgba(192,208,255,0.6)', fontSize: '0.8rem' }}>Team</th>
-              <th style={{ textAlign: 'center', padding: '8px', color: 'rgba(192,208,255,0.6)', fontSize: '0.8rem' }}>{statLabel}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {leaders.filter(p => p[statKey] > 0).map((p, i) => (
-              <tr
-                key={p.id}
-                style={{ cursor: 'pointer', borderBottom: '1px solid rgba(0,255,255,0.06)' }}
-                onClick={() => {
-                  if (onSelectPlayer) {
-                      onSelectPlayer(p);
-                  }
-                }}
-              >
-                <td style={{ padding: '8px', color: i === 0 ? 'var(--color-cyan)' : 'rgba(192,208,255,0.9)', fontWeight: i === 0 ? '700' : 'normal' }}>
-                  {i + 1}. {p.player_name}
-                </td>
-                <td style={{ padding: '8px', color: 'rgba(192,208,255,0.6)', fontSize: '0.85rem' }}>{p.team || 'FA'}</td>
-                <td style={{ padding: '8px', textAlign: 'center', color: i === 0 ? 'var(--color-magenta)' : 'var(--color-cyan)', fontWeight: '700' }}>{p[statKey]}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
+  const HITTING_CATS = [
+    { key:`_${m}AVG`, label:'Batting Avg', fmt:v=>v?v.toFixed(3):'—', hi:true },
+    { key:`_${m}HR`,  label:'Home Runs',   fmt:v=>v||0,  hi:true },
+    { key:`_${m}RBI`, label:'RBIs',        fmt:v=>v||0,  hi:true },
+    { key:`_${m}H`,   label:'Hits',        fmt:v=>v||0,  hi:true },
+    { key:`_${m}OPS`, label:'OPS',         fmt:v=>v?v.toFixed(3):'—', hi:true },
+  ];
+  const PITCHING_CATS = [
+    { key:`_${m}ERA`, label:'ERA',       fmt:v=>v?v.toFixed(2):'—', hi:false },
+    { key:`_${m}W`,   label:'Wins',      fmt:v=>v||0, hi:true },
+    { key:`_${m}KP`,  label:'Strikeouts',fmt:v=>v||0, hi:true },
+    { key:`_${m}IP`,  label:'Inn Pitched',fmt:v=>v?v.toFixed(1):'—', hi:true },
+    { key:`_${m}SV`,  label:'Saves',     fmt:v=>v||0, hi:true },
+  ];
+
+  const CATS = statType === 'hitting' ? HITTING_CATS : PITCHING_CATS;
+
+  const btnSty = (active) => ({
+    padding:'6px 16px', background:active?'rgba(0,255,255,0.12)':'rgba(10,10,30,0.6)',
+    border:active?'1px solid rgba(0,255,255,0.4)':'1px solid rgba(100,120,200,0.15)',
+    color:active?'var(--color-cyan)':'rgba(192,208,255,0.4)', borderRadius:'6px',
+    cursor:'pointer', fontWeight:'700', fontSize:'0.78rem', textTransform:'uppercase', letterSpacing:'0.08em',
+  });
 
   return (
     <div>
-      <LeaderTable title="🏠 Home Run Leaders" leaders={hrLeaders} statKey="total_hr" statLabel="HR" color="cyan" />
-      <LeaderTable title="⚾ Hits Leaders" leaders={hitsLeaders} statKey="total_hits" statLabel="H" color="magenta" />
-      <LeaderTable title="🏃 RBI Leaders" leaders={rbiLeaders} statKey="total_rbis" statLabel="RBI" color="cyan" />
-      <LeaderTable title="⚡ Strikeout Leaders (Pitching)" leaders={kLeaders} statKey="total_k" statLabel="K" color="magenta" />
+      <div style={{ display:'flex', gap:'8px', marginBottom:'12px', flexWrap:'wrap', justifyContent:'center' }}>
+        {['season','career'].map(m2=>(
+          <button key={m2} style={{...btnSty(mode===m2)}} onClick={()=>setMode(m2)}>{m2}</button>
+        ))}
+      </div>
+      <div style={{ display:'flex', gap:'8px', marginBottom:'24px', flexWrap:'wrap', justifyContent:'center' }}>
+        {['hitting','pitching'].map(t=>(
+          <button key={t} style={{...btnSty(statType===t), borderColor:statType===t?'rgba(255,0,255,0.4)':'rgba(100,120,200,0.15)', color:statType===t?'var(--color-magenta)':'rgba(192,208,255,0.4)', background:statType===t?'rgba(255,0,255,0.1)':'rgba(10,10,30,0.6)'}}
+            onClick={()=>setStatType(t)}>{t}</button>
+        ))}
+      </div>
+
+      {CATS.map(({ key, label, fmt, hi }) => {
+        const sorted = [...withStats]
+          .filter(p => p[key] !== undefined)
+          .sort((a,b) => hi ? (b[key]||0)-(a[key]||0) : (a[key]||9.99)-(b[key]||9.99))
+          .slice(0, 10);
+        if (sorted.length === 0) return null;
+        return (
+          <div key={key} className="neon-card p-3" style={{ marginBottom:'20px' }}>
+            <h4 className="gradient-text-magenta" style={{ marginBottom:'12px' }}>{label}</h4>
+            {sorted.map((p, i) => (
+              <div key={p.id}
+                onClick={()=>onSelectPlayer&&onSelectPlayer(p)}
+                style={{ display:'flex', alignItems:'center', gap:'10px', padding:'8px', borderRadius:'6px', marginBottom:'4px', background:i===0?'rgba(0,255,255,0.06)':'transparent', cursor:onSelectPlayer?'pointer':'default' }}
+              >
+                <span style={{ width:'22px', textAlign:'center', color:i===0?'#ffd700':i===1?'#c0c0c0':i===2?'#cd7f32':'rgba(192,208,255,0.4)', fontWeight:'700', fontSize:'0.82rem' }}>
+                  {i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`}
+                </span>
+                {p.avatar_data && <img src={p.avatar_data} alt="" style={{ width:'28px', height:'28px', borderRadius:'50%', objectFit:'cover' }} />}
+                <div style={{ flex:1 }}>
+                  <p style={{ margin:0, color:'var(--color-cyan)', fontWeight:600, fontSize:'0.88rem' }}>{p.player_name}</p>
+                  <p style={{ margin:0, fontSize:'0.72rem', color:'rgba(192,208,255,0.4)' }}>{p.team||'FA'} · {p.position||'—'}</p>
+                </div>
+                <span style={{ fontWeight:'800', color:i===0?'var(--color-cyan)':'rgba(192,208,255,0.7)', fontSize:'0.95rem' }}>{fmt(p[key])}</span>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+
+      {withStats.length === 0 && (
+        <p style={{ color:'rgba(192,208,255,0.4)', textAlign:'center', padding:'40px 20px' }}>
+          No players yet. Add players in the dashboard and enter their stats.
+        </p>
+      )}
     </div>
   );
 };
+
 
 const GameFeedTab = () => {
   const [feed, setFeed] = useState([]);

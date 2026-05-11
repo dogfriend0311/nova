@@ -238,6 +238,9 @@ const MemberProfileView = ({ member, onBack }) => {
 
   const onlineData = JSON.parse(localStorage.getItem('nova_online') || '{}');
   const isOnline   = onlineData[member.username] > Date.now() - 5 * 60 * 1000;
+  const presence   = localStorage.getItem(`nova_presence_${member.username}`) || 'online';
+  const presenceColor = presence === 'online' ? '#43b581' : presence === 'idle' ? '#f04747' : '#747f8d';
+  const showDot    = isOnline && presence !== 'offline';
 
   const socials = [
     { key: 'twitter_url',   label: 'Twitter',   icon: '🐦' },

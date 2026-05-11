@@ -164,29 +164,21 @@
     font-size: 22px;
   }
 
-  .tab-label {
-    display: none;
-  }
-
   .nav-tab {
     padding: 10px 12px;
-  }
-
-  .user-label {
-    display: none;
   }
 }
 
 @media (max-width: 768px) {
   .navbar {
-    height: 60px;
+    height: auto;
+    min-height: 60px;
   }
 
   .navbar-container {
-    padding: 0 10px;
-    gap: 8px;
-    flex-wrap: nowrap;
-    overflow: hidden;
+    padding: 8px 10px;
+    gap: 6px;
+    flex-wrap: wrap;
   }
 
   .navbar-logo {
@@ -199,11 +191,42 @@
   }
 
   .navbar-tabs {
-    flex: 1;
-    min-width: 0;
+    width: 100%;
+    flex: none;
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
+    gap: 4px;
+    flex-wrap: nowrap;
+    display: flex;
+    padding-bottom: 2px;
+  }
+
+  .nav-tab {
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 10px;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .tab-icon {
+    font-size: 16px;
+  }
+
+  .tab-label {
+    display: block;
+    font-size: 0.62rem;
+  }
+
+  .user-label {
+    display: none;
+  }
+
+  .navbar-user {
+    position: absolute;
+    top: 8px;
+    right: 10px;
     gap: 4px;
   }
 

@@ -36,7 +36,7 @@ const C_PIT = [
 ];
 
 const emptyPlayer = {
-  player_name:'', position:'', number:'', overall:75, avatar_data:'',
+  player_name:'', position:'', number:'', overall:75, avatar_data:'', spotify_url:'',
   // Season hitting
   season_g:'',season_ab:'',season_avg:'',season_obp:'',season_slg:'',season_ops:'',
   season_hits:'',season_runs:'',season_2b:'',season_3b:'',season_home_runs:'',
@@ -247,6 +247,23 @@ const LeaguePlayersTab = ({ prefix }) => {
                 </div>
                 <p style={{ fontSize:'0.75rem', color:'rgba(192,208,255,0.4)', marginTop:'6px' }}>Drag to reposition · Slider to zoom</p>
                 <canvas ref={canvasRef} style={{ display:'none' }} />
+              </div>
+            )}
+          </div>
+
+          {/* Spotify */}
+          <div className="form-field" style={{ gridColumn:'1 / -1' }}>
+            <label>Spotify Song/Track URL (shows on player page)</label>
+            <input type="text" value={form.spotify_url||''} onChange={e=>setForm({...form,spotify_url:e.target.value})} placeholder="https://open.spotify.com/track/..." style={SI} />
+            {form.spotify_url && (
+              <div style={{ marginTop:'8px', borderRadius:'8px', overflow:'hidden' }}>
+                <iframe
+                  src={form.spotify_url.includes('/embed/') ? form.spotify_url : form.spotify_url.replace('open.spotify.com/', 'open.spotify.com/embed/').replace('/track/','/track/').replace('/playlist/','/playlist/')}
+                  width="100%" height="80" frameBorder="0"
+                  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                  title="Spotify preview"
+                  style={{ borderRadius:'8px' }}
+                />
               </div>
             )}
           </div>

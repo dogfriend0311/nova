@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { searchMedia, getWatchList, saveWatchList, getAllReviews } from '../../services/mediaService';
+import { searchMedia, getWatchList, saveWatchList, getAllReviews, fetchAnimeEpisodes, fetchTVEpisodes } from '../../services/mediaService';
 import './WatchList.css';
 
 const STATUS_LABELS = {
@@ -78,10 +78,73 @@ const WatchCard = ({ item, onEdit, onRemove, onPin }) => (
 );
 
 /* ── Edit Modal ──────────────────────────────────────────────── */
+const EpisodePicker = ({ item, episodesWatched, onchange }) => {
+  const [episodes, setEpisodes]   = useState([]);
+  const [loading, setLoading]     = useState(false);
+
+  useEffect(() => {
+    if (!item) return;
+    setLoading(true);
+    const isAnime = item.type === 'anime';
+    const isTV    = item.type === 'tv';
+    if (!isAnime && !isTV) { setLoading(false); return; }
+    const malId    = item.id?.replace('jikan-', '');
+    const tvmazeId = item.id?.replace('tvmaze-', '');
+    const fetcher  = isAnime ? fetchAnimeEpisodes(malId) : fetchTVEpisodes(tvmazeId);
+    fetcher.then(eps => {
+      // If no episode data, build numbered list from total
+      if (!eps.length && item.episodes) {
+        const fallback = Array.from({ length: item.episodes }, (_, i) => ({
+          number: i + 1, title: `Episode ${i + 1}`,
+        }));
+        setEpisodes(fallback);
+      } else {
+        setEpisodes(eps);
+      }
+      setLoading(false);
+    });
+  }, [item]);
+
+  if (!item || (item.type !== 'anime' && item.type !== 'tv')) return null;
+  if (loading) return <p style={{ color:'rgba(192,208,255,0.5)', fontSize:'0.82rem', marginTop:'6px' }}>Loading episodes…</p>;
+  if (!episodes.length) return null;
+
+  return (
+    <div className="wl-form-group">
+      <label>Episodes Watched</label>
+      <select
+        value={episodesWatched || ''}
+        onChange={e => onchange(e.target.value ? parseInt(e.target.value) : 0)}
+        style={{ width:'100%', padding:'10px', background:'rgba(0,255,255,0.05)', border:'1px solid rgba(0,255,255,0.2)', color:'#c0d0ff', borderRadius:'6px', fontSize:'0.88rem' }}
+      >
+        <option value="">Not started</option>
+        {episodes.map(ep => (
+          <option key={ep.number} value={ep.number}>
+            {ep.season ? `S${ep.season}E${ep.number}` : `Ep ${ep.number}`} — {ep.title}
+          </option>
+        ))}
+        <option value={episodes.length}>All ({episodes.length} episodes) ✓</option>
+      </select>
+      {episodesWatched > 0 && episodes.length > 0 && (
+        <div style={{ marginTop:'8px', background:'rgba(0,255,255,0.06)', borderRadius:'6px', padding:'8px 12px', fontSize:'0.82rem' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'4px' }}>
+            <span style={{ color:'rgba(192,208,255,0.6)' }}>Progress</span>
+            <span style={{ color:'var(--color-cyan)', fontWeight:700 }}>{episodesWatched} / {episodes.length}</span>
+          </div>
+          <div style={{ height:'4px', background:'rgba(0,255,255,0.1)', borderRadius:'2px' }}>
+            <div style={{ height:'100%', width:`${Math.min(100,(episodesWatched/episodes.length)*100)}%`, background:'var(--color-cyan)', borderRadius:'2px', transition:'width 0.3s' }} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const EditModal = ({ item, onSave, onClose }) => {
-  const [status, setStatus] = useState(item?.status || 'plan');
-  const [rating, setRating] = useState(item?.rating ?? null);
-  const [review, setReview] = useState(item?.review || '');
+  const [status,           setStatus]           = useState(item?.status || 'plan');
+  const [rating,           setRating]           = useState(item?.rating ?? null);
+  const [review,           setReview]           = useState(item?.review || '');
+  const [episodesWatched,  setEpisodesWatched]  = useState(item?.episodesWatched || 0);
 
   return (
     <div className="wl-overlay" onClick={onClose}>
@@ -99,6 +162,10 @@ const EditModal = ({ item, onSave, onClose }) => {
           </div>
         </div>
 
+        {(status === 'watching') && (item?.type === 'anime' || item?.type === 'tv') && (
+          <EpisodePicker item={item} episodesWatched={episodesWatched} onchange={setEpisodesWatched} />
+        )}
+
         <div className="wl-form-group">
           <label>Rating (click to rate, click again to clear)</label>
           <Stars rating={rating} onRate={setRating} />
@@ -110,7 +177,7 @@ const EditModal = ({ item, onSave, onClose }) => {
         </div>
 
         <div className="wl-modal-actions">
-          <button className="neon-button" onClick={() => onSave({ status, rating, review })}>Save</button>
+          <button className="neon-button" onClick={() => onSave({ status, rating, review, episodesWatched })}>Save</button>
           <button className="neon-button" style={{ opacity: 0.6 }} onClick={onClose}>Cancel</button>
         </div>
       </div>
@@ -125,9 +192,10 @@ const AddMediaPanel = ({ onAdd, onClose }) => {
   const [results,   setResults]   = useState([]);
   const [searching, setSearching] = useState(false);
   const [selected,  setSelected]  = useState(null);
-  const [status,    setStatus]    = useState('plan');
-  const [rating,    setRating]    = useState(null);
-  const [review,    setReview]    = useState('');
+  const [status,           setStatus]           = useState('plan');
+  const [rating,           setRating]           = useState(null);
+  const [review,           setReview]           = useState('');
+  const [episodesWatched,  setEpisodesWatched]  = useState(0);
   const debounce = useRef(null);
 
   const doSearch = useCallback(async (q, t) => {
@@ -160,7 +228,7 @@ const AddMediaPanel = ({ onAdd, onClose }) => {
 
   const handleAdd = () => {
     if (!selected) return;
-    onAdd({ ...selected, status, rating, review, pinned: false, addedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+    onAdd({ ...selected, status, rating, review, episodesWatched, pinned: false, addedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
     onClose();
   };
 
@@ -245,6 +313,10 @@ const AddMediaPanel = ({ onAdd, onClose }) => {
                 ))}
               </div>
             </div>
+
+            {(status === 'watching') && (selected?.type === 'anime' || selected?.type === 'tv') && (
+              <EpisodePicker item={selected} episodesWatched={episodesWatched} onchange={setEpisodesWatched} />
+            )}
 
             <div className="wl-form-group">
               <label>Rating (optional)</label>

@@ -216,10 +216,31 @@ const LastFmWidget = ({ lastfmUsername }) => {
 /* ── Main MemberProfile ─────────────────────────────────────── */
 const MemberProfile = () => {
   const { user } = useAuth();
-  const [profile,  setProfile]  = useState(null);
-  const [editing,  setEditing]  = useState(false);
-  const [formData, setFormData] = useState({});
-  const [favTab,   setFavTab]   = useState(false);
+  const [profile,   setProfile]  = useState(null);
+  const [editing,   setEditing]  = useState(false);
+  const [formData,  setFormData] = useState({});
+  const [favTab,    setFavTab]   = useState(false);
+  const [presence,  setPresence] = useState(() => localStorage.getItem(`nova_presence_${user?.username}`) || 'online');
+  const [coins,     setCoins]    = useState(() => parseInt(localStorage.getItem(`nova_coins_${user?.username}`) || '0'));
+  const coinsRef = useRef(null);
+
+  // Earn 1 coin every 2 minutes while on the page
+  useEffect(() => {
+    if (!user?.username) return;
+    coinsRef.current = setInterval(() => {
+      setCoins(prev => {
+        const next = prev + 1;
+        localStorage.setItem(`nova_coins_${user.username}`, next);
+        return next;
+      });
+    }, 120000); // 2 minutes
+    return () => clearInterval(coinsRef.current);
+  }, [user]);
+
+  const changePresence = (p) => {
+    setPresence(p);
+    localStorage.setItem(`nova_presence_${user?.username}`, p);
+  };
 
   useEffect(() => {
     const profiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
@@ -328,6 +349,28 @@ const MemberProfile = () => {
           {profile.discord_tag && (
             <p style={{ color: 'rgba(192,208,255,0.45)', fontSize: '0.85rem', margin: '0 0 6px 0' }}>{profile.discord_tag}</p>
           )}
+
+        {/* Presence toggle */}
+        <div style={{ display:'flex', alignItems:'center', gap:'8px', margin:'8px 0' }}>
+          {[
+            { key:'online',  label:'Online',    color:'#43b581' },
+            { key:'idle',    label:'Do Not Disturb', color:'#f04747' },
+            { key:'offline', label:'Invisible', color:'#747f8d' },
+          ].map(({ key, label, color }) => (
+            <button key={key} onClick={() => changePresence(key)}
+              style={{ padding:'4px 12px', background: presence===key?`${color}22`:'rgba(10,10,30,0.5)', border:`1px solid ${presence===key?color:'rgba(100,120,200,0.15)'}`, color: presence===key?color:'rgba(192,208,255,0.4)', borderRadius:'20px', cursor:'pointer', fontSize:'0.72rem', fontWeight:600, display:'flex', alignItems:'center', gap:'5px' }}>
+              <span style={{ width:'8px', height:'8px', borderRadius:'50%', background: presence===key?color:'rgba(100,120,200,0.3)', display:'inline-block' }} />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Coins */}
+        <div style={{ display:'flex', alignItems:'center', gap:'6px', marginBottom:'8px' }}>
+          <span style={{ fontSize:'1rem' }}>🪙</span>
+          <span style={{ color:'#ffd700', fontWeight:700, fontSize:'0.88rem' }}>{coins.toLocaleString()} Nova Coins</span>
+          <span style={{ color:'rgba(192,208,255,0.35)', fontSize:'0.72rem' }}>+1 every 2 min</span>
+        </div>
         </div>
         {profile.bio && (
           <div className="discord-section">
