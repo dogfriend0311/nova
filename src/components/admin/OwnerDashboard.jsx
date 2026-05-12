@@ -110,7 +110,7 @@ const MemberPagesTab = () => {
                 const updated = profiles.filter(x => x.username !== p.username);
                 setProfiles(updated);
                 localStorage.setItem('member_profiles', JSON.stringify(updated));
-                import('../../../services/db').then(({ default: db }) => {
+                import('../../services/db').then(({ default: db }) => {
                   const supa = db.supabaseClient || null;
                   // delete from Supabase
                 }).catch(() => {});
