@@ -105,7 +105,7 @@ const StatSection = ({ title, color, stats, isCareer, onToggle }) => (
   </div>
 );
 
-const LeaguePlayerPage = ({ player, onBack }) => {
+const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
   const [toggles, setToggles] = useState({
     hitBasic: false,
     hitAdv: false,
@@ -127,7 +127,7 @@ const LeaguePlayerPage = ({ player, onBack }) => {
   }
 
   
-  const boxScores = JSON.parse(localStorage.getItem(`${leaguePrefix || 'nabb'}_box_scores`) || '[]');
+  const boxScores = JSON.parse(localStorage.getItem(`${(leaguePrefix || 'nabb')}_box_scores`) || '[]');
   const playerScores = boxScores.filter(b => b.player_id === player.id);
   const gamesPlayed = playerScores.length;
   const gamesPitched = playerScores.filter(b => safe(b.innings_pitched) > 0).length;

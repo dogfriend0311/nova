@@ -111,7 +111,7 @@ const ScoresPanel = ({ sport, refreshKey, onSelectGame }) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchScoreboard(sport, selectedDate || undefined);
+      const data = await fetchScoreboard(sport);
       const normalized = (data.events || []).map(normalizeGame).filter(Boolean);
       setGames(normalized);
     } catch (e) {
