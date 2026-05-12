@@ -55,7 +55,7 @@ const emptyPlayer = {
   hits_allowed:'',earned_runs:'',career_whip:'',career_sv:'',career_hld:'',
 };
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â• ROW 1 â€” NOVA â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â ROW 1 Ã¢â‚¬â€ NOVA Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
 
 const MemberPagesTab = () => {
   const [profiles, setProfiles] = useState([]);
@@ -73,7 +73,7 @@ const MemberPagesTab = () => {
 
   if (editing) return (
     <div className="tab-content">
-      <button className="neon-button" style={{ marginBottom:'20px' }} onClick={() => setEditing(null)}>â† Back</button>
+      <button className="neon-button" style={{ marginBottom:'20px' }} onClick={() => setEditing(null)}>Ã¢â€ Â Back</button>
       <h2 className="gradient-text-cyan">Edit: {editing}</h2>
       <div className="neon-card p-3" style={{ marginTop:'20px' }}>
         <div className="edit-form">
@@ -111,9 +111,7 @@ const MemberPagesTab = () => {
                 setProfiles(updated);
                 localStorage.setItem('member_profiles', JSON.stringify(updated));
                 import('../../services/db').then(({ default: db }) => {
-                  const supa = db.supabaseClient || null;
-                  // delete from Supabase
-                }).catch(() => {});
+                                  }).catch(() => {});
               }}>Del Profile</button>
               <button className="neon-button" style={{ borderColor:'#ff3333', color:'#ff3333' }} onClick={() => {
                 if (!window.confirm(`DELETE ACCOUNT for ${p.username}? This cannot be undone.`)) return;
@@ -159,7 +157,7 @@ const UserRolesTab = () => {
   );
 };
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â• LEAGUE TABS â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â LEAGUE TABS Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
 
 /* PLAYERS */
 const LeaguePlayersTab = ({ prefix }) => {
@@ -267,7 +265,7 @@ const LeaguePlayersTab = ({ prefix }) => {
                     style={{ flex:1 }} />
                   <span style={{ fontSize:'0.8rem', color:'var(--color-cyan)', minWidth:'35px' }}>{Math.round(zoom*100)}%</span>
                 </div>
-                <p style={{ fontSize:'0.75rem', color:'rgba(192,208,255,0.4)', marginTop:'6px' }}>Drag to reposition Â· Slider to zoom</p>
+                <p style={{ fontSize:'0.75rem', color:'rgba(192,208,255,0.4)', marginTop:'6px' }}>Drag to reposition Ã‚Â· Slider to zoom</p>
                 <canvas ref={canvasRef} style={{ display:'none' }} />
               </div>
             )}
@@ -290,7 +288,7 @@ const LeaguePlayersTab = ({ prefix }) => {
             )}
           </div>
 
-          {/* Stats â€” Season / Career Ã— Hitting / Pitching */}
+          {/* Stats Ã¢â‚¬â€ Season / Career Ãƒâ€” Hitting / Pitching */}
           <h4 style={{ color:'rgba(192,208,255,0.7)', margin:'18px 0 8px', fontSize:'0.85rem', textTransform:'uppercase', letterSpacing:'0.08em' }}>Stats</h4>
           <div style={{ display:'flex', gap:'8px', marginBottom:'8px', flexWrap:'wrap' }}>
             {['season','career'].map(t => (
@@ -312,7 +310,7 @@ const LeaguePlayersTab = ({ prefix }) => {
             {(statTab.period==='season' ? (statTab.type==='hitting' ? S_HIT : S_PIT) : (statTab.type==='hitting' ? C_HIT : C_PIT)).map(([f, l]) => (
               <div key={f}>
                 <label style={{ fontSize:'0.75rem', color:'rgba(192,208,255,0.6)', display:'block', marginBottom:'3px' }}>{l}</label>
-                <input type="text" value={form[f]||''} onChange={e=>setForm({...form,[f]:e.target.value})} placeholder="â€”" style={{ ...SI, padding:'7px', fontSize:'0.9rem' }} />
+                <input type="text" value={form[f]||''} onChange={e=>setForm({...form,[f]:e.target.value})} placeholder="Ã¢â‚¬â€" style={{ ...SI, padding:'7px', fontSize:'0.9rem' }} />
               </div>
             ))}
           </div>
@@ -331,11 +329,11 @@ const LeaguePlayersTab = ({ prefix }) => {
               <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
                 {p.avatar_data
                   ? <img src={p.avatar_data} alt={p.player_name} style={{ width:'44px', height:'44px', borderRadius:'6px', objectFit:'cover', border:'1px solid rgba(0,255,255,0.2)' }} />
-                  : <div style={{ width:'44px', height:'44px', borderRadius:'6px', background:'rgba(0,255,255,0.1)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.4rem' }}>ðŸŽ®</div>
+                  : <div style={{ width:'44px', height:'44px', borderRadius:'6px', background:'rgba(0,255,255,0.1)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.4rem' }}>Ã°Å¸Å½Â®</div>
                 }
                 <div>
                   <p style={{ margin:0, color:'var(--color-cyan)', fontWeight:700 }}>{p.player_name}</p>
-                  <p style={{ margin:'2px 0 0', fontSize:'0.8rem', color:'rgba(192,208,255,0.6)' }}>{p.team||'FA'} Â· {p.position||'â€”'} Â· OVR {p.overall}</p>
+                  <p style={{ margin:'2px 0 0', fontSize:'0.8rem', color:'rgba(192,208,255,0.6)' }}>{p.team||'FA'} Ã‚Â· {p.position||'Ã¢â‚¬â€'} Ã‚Â· OVR {p.overall}</p>
                 </div>
               </div>
               <div style={{ display:'flex', gap:'8px' }}>
@@ -487,8 +485,8 @@ const LeagueRostersTab = ({ prefix }) => {
   return (
     <div className="tab-content">
       <div style={{ display:'flex', gap:'10px', marginBottom:'20px', flexWrap:'wrap' }}>
-        <button className="neon-button" onClick={() => setSelectedTeam(null)}>â† Back</button>
-        {teamPlayers.length > 0 && <button className="neon-button" style={{ borderColor:'#ff3333', color:'#ff3333' }} onClick={clearRoster}>ðŸ—‘ï¸ Clear Roster</button>}
+        <button className="neon-button" onClick={() => setSelectedTeam(null)}>Ã¢â€ Â Back</button>
+        {teamPlayers.length > 0 && <button className="neon-button" style={{ borderColor:'#ff3333', color:'#ff3333' }} onClick={clearRoster}>Ã°Å¸â€”â€˜Ã¯Â¸Â Clear Roster</button>}
       </div>
       <h2 className="gradient-text-cyan">{selectedTeam.team_name} Roster</h2>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px', marginTop:'20px' }}>
@@ -603,7 +601,7 @@ const LeagueGamesTab = ({ prefix }) => {
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'10px' }}>
             <div>
               <p style={{ margin:'0 0 4px', color:'var(--color-cyan)', fontWeight:700 }}>
-                {game.home_team} <span style={{ color:'var(--color-magenta)' }}>{game.home_score}</span> â€” <span style={{ color:'var(--color-magenta)' }}>{game.away_score}</span> {game.away_team}
+                {game.home_team} <span style={{ color:'var(--color-magenta)' }}>{game.home_score}</span> Ã¢â‚¬â€ <span style={{ color:'var(--color-magenta)' }}>{game.away_score}</span> {game.away_team}
               </p>
               {game.game_date && <p style={{ margin:0, fontSize:'0.8rem', color:'rgba(192,208,255,0.4)' }}>{new Date(game.game_date).toLocaleString()}</p>}
               <span className={`badge badge-${game.status === 'live' ? 'active' : 'pending'}`} style={{ marginTop:'6px', display:'inline-block' }}>{game.status}</span>
@@ -678,8 +676,8 @@ const LeagueBoxScoresTab = ({ prefix }) => {
 
   if (editingScore) return (
     <div className="tab-content">
-      <button className="neon-button" style={{ marginBottom:'20px' }} onClick={() => { setEditingScore(null); setEditForm({}); }}>â† Cancel</button>
-      <h2 className="gradient-text-magenta">Edit Stats â€” {players.find(p => p.id === editingScore.player_id)?.player_name}</h2>
+      <button className="neon-button" style={{ marginBottom:'20px' }} onClick={() => { setEditingScore(null); setEditForm({}); }}>Ã¢â€ Â Cancel</button>
+      <h2 className="gradient-text-magenta">Edit Stats Ã¢â‚¬â€ {players.find(p => p.id === editingScore.player_id)?.player_name}</h2>
       <div className="neon-card p-3" style={{ marginTop:'20px' }}>
         <div className="edit-form">
           {statFields.map(field => (
@@ -702,12 +700,12 @@ const LeagueBoxScoresTab = ({ prefix }) => {
     const addedIds = new Set(gameScores.map(s => String(s.player_id)));
     return (
       <div className="tab-content">
-        <button className="neon-button" style={{ marginBottom:'20px' }} onClick={() => setSelectedGame(null)}>â† Back</button>
+        <button className="neon-button" style={{ marginBottom:'20px' }} onClick={() => setSelectedGame(null)}>Ã¢â€ Â Back</button>
         <h2 className="gradient-text-cyan">{selectedGame.game_name}</h2>
         <div className="neon-card p-3" style={{ marginBottom:'20px', display:'flex', gap:'20px', alignItems:'center', flexWrap:'wrap' }}>
           <span style={{ color:'rgba(192,208,255,0.7)' }}>{selectedGame.home_team||'Home'}</span>
           <input type="number" value={selectedGame.home_score||0} onChange={e=>updateBsScore(selectedGame.id,'home_score',+e.target.value)} style={{ width:'60px', padding:'6px', background:'rgba(0,255,255,0.05)', border:'1px solid rgba(0,255,255,0.2)', color:'var(--color-cyan)', borderRadius:'4px', textAlign:'center', fontWeight:'700', fontSize:'1.1rem' }} />
-          <span style={{ color:'rgba(192,208,255,0.4)' }}>â€”</span>
+          <span style={{ color:'rgba(192,208,255,0.4)' }}>Ã¢â‚¬â€</span>
           <input type="number" value={selectedGame.away_score||0} onChange={e=>updateBsScore(selectedGame.id,'away_score',+e.target.value)} style={{ width:'60px', padding:'6px', background:'rgba(255,0,255,0.05)', border:'1px solid rgba(255,0,255,0.2)', color:'var(--color-magenta)', borderRadius:'4px', textAlign:'center', fontWeight:'700', fontSize:'1.1rem' }} />
           <span style={{ color:'rgba(192,208,255,0.7)' }}>{selectedGame.away_team||'Away'}</span>
         </div>
@@ -732,12 +730,12 @@ const LeagueBoxScoresTab = ({ prefix }) => {
                   return (
                     <tr key={score.id} style={{ borderBottom:'1px solid rgba(0,255,255,0.05)' }}>
                       <td style={{ padding:'8px', color:'var(--color-cyan)' }}>{player?.player_name||'?'}</td>
-                      <td style={{ padding:'8px', textAlign:'center', color:'rgba(192,208,255,0.6)' }}>{score.team||'â€”'}</td>
+                      <td style={{ padding:'8px', textAlign:'center', color:'rgba(192,208,255,0.6)' }}>{score.team||'Ã¢â‚¬â€'}</td>
                       {[score.hits,score.runs,score.rbis,score.home_runs,score.strike_outs,score.innings_pitched,score.strikeouts_pitched,score.hits_allowed,score.earned_runs].map((v,i) => (
                         <td key={i} style={{ padding:'8px', textAlign:'center', color:'rgba(192,208,255,0.85)' }}>{v||0}</td>
                       ))}
                       <td style={{ padding:'8px', textAlign:'center' }}>
-                        <button onClick={() => { setEditingScore(score); setEditForm({...score}); }} style={{ background:'none', border:'none', color:'var(--color-cyan)', cursor:'pointer' }}>âœï¸</button>
+                        <button onClick={() => { setEditingScore(score); setEditForm({...score}); }} style={{ background:'none', border:'none', color:'var(--color-cyan)', cursor:'pointer' }}>Ã¢Å“ÂÃ¯Â¸Â</button>
                       </td>
                     </tr>
                   );
@@ -783,11 +781,11 @@ const LeagueBoxScoresTab = ({ prefix }) => {
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
               <div>
                 <p style={{ margin:'0 0 4px', color:'var(--color-cyan)', fontWeight:'700' }}>{game.game_name}</p>
-                <p style={{ margin:0, color:'rgba(192,208,255,0.75)' }}>{game.home_team||'Home'} <strong>{game.home_score}</strong> â€” <strong>{game.away_score}</strong> {game.away_team||'Away'}</p>
+                <p style={{ margin:0, color:'rgba(192,208,255,0.75)' }}>{game.home_team||'Home'} <strong>{game.home_score}</strong> Ã¢â‚¬â€ <strong>{game.away_score}</strong> {game.away_team||'Away'}</p>
               </div>
               <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
-                <span style={{ color:'rgba(0,255,255,0.5)', fontSize:'0.8rem' }}>Open â†’</span>
-                <button onClick={e=>{e.stopPropagation();deleteGame(game.id);}} style={{ background:'none', border:'none', color:'#ff3333', cursor:'pointer', fontSize:'0.9rem', padding:'4px 8px' }}>âœ•</button>
+                <span style={{ color:'rgba(0,255,255,0.5)', fontSize:'0.8rem' }}>Open Ã¢â€ â€™</span>
+                <button onClick={e=>{e.stopPropagation();deleteGame(game.id);}} style={{ background:'none', border:'none', color:'#ff3333', cursor:'pointer', fontSize:'0.9rem', padding:'4px 8px' }}>Ã¢Å“â€¢</button>
               </div>
             </div>
           </div>
@@ -849,7 +847,7 @@ const LeagueGameFeedTab = ({ prefix }) => {
           : liveGames.map(game => (
             <div key={game.id} className="neon-card p-3" style={{ marginBottom:'15px', cursor:'pointer' }} onClick={() => setSelectedGame(game)}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <p style={{ margin:0, color:'var(--color-cyan)' }}><strong>{game.home_team}</strong> {game.home_score} â€“ {game.away_score} <strong>{game.away_team}</strong></p>
+                <p style={{ margin:0, color:'var(--color-cyan)' }}><strong>{game.home_team}</strong> {game.home_score} Ã¢â‚¬â€œ {game.away_score} <strong>{game.away_team}</strong></p>
                 <span className={`badge badge-${game.status === 'live' ? 'active' : 'pending'}`}>{game.status}</span>
               </div>
             </div>
@@ -864,7 +862,7 @@ const LeagueGameFeedTab = ({ prefix }) => {
 
   return (
     <div className="tab-content">
-      <button className="neon-button" onClick={() => setSelectedGame(null)} style={{ marginBottom:'20px' }}>â† Back</button>
+      <button className="neon-button" onClick={() => setSelectedGame(null)} style={{ marginBottom:'20px' }}>Ã¢â€ Â Back</button>
       <h2 className="gradient-text-cyan">{selectedGame.home_team} vs {selectedGame.away_team}</h2>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px', marginTop:'20px' }}>
         {[{title:selectedGame.home_team, plist:homeTeamPlayers, color:'cyan'},{title:selectedGame.away_team, plist:awayTeamPlayers, color:'magenta'}].map(({title, plist, color}) => (
@@ -886,7 +884,7 @@ const LeagueGameFeedTab = ({ prefix }) => {
       <div className="neon-card p-3" style={{ marginTop:'20px' }}>
         <h4 className="gradient-text-magenta">Log Event</h4>
         <label style={{ fontSize:'0.8rem', color:'rgba(192,208,255,0.7)', display:'block', marginBottom:'8px', marginTop:'10px' }}>
-          {selectedPlayer ? `Player: ${players.find(p=>p.id===selectedPlayer)?.player_name}` : 'Select a player first â†‘'}
+          {selectedPlayer ? `Player: ${players.find(p=>p.id===selectedPlayer)?.player_name}` : 'Select a player first Ã¢â€ â€˜'}
         </label>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(100px, 1fr))', gap:'8px' }}>
           {eventTypes.map(event => (
@@ -910,7 +908,7 @@ const LeagueGameFeedTab = ({ prefix }) => {
                       {eventTypes.map(e=><option key={e} value={e}>{e}</option>)}
                     </select>
                     <button className="neon-button" style={{ padding:'4px 12px' }} onClick={saveEdit}>Save</button>
-                    <button className="neon-button" style={{ padding:'4px 12px' }} onClick={()=>{setEditingEvent(null);setEditNote('');}}>âœ•</button>
+                    <button className="neon-button" style={{ padding:'4px 12px' }} onClick={()=>{setEditingEvent(null);setEditNote('');}}>Ã¢Å“â€¢</button>
                   </div>
                 ) : (
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
@@ -920,8 +918,8 @@ const LeagueGameFeedTab = ({ prefix }) => {
                       <p style={{ margin:'2px 0 0', fontSize:'0.75rem', color:'rgba(192,208,255,0.4)' }}>{new Date(event.created_at||event.timestamp).toLocaleTimeString()}</p>
                     </div>
                     <div style={{ display:'flex', gap:'6px' }}>
-                      <button onClick={()=>{setEditingEvent(event.id);setEditNote(event.event_type);}} style={{ background:'none', border:'none', color:'var(--color-cyan)', cursor:'pointer' }}>âœï¸</button>
-                      <button onClick={()=>deleteEvent(event.id)} style={{ background:'none', border:'none', color:'#ff3333', cursor:'pointer' }}>ðŸ—‘ï¸</button>
+                      <button onClick={()=>{setEditingEvent(event.id);setEditNote(event.event_type);}} style={{ background:'none', border:'none', color:'var(--color-cyan)', cursor:'pointer' }}>Ã¢Å“ÂÃ¯Â¸Â</button>
+                      <button onClick={()=>deleteEvent(event.id)} style={{ background:'none', border:'none', color:'#ff3333', cursor:'pointer' }}>Ã°Å¸â€”â€˜Ã¯Â¸Â</button>
                     </div>
                   </div>
                 )}
@@ -990,7 +988,7 @@ const LeagueHofTab = ({ prefix }) => {
   );
 };
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â• MAIN DASHBOARD â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+/* Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â MAIN DASHBOARD Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */
 const OwnerDashboard = ({ onExit }) => {
   const { logout, user } = useAuth();
   const role = user?.role;
@@ -1033,7 +1031,7 @@ const OwnerDashboard = ({ onExit }) => {
         <h1 className="gradient-text">Owner Dashboard</h1>
         <div className="header-actions">
           <span style={{ color:'var(--color-cyan)', marginRight:'20px', fontSize:'0.85rem' }}>{role?.toUpperCase()}</span>
-          <button className="neon-button" onClick={onExit} style={{ marginRight:'10px' }}>â† Back to Nova</button>
+          <button className="neon-button" onClick={onExit} style={{ marginRight:'10px' }}>Ã¢â€ Â Back to Nova</button>
           <button className="neon-button" onClick={logout}>Logout</button>
         </div>
       </div>
@@ -1041,38 +1039,38 @@ const OwnerDashboard = ({ onExit }) => {
       <div className="dashboard-sections">
         {isOwnerLevel && (
           <div className="dashboard-section">
-            <div className="section-label">ðŸŒ NOVA</div>
+            <div className="section-label">Ã°Å¸Å’Â NOVA</div>
             <div className="dashboard-tabs">
-              <Btn id="member-pages" label="ðŸ‘¥ Member Pages" />
-              <Btn id="user-roles"   label="ðŸ” User Roles" />
+              <Btn id="member-pages" label="Ã°Å¸â€˜Â¥ Member Pages" />
+              <Btn id="user-roles"   label="Ã°Å¸â€Â User Roles" />
             </div>
           </div>
         )}
         {(isOwnerLevel || isNABB) && (
           <div className="dashboard-section">
-            <div className="section-label">âš¾ NABB</div>
+            <div className="section-label">Ã¢Å¡Â¾ NABB</div>
             <div className="dashboard-tabs">
-              <Btn id="nabb-players"   label="ðŸŽ® Players" />
-              <Btn id="nabb-teams"     label="ðŸŸï¸ Teams" />
-              <Btn id="nabb-rosters"   label="ðŸ‘¥ Rosters" />
-              <Btn id="nabb-games"     label="ðŸ“… Games" />
-              <Btn id="nabb-boxscores" label="ðŸ“ˆ Box Scores" />
-              <Btn id="nabb-feed"      label="ðŸ“° Feed" />
-              <Btn id="nabb-hof"       label="ðŸ† HoF" />
+              <Btn id="nabb-players"   label="Ã°Å¸Å½Â® Players" />
+              <Btn id="nabb-teams"     label="Ã°Å¸ÂÅ¸Ã¯Â¸Â Teams" />
+              <Btn id="nabb-rosters"   label="Ã°Å¸â€˜Â¥ Rosters" />
+              <Btn id="nabb-games"     label="Ã°Å¸â€œâ€¦ Games" />
+              <Btn id="nabb-boxscores" label="Ã°Å¸â€œË† Box Scores" />
+              <Btn id="nabb-feed"      label="Ã°Å¸â€œÂ° Feed" />
+              <Btn id="nabb-hof"       label="Ã°Å¸Ââ€  HoF" />
             </div>
           </div>
         )}
         {(isOwnerLevel || isRBML) && (
           <div className="dashboard-section">
-            <div className="section-label">âš¾ RBML</div>
+            <div className="section-label">Ã¢Å¡Â¾ RBML</div>
             <div className="dashboard-tabs">
-              <Btn id="rbml-players"   label="ðŸŽ® Players" />
-              <Btn id="rbml-teams"     label="ðŸŸï¸ Teams" />
-              <Btn id="rbml-rosters"   label="ðŸ‘¥ Rosters" />
-              <Btn id="rbml-games"     label="ðŸ“… Games" />
-              <Btn id="rbml-boxscores" label="ðŸ“ˆ Box Scores" />
-              <Btn id="rbml-feed"      label="ðŸ“° Feed" />
-              <Btn id="rbml-hof"       label="ðŸ† HoF" />
+              <Btn id="rbml-players"   label="Ã°Å¸Å½Â® Players" />
+              <Btn id="rbml-teams"     label="Ã°Å¸ÂÅ¸Ã¯Â¸Â Teams" />
+              <Btn id="rbml-rosters"   label="Ã°Å¸â€˜Â¥ Rosters" />
+              <Btn id="rbml-games"     label="Ã°Å¸â€œâ€¦ Games" />
+              <Btn id="rbml-boxscores" label="Ã°Å¸â€œË† Box Scores" />
+              <Btn id="rbml-feed"      label="Ã°Å¸â€œÂ° Feed" />
+              <Btn id="rbml-hof"       label="Ã°Å¸Ââ€  HoF" />
             </div>
           </div>
         )}
