@@ -243,21 +243,43 @@ const MemberProfile = () => {
   };
 
   useEffect(() => {
-    const profiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
-    const found = profiles.find((p) => p.username === user?.username);
-    const p = { ...DEFAULT_PROFILE, username: user?.username, ...(found || {}), fav_teams: { ...DEFAULT_FAV_TEAMS, ...(found?.fav_teams || {}) } };
-    setProfile(p);
-    setFormData(p);
+    if (!user?.username) return;
+    // Try Supabase first for cross-device sync
+    import('../../services/db').then(({ default: db }) => {
+      db.getMemberProfiles().then(profiles => {
+        const found = profiles.find(p => p.username === user.username);
+        if (!found) {
+          // If not in Supabase yet, check localStorage and sync up
+          const lsProfiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
+          const lsFound = lsProfiles.find(p => p.username === user.username);
+          const p = { ...DEFAULT_PROFILE, username: user.username, ...(lsFound || {}), fav_teams: { ...DEFAULT_FAV_TEAMS, ...(lsFound?.fav_teams || {}) } };
+          setProfile(p); setFormData(p);
+          if (lsFound) db.saveMemberProfile(p).catch(() => {});
+        } else {
+          const p = { ...DEFAULT_PROFILE, ...found, fav_teams: { ...DEFAULT_FAV_TEAMS, ...(found.fav_teams || {}) } };
+          setProfile(p); setFormData(p);
+        }
+      }).catch(() => {
+        const profiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
+        const found = profiles.find(p => p.username === user.username);
+        const p = { ...DEFAULT_PROFILE, username: user.username, ...(found || {}), fav_teams: { ...DEFAULT_FAV_TEAMS, ...(found?.fav_teams || {}) } };
+        setProfile(p); setFormData(p);
+      });
+    });
   }, [user]);
 
   const handleField = (key, val) => setFormData((prev) => ({ ...prev, [key]: val }));
 
   const handleSave = () => {
+    // Save to localStorage
     const profiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
     const idx = profiles.findIndex((p) => p.username === user?.username);
-    if (idx !== -1) profiles[idx] = formData;
-    else profiles.push(formData);
+    if (idx !== -1) profiles[idx] = formData; else profiles.push(formData);
     localStorage.setItem('member_profiles', JSON.stringify(profiles));
+    // Save to Supabase for cross-device
+    import('../../services/db').then(({ default: db }) => {
+      db.saveMemberProfile(formData).catch(() => {});
+    });
     setProfile(formData);
     setEditing(false);
     setFavTab(false);
@@ -292,6 +314,11 @@ const MemberProfile = () => {
               <label>Last.fm Username</label>
               <input type="text" value={formData.lastfm_username || ''} onChange={(e) => setFormData({ ...formData, lastfm_username: e.target.value })} placeholder="your-lastfm-username" />
               <small style={{ color: 'rgba(192,208,255,0.4)', fontSize: '0.75rem' }}>Shows your now-playing track on your profile. Free at last.fm</small>
+            </div>
+            <div className="form-group">
+              <label>Spotify Song / Playlist URL</label>
+              <input type="text" value={formData.spotify_url || ''} onChange={(e) => setFormData({ ...formData, spotify_url: e.target.value })} placeholder="https://open.spotify.com/track/..." />
+              <small style={{ color: 'rgba(192,208,255,0.4)', fontSize: '0.75rem' }}>Paste a Spotify track or playlist link to embed on your profile</small>
             </div>
             <h4 className="gradient-text-cyan" style={{ margin: '20px 0 10px' }}>Socials</h4>
             {[
@@ -350,8 +377,8 @@ const MemberProfile = () => {
             <p style={{ color: 'rgba(192,208,255,0.45)', fontSize: '0.85rem', margin: '0 0 6px 0' }}>{profile.discord_tag}</p>
           )}
 
-        {/* Presence toggle */}
-        <div style={{ display:'flex', alignItems:'center', gap:'8px', margin:'8px 0' }}>
+        {/* Presence toggle (own page) */}
+        <div style={{ display:'flex', alignItems:'center', gap:'8px', margin:'8px 0', flexWrap:'wrap' }}>
           {[
             { key:'online',  label:'Online',    color:'#43b581' },
             { key:'idle',    label:'Do Not Disturb', color:'#f04747' },
@@ -372,7 +399,23 @@ const MemberProfile = () => {
           <span style={{ color:'rgba(192,208,255,0.35)', fontSize:'0.72rem' }}>+1 every 2 min</span>
         </div>
         </div>
-        {profile.bio && (
+        {/* Spotify embed */}
+      {profile.spotify_url && (
+        <div style={{ marginBottom:'16px' }}>
+          <p style={{ fontSize:'0.72rem', color:'rgba(192,208,255,0.4)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:'6px' }}>Spotify</p>
+          <iframe
+            src={profile.spotify_url.includes('/embed/')
+              ? profile.spotify_url
+              : profile.spotify_url.replace('open.spotify.com/', 'open.spotify.com/embed/')}
+            width="100%" height="80" frameBorder="0"
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            title="Spotify"
+            style={{ borderRadius:'10px' }}
+          />
+        </div>
+      )}
+
+      {profile.bio && (
           <div className="discord-section">
             <div className="discord-section-title">About Me</div>
             <p className="discord-section-text">{profile.bio}</p>

@@ -103,7 +103,29 @@ const MemberPagesTab = () => {
               <p style={{ margin:0, color:'var(--color-cyan)', fontWeight:700 }}>{p.username}</p>
               <p style={{ margin:'4px 0 0', fontSize:'0.8rem', color:'rgba(192,208,255,0.5)' }}>{p.bio||'No bio'}</p>
             </div>
-            <button className="neon-button" onClick={() => startEdit(p)}>Edit</button>
+            <div style={{ display:'flex', gap:'8px' }}>
+              <button className="neon-button" onClick={() => startEdit(p)}>Edit</button>
+              <button className="neon-button" style={{ borderColor:'#ff8800', color:'#ff8800' }} onClick={() => {
+                if (!window.confirm(`Delete profile for ${p.username}?`)) return;
+                const updated = profiles.filter(x => x.username !== p.username);
+                setProfiles(updated);
+                localStorage.setItem('member_profiles', JSON.stringify(updated));
+                import('../../../services/db').then(({ default: db }) => {
+                  const supa = db.supabaseClient || null;
+                  // delete from Supabase
+                }).catch(() => {});
+              }}>Del Profile</button>
+              <button className="neon-button" style={{ borderColor:'#ff3333', color:'#ff3333' }} onClick={() => {
+                if (!window.confirm(`DELETE ACCOUNT for ${p.username}? This cannot be undone.`)) return;
+                // Delete from nova_users
+                const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
+                localStorage.setItem('nova_users', JSON.stringify(users.filter(u => u.username !== p.username)));
+                // Delete profile
+                const updated = profiles.filter(x => x.username !== p.username);
+                setProfiles(updated);
+                localStorage.setItem('member_profiles', JSON.stringify(updated));
+              }}>Del Account</button>
+            </div>
           </div>
         ))}
       </div>
@@ -677,7 +699,7 @@ const LeagueBoxScoresTab = ({ prefix }) => {
 
   if (selectedGame) {
     const gameScores = boxScores.filter(b => b.game_id === selectedGame.id);
-    const addedIds = new Set(gameScores.map(s => s.player_id));
+    const addedIds = new Set(gameScores.map(s => String(s.player_id)));
     return (
       <div className="tab-content">
         <button className="neon-button" style={{ marginBottom:'20px' }} onClick={() => setSelectedGame(null)}>← Back</button>
@@ -693,7 +715,7 @@ const LeagueBoxScoresTab = ({ prefix }) => {
           <label style={{ fontSize:'0.8rem', color:'rgba(192,208,255,0.7)' }}>Add Player</label>
           <select style={SS} onChange={e=>{ if(e.target.value){ addPlayerScore(e.target.value); e.target.value=''; } }}>
             <option value="">Select player...</option>
-            {players.filter(p=>!addedIds.has(p.id)).map(p => <option key={p.id} value={p.id}>{p.player_name} {p.team?`(${p.team})`:''}</option>)}
+            {players.filter(p=>!addedIds.has(String(p.id))).map(p => <option key={p.id} value={p.id}>{p.player_name} {p.team?`(${p.team})`:''}</option>)}
           </select>
         </div>
         {gameScores.length > 0 && (

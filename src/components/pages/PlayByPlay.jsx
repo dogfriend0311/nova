@@ -102,8 +102,9 @@ const Count = ({ balls, strikes, outs }) => (
    BASEBALL PBP — MLB Stats API live feed
 ══════════════════════════════════════════════════════════════ */
 const BaseballPBP = ({ gamePk, game }) => {
-  const [feed, setFeed]   = useState(null);
-  const [error, setError] = useState(null);
+  const [feed, setFeed]     = useState(null);
+  const [error, setError]   = useState(null);
+  const [selectedPlay, setSelectedPlay] = useState(null);
   const intervalRef = useRef(null);
 
   const [resolvedPk, setResolvedPk] = useState(null);
@@ -258,13 +259,13 @@ const BaseballPBP = ({ gamePk, game }) => {
           <div className="pbp-matchup">
             <div className="pbp-matchup-side">
               <div className="pbp-player-role">Batting</div>
-              <div className="pbp-player-name">{batter.fullName}</div>
+              <a href={`https://www.mlb.com/player/${batter.id}`} target="_blank" rel="noopener noreferrer" className="pbp-player-name pbp-player-link">{batter.fullName}</a>
               <div className="pbp-player-sub">{cur?.matchup?.batSide?.description}</div>
             </div>
             <div className="pbp-matchup-vs">VS</div>
             <div className="pbp-matchup-side right">
               <div className="pbp-player-role">Pitching</div>
-              <div className="pbp-player-name">{pitcher.fullName}</div>
+              <a href={`https://www.mlb.com/player/${pitcher.id}`} target="_blank" rel="noopener noreferrer" className="pbp-player-name pbp-player-link">{pitcher.fullName}</a>
               <div className="pbp-player-sub">{cur?.matchup?.pitchHand?.description}</div>
             </div>
           </div>
@@ -320,21 +321,46 @@ const BaseballPBP = ({ gamePk, game }) => {
           const isHit = ['Single','Double','Triple','Home Run'].includes(res?.event);
           const isHR  = res?.event === 'Home Run';
           return (
-            <div key={i} className={`pbp-ab-row ${isHR?'pbp-hr':isHit?'pbp-hit':''}`}>
+            <div key={i}
+              className={`pbp-ab-row ${isHR?'pbp-hr':isHit?'pbp-hit':''} ${selectedPlay===i?'pbp-selected':''}`}
+              onClick={() => setSelectedPlay(selectedPlay===i?null:i)}
+              style={{ cursor: abPitches.length ? 'pointer' : 'default' }}
+            >
               <div className="pbp-ab-header">
                 <span className="pbp-ab-inning">{inning}</span>
                 <span className="pbp-ab-batter">{ab.matchup?.batter?.fullName}</span>
                 <span className="pbp-ab-result">{res?.event}</span>
-                {abPitches.length > 0 && <span className="pbp-ab-pitches">{abPitches.length}p</span>}
+                {abPitches.length > 0 && <span className="pbp-ab-pitches">{abPitches.length}p {selectedPlay===i?'▲':'▼'}</span>}
               </div>
-              {res?.description && (
-                <div className="pbp-ab-desc">{res.description}</div>
-              )}
+              {res?.description && <div className="pbp-ab-desc">{res.description}</div>}
               {lastPitch?.hitData?.launchSpeed && (
                 <div className="pbp-ab-hitdata">
                   EV {lastPitch.hitData.launchSpeed.toFixed(0)} mph
                   {lastPitch.hitData.launchAngle ? ` · LA ${lastPitch.hitData.launchAngle.toFixed(0)}°` : ''}
                   {lastPitch.hitData.totalDistance ? ` · ${lastPitch.hitData.totalDistance.toFixed(0)} ft` : ''}
+                </div>
+              )}
+              {/* Expanded pitch zone on click */}
+              {selectedPlay === i && abPitches.length > 0 && (
+                <div style={{ marginTop:'12px', display:'flex', gap:'16px', flexWrap:'wrap', alignItems:'flex-start' }}>
+                  <div>
+                    <div className="pbp-zone-label">Pitch Locations</div>
+                    <StrikeZone pitches={abPitches.map(p => ({
+                      px: p.pitchData?.coordinates?.pX,
+                      pz: p.pitchData?.coordinates?.pZ,
+                      result: p.details?.description || '',
+                    }))} />
+                  </div>
+                  <div style={{ flex:1, minWidth:'160px' }}>
+                    {abPitches.map((p, pi) => (
+                      <div key={pi} style={{ display:'flex', gap:'8px', padding:'4px 0', borderBottom:'1px solid rgba(0,255,255,0.06)', fontSize:'0.78rem', alignItems:'center' }}>
+                        <span style={{ color:'rgba(192,208,255,0.35)', minWidth:'18px' }}>#{pi+1}</span>
+                        <span style={{ color:'var(--color-cyan)', minWidth:'60px' }}>{p.details?.type?.description||'—'}</span>
+                        {p.pitchData?.startSpeed && <span style={{ color:'#ffd700' }}>{p.pitchData.startSpeed.toFixed(0)} mph</span>}
+                        <span style={{ color:'rgba(192,208,255,0.7)' }}>{p.details?.description||'—'}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

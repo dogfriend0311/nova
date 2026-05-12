@@ -1,75 +1,81 @@
-import React, { useState, useEffect } from "react";
-import { AuthProvider, useAuth } from "./context/AuthContext";
-import Layout from "./components/layout/Layout";
-import Home from "./components/pages/Home";
-import SportsHub from "./components/pages/SportsHub";
-import WatchList from "./components/pages/WatchList";
-import MemberPages from "./components/pages/MemberPages";
-import MemberProfile from "./components/pages/MemberProfile";
-import LeaguesPage from "./components/pages/LeaguesPage";
-import LeaguePlayerPage from "./LeaguePlayerPage";
-import LoginModal from "./components/auth/LoginModal";
-import OwnerDashboard from "./components/admin/OwnerDashboard";
-import LastFmPage from "./components/pages/LastFmPage";
-import "./styles/globals.css";
-import "./styles/theme.css";
-import "./styles/animations.css";
-import "./styles/space.css";
-import "./styles/responsive.css";
+import React, { useState, useEffect } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import Layout from './components/layout/Layout';
+import Home from './components/pages/Home';
+import SportsHub from './components/pages/SportsHub';
+import WatchList from './components/pages/WatchList';
+import MemberPages from './components/pages/MemberPages';
+import MemberProfile from './components/pages/MemberProfile';
+import LeaguesPage from './components/pages/LeaguesPage';
+import LeaguePlayerPage from './LeaguePlayerPage';
+import LoginModal from './components/auth/LoginModal';
+import OwnerDashboard from './components/admin/OwnerDashboard';
+import LastFmPage from './components/pages/LastFmPage';
+import './styles/globals.css';
+import './styles/theme.css';
+import './styles/animations.css';
+import './styles/space.css';
+import './styles/responsive.css';
 
 const AppContent = () => {
   const { user, logout } = useAuth();
-  const [currentPage, setCurrentPage] = useState("home");
+  const [coins, setCoins] = useState(() => {
+    if (!user?.username) return 0;
+    return parseInt(localStorage.getItem(`nova_coins_${user?.username}`) || '0');
+  });
+
+  // Re-read coins when user changes
+  useEffect(() => {
+    if (user?.username) setCoins(parseInt(localStorage.getItem(`nova_coins_${user.username}`) || '0'));
+  }, [user]);
+  const [currentPage, setCurrentPage] = useState('home');
   const [lfmToken, setLfmToken] = useState(null);
   const [showDashboard, setShowDashboard] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [signUpMode, setSignUpMode] = useState(false);
   const [selectedLeaguePlayer, setSelectedLeaguePlayer] = useState(null);
-  const [selectedLeague, setSelectedLeague] = useState("nabb");
+  const [selectedLeague, setSelectedLeague] = useState('nabb');
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
+    const token = params.get('token');
     if (token) {
-      window.history.replaceState({}, "", window.location.pathname);
+      window.history.replaceState({}, '', window.location.pathname);
       setLfmToken(token);
-      setCurrentPage("lastfm");
+      setCurrentPage('lastfm');
     }
   }, []);
 
-  const openSignIn = () => { setSignUpMode(false); setShowLoginModal(true); };
-  const openSignUp = () => { setSignUpMode(true); setShowLoginModal(true); };
-
   if (showDashboard) return (
-    <div style={{ height: "100vh", overflowY: "auto", overflowX: "hidden", background: "#0a0a23" }}>
+    <div style={{ height: '100vh', overflowY: 'auto', overflowX: 'hidden', background: '#0a0a23' }}>
       <OwnerDashboard onExit={() => setShowDashboard(false)} />
     </div>
   );
 
-  const handleSelectPlayer = (player, league) => {
+  const handleSelectPlayer = (player, league = 'nabb') => {
     setSelectedLeaguePlayer(player);
-    setSelectedLeague(league || "nabb");
-    setCurrentPage("player");
+    setSelectedLeague(league);
+    setCurrentPage('player');
   };
 
   const handlePageChange = (page) => {
-    if (page === "profile" && !user) { openSignIn(); return; }
+    if (page === 'profile' && !user) { setShowLoginModal(true); return; }
     setCurrentPage(page);
   };
 
   const renderPage = () => {
     switch (currentPage) {
-      case "home":      return <Home />;
-      case "sports":    return <SportsHub />;
-      case "watchlist": return <WatchList onSignIn={openSignIn} />;
-      case "leagues":   return <LeaguesPage onSelectPlayer={handleSelectPlayer} />;
-      case "members":   return <MemberPages />;
-      case "profile":   return user ? <MemberProfile /> : <Home />;
-      case "lastfm":    return <LastFmPage pendingToken={lfmToken} onTokenConsumed={() => setLfmToken(null)} />;
-      case "player":    return (
+      case 'home':     return <Home />;
+      case 'sports':   return <SportsHub />;
+      case 'watchlist': return <WatchList onSignIn={() => setShowLoginModal(true)} />;
+      case 'leagues':  return <LeaguesPage onSelectPlayer={handleSelectPlayer} />;
+      case 'members':  return <MemberPages />;
+      case 'profile':  return user ? <MemberProfile /> : <Home />;
+      case 'lastfm':   return <LastFmPage pendingToken={lfmToken} onTokenConsumed={() => setLfmToken(null)} />;
+      case 'player':   return (
         <LeaguePlayerPage
           player={selectedLeaguePlayer}
-          onBack={() => setCurrentPage("leagues")}
+          onBack={() => setCurrentPage('leagues')}
           leaguePrefix={selectedLeague}
         />
       );
@@ -83,19 +89,15 @@ const AppContent = () => {
         currentPage={currentPage}
         onPageChange={handlePageChange}
         onDashboard={() => setShowDashboard(true)}
-        onSignIn={openSignIn}
-        onSignUp={openSignUp}
+        onSignIn={() => { setSignUpMode(false); setShowLoginModal(true); }}
+        onSignUp={() => { setSignUpMode(true); setShowLoginModal(true); }}
         onLogout={logout}
         user={user}
+        coins={coins}
       >
         {renderPage()}
       </Layout>
-      {showLoginModal && (
-        <LoginModal
-          initialTab={signUpMode ? "signup" : "login"}
-          onClose={() => setShowLoginModal(false)}
-        />
-      )}
+      {showLoginModal && <LoginModal initialTab={signUpMode ? 'signup' : 'login'} onClose={() => setShowLoginModal(false)} />}
     </>
   );
 };

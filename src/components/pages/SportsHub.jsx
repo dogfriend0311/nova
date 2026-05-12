@@ -83,7 +83,7 @@ const ScoreCard = ({ game, onSelectGame }) => {
 
   return (
     <div
-      className={`sh-score-card ${isLive ? 'live' : ''} ${isFinal ? 'final' : ''} ${isSched ? 'scheduled' : ''} ${isFinal || isLive ? 'clickable' : ''}`}
+      className={`sh-score-card ${isLive ? 'live' : ''} ${isFinal ? 'final' : ''} ${isSched ? 'scheduled' : ''} clickable`}
       onClick={() => (isFinal || isLive) && onSelectGame && onSelectGame(game)}
       title={(isFinal || isLive) ? 'Click for box score' : ''}
     >
@@ -111,7 +111,7 @@ const ScoresPanel = ({ sport, refreshKey, onSelectGame }) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchScoreboard(sport);
+      const data = await fetchScoreboard(sport, selectedDate || undefined);
       const normalized = (data.events || []).map(normalizeGame).filter(Boolean);
       setGames(normalized);
     } catch (e) {
@@ -927,6 +927,13 @@ const SportsHub = () => {
   const [activeSport, setActiveSport] = useState('mlb');
   const [activeTab,   setActiveTab]   = useState('scores');
   const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState('');
+
+  const formatDate = (d) => {
+    if (!d) return 'Today';
+    const dt = new Date(d + 'T12:00:00');
+    return dt.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+  };
   const [refreshKey,  setRefreshKey]  = useState(0);
   const [selectedGame, setSelectedGame] = useState(null);
 

@@ -345,3 +345,21 @@
   .pbp-scoreboard { gap: 16px; padding: 14px 16px; }
   .pbp-score { font-size: 1.8rem; }
 }
+
+.pbp-ab-row.pbp-selected {
+  border-left: 3px solid var(--color-cyan);
+  background: rgba(0,255,255,0.06) !important;
+}
+
+.pbp-player-link {
+  color: var(--color-cyan);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.pbp-player-link:hover {
+  opacity: 0.75;
+  text-decoration: underline;
+}

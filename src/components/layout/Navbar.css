@@ -294,3 +294,107 @@
   border-color: #b400ff !important;
   color: #cc66ff !important;
 }
+
+
+/* ── Coins badge ─────────────────────────────────────────────── */
+.navbar-coins {
+  color: #ffd700;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  background: rgba(255,215,0,0.1);
+  border: 1px solid rgba(255,215,0,0.25);
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+/* ── Hamburger ───────────────────────────────────────────────── */
+.hamburger {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  flex-shrink: 0;
+}
+.hamburger span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: var(--color-cyan);
+  border-radius: 2px;
+  transition: all 0.2s;
+}
+
+/* ── Mobile menu overlay ─────────────────────────────────────── */
+.mobile-menu {
+  position: fixed;
+  top: 60px;
+  left: 0;
+  right: 0;
+  background: rgba(5,5,20,0.97);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(0,255,255,0.15);
+  z-index: 9000;
+  padding: 8px 0 16px;
+  display: flex;
+  flex-direction: column;
+}
+.mobile-tab {
+  background: none;
+  border: none;
+  color: rgba(192,208,255,0.8);
+  padding: 14px 24px;
+  text-align: left;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: background 0.15s;
+}
+.mobile-tab:hover, .mobile-tab.active {
+  background: rgba(0,255,255,0.08);
+  color: var(--color-cyan);
+}
+.mobile-divider {
+  height: 1px;
+  background: rgba(0,255,255,0.1);
+  margin: 8px 16px;
+}
+
+/* ── Desktop tabs: always visible on large screens ───────────── */
+.desktop-tabs {
+  display: flex;
+}
+
+/* ── .desk-only: hide on mobile ──────────────────────────────── */
+.desk-only {
+  display: inline;
+}
+
+@media (max-width: 768px) {
+  .desktop-tabs {
+    display: none;
+  }
+  .hamburger {
+    display: flex;
+  }
+  .desk-only {
+    display: none;
+  }
+  .navbar-container {
+    padding: 0 12px;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+  }
+  .navbar-user {
+    gap: 6px;
+  }
+  .navbar-coins {
+    font-size: 0.72rem;
+    padding: 3px 7px;
+  }
+}

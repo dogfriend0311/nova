@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect } from "react";
+import React, { createContext, useState, useEffect } from 'react';
 
 export const AuthContext = createContext();
 
@@ -7,77 +7,118 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const saved = localStorage.getItem("nova_user");
-    if (saved) setUser(JSON.parse(saved));
+    const savedUser = localStorage.getItem('nova_user');
+    if (savedUser) setUser(JSON.parse(savedUser));
     setLoading(false);
   }, []);
 
+  useEffect(() => {
+    if (!user || user.role === 'guest') return;
+    const updateOnline = () => {
+      const online = JSON.parse(localStorage.getItem('nova_online') || '{}');
+      online[user.username] = Date.now();
+      localStorage.setItem('nova_online', JSON.stringify(online));
+    };
+    updateOnline();
+    const interval = setInterval(updateOnline, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
+
   const login = (rawUsername, rawPassword) => {
-    const username = (rawUsername || "").trim();
-    const password = (rawPassword || "").trim();
-    if (username === "x0afterhoursx0" && password === "Chiefsfan87") {
-      const userData = { username, role: "owner" };
+    const username = (rawUsername || '').trim();
+    const password = (rawPassword || '').trim();
+    if (username === 'x0afterhoursx0' && password === 'Chiefsfan87') {
+      const userData = { username, role: 'owner' };
       setUser(userData);
-      localStorage.setItem("nova_user", JSON.stringify(userData));
-      const profiles = JSON.parse(localStorage.getItem("member_profiles") || "[]");
-      if (!profiles.find(p => p.username === username)) {
-        profiles.push({ username, bio: "Nova Owner", top_banner_url: "", left_banner_url: "", right_banner_url: "", spotify_url: "", twitter_url: "", twitch_url: "", youtube_url: "", instagram_url: "" });
-        localStorage.setItem("member_profiles", JSON.stringify(profiles));
+      localStorage.setItem('nova_user', JSON.stringify(userData));
+      const memberProfiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
+      if (!memberProfiles.find(p => p.username === username)) {
+        memberProfiles.push({ username, bio: 'Nova Owner', top_banner_url: '', left_banner_url: '', right_banner_url: '', spotify_url: '', twitter_url: '', twitch_url: '', youtube_url: '', instagram_url: '' });
+        localStorage.setItem('member_profiles', JSON.stringify(memberProfiles));
       }
       return { success: true };
     }
-    const users = JSON.parse(localStorage.getItem("nova_users") || "[]");
-    const found = users.find(u => u.username === username && u.password === password);
-    if (found) {
-      const userData = { username: found.username, role: found.role || "member" };
+    const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
+    const foundUser = users.find(u => u.username === username && u.password === password);
+    if (foundUser) {
+      const userData = { username: foundUser.username, role: foundUser.role || 'member' };
       setUser(userData);
-      localStorage.setItem("nova_user", JSON.stringify(userData));
+      localStorage.setItem('nova_user', JSON.stringify(userData));
       return { success: true };
     }
-    return { success: false, error: "Invalid username or password" };
+    return { success: false, error: 'Invalid credentials' };
+  };
+
+  const loginAsGuest = () => {
+    const userData = { username: 'Guest', role: 'guest' };
+    setUser(userData);
+    localStorage.setItem('nova_user', JSON.stringify(userData));
   };
 
   const signup = (username, password) => {
-    const users = JSON.parse(localStorage.getItem("nova_users") || "[]");
-    if (users.find(u => u.username === username)) return { success: false, error: "Username already taken" };
-    const newUser = { username, password, role: "member" };
+    const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
+    if (users.find(u => u.username === username)) return { success: false, error: 'Username already exists' };
+    const newUser = { username, password, role: 'member' };
     users.push(newUser);
-    localStorage.setItem("nova_users", JSON.stringify(users));
-    const profiles = JSON.parse(localStorage.getItem("member_profiles") || "[]");
-    profiles.push({ username, bio: "", top_banner_url: "", left_banner_url: "", right_banner_url: "", spotify_url: "", twitter_url: "", twitch_url: "", youtube_url: "", instagram_url: "" });
-    localStorage.setItem("member_profiles", JSON.stringify(profiles));
-    const userData = { username, role: "member" };
+    localStorage.setItem('nova_users', JSON.stringify(users));
+    const memberProfiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
+    memberProfiles.push({ username, bio: '', top_banner_url: '', left_banner_url: '', right_banner_url: '', spotify_url: '', twitter_url: '', twitch_url: '', youtube_url: '', instagram_url: '' });
+    localStorage.setItem('member_profiles', JSON.stringify(memberProfiles));
+    const userData = { username, role: 'member' };
     setUser(userData);
-    localStorage.setItem("nova_user", JSON.stringify(userData));
+    localStorage.setItem('nova_user', JSON.stringify(userData));
     return { success: true };
   };
 
   const logout = () => {
+    if (user && user.role !== 'guest') {
+      const online = JSON.parse(localStorage.getItem('nova_online') || '{}');
+      delete online[user.username];
+      localStorage.setItem('nova_online', JSON.stringify(online));
+    }
     setUser(null);
-    localStorage.removeItem("nova_user");
+    localStorage.removeItem('nova_user');
   };
 
   const updateUserRole = (targetUsername, newRole) => {
-    const users = JSON.parse(localStorage.getItem("nova_users") || "[]");
-    const idx = users.findIndex(u => u.username === targetUsername);
-    if (idx !== -1) { users[idx].role = newRole; localStorage.setItem("nova_users", JSON.stringify(users)); return { success: true }; }
-    return { success: false };
+    const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
+    const userIndex = users.findIndex(u => u.username === targetUsername);
+    if (userIndex !== -1) {
+      users[userIndex].role = newRole;
+      localStorage.setItem('nova_users', JSON.stringify(users));
+      return { success: true };
+    }
+    return { success: false, error: 'User not found' };
+  };
+
+  const hasPermission = (requiredRole) => {
+    if (!user) return false;
+    const permissions = {
+      owner:       ['owner', 'cofounder', 'mod', 'nabb_helper', 'rbml_helper', 'member'],
+      cofounder:   ['cofounder', 'mod', 'nabb_helper', 'rbml_helper', 'member'],
+      mod:         ['mod', 'nabb_helper', 'rbml_helper', 'member'],
+      nabb_helper: ['nabb_helper', 'member'],
+      rbml_helper: ['rbml_helper', 'member'],
+      member:      ['member'],
+      guest:       []
+    };
+    return (permissions[user.role] || []).includes(requiredRole);
   };
 
   const canAccessDashboard = () => {
     if (!user) return false;
-    return ["owner", "cofounder", "mod", "nabb_helper", "rbml_helper"].includes(user.role);
+    return ['owner', 'cofounder', 'mod', 'nabb_helper', 'rbml_helper'].includes(user.role);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, updateUserRole, canAccessDashboard, loading }}>
+    <AuthContext.Provider value={{ user, login, loginAsGuest, signup, logout, updateUserRole, hasPermission, canAccessDashboard, loading }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
 export const useAuth = () => {
-  const ctx = React.useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
+  const context = React.useContext(AuthContext);
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
+  return context;
 };

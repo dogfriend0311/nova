@@ -27,8 +27,10 @@ const apiFetch = async (url) => {
   return r.json();
 };
 
-export const fetchScoreboard  = (sport) =>
-  apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/scoreboard`);
+export const fetchScoreboard  = (sport, date) => {
+  const qs = date ? `?dates=${date.replace(/-/g,'')}` : '';
+  return apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/scoreboard${qs}`);
+};
 
 export const fetchStandings   = (sport) => {
   const qs = LEVEL3_SPORTS.includes(sport) ? '?level=3' : '';
@@ -104,10 +106,10 @@ export const fetchMiLBGameDetail = async (gamePk) => {
   return { boxscore: bsRes, linescore: lsRes };
 };
 
-export const fetchMiLBScoreboard = async (sport) => {
+export const fetchMiLBScoreboard = async (sport, date) => {
   const sportId = MILB_SPORT_IDS[sport];
   const now     = new Date();
-  const today   = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const today   = date || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const r = await fetch(`${MILB_API}/schedule?sportId=${sportId}&date=${today}`);
   if (!r.ok) throw new Error(`HTTP_${r.status}`);
   const d = await r.json();
