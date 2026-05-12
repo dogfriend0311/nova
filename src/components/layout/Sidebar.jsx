@@ -29,7 +29,7 @@ const Sidebar = ({ currentPage, onNavigate }) => {
   }, []);
 
   const quickLinks = [
-    { id: 'nabb',      label: 'NABB League',  icon: '⚾' },
+    { id: 'leagues',   label: 'Leagues',      icon: '' },
     { id: 'sports',    label: 'Sports',       icon: '🏆' },
     { id: 'watchlist', label: 'Watch List',   icon: '🎬' },
     { id: 'members',   label: 'Member Pages', icon: '👥' },
