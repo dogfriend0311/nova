@@ -19,25 +19,25 @@ import './SportsHub.css';
 import PlayByPlay from './PlayByPlay';
 
 const SPORTS = [
-  { id: 'mlb',          label: 'MLB',              icon: 'âš¾' },
-  { id: 'nfl',          label: 'NFL',              icon: 'ðŸˆ' },
-  { id: 'nba',          label: 'NBA',              icon: 'ðŸ€' },
-  { id: 'nhl',          label: 'NHL',              icon: 'ðŸ’' },
-  { id: 'cfb',          label: 'College Football', icon: 'ðŸŽ“' },
-  { id: 'cbb',          label: 'College Baseball', icon: 'ðŸŽ“' },
-  { id: 'milb_aaa',     label: 'Triple-A',         icon: 'âš¾' },
-  { id: 'milb_aa',      label: 'Double-A',         icon: 'âš¾' },
-  { id: 'milb_highA',   label: 'High-A',           icon: 'âš¾' },
-  { id: 'milb_singleA', label: 'Single-A',         icon: 'âš¾' },
+  { id: 'mlb',          label: 'MLB',              icon: '⚾' },
+  { id: 'nfl',          label: 'NFL',              icon: '🏈' },
+  { id: 'nba',          label: 'NBA',              icon: '🏀' },
+  { id: 'nhl',          label: 'NHL',              icon: '🏒' },
+  { id: 'cfb',          label: 'College Football', icon: '🎓' },
+  { id: 'cbb',          label: 'College Baseball', icon: '🎓' },
+  { id: 'milb_aaa',     label: 'Triple-A',         icon: '⚾' },
+  { id: 'milb_aa',      label: 'Double-A',         icon: '⚾' },
+  { id: 'milb_highA',   label: 'High-A',           icon: '⚾' },
+  { id: 'milb_singleA', label: 'Single-A',         icon: '⚾' },
 ];
 
 const isMiLB = (sport) => sport.startsWith('milb_');
 
 const SUB_TABS = [
-  { id: 'scores',    label: 'Scores',    icon: 'ðŸ“…' },
-  { id: 'standings', label: 'Standings', icon: 'ðŸ†' },
-  { id: 'news',      label: 'News',      icon: 'ðŸ“°' },
-  { id: 'players',   label: 'Players',   icon: 'ðŸ”' },
+  { id: 'scores',    label: 'Scores',    icon: '📅' },
+  { id: 'standings', label: 'Standings', icon: '🏆' },
+  { id: 'news',      label: 'News',      icon: '📰' },
+  { id: 'players',   label: 'Players',   icon: '🔍' },
 ];
 
 const timeSince = (iso) => {
@@ -49,9 +49,9 @@ const timeSince = (iso) => {
   return `${Math.floor(s / 86400)}d ago`;
 };
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+/* ────────────────────────────────────────────
    Score Card
-   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+   ──────────────────────────────────────────── */
 const ScoreCard = ({ game, onSelectGame }) => {
   const isLive  = game.status === 'in';
   const isFinal = game.status === 'post';
@@ -75,7 +75,7 @@ const ScoreCard = ({ game, onSelectGame }) => {
       </div>
       {!isSched && (
         <span className={`sh-team-score ${winner ? 'winner-score' : ''}`}>
-          {team.score ?? 'â€”'}
+          {team.score ?? '—'}
         </span>
       )}
     </div>
@@ -91,7 +91,7 @@ const ScoreCard = ({ game, onSelectGame }) => {
         {isLive && <><span className="sh-live-dot" /><span className="sh-live-text">LIVE</span></>}
         <span className="sh-status-detail">{game.statusDetail}</span>
         {game.broadcast && <span className="sh-broadcast">{game.broadcast}</span>}
-        {(isFinal || isLive) && <span className="sh-detail-hint">Box Score â†’</span>}
+        {(isFinal || isLive) && <span className="sh-detail-hint">Box Score →</span>}
       </div>
       <TeamRow team={game.awayTeam} winner={awayWins} />
       <TeamRow team={game.homeTeam} winner={homeWins} />
@@ -99,9 +99,9 @@ const ScoreCard = ({ game, onSelectGame }) => {
   );
 };
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+/* ────────────────────────────────────────────
    Scores Panel
-   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+   ──────────────────────────────────────────── */
 const ScoresPanel = ({ sport, refreshKey, onSelectGame }) => {
   const [games, setGames]     = useState(null);
   const [loading, setLoading] = useState(true);
@@ -133,7 +133,7 @@ const ScoresPanel = ({ sport, refreshKey, onSelectGame }) => {
   if (!games.length) {
     return (
       <div className="sh-no-games">
-        <div className="sh-no-games-icon">ðŸ“…</div>
+        <div className="sh-no-games-icon">📅</div>
         <p>No games scheduled right now.</p>
         <p className="sh-no-games-sub">Check back later or view the Standings tab.</p>
       </div>
@@ -152,16 +152,16 @@ const ScoresPanel = ({ sport, refreshKey, onSelectGame }) => {
 
   return (
     <div className="sh-scores-wrap">
-      <Section title="ðŸ”´ Live"      items={live} />
-      <Section title="âœ… Final"     items={final} />
-      <Section title="ðŸ• Upcoming" items={scheduled} />
+      <Section title="🔴 Live"      items={live} />
+      <Section title="✅ Final"     items={final} />
+      <Section title="🕐 Upcoming" items={scheduled} />
     </div>
   );
 };
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+/* ────────────────────────────────────────────
    MiLB Game Detail View
-   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+   ──────────────────────────────────────────── */
 const MiLBGameDetailView = ({ game, onBack }) => {
   const [showMilbPbp, setShowMilbPbp] = useState(false);
   const [detail, setDetail]   = useState(null);
@@ -190,14 +190,14 @@ const MiLBGameDetailView = ({ game, onBack }) => {
 
   return (
     <div className="sh-detail-view">
-      <button className="sh-back-btn" onClick={onBack}>â† Back to Scores</button>
+      <button className="sh-back-btn" onClick={onBack}>← Back to Scores</button>
 
       <div className="sh-detail-header" style={{ textAlign: 'center', marginBottom: '20px' }}>
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', flexWrap: 'wrap', marginBottom: '6px' }}>
           <span style={{ fontSize: '1rem', fontWeight: '700', color: 'rgba(192,208,255,0.9)' }}>{game.awayTeam.name}</span>
           {game.status !== 'pre' && (
             <span style={{ fontSize: '1.6rem', fontWeight: '800', color: 'var(--color-cyan)', letterSpacing: '2px' }}>
-              {game.awayTeam.score ?? 'â€”'} â€“ {game.homeTeam.score ?? 'â€”'}
+              {game.awayTeam.score ?? '—'} – {game.homeTeam.score ?? '—'}
             </span>
           )}
           <span style={{ fontSize: '1rem', fontWeight: '700', color: 'rgba(192,208,255,0.9)' }}>{game.homeTeam.name}</span>
@@ -231,10 +231,10 @@ const MiLBGameDetailView = ({ game, onBack }) => {
                     {[{ label: game.awayTeam.abbr, k: 'away' }, { label: game.homeTeam.abbr, k: 'home' }].map(({ label, k }) => (
                       <tr key={k}>
                         <td style={{ ...tdS, textAlign: 'left', fontWeight: '700', color: 'rgba(192,208,255,0.9)' }}>{label}</td>
-                        {ls.innings.map((inn) => <td key={inn.num} style={tdS}>{inn[k]?.runs ?? 'â€”'}</td>)}
-                        <td style={{ ...tdS, borderLeft: '1px solid rgba(100,120,200,0.3)', fontWeight: '700' }}>{ls.teams?.[k]?.runs ?? 'â€”'}</td>
-                        <td style={tdS}>{ls.teams?.[k]?.hits ?? 'â€”'}</td>
-                        <td style={tdS}>{ls.teams?.[k]?.errors ?? 'â€”'}</td>
+                        {ls.innings.map((inn) => <td key={inn.num} style={tdS}>{inn[k]?.runs ?? '—'}</td>)}
+                        <td style={{ ...tdS, borderLeft: '1px solid rgba(100,120,200,0.3)', fontWeight: '700' }}>{ls.teams?.[k]?.runs ?? '—'}</td>
+                        <td style={tdS}>{ls.teams?.[k]?.hits ?? '—'}</td>
+                        <td style={tdS}>{ls.teams?.[k]?.errors ?? '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -242,7 +242,7 @@ const MiLBGameDetailView = ({ game, onBack }) => {
               </div>
             ) : (
               <div style={{ color: 'rgba(192,208,255,0.4)', fontSize: '0.85rem', marginBottom: '20px', padding: '20px', textAlign: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-                {game.status === 'pre' ? 'Game has not started yet â€” check back at game time.' : 'Linescore not available.'}
+                {game.status === 'pre' ? 'Game has not started yet — check back at game time.' : 'Linescore not available.'}
               </div>
             )}
 
@@ -271,13 +271,13 @@ const MiLBGameDetailView = ({ game, onBack }) => {
                             return (
                               <tr key={i}>
                                 <td style={{ ...tdS, textAlign: 'left' }}>{p.person?.fullName}</td>
-                                <td style={tdS}>{b.atBats       ?? 'â€”'}</td>
-                                <td style={tdS}>{b.runs         ?? 'â€”'}</td>
-                                <td style={tdS}>{b.hits         ?? 'â€”'}</td>
-                                <td style={tdS}>{b.rbi          ?? 'â€”'}</td>
-                                <td style={tdS}>{b.baseOnBalls  ?? 'â€”'}</td>
-                                <td style={tdS}>{b.strikeOuts   ?? 'â€”'}</td>
-                                <td style={tdS}>{b.homeRuns     ?? 'â€”'}</td>
+                                <td style={tdS}>{b.atBats       ?? '—'}</td>
+                                <td style={tdS}>{b.runs         ?? '—'}</td>
+                                <td style={tdS}>{b.hits         ?? '—'}</td>
+                                <td style={tdS}>{b.rbi          ?? '—'}</td>
+                                <td style={tdS}>{b.baseOnBalls  ?? '—'}</td>
+                                <td style={tdS}>{b.strikeOuts   ?? '—'}</td>
+                                <td style={tdS}>{b.homeRuns     ?? '—'}</td>
                               </tr>
                             );
                           })}
@@ -301,13 +301,13 @@ const MiLBGameDetailView = ({ game, onBack }) => {
                             return (
                               <tr key={i}>
                                 <td style={{ ...tdS, textAlign: 'left' }}>{p.person?.fullName}</td>
-                                <td style={tdS}>{pt.inningsPitched ?? 'â€”'}</td>
-                                <td style={tdS}>{pt.hits          ?? 'â€”'}</td>
-                                <td style={tdS}>{pt.runs          ?? 'â€”'}</td>
-                                <td style={tdS}>{pt.earnedRuns    ?? 'â€”'}</td>
-                                <td style={tdS}>{pt.baseOnBalls   ?? 'â€”'}</td>
-                                <td style={tdS}>{pt.strikeOuts    ?? 'â€”'}</td>
-                                <td style={{ ...tdS, color: 'rgba(192,208,255,0.5)', fontStyle: 'italic' }}>{pt.note || 'â€”'}</td>
+                                <td style={tdS}>{pt.inningsPitched ?? '—'}</td>
+                                <td style={tdS}>{pt.hits          ?? '—'}</td>
+                                <td style={tdS}>{pt.runs          ?? '—'}</td>
+                                <td style={tdS}>{pt.earnedRuns    ?? '—'}</td>
+                                <td style={tdS}>{pt.baseOnBalls   ?? '—'}</td>
+                                <td style={tdS}>{pt.strikeOuts    ?? '—'}</td>
+                                <td style={{ ...tdS, color: 'rgba(192,208,255,0.5)', fontStyle: 'italic' }}>{pt.note || '—'}</td>
                               </tr>
                             );
                           })}
@@ -325,9 +325,9 @@ const MiLBGameDetailView = ({ game, onBack }) => {
   );
 };
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+/* ────────────────────────────────────────────
    MiLB Scores Panel
-   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+   ──────────────────────────────────────────── */
 const MiLBScoresPanel = ({ sport, refreshKey }) => {
   const [games, setGames]               = useState(null);
   const [loading, setLoading]           = useState(true);
@@ -364,7 +364,7 @@ const MiLBScoresPanel = ({ sport, refreshKey }) => {
   if (!games.length) {
     return (
       <div className="sh-no-games">
-        <div className="sh-no-games-icon">âš¾</div>
+        <div className="sh-no-games-icon">⚾</div>
         <p>No games scheduled today.</p>
         <p className="sh-no-games-sub">Check back later for the next game day.</p>
       </div>
@@ -385,16 +385,16 @@ const MiLBScoresPanel = ({ sport, refreshKey }) => {
 
   return (
     <div className="sh-scores-wrap">
-      <Section title="ðŸ”´ Live"      items={live}      clickable />
-      <Section title="âœ… Final"     items={final}     clickable />
-      <Section title="ðŸ• Upcoming" items={scheduled} />
+      <Section title="🔴 Live"      items={live}      clickable />
+      <Section title="✅ Final"     items={final}     clickable />
+      <Section title="🕐 Upcoming" items={scheduled} />
     </div>
   );
 };
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+/* ────────────────────────────────────────────
    Game Detail View
-   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+   ──────────────────────────────────────────── */
 const GameDetailView = ({ game, sport, onBack }) => {
   const [summary, setSummary]   = useState(null);
   const [loading, setLoading]   = useState(true);
@@ -425,9 +425,9 @@ const GameDetailView = ({ game, sport, onBack }) => {
   return (
     <div className="sh-detail-view">
       <div style={{ display:'flex', gap:'10px', marginBottom:'20px', flexWrap:'wrap' }}>
-        <button className="neon-button" onClick={onBack}>â† Back to Scores</button>
+        <button className="neon-button" onClick={onBack}>← Back to Scores</button>
         <button className="neon-button" onClick={() => setShowPbp(true)} style={{ borderColor:'rgba(0,255,255,0.5)', color:'var(--color-cyan)' }}>
-          ðŸ“¡ Live Play-by-Play
+          📡 Live Play-by-Play
         </button>
       </div>
 
@@ -444,10 +444,10 @@ const GameDetailView = ({ game, sport, onBack }) => {
         <div className="sh-detail-score-block">
           <div className="sh-detail-scores">
             <span className={`sh-detail-score ${+game.awayTeam.score > +game.homeTeam.score ? 'winner-score' : ''}`}>{game.awayTeam.score}</span>
-            <span className="sh-detail-dash">â€”</span>
+            <span className="sh-detail-dash">—</span>
             <span className={`sh-detail-score ${+game.homeTeam.score > +game.awayTeam.score ? 'winner-score' : ''}`}>{game.homeTeam.score}</span>
           </div>
-          <span className="sh-detail-status">{loading ? 'â€¦' : (summary?.status || game.statusDetail)}</span>
+          <span className="sh-detail-status">{loading ? '…' : (summary?.status || game.statusDetail)}</span>
         </div>
         <div className="sh-detail-team">
           {game.homeTeam.logo
@@ -522,7 +522,7 @@ const GameDetailView = ({ game, sport, onBack }) => {
                         <tr key={i}>
                           <td style={{ ...tdStyle, color: 'rgba(192,208,255,0.5)', fontSize: '0.78rem' }}>{s.label}</td>
                           <td style={tdStyle}>{s.value}</td>
-                          <td style={tdStyle}>{s2?.value || 'â€”'}</td>
+                          <td style={tdStyle}>{s2?.value || '—'}</td>
                         </tr>
                       );
                     })}
@@ -559,7 +559,7 @@ const GameDetailView = ({ game, sport, onBack }) => {
                                     {a.position && <span style={{ fontSize: '0.72rem', color: 'rgba(192,208,255,0.35)' }}>{a.position}</span>}
                                   </div>
                                 </td>
-                                {a.stats.map((v, vi) => <td key={vi} style={tdStyle}>{v || 'â€”'}</td>)}
+                                {a.stats.map((v, vi) => <td key={vi} style={tdStyle}>{v || '—'}</td>)}
                               </tr>
                             ))}
                           </tbody>
@@ -581,9 +581,9 @@ const GameDetailView = ({ game, sport, onBack }) => {
   );
 };
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+/* ────────────────────────────────────────────
    Player Search Panel
-   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+   ──────────────────────────────────────────── */
 const PlayerSearchPanel = ({ sport }) => {
   const [query, setQuery]                 = useState('');
   const [results, setResults]             = useState([]);
@@ -597,10 +597,10 @@ const PlayerSearchPanel = ({ sport }) => {
     return (
       <div className="sh-players-panel">
         <div className="sh-players-header">
-          <h3 className="gradient-text-cyan">ðŸ” Player Lookup</h3>
+          <h3 className="gradient-text-cyan">🔍 Player Lookup</h3>
         </div>
         <div className="sh-no-games" style={{ marginTop: '30px' }}>
-          <div className="sh-no-games-icon">âš¾</div>
+          <div className="sh-no-games-icon">⚾</div>
           <p>Player search is not available for College Baseball.</p>
           <p className="sh-no-games-sub">ESPN does not provide roster data for college baseball teams.</p>
         </div>
@@ -660,10 +660,10 @@ const PlayerSearchPanel = ({ sport }) => {
   return (
     <div className="sh-players-panel">
       <div className="sh-players-header">
-        <h3 className="gradient-text-cyan">ðŸ” Player Lookup</h3>
+        <h3 className="gradient-text-cyan">🔍 Player Lookup</h3>
         <p style={{ color: 'rgba(192,208,255,0.5)', fontSize: '0.85rem', marginTop: '6px' }}>
           Search by player name or school name
-          {sport === 'cfb' && ' Â· First search loads all rosters (~10s)'}
+          {sport === 'cfb' && ' · First search loads all rosters (~10s)'}
         </p>
       </div>
 
@@ -671,12 +671,12 @@ const PlayerSearchPanel = ({ sport }) => {
         <input
           className="sh-search-input"
           type="text"
-          placeholder="Search player name or school (e.g. Texas Tech)â€¦"
+          placeholder="Search player name or school (e.g. Texas Tech)…"
           value={query}
           onChange={e => setQuery(e.target.value)}
         />
         <button className="neon-button sh-search-btn" type="submit" disabled={loading}>
-          {loading ? 'Loadingâ€¦' : 'Search'}
+          {loading ? 'Loading…' : 'Search'}
         </button>
       </form>
 
@@ -699,13 +699,13 @@ const PlayerSearchPanel = ({ sport }) => {
                     onError={e => { e.target.style.display = 'none'; }}
                   />
                   <div className="sh-athlete-info">
-                    <span className="sh-athlete-name">{athlete.displayName || 'â€”'}</span>
+                    <span className="sh-athlete-name">{athlete.displayName || '—'}</span>
                     <span className="sh-athlete-meta">
-                      {[athlete.teamName, athlete.position && `#${athlete.jersey || ''} ${athlete.position}`].filter(Boolean).join(' Â· ')}
+                      {[athlete.teamName, athlete.position && `#${athlete.jersey || ''} ${athlete.position}`].filter(Boolean).join(' · ')}
                     </span>
                   </div>
                 </div>
-                <span className="sh-athlete-toggle">{selectedId === athlete.id ? 'â–²' : 'â–¼'}</span>
+                <span className="sh-athlete-toggle">{selectedId === athlete.id ? '▲' : '▼'}</span>
               </button>
 
               {selectedId === athlete.id && (
@@ -758,7 +758,7 @@ const PlayerSearchPanel = ({ sport }) => {
                                   <tbody>
                                     {Object.values(cat.statistics || {}).slice(0, 5).map((row, ri) => (
                                       <tr key={ri}>
-                                        <td style={tdS}>{row.season?.year || 'â€”'}</td>
+                                        <td style={tdS}>{row.season?.year || '—'}</td>
                                         {(row.stats || []).map((val, vi) => (
                                           <td key={vi} style={tdS}>{val}</td>
                                         ))}
@@ -794,7 +794,7 @@ const PlayerSearchPanel = ({ sport }) => {
 
       {!loading && !error && results.length === 0 && (
         <div className="sh-no-games" style={{ marginTop: '30px' }}>
-          <div className="sh-no-games-icon">ðŸ”</div>
+          <div className="sh-no-games-icon">🔍</div>
           <p>Search for a player to see their profile and season stats.</p>
           <p className="sh-no-games-sub">Try "Aaron Judge", "Patrick Mahomes", or any player name.</p>
         </div>
@@ -803,9 +803,9 @@ const PlayerSearchPanel = ({ sport }) => {
   );
 };
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+/* ────────────────────────────────────────────
    Standings Panel
-   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+   ──────────────────────────────────────────── */
 const StandingsPanel = ({ sport }) => {
   const [groups, setGroups]   = useState(null);
   const [loading, setLoading] = useState(true);
@@ -856,12 +856,12 @@ const StandingsPanel = ({ sport }) => {
                 </span>
                 <span className="sh-col-num">{t.wins}</span>
                 <span className="sh-col-num">{t.losses}</span>
-                {isNHL && <span className="sh-col-num">{t.otl ?? 'â€”'}</span>}
-                {isNHL && <span className="sh-col-num">{t.pts ?? 'â€”'}</span>}
+                {isNHL && <span className="sh-col-num">{t.otl ?? '—'}</span>}
+                {isNHL && <span className="sh-col-num">{t.pts ?? '—'}</span>}
                 <span className="sh-col-num hide-xs">{t.pct}</span>
                 <span className="sh-col-num hide-sm">{t.gb}</span>
-                <span className="sh-col-num hide-md">{t.home || 'â€”'}</span>
-                <span className="sh-col-num hide-md">{t.away || 'â€”'}</span>
+                <span className="sh-col-num hide-md">{t.home || '—'}</span>
+                <span className="sh-col-num hide-md">{t.away || '—'}</span>
                 <span className="sh-col-num hide-sm">{t.streak}</span>
               </div>
             ))}
@@ -872,9 +872,9 @@ const StandingsPanel = ({ sport }) => {
   );
 };
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+/* ────────────────────────────────────────────
    News Panel
-   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+   ──────────────────────────────────────────── */
 const NewsPanel = ({ sport }) => {
   const [articles, setArticles] = useState(null);
   const [loading, setLoading]   = useState(true);
@@ -902,7 +902,7 @@ const NewsPanel = ({ sport }) => {
             <div className="sh-news-body">
               <h4 className="sh-news-headline">{a.headline}</h4>
               {a.description && <p className="sh-news-desc">{a.description}</p>}
-              <span className="sh-news-meta">{a.byline && <>{a.byline} &nbsp;Â·&nbsp; </>}{timeSince(a.published)}</span>
+              <span className="sh-news-meta">{a.byline && <>{a.byline} &nbsp;·&nbsp; </>}{timeSince(a.published)}</span>
             </div>
           </a>
         ) : (
@@ -920,18 +920,14 @@ const NewsPanel = ({ sport }) => {
   );
 };
 
-/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+/* ────────────────────────────────────────────
    Main SportsHub Component
-   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+   ──────────────────────────────────────────── */
 const SportsHub = () => {
   const [activeSport, setActiveSport] = useState('mlb');
   const [activeTab,   setActiveTab]   = useState('scores');
   const [lastUpdated, setLastUpdated] = useState(new Date());
 
-    if (!d) return 'Today';
-    const dt = new Date(d + 'T12:00:00');
-    return dt.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
-  };
   const [refreshKey,  setRefreshKey]  = useState(0);
   const [selectedGame, setSelectedGame] = useState(null);
 
@@ -961,13 +957,13 @@ const SportsHub = () => {
   return (
     <div className="page sh-page">
       <div className="page-header sh-header">
-        <h1 className="gradient-text">ðŸ† Sports Hub</h1>
+        <h1 className="gradient-text">🏆 Sports Hub</h1>
         <p className="subtitle">
           {isMiLB(activeSport)
-            ? <>Powered by MLB Stats API &nbsp;Â·&nbsp; Live scores</>
-            : <>Powered by ESPN &nbsp;Â·&nbsp; Live scores Â· Standings Â· News</>
+            ? <>Powered by MLB Stats API &nbsp;·&nbsp; Live scores</>
+            : <>Powered by ESPN &nbsp;·&nbsp; Live scores · Standings · News</>
           }
-          &nbsp;Â·&nbsp;
+          &nbsp;·&nbsp;
           <span className="sh-updated">
             {lastUpdated.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
           </span>
