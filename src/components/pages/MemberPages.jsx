@@ -4,7 +4,7 @@ import { getWatchList } from '../../services/mediaService';
 import './Pages.css';
 
 const SPORT_KEYS = ['mlb', 'nfl', 'nba', 'nhl', 'cfb', 'cbb'];
-const TYPE_ICONS = { anime: 'ðŸŽŒ', movie: 'ðŸŽ¬', tv: 'ðŸ“º' };
+const TYPE_ICONS = { anime: 'Ã°Å¸Å½Å’', movie: 'Ã°Å¸Å½Â¬', tv: 'Ã°Å¸â€œÂº' };
 const STATUS_COLORS = { plan: '#64b5f6', watching: '#66bb6a', watched: '#a5d6a7', dropped: '#ef9a9a' };
 const STATUS_LABELS = { plan: 'Plan to Watch', watching: 'Watching', watched: 'Watched', dropped: 'Dropped' };
 
@@ -23,14 +23,14 @@ const roleBadgeStyle = (role) => {
   return styles[role] || { background: 'rgba(0,255,255,0.1)', border: '1px solid rgba(0,255,255,0.3)', color: 'var(--color-cyan)' };
 };
 
-/* â”€â”€ Fav Teams Display â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Fav Teams Display Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 const FavTeams = ({ favTeams }) => {
   const hasSome = SPORT_KEYS.some((s) => (favTeams?.[s] || []).length > 0);
   if (!hasSome) return null;
   return (
     <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: '8px', padding: '14px 16px', marginTop: '14px' }}>
       <div style={{ fontSize: '0.72rem', fontWeight: '700', color: 'rgba(192,208,255,0.45)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
-        â­ Favorite Teams
+        Ã¢Â­Â Favorite Teams
       </div>
       {SPORT_KEYS.map((sport) => {
         const picked = favTeams?.[sport] || [];
@@ -71,7 +71,7 @@ const FavTeams = ({ favTeams }) => {
   );
 };
 
-/* â”€â”€ Watch List Preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Watch List Preview Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 const WatchPreview = ({ username }) => {
   const list = getWatchList(username);
   if (!list.length) return null;
@@ -89,17 +89,17 @@ const WatchPreview = ({ username }) => {
   return (
     <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: '8px', padding: '14px 16px', marginTop: '14px' }}>
       <div style={{ fontSize: '0.72rem', fontWeight: '700', color: 'rgba(192,208,255,0.45)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
-        ðŸŽ¬ Watch List
+        Ã°Å¸Å½Â¬ Watch List
       </div>
       <div style={{ display: 'flex', gap: '14px', fontSize: '0.8rem', marginBottom: '12px', flexWrap: 'wrap' }}>
-        <span style={{ color: '#a5d6a7' }}>âœ“ {watched} watched</span>
-        <span style={{ color: '#66bb6a' }}>â–¶ {watching} watching</span>
-        <span style={{ color: '#64b5f6' }}>ðŸ“‹ {plan} planned</span>
+        <span style={{ color: '#a5d6a7' }}>Ã¢Å“â€œ {watched} watched</span>
+        <span style={{ color: '#66bb6a' }}>Ã¢â€“Â¶ {watching} watching</span>
+        <span style={{ color: '#64b5f6' }}>Ã°Å¸â€œâ€¹ {plan} planned</span>
       </div>
 
       {pinned.length > 0 && (
         <div style={{ marginBottom: '12px' }}>
-          <div style={{ fontSize: '0.7rem', color: 'rgba(192,208,255,0.3)', marginBottom: '6px' }}>ðŸ“Œ Pinned</div>
+          <div style={{ fontSize: '0.7rem', color: 'rgba(192,208,255,0.3)', marginBottom: '6px' }}>Ã°Å¸â€œÅ’ Pinned</div>
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
             {pinned.slice(0, 6).map((item) => (
               <div key={item.id} style={{
@@ -112,7 +112,7 @@ const WatchPreview = ({ username }) => {
                 }
                 {item.rating != null && (
                   <div style={{ position: 'absolute', bottom: 2, right: 2, background: 'rgba(0,0,0,0.8)', color: '#fbbf24', fontSize: '0.6rem', fontWeight: 700, padding: '1px 3px', borderRadius: '3px' }}>
-                    â˜…{item.rating}
+                    Ã¢Ëœâ€¦{item.rating}
                   </div>
                 )}
               </div>
@@ -128,14 +128,14 @@ const WatchPreview = ({ username }) => {
             <div key={i} style={{ borderBottom: '1px solid rgba(100,120,200,0.08)', paddingBottom: '8px', marginBottom: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: '0.88rem', fontWeight: '700', color: 'rgba(192,208,255,0.85)' }}>{item.title}</span>
-                {item.rating != null && <span style={{ color: '#fbbf24', fontSize: '0.78rem' }}>â˜… {item.rating}/10</span>}
+                {item.rating != null && <span style={{ color: '#fbbf24', fontSize: '0.78rem' }}>Ã¢Ëœâ€¦ {item.rating}/10</span>}
                 <span style={{ background: `${STATUS_COLORS[item.status]}1a`, color: STATUS_COLORS[item.status], border: `1px solid ${STATUS_COLORS[item.status]}44`, padding: '1px 7px', borderRadius: '8px', fontSize: '0.68rem', fontWeight: 700 }}>
                   {STATUS_LABELS[item.status]}
                 </span>
               </div>
               {item.review && (
                 <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: 'rgba(192,208,255,0.55)', lineHeight: 1.4, fontStyle: 'italic' }}>
-                  "{item.review.length > 100 ? item.review.slice(0, 100) + 'â€¦' : item.review}"
+                  "{item.review.length > 100 ? item.review.slice(0, 100) + 'Ã¢â‚¬Â¦' : item.review}"
                 </p>
               )}
             </div>
@@ -146,7 +146,7 @@ const WatchPreview = ({ username }) => {
   );
 };
 
-/* â”€â”€ Member List â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Member List Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 const MemberPages = () => {
   const [members, setMembers]               = useState([]);
   const [selectedMember, setSelectedMember] = useState(null);
@@ -176,7 +176,7 @@ const MemberPages = () => {
       <div style={{ marginBottom: '20px' }}>
         <input
           type="text"
-          placeholder="Search membersâ€¦"
+          placeholder="Search membersÃ¢â‚¬Â¦"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{ width: '100%', maxWidth: '400px' }}
@@ -206,7 +206,7 @@ const MemberPages = () => {
                   justifyContent: 'center', fontSize: '26px', marginTop: '-30px',
                   overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,255,255,0.2)'
                 }}>
-                  {member.avatar_url ? <img src={member.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : 'ðŸš€'}
+                  {member.avatar_url ? <img src={member.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : 'Ã°Å¸Å¡â‚¬'}
                 </div>
                 <div style={{ marginTop: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -230,7 +230,7 @@ const MemberPages = () => {
   );
 };
 
-/* â”€â”€ Member Profile View â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* Ã¢â€â‚¬Ã¢â€â‚¬ Member Profile View Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
 const MemberProfileView = ({ member, onBack }) => {
   const users      = JSON.parse(localStorage.getItem('nova_users') || '[]');
   const userRecord = users.find((u) => u.username === member.username);
@@ -238,19 +238,18 @@ const MemberProfileView = ({ member, onBack }) => {
 
   const onlineData = JSON.parse(localStorage.getItem('nova_online') || '{}');
   const isOnline   = onlineData[member.username] > Date.now() - 5 * 60 * 1000;
-  const presence   = localStorage.getItem(`nova_presence_${member.username}`) || 'online';
 
   const socials = [
-    { key: 'twitter_url',   label: 'Twitter',   icon: 'ðŸ¦' },
-    { key: 'twitch_url',    label: 'Twitch',    icon: 'ðŸŽ®' },
-    { key: 'youtube_url',   label: 'YouTube',   icon: 'â–¶ï¸' },
-    { key: 'instagram_url', label: 'Instagram', icon: 'ðŸ“¸' },
+    { key: 'twitter_url',   label: 'Twitter',   icon: 'Ã°Å¸ÂÂ¦' },
+    { key: 'twitch_url',    label: 'Twitch',    icon: 'Ã°Å¸Å½Â®' },
+    { key: 'youtube_url',   label: 'YouTube',   icon: 'Ã¢â€“Â¶Ã¯Â¸Â' },
+    { key: 'instagram_url', label: 'Instagram', icon: 'Ã°Å¸â€œÂ¸' },
   ].filter((s) => member[s.key]);
 
   return (
     <div className="page" style={{ maxWidth: '680px', margin: '0 auto' }}>
       <button className="neon-button" style={{ marginBottom: '20px', fontSize: '0.9rem' }} onClick={onBack}>
-        â† Back to Members
+        Ã¢â€ Â Back to Members
       </button>
 
       <div style={{
@@ -270,7 +269,7 @@ const MemberProfileView = ({ member, onBack }) => {
           top: '-45px', left: '20px', overflow: 'hidden',
           boxShadow: '0 4px 20px rgba(0,255,255,0.25)'
         }}>
-          {member.avatar_url ? <img src={member.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : 'ðŸš€'}
+          {member.avatar_url ? <img src={member.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : 'Ã°Å¸Å¡â‚¬'}
         </div>
 
         <div style={{ position: 'absolute', top: '12px', right: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -303,7 +302,7 @@ const MemberProfileView = ({ member, onBack }) => {
 
         {member.spotify_url && (
           <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: '8px', padding: '14px 16px', marginTop: '14px' }}>
-            <div style={{ fontSize: '0.72rem', fontWeight: '700', color: 'rgba(192,208,255,0.45)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>ðŸŽµ Listening To</div>
+            <div style={{ fontSize: '0.72rem', fontWeight: '700', color: 'rgba(192,208,255,0.45)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Ã°Å¸Å½Âµ Listening To</div>
             <iframe title="Spotify" src={member.spotify_url.includes('/embed/') ? member.spotify_url : member.spotify_url.replace('open.spotify.com/', 'open.spotify.com/embed/')}
               width="100%" height="90" frameBorder="0" allow="autoplay; clipboard-write; encrypted-media" style={{ borderRadius: '8px' }} />
           </div>
