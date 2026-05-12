@@ -11,6 +11,8 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, on
     { id: 'leagues',   label: 'Leagues',   icon: '⚾' },
     { id: 'members',   label: 'Members',   icon: '👥' },
     { id: 'lastfm',    label: 'Last.fm',   icon: '🎵' },
+    { id: 'games',     label: 'Games',     icon: '🎮' },
+    { id: 'store',     label: 'Store',     icon: '🛒' },
   ];
 
   const staffRoles = ['owner', 'cofounder', 'mod', 'nabb_helper', 'rbml_helper'];

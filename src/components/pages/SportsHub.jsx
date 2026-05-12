@@ -102,7 +102,7 @@ const ScoreCard = ({ game, onSelectGame }) => {
 /* ────────────────────────────────────────────
    Scores Panel
    ──────────────────────────────────────────── */
-const ScoresPanel = ({ sport, refreshKey, onSelectGame }) => {
+const ScoresPanel = ({ sport, refreshKey, onSelectGame, selectedDate }) => {
   const [games, setGames]     = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
@@ -111,7 +111,7 @@ const ScoresPanel = ({ sport, refreshKey, onSelectGame }) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchScoreboard(sport);
+      const data = await fetchScoreboard(sport, selectedDate || undefined);
       const normalized = (data.events || []).map(normalizeGame).filter(Boolean);
       setGames(normalized);
     } catch (e) {
@@ -119,7 +119,7 @@ const ScoresPanel = ({ sport, refreshKey, onSelectGame }) => {
     } finally {
       setLoading(false);
     }
-  }, [sport]);
+  }, [sport, selectedDate]);
 
   useEffect(() => { load(); }, [load, refreshKey]);
 
@@ -328,7 +328,7 @@ const MiLBGameDetailView = ({ game, onBack }) => {
 /* ────────────────────────────────────────────
    MiLB Scores Panel
    ──────────────────────────────────────────── */
-const MiLBScoresPanel = ({ sport, refreshKey }) => {
+const MiLBScoresPanel = ({ sport, refreshKey, selectedDate }) => {
   const [games, setGames]               = useState(null);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState(null);
@@ -339,14 +339,14 @@ const MiLBScoresPanel = ({ sport, refreshKey }) => {
     setError(null);
     setSelectedGame(null);
     try {
-      const raw = await fetchMiLBScoreboard(sport);
+      const raw = await fetchMiLBScoreboard(sport, selectedDate || undefined);
       setGames(raw.map(normalizeMiLBGame));
     } catch (e) {
       setError(e.message);
     } finally {
       setLoading(false);
     }
-  }, [sport]);
+  }, [sport, selectedDate]);
 
   useEffect(() => { load(); }, [load, refreshKey]);
 
@@ -927,6 +927,24 @@ const SportsHub = () => {
   const [activeSport, setActiveSport] = useState('mlb');
   const [activeTab,   setActiveTab]   = useState('scores');
   const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState('');
+
+  const today = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  };
+  const changeDate = (offset) => {
+    const base = selectedDate ? new Date(selectedDate + 'T12:00:00') : new Date();
+    base.setDate(base.getDate() + offset);
+    const y = base.getFullYear();
+    const m = String(base.getMonth()+1).padStart(2,'0');
+    const d2 = String(base.getDate()).padStart(2,'0');
+    const nd = `${y}-${m}-${d2}`;
+    setSelectedDate(nd === today() ? '' : nd);
+  };
+  const dateLabel = selectedDate
+    ? new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' })
+    : 'Today';
 
   const [refreshKey,  setRefreshKey]  = useState(0);
   const [selectedGame, setSelectedGame] = useState(null);

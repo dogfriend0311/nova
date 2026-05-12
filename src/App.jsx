@@ -17,6 +17,17 @@ import './styles/animations.css';
 import './styles/space.css';
 import './styles/responsive.css';
 
+const ComingSoon = ({ title, icon }) => (
+  <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', minHeight:'60vh', gap:'20px' }}>
+    <div style={{ fontSize:'4rem' }}>{icon}</div>
+    <h1 style={{ color:'var(--color-cyan)', fontWeight:900, fontSize:'2rem', margin:0 }}>{title}</h1>
+    <p style={{ color:'rgba(192,208,255,0.5)', fontSize:'1.1rem', margin:0 }}>Coming Soon</p>
+    <p style={{ color:'rgba(192,208,255,0.3)', fontSize:'0.85rem', textAlign:'center', maxWidth:'400px' }}>
+      This feature is in development. Check back soon!
+    </p>
+  </div>
+);
+
 const AppContent = () => {
   const { user, logout } = useAuth();
   const [coins, setCoins] = useState(() => {
