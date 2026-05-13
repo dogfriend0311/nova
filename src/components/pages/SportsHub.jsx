@@ -929,23 +929,10 @@ const SportsHub = () => {
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState('');
 
-  const today = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  };
-  const changeDate = (offset) => {
-    const base = selectedDate ? new Date(selectedDate + 'T12:00:00') : new Date();
-    base.setDate(base.getDate() + offset);
-    const y = base.getFullYear();
-    const m = String(base.getMonth()+1).padStart(2,'0');
-    const d2 = String(base.getDate()).padStart(2,'0');
-    const nd = `${y}-${m}-${d2}`;
-    setSelectedDate(nd === today() ? '' : nd);
-  };
-  const dateLabel = selectedDate
     ? new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' })
     : 'Today';
 
+  const [selectedDate, setSelectedDate] = useState('');
   const [refreshKey,  setRefreshKey]  = useState(0);
   const [selectedGame, setSelectedGame] = useState(null);
 
@@ -1000,6 +987,28 @@ const SportsHub = () => {
           </button>
         ))}
       </div>
+
+      {/* Date navigation */}
+      {activeTab === 'scores' && (
+        <div style={{ display:'flex', alignItems:'center', gap:'8px', margin:'8px 0 4px', flexWrap:'wrap' }}>
+          <button className="neon-button" style={{ padding:'5px 12px' }} onClick={() => {
+            const base = selectedDate ? new Date(selectedDate + 'T12:00:00') : new Date();
+            base.setDate(base.getDate() - 1);
+            setSelectedDate(`${base.getFullYear()}-${String(base.getMonth()+1).padStart(2,'0')}-${String(base.getDate()).padStart(2,'0')}`);
+          }}>&#8249; Prev</button>
+          <span style={{ color:'var(--color-cyan)', fontWeight:700, minWidth:'110px', textAlign:'center', fontSize:'0.88rem' }}>
+            {selectedDate ? new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' }) : 'Today'}
+          </span>
+          <button className="neon-button" style={{ padding:'5px 12px' }} onClick={() => {
+            const base = selectedDate ? new Date(selectedDate + 'T12:00:00') : new Date();
+            base.setDate(base.getDate() + 1);
+            setSelectedDate(`${base.getFullYear()}-${String(base.getMonth()+1).padStart(2,'0')}-${String(base.getDate()).padStart(2,'0')}`);
+          }}>Next &#8250;</button>
+          {selectedDate && <button className="neon-button" style={{ padding:'5px 12px', fontSize:'0.8rem' }} onClick={() => setSelectedDate('')}>Today</button>}
+          <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
+            style={{ padding:'5px 8px', background:'rgba(0,255,255,0.05)', border:'1px solid rgba(0,255,255,0.2)', color:'#c0d0ff', borderRadius:'6px', fontSize:'0.82rem' }} />
+        </div>
+      )}
 
       <div className="sh-sub-tabs">
         {(isMiLB(activeSport) ? SUB_TABS.filter((t) => t.id === 'scores') : SUB_TABS).map((t) => (

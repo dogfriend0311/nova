@@ -55,7 +55,7 @@ const emptyPlayer = {
   hits_allowed:'',earned_runs:'',career_whip:'',career_sv:'',career_hld:'',
 };
 
-/* ══════════════ ROW 1 — NOVA ══════════════ */
+/*  ROW 1 — NOVA  */
 
 const MemberPagesTab = () => {
   const [profiles, setProfiles] = useState([]);
@@ -110,10 +110,7 @@ const MemberPagesTab = () => {
                 const updated = profiles.filter(x => x.username !== p.username);
                 setProfiles(updated);
                 localStorage.setItem('member_profiles', JSON.stringify(updated));
-                import('../../services/db').then(({ default: db }) => {
-                  const supa = db.supabaseClient || null;
-                  // delete from Supabase
-                }).catch(() => {});
+                // profile deleted
               }}>Del Profile</button>
               <button className="neon-button" style={{ borderColor:'#ff3333', color:'#ff3333' }} onClick={() => {
                 if (!window.confirm(`DELETE ACCOUNT for ${p.username}? This cannot be undone.`)) return;
@@ -159,7 +156,7 @@ const UserRolesTab = () => {
   );
 };
 
-/* ══════════════ LEAGUE TABS ══════════════ */
+/*  LEAGUE TABS  */
 
 /* PLAYERS */
 const LeaguePlayersTab = ({ prefix }) => {
@@ -787,7 +784,7 @@ const LeagueBoxScoresTab = ({ prefix }) => {
               </div>
               <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
                 <span style={{ color:'rgba(0,255,255,0.5)', fontSize:'0.8rem' }}>Open →</span>
-                <button onClick={e=>{e.stopPropagation();deleteGame(game.id);}} style={{ background:'none', border:'none', color:'#ff3333', cursor:'pointer', fontSize:'0.9rem', padding:'4px 8px' }}>✕</button>
+                <button onClick={e=>{e.stopPropagation();deleteGame(game.id);}} style={{ background:'none', border:'none', color:'#ff3333', cursor:'pointer', fontSize:'0.9rem', padding:'4px 8px' }}></button>
               </div>
             </div>
           </div>
@@ -910,7 +907,7 @@ const LeagueGameFeedTab = ({ prefix }) => {
                       {eventTypes.map(e=><option key={e} value={e}>{e}</option>)}
                     </select>
                     <button className="neon-button" style={{ padding:'4px 12px' }} onClick={saveEdit}>Save</button>
-                    <button className="neon-button" style={{ padding:'4px 12px' }} onClick={()=>{setEditingEvent(null);setEditNote('');}}>✕</button>
+                    <button className="neon-button" style={{ padding:'4px 12px' }} onClick={()=>{setEditingEvent(null);setEditNote('');}}></button>
                   </div>
                 ) : (
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
@@ -990,7 +987,7 @@ const LeagueHofTab = ({ prefix }) => {
   );
 };
 
-/* ══════════════ MAIN DASHBOARD ══════════════ */
+/*  MAIN DASHBOARD  */
 const GiveCoinsTab = () => {
   const [users]    = useState(JSON.parse(localStorage.getItem('nova_users') || '[]'));
   const [username, setUsername] = useState('');
