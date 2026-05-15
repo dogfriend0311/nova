@@ -929,10 +929,6 @@ const SportsHub = () => {
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState('');
 
-    ? new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' })
-    : 'Today';
-
-  const [selectedDate, setSelectedDate] = useState('');
   const [refreshKey,  setRefreshKey]  = useState(0);
   const [selectedGame, setSelectedGame] = useState(null);
 
