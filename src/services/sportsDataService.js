@@ -29,7 +29,9 @@ const apiFetch = async (url) => {
 
 export const fetchScoreboard  = (sport, date) => {
   const qs = date ? `?dates=${date.replace(/-/g,'')}` : '';
-  return apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/scoreboard${qs}`);
+  // Always use direct ESPN URL for scoreboard (proxy doesn't support query params)
+  const directESPN = 'https://site.api.espn.com/apis/site/v2/sports';
+  return apiFetch(`${directESPN}/${SPORT_PATHS[sport]}/scoreboard${qs}`);
 };
 
 export const fetchStandings   = (sport) => {

@@ -218,6 +218,7 @@ const MemberProfile = () => {
   const { user } = useAuth();
   const [profile,   setProfile]  = useState(null);
   const [editing,   setEditing]  = useState(false);
+  const [activeTab,  setActiveTab] = useState('about');
   const [formData,  setFormData] = useState({});
   const [favTab,    setFavTab]   = useState(false);
   const [presence,  setPresence] = useState(() => localStorage.getItem(`nova_presence_${user?.username}`) || 'online');
@@ -360,85 +361,203 @@ const MemberProfile = () => {
     { key: 'instagram_url', label: 'Instagram', icon: '📸' },
   ].filter((s) => profile[s.key]);
 
-  return (
-    <div className="page discord-profile-page">
-      <div className="discord-banner" style={{ backgroundImage: profile.top_banner_url ? `url(${profile.top_banner_url})` : undefined }} />
-      <div className="discord-card">
-        <div className="discord-avatar">
-          {profile.avatar_url ? <img src={profile.avatar_url} alt="avatar" /> : '🚀'}
-        </div>
-        <button className="neon-button discord-edit-btn" onClick={() => setEditing(true)}>Edit Profile</button>
-        <div style={{ marginTop: '8px' }}>
-          <div className="discord-username-row">
-            <h2 className="discord-username">{profile.username}</h2>
-            <span className={`discord-role-badge ${user?.role || 'member'}`}>{roleLabel(user?.role)}</span>
-          </div>
-          {profile.discord_tag && (
-            <p style={{ color: 'rgba(192,208,255,0.45)', fontSize: '0.85rem', margin: '0 0 6px 0' }}>{profile.discord_tag}</p>
-          )}
+  const [favGames, setFavGames] = useState(() => JSON.parse(localStorage.getItem(`nova_favgames_${user?.username}`) || '[]'));
+  const [showAddGame, setShowAddGame] = useState(false);
+  const [newGameNote, setNewGameNote] = useState('');
 
-        {/* Presence toggle (own page) */}
-        <div style={{ display:'flex', alignItems:'center', gap:'8px', margin:'8px 0', flexWrap:'wrap' }}>
+  const addFavGame = (gameText) => {
+    if (!gameText.trim()) return;
+    const newG = { id: Date.now().toString(), text: gameText, note: newGameNote, date: new Date().toLocaleDateString() };
+    const updated = [...favGames, newG];
+    setFavGames(updated);
+    localStorage.setItem(`nova_favgames_${user?.username}`, JSON.stringify(updated));
+    setNewGameNote(''); setShowAddGame(false);
+  };
+
+  const removeFavGame = (id) => {
+    const updated = favGames.filter(g => g.id !== id);
+    setFavGames(updated);
+    localStorage.setItem(`nova_favgames_${user?.username}`, JSON.stringify(updated));
+  };
+
+  const socials = [
+    { key: 'twitter_url',   label: 'Twitter'  },
+    { key: 'twitch_url',    label: 'Twitch'   },
+    { key: 'youtube_url',   label: 'YouTube'  },
+    { key: 'instagram_url', label: 'Instagram'},
+  ].filter(s => profile[s.key]);
+
+  const TABS = [
+    { id: 'about',    label: 'About'      },
+    { id: 'music',    label: 'Music'      },
+    { id: 'favgames', label: 'Fav Games'  },
+    { id: 'teams',    label: 'Teams'      },
+    { id: 'watchlist',label: 'Watch List' },
+  ];
+
+  const SI = { padding:'10px', background:'rgba(0,255,255,0.05)', border:'1px solid rgba(0,255,255,0.2)', color:'#c0d0ff', borderRadius:'6px', width:'100%', marginBottom:'8px' };
+
+  return (
+    <div className="tw-page">
+      {/* Banner */}
+      <div className="tw-banner" style={{ backgroundImage: profile.top_banner_url ? `url(${profile.top_banner_url})` : undefined }}>
+        <div className="tw-avatar-wrap">
+          <div className="tw-avatar">
+            {profile.avatar_url ? <img src={profile.avatar_url} alt="avatar" /> : '🚀'}
+          </div>
+        </div>
+      </div>
+
+      {/* Action row */}
+      <div className="tw-action-row">
+        <button className="neon-button" onClick={() => setEditing(true)}>Edit Profile</button>
+      </div>
+
+      {/* Info */}
+      <div className="tw-info">
+        <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' }}>
+          <h2 className="tw-name">{profile.username}</h2>
+          <span className={`tw-role-badge ${user?.role || 'member'}`}>{roleLabel(user?.role)}</span>
+        </div>
+        <p className="tw-handle">@{profile.username}</p>
+
+        {profile.bio && <p className="tw-bio">{profile.bio}</p>}
+
+        {/* Presence toggle */}
+        <div className="tw-status-row">
           {[
-            { key:'online',  label:'Online',    color:'#43b581' },
+            { key:'online',  label:'Online',         color:'#43b581' },
             { key:'idle',    label:'Do Not Disturb', color:'#f04747' },
-            { key:'offline', label:'Invisible', color:'#747f8d' },
+            { key:'offline', label:'Invisible',      color:'#747f8d' },
           ].map(({ key, label, color }) => (
-            <button key={key} onClick={() => changePresence(key)}
-              style={{ padding:'4px 12px', background: presence===key?`${color}22`:'rgba(10,10,30,0.5)', border:`1px solid ${presence===key?color:'rgba(100,120,200,0.15)'}`, color: presence===key?color:'rgba(192,208,255,0.4)', borderRadius:'20px', cursor:'pointer', fontSize:'0.72rem', fontWeight:600, display:'flex', alignItems:'center', gap:'5px' }}>
-              <span style={{ width:'8px', height:'8px', borderRadius:'50%', background: presence===key?color:'rgba(100,120,200,0.3)', display:'inline-block' }} />
+            <button key={key} className="tw-presence-btn"
+              onClick={() => changePresence(key)}
+              style={{ borderColor: presence===key ? color : 'rgba(100,120,200,0.2)', color: presence===key ? color : 'rgba(192,208,255,0.4)', background: presence===key ? `${color}18` : 'transparent' }}>
+              <span className="tw-presence-dot" style={{ background: presence===key ? color : 'rgba(100,120,200,0.3)' }} />
               {label}
             </button>
           ))}
+          <div className="tw-coins">
+            <span>Coins:</span>
+            <span>{coins.toLocaleString()}</span>
+          </div>
         </div>
 
-        {/* Coins */}
-        <div style={{ display:'flex', alignItems:'center', gap:'6px', marginBottom:'8px' }}>
-          <span style={{ fontSize:'1rem' }}>🪙</span>
-          <span style={{ color:'#ffd700', fontWeight:700, fontSize:'0.88rem' }}>{coins.toLocaleString()} Nova Coins</span>
-          <span style={{ color:'rgba(192,208,255,0.35)', fontSize:'0.72rem' }}>+1 every 2 min</span>
-        </div>
-        </div>
-        {/* Spotify embed */}
-      {profile.spotify_url && (
-        <div style={{ marginBottom:'16px' }}>
-          <p style={{ fontSize:'0.72rem', color:'rgba(192,208,255,0.4)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:'6px' }}>Spotify</p>
-          <iframe
-            src={profile.spotify_url.includes('/embed/')
-              ? profile.spotify_url
-              : profile.spotify_url.replace('open.spotify.com/', 'open.spotify.com/embed/')}
-            width="100%" height="80" frameBorder="0"
-            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-            title="Spotify"
-            style={{ borderRadius:'10px' }}
-          />
-        </div>
-      )}
-
-      {profile.bio && (
-          <div className="discord-section">
-            <div className="discord-section-title">About Me</div>
-            <p className="discord-section-text">{profile.bio}</p>
+        {/* Socials */}
+        {socials.length > 0 && (
+          <div className="tw-socials">
+            {socials.map(s => (
+              <a key={s.key} href={profile[s.key]} target="_blank" rel="noreferrer" className="tw-social-link">
+                {s.label}
+              </a>
+            ))}
           </div>
         )}
-        <FavTeamsDisplay favTeams={profile.fav_teams} />
-        <WatchListPreview username={profile.username} />
-        <LastFmWidget lastfmUsername={profile.lastfm_username} />
-        {socials.length > 0 && (
-          <div className="discord-section">
-            <div className="discord-section-title">Connections</div>
-            <div className="discord-connections">
-              {socials.map((s) => (
-                <a key={s.key} href={profile[s.key]} target="_blank" rel="noreferrer" className="discord-conn-btn">
-                  {s.icon} {s.label}
-                </a>
-              ))}
+      </div>
+
+      {/* Tabs */}
+      <div className="tw-tabs">
+        {TABS.map(t => (
+          <button key={t.id} className={`tw-tab ${activeTab===t.id?'active':''}`} onClick={() => setActiveTab(t.id)}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab content */}
+      <div className="tw-feed">
+
+        {/* ABOUT */}
+        {activeTab === 'about' && (
+          <>
+            {profile.bio ? (
+              <div className="tw-section">
+                <div className="tw-section-title">Bio</div>
+                <p style={{ color:'rgba(192,208,255,0.85)', lineHeight:1.6, margin:0 }}>{profile.bio}</p>
+              </div>
+            ) : (
+              <div className="tw-empty">No bio yet. Click Edit Profile to add one.</div>
+            )}
+          </>
+        )}
+
+        {/* MUSIC */}
+        {activeTab === 'music' && (
+          <div className="tw-section">
+            <LastFmWidget lastfmUsername={profile.lastfm_username} />
+            {profile.spotify_url && (
+              <>
+                <div className="tw-section-title" style={{ marginTop:'16px' }}>Spotify</div>
+                <iframe
+                  src={profile.spotify_url.includes('/embed/') ? profile.spotify_url : profile.spotify_url.replace('open.spotify.com/','open.spotify.com/embed/')}
+                  width="100%" height="80" frameBorder="0"
+                  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                  title="Spotify" style={{ borderRadius:'10px', display:'block' }}
+                />
+              </>
+            )}
+            {!profile.lastfm_username && !profile.spotify_url && (
+              <div className="tw-empty">No music linked. Edit your profile to add Last.fm or Spotify.</div>
+            )}
+          </div>
+        )}
+
+        {/* FAV GAMES */}
+        {activeTab === 'favgames' && (
+          <div className="tw-section">
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px' }}>
+              <div className="tw-section-title" style={{ margin:0 }}>Favorite Games</div>
+              <button className="neon-button" style={{ padding:'5px 14px', fontSize:'0.8rem' }} onClick={() => setShowAddGame(s => !s)}>
+                {showAddGame ? 'Cancel' : '+ Add Game'}
+              </button>
             </div>
+            {showAddGame && (
+              <div style={{ marginBottom:'16px', padding:'14px', background:'rgba(0,255,255,0.04)', borderRadius:'10px', border:'1px solid rgba(0,255,255,0.12)' }}>
+                <input type="text" placeholder="Game name (e.g. Yankees vs Red Sox, April 20 2024)" style={SI}
+                  onKeyDown={e => { if (e.key === 'Enter') addFavGame(e.target.value); }}
+                  id="favgame-input"
+                />
+                <input type="text" placeholder="Why is it your favorite? (optional)" value={newGameNote} onChange={e => setNewGameNote(e.target.value)} style={SI} />
+                <button className="neon-button" style={{ width:'100%' }} onClick={() => {
+                  const el = document.getElementById('favgame-input');
+                  if (el) addFavGame(el.value);
+                }}>Add to Favorites</button>
+              </div>
+            )}
+            {favGames.length === 0 ? (
+              <div className="tw-empty">No favorite games yet. Add your most memorable games!</div>
+            ) : (
+              favGames.map(g => (
+                <div key={g.id} className="tw-fav-game">
+                  <div className="tw-fav-game-teams">{g.text}</div>
+                  {g.note && <div className="tw-fav-game-note">"{g.note}"</div>}
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                    <span className="tw-fav-game-date">{g.date}</span>
+                    <button onClick={() => removeFavGame(g.id)} style={{ background:'none', border:'none', color:'rgba(255,60,60,0.6)', cursor:'pointer', fontSize:'0.82rem' }}>Remove</button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* TEAMS */}
+        {activeTab === 'teams' && (
+          <div className="tw-section">
+            <FavTeamsDisplay favTeams={profile.fav_teams} />
+          </div>
+        )}
+
+        {/* WATCH LIST */}
+        {activeTab === 'watchlist' && (
+          <div className="tw-section">
+            <WatchListPreview username={profile.username} />
           </div>
         )}
       </div>
     </div>
   );
+
 };
 
 export default MemberProfile;

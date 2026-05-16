@@ -82,6 +82,12 @@ const ScoreCard = ({ game, onSelectGame }) => {
   );
 
   return (
+    <div style={{ position: 'relative' }}>
+      <button onClick={toggleStar} title={starred ? 'Remove from favorites' : 'Add to favorites'}
+        style={{ position:'absolute', top:'8px', right:'8px', zIndex:10, background:'none', border:'none', cursor:'pointer', fontSize:'1.1rem', opacity: starred ? 1 : 0.35, filter: starred ? 'none' : 'grayscale(1)', transition:'all 0.15s', lineHeight:1 }}
+        onMouseEnter={e => e.currentTarget.style.opacity='1'}
+        onMouseLeave={e => e.currentTarget.style.opacity = starred ? '1' : '0.35'}
+      >{starred ? '★' : '☆'}</button>
     <div
       className={`sh-score-card ${isLive ? 'live' : ''} ${isFinal ? 'final' : ''} ${isSched ? 'scheduled' : ''} clickable`}
       onClick={() => (isFinal || isLive) && onSelectGame && onSelectGame(game)}
@@ -990,7 +996,9 @@ const SportsHub = () => {
           <button className="neon-button" style={{ padding:'5px 12px' }} onClick={() => {
             const base = selectedDate ? new Date(selectedDate + 'T12:00:00') : new Date();
             base.setDate(base.getDate() - 1);
-            setSelectedDate(`${base.getFullYear()}-${String(base.getMonth()+1).padStart(2,'0')}-${String(base.getDate()).padStart(2,'0')}`);
+            const nd = `${base.getFullYear()}-${String(base.getMonth()+1).padStart(2,'0')}-${String(base.getDate()).padStart(2,'0')}`;
+            setSelectedDate(nd);
+            setRefreshKey(k => k + 1);
           }}>&#8249; Prev</button>
           <span style={{ color:'var(--color-cyan)', fontWeight:700, minWidth:'110px', textAlign:'center', fontSize:'0.88rem' }}>
             {selectedDate ? new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' }) : 'Today'}
@@ -998,10 +1006,12 @@ const SportsHub = () => {
           <button className="neon-button" style={{ padding:'5px 12px' }} onClick={() => {
             const base = selectedDate ? new Date(selectedDate + 'T12:00:00') : new Date();
             base.setDate(base.getDate() + 1);
-            setSelectedDate(`${base.getFullYear()}-${String(base.getMonth()+1).padStart(2,'0')}-${String(base.getDate()).padStart(2,'0')}`);
+            const nd = `${base.getFullYear()}-${String(base.getMonth()+1).padStart(2,'0')}-${String(base.getDate()).padStart(2,'0')}`;
+            setSelectedDate(nd);
+            setRefreshKey(k => k + 1);
           }}>Next &#8250;</button>
-          {selectedDate && <button className="neon-button" style={{ padding:'5px 12px', fontSize:'0.8rem' }} onClick={() => setSelectedDate('')}>Today</button>}
-          <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
+          {selectedDate && <button className="neon-button" style={{ padding:'5px 12px', fontSize:'0.8rem' }} onClick={() => { setSelectedDate(''); setRefreshKey(k => k+1); }}>Today</button>}
+          <input type="date" value={selectedDate} onChange={e => { setSelectedDate(e.target.value); setRefreshKey(k => k+1); }}
             style={{ padding:'5px 8px', background:'rgba(0,255,255,0.05)', border:'1px solid rgba(0,255,255,0.2)', color:'#c0d0ff', borderRadius:'6px', fontSize:'0.82rem' }} />
         </div>
       )}
@@ -1024,10 +1034,10 @@ const SportsHub = () => {
         ) : (
           <>
             {activeTab === 'scores' && isMiLB(activeSport) && (
-              <MiLBScoresPanel key={`${activeSport}-milb`} sport={activeSport} refreshKey={refreshKey} />
+              <MiLBScoresPanel key={`${activeSport}-milb-${selectedDate}`} sport={activeSport} refreshKey={refreshKey} selectedDate={selectedDate} />
             )}
             {activeTab === 'scores' && !isMiLB(activeSport) && (
-              <ScoresPanel key={`${activeSport}-scores`} sport={activeSport} refreshKey={refreshKey} onSelectGame={handleSelectGame} />
+              <ScoresPanel key={`${activeSport}-scores-${selectedDate}`} sport={activeSport} refreshKey={refreshKey} onSelectGame={handleSelectGame} selectedDate={selectedDate} />
             )}
             {activeTab === 'standings' && (
               <StandingsPanel key={`${activeSport}-standings`} sport={activeSport} />
