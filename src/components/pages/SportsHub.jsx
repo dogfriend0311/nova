@@ -81,13 +81,32 @@ const ScoreCard = ({ game, onSelectGame }) => {
     </div>
   );
 
+  const [starred, setStarred] = React.useState(() => {
+    const u = localStorage.getItem('nova_user');
+    if (!u) return false;
+    const username = JSON.parse(u).username;
+    return JSON.parse(localStorage.getItem(`nova_favgames_${username}`) || '[]').some(g => g.gameId === game.id);
+  });
+  const toggleStar = (e) => {
+    e.stopPropagation();
+    const u = localStorage.getItem('nova_user');
+    if (!u) return;
+    const username = JSON.parse(u).username;
+    const key = `nova_favgames_${username}`;
+    const stored = JSON.parse(localStorage.getItem(key) || '[]');
+    if (starred) {
+      localStorage.setItem(key, JSON.stringify(stored.filter(g => g.gameId !== game.id)));
+      setStarred(false);
+    } else {
+      const note = window.prompt('Add a note for this game? (optional)') || '';
+      localStorage.setItem(key, JSON.stringify([...stored, { id: Date.now().toString(), gameId: game.id, text: `${game.awayTeam?.abbr || ''} vs ${game.homeTeam?.abbr || ''}`, note, date: new Date().toLocaleDateString() }]));
+      setStarred(true);
+    }
+  };
+
   return (
-    <div style={{ position: 'relative' }}>
-      <button onClick={toggleStar} title={starred ? 'Remove from favorites' : 'Add to favorites'}
-        style={{ position:'absolute', top:'8px', right:'8px', zIndex:10, background:'none', border:'none', cursor:'pointer', fontSize:'1.1rem', opacity: starred ? 1 : 0.35, filter: starred ? 'none' : 'grayscale(1)', transition:'all 0.15s', lineHeight:1 }}
-        onMouseEnter={e => e.currentTarget.style.opacity='1'}
-        onMouseLeave={e => e.currentTarget.style.opacity = starred ? '1' : '0.35'}
-      >{starred ? '★' : '☆'}</button>
+    <div style={{ position:'relative' }}>
+      <button onClick={toggleStar} style={{ position:'absolute', top:'6px', right:'6px', zIndex:10, background:'none', border:'none', cursor:'pointer', fontSize:'1.1rem', opacity:starred?1:0.4, transition:'opacity 0.15s' }}>{starred ? '★' : '☆'}</button>
     <div
       className={`sh-score-card ${isLive ? 'live' : ''} ${isFinal ? 'final' : ''} ${isSched ? 'scheduled' : ''} clickable`}
       onClick={() => (isFinal || isLive) && onSelectGame && onSelectGame(game)}

@@ -380,12 +380,7 @@ const MemberProfile = () => {
     localStorage.setItem(`nova_favgames_${user?.username}`, JSON.stringify(updated));
   };
 
-  const socials = [
-    { key: 'twitter_url',   label: 'Twitter'  },
-    { key: 'twitch_url',    label: 'Twitch'   },
-    { key: 'youtube_url',   label: 'YouTube'  },
-    { key: 'instagram_url', label: 'Instagram'},
-  ].filter(s => profile[s.key]);
+
 
   const TABS = [
     { id: 'about',    label: 'About'      },
