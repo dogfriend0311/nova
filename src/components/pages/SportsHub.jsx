@@ -121,6 +121,7 @@ const ScoreCard = ({ game, onSelectGame }) => {
       <TeamRow team={game.awayTeam} winner={awayWins} />
       <TeamRow team={game.homeTeam} winner={homeWins} />
     </div>
+    </div>
   );
 };
 

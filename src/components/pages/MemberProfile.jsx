@@ -224,6 +224,9 @@ const MemberProfile = () => {
   const [presence,  setPresence] = useState(() => localStorage.getItem(`nova_presence_${user?.username}`) || 'online');
   const [coins,     setCoins]    = useState(() => parseInt(localStorage.getItem(`nova_coins_${user?.username}`) || '0'));
   const coinsRef = useRef(null);
+  const [favGames, setFavGames] = useState(() => JSON.parse(localStorage.getItem(`nova_favgames_${user?.username}`) || '[]'));
+  const [showAddGame, setShowAddGame] = useState(false);
+  const [newGameNote, setNewGameNote] = useState('');
 
   // Earn 1 coin every 2 minutes while on the page
   useEffect(() => {
@@ -361,9 +364,6 @@ const MemberProfile = () => {
     { key: 'instagram_url', label: 'Instagram', icon: '📸' },
   ].filter((s) => profile[s.key]);
 
-  const [favGames, setFavGames] = useState(() => JSON.parse(localStorage.getItem(`nova_favgames_${user?.username}`) || '[]'));
-  const [showAddGame, setShowAddGame] = useState(false);
-  const [newGameNote, setNewGameNote] = useState('');
 
   const addFavGame = (gameText) => {
     if (!gameText.trim()) return;
