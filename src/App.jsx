@@ -11,12 +11,39 @@ import LeaguePlayerPage from './LeaguePlayerPage';
 import LoginModal from './components/auth/LoginModal';
 import OwnerDashboard from './components/admin/OwnerDashboard';
 import LastFmPage from './components/pages/LastFmPage';
+import RoadToTheShow from './components/pages/RoadToTheShow';
 import './styles/globals.css';
 import './styles/theme.css';
 import './styles/animations.css';
 import './styles/space.css';
 import './styles/responsive.css';
 
+
+
+const GamesPage = () => {
+  const [subTab, setSubTab] = React.useState('rtts');
+  return (
+    <div style={{ maxWidth:'860px', margin:'0 auto', padding:'0 16px' }}>
+      <div style={{ display:'flex', gap:'8px', borderBottom:'1px solid rgba(0,255,255,0.1)', marginBottom:'0', overflowX:'auto' }}>
+        <button onClick={() => setSubTab('rtts')}
+          style={{ padding:'10px 20px', background: subTab==='rtts'?'rgba(0,255,255,0.12)':'none', border:'none', borderBottom: subTab==='rtts'?'2px solid var(--color-cyan)':'2px solid transparent', color: subTab==='rtts'?'var(--color-cyan)':'rgba(192,208,255,0.5)', fontWeight:700, cursor:'pointer', whiteSpace:'nowrap', fontSize:'0.88rem' }}>
+          Road to the Show SIM
+        </button>
+        <button onClick={() => setSubTab('more')}
+          style={{ padding:'10px 20px', background:'none', border:'none', borderBottom:'2px solid transparent', color:'rgba(192,208,255,0.35)', fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', fontSize:'0.88rem' }}>
+          More Games (Coming Soon)
+        </button>
+      </div>
+      {subTab === 'rtts' && <RoadToTheShow />}
+      {subTab === 'more' && (
+        <div style={{ textAlign:'center', padding:'60px 20px', color:'rgba(192,208,255,0.35)' }}>
+          <div style={{ fontSize:'3rem', marginBottom:'12px' }}>🎮</div>
+          <p>More games coming soon!</p>
+        </div>
+      )}
+    </div>
+  );
+};
 
 
 const AppContent = () => {
