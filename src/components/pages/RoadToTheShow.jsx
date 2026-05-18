@@ -547,6 +547,11 @@ const GamePlayScreen = ({ career, mode, onDone }) => {
   const isPitcher = ['SP','RP'].includes(career.player.position);
   const attrs = career.player.attrs;
 
+  // Play mode: key spam game — hooks MUST be before any early returns
+  const [phase, setPhase] = useState('spam');
+  const [gameResult, setGameResult] = useState(null);
+
+  // Simulate mode early return (after hooks)
   if (mode === 'simulate') {
     const result = simulateGame(attrs, career.nextOpponent);
     return (
@@ -562,10 +567,6 @@ const GamePlayScreen = ({ career, mode, onDone }) => {
       </div>
     );
   }
-
-  // Play mode: key spam game
-  const [phase, setPhase] = useState('spam'); // spam → recap
-  const [gameResult, setGameResult] = useState(null);
 
   const handleSpamDone = (count, grade) => {
     const result = simulateGame(attrs, career.nextOpponent, count);
