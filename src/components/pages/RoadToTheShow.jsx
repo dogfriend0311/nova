@@ -1,16 +1,16 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 
-/* ── Coin helpers ──────────────────────────────────────────── */
+/* â”€â”€ Coin helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const getCoins  = (u) => parseInt(localStorage.getItem(`nova_coins_${u}`) || '0');
 const addCoins  = (u, n) => localStorage.setItem(`nova_coins_${u}`, getCoins(u) + n);
 const spendCoins= (u, n) => { const c=getCoins(u); if(c<n) return false; localStorage.setItem(`nova_coins_${u}`, c-n); return true; };
 
-/* ── Save/load career ──────────────────────────────────────── */
+/* â”€â”€ Save/load career â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const saveCareer= (u,d) => localStorage.setItem(`nova_rtts_${u}`, JSON.stringify(d));
 const loadCareer= (u)   => { try { return JSON.parse(localStorage.getItem(`nova_rtts_${u}`)); } catch { return null; } };
 
-/* ── Constants ─────────────────────────────────────────────── */
+/* â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const POSITIONS = ['C','1B','2B','3B','SS','LF','CF','RF','SP','RP'];
 const COLLEGES  = ['Alabama','Arizona St','Arkansas','Cal State Fullerton','Clemson','Florida','Florida St','Georgia','LSU','Miami','Michigan','Mississippi St','NC State','Oklahoma','Ole Miss','Oregon','South Carolina','Stanford','TCU','Tennessee','Texas','Texas A&M','UCLA','USC','Vanderbilt','Virginia','Wake Forest','Other'];
 const SKIN_TONES= ['#FDDBB4','#F0C27F','#D4A574','#C68642','#8D5524','#4A2912'];
@@ -35,14 +35,14 @@ const ATTR_LIST = [
 ];
 const DRAMA_EVENTS = [
   { id:1, title:'Teammate Blames You', text:'After a tough loss, your veteran teammate points the finger at you in front of the press.', choices:[{label:'Apologize publicly',effect:{morale:-5,coins:0,contact:0}},{label:'Clap back',effect:{morale:+10,coins:0,arm:+1}},{label:'Stay silent',effect:{morale:0,coins:50}}] },
-  { id:2, title:'Trade Rumors', text:'Your agent calls — three teams are interested. The press is at your locker every day.', choices:[{label:'Request trade',effect:{coins:500,morale:+10}},{label:'Pledge loyalty',effect:{morale:+15,speed:+1}},{label:'No comment',effect:{coins:200}}] },
+  { id:2, title:'Trade Rumors', text:'Your agent calls â€” three teams are interested. The press is at your locker every day.', choices:[{label:'Request trade',effect:{coins:500,morale:+10}},{label:'Pledge loyalty',effect:{morale:+15,speed:+1}},{label:'No comment',effect:{coins:200}}] },
   { id:3, title:'Social Media Beef', text:'A pitcher you K\'d posts a meme mocking you. It goes viral.', choices:[{label:'Post highlight reel',effect:{coins:300,power:+1}},{label:'Challenge him to HR derby',effect:{morale:+20,coins:100}},{label:'Ignore it',effect:{contact:+1}}] },
   { id:4, title:'Stolen Equipment', text:'Your custom bat is missing before a big game. Clubhouse is tense.', choices:[{label:'Use backup bat',effect:{power:-2,coins:0}},{label:'Accuse clubhouse staff',effect:{morale:-15}},{label:'Buy new bat (500 coins)',effect:{power:0},cost:500}] },
-  { id:5, title:'Rookie Hazing', text:'Veterans demand you sing at dinner. It\'s tradition — or is it?', choices:[{label:'Sing with pride',effect:{morale:+20,coins:100}},{label:'Refuse',effect:{morale:-10,arm:+1}},{label:'Do it but roast them back',effect:{morale:+30}}] },
+  { id:5, title:'Rookie Hazing', text:'Veterans demand you sing at dinner. It\'s tradition â€” or is it?', choices:[{label:'Sing with pride',effect:{morale:+20,coins:100}},{label:'Refuse',effect:{morale:-10,arm:+1}},{label:'Do it but roast them back',effect:{morale:+30}}] },
   { id:6, title:'Slump', text:'You\'re 2-for-30. The coach pulls you aside.', choices:[{label:'Extra BP every day',effect:{contact:+2,stamina:-1}},{label:'Mental coach sessions',effect:{morale:+15,contact:+1}},{label:'Trust the process',effect:{coins:0}}] },
 ];
 
-/* ── Style tokens ──────────────────────────────────────────── */
+/* â”€â”€ Style tokens â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const S = {
   page:  { padding:'20px', maxWidth:'800px', margin:'0 auto', color:'#c0d0ff', fontFamily:"'Space Mono', monospace" },
   card:  { background:'rgba(0,0,40,0.7)', border:'1px solid rgba(0,255,255,0.18)', borderRadius:'12px', padding:'20px', marginBottom:'16px' },
@@ -59,7 +59,7 @@ const S = {
   barBg: { height:'8px', background:'rgba(0,255,255,0.1)', borderRadius:'4px', flex:1, overflow:'hidden', margin:'0 10px' },
 };
 
-/* ── Attr bar ──────────────────────────────────────────────── */
+/* â”€â”€ Attr bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const AttrBar = ({ label, val, max=99, color='#00ffff', extra }) => (
   <div style={{ marginBottom:'10px' }}>
     <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'4px' }}>
@@ -70,12 +70,12 @@ const AttrBar = ({ label, val, max=99, color='#00ffff', extra }) => (
   </div>
 );
 
-/* ══════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    SCREEN: HOME
-══════════════════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 const HomeScreen = ({ onNew, onContinue, hasSave }) => (
   <div style={{ textAlign:'center', padding:'40px 20px' }}>
-    <div style={{ fontSize:'3rem', marginBottom:'10px' }}>⚾</div>
+    <div style={{ fontSize:'3rem', marginBottom:'10px' }}>âš¾</div>
     <h1 style={{ fontSize:'2rem', fontWeight:900, color:'var(--color-cyan)', margin:'0 0 6px' }}>Road to the Show</h1>
     <p style={{ color:'rgba(192,208,255,0.5)', marginBottom:'40px' }}>Your career. Your legacy.</p>
     <div style={{ display:'flex', gap:'16px', justifyContent:'center', flexWrap:'wrap' }}>
@@ -86,9 +86,9 @@ const HomeScreen = ({ onNew, onContinue, hasSave }) => (
   </div>
 );
 
-/* ══════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    SCREEN: PLAYER CREATION
-══════════════════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 const CreationScreen = ({ onDone }) => {
   const [form, setForm] = useState({ name:'', position:'SS', college:'Florida', jersey:24, weight:185, skinTone:'#D4A574', hairColor:'#1a1a1a' });
   const f = (k,v) => setForm(p=>({...p,[k]:v}));
@@ -153,20 +153,20 @@ const CreationScreen = ({ onDone }) => {
             <rect x="22" y="78" width="14" height="22" rx="4" fill="#1a1a3a" />
             <rect x="44" y="78" width="14" height="22" rx="4" fill="#1a1a3a" />
           </svg>
-          <p style={{ margin:'6px 0 0', color:'rgba(192,208,255,0.6)', fontSize:'0.8rem' }}>{form.name||'Player'} • #{form.jersey} • {form.position}</p>
+          <p style={{ margin:'6px 0 0', color:'rgba(192,208,255,0.6)', fontSize:'0.8rem' }}>{form.name||'Player'} â€¢ #{form.jersey} â€¢ {form.position}</p>
         </div>
         <button style={{ ...S.btnGold, width:'100%', padding:'14px', marginTop:'8px', opacity:valid?1:0.4 }}
           onClick={() => valid && onDone(form)}>
-          Proceed to MLB Combine →
+          Proceed to MLB Combine â†’
         </button>
       </div>
     </div>
   );
 };
 
-/* ══════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    MINI GAME: KEY SPAM
-══════════════════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 const KeySpamGame = ({ duration=5, label='Spam any key!', onDone }) => {
   const [count, setCount]     = useState(0);
   const [running, setRunning] = useState(false);
@@ -220,17 +220,17 @@ const KeySpamGame = ({ duration=5, label='Spam any key!', onDone }) => {
   );
 };
 
-/* ══════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    SCREEN: COMBINE
-══════════════════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 const CombineScreen = ({ player, onDone }) => {
   const [drill, setDrill] = useState(0); // 0=60yd 1=batting 2=throwing 3=done
   const [results, setResults] = useState([]);
 
   const drills = [
-    { name:'60-Yard Dash', desc:'Sprint — spam to run faster!', duration:5, attr:'speed', label:'Sprint! Press any key as fast as you can!' },
-    { name:'Batting Cage', desc:'Time your swings — spam for contact!', duration:5, attr:'contact', label:'Swing! Time your reps in the cage!' },
-    { name:'Throwing Accuracy', desc:'Fire strikes — spam for arm strength!', duration:5, attr:'arm', label:'Fire it! Throw as many as you can!' },
+    { name:'60-Yard Dash', desc:'Sprint â€” spam to run faster!', duration:5, attr:'speed', label:'Sprint! Press any key as fast as you can!' },
+    { name:'Batting Cage', desc:'Time your swings â€” spam for contact!', duration:5, attr:'contact', label:'Swing! Time your reps in the cage!' },
+    { name:'Throwing Accuracy', desc:'Fire strikes â€” spam for arm strength!', duration:5, attr:'arm', label:'Fire it! Throw as many as you can!' },
   ];
 
   const handleDrillDone = (count, grade) => {
@@ -262,7 +262,7 @@ const CombineScreen = ({ player, onDone }) => {
           </div>
         </div>
         <button style={{...S.btnGold, width:'100%', marginTop:'12px'}} onClick={()=>onDone(overall, draftPos, results)}>
-          Draft Day →
+          Draft Day â†’
         </button>
       </div>
     );
@@ -285,9 +285,9 @@ const CombineScreen = ({ player, onDone }) => {
   );
 };
 
-/* ══════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    SCREEN: DRAFT DAY
-══════════════════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 const DraftScreen = ({ player, draftPos, overall, combineResults, onDone }) => {
   const [revealed, setRevealed] = useState(false);
   const team = ALL_TEAMS[(draftPos - 1) % ALL_TEAMS.length];
@@ -311,7 +311,7 @@ const DraftScreen = ({ player, draftPos, overall, combineResults, onDone }) => {
       <div style={S.card}>
         {!revealed ? (
           <>
-            <div style={{ fontSize:'4rem', marginBottom:'16px' }}>🎙️</div>
+            <div style={{ fontSize:'4rem', marginBottom:'16px' }}>ðŸŽ™ï¸</div>
             <p style={{ color:'var(--color-cyan)', fontSize:'1.1rem', fontWeight:700, marginBottom:'8px' }}>
               "With the #{draftPos} pick in the MLB Draft..."
             </p>
@@ -324,9 +324,9 @@ const DraftScreen = ({ player, draftPos, overall, combineResults, onDone }) => {
           </>
         ) : (
           <>
-            <div style={{ fontSize:'3rem', marginBottom:'10px' }}>🎊</div>
+            <div style={{ fontSize:'3rem', marginBottom:'10px' }}>ðŸŽŠ</div>
             <div style={{ fontSize:'1.8rem', fontWeight:900, color:'#ffd700', marginBottom:'4px' }}>{player.name}</div>
-            <div style={{ color:'var(--color-cyan)', fontSize:'1.1rem', marginBottom:'16px' }}>#{draftPos} Pick • {player.position} • {team}</div>
+            <div style={{ color:'var(--color-cyan)', fontSize:'1.1rem', marginBottom:'16px' }}>#{draftPos} Pick â€¢ {player.position} â€¢ {team}</div>
             <div style={{ ...S.card, background:'rgba(0,50,0,0.2)', border:'1px solid rgba(0,255,100,0.2)', textAlign:'left' }}>
               <div style={{ textAlign:'center', marginBottom:'10px', fontSize:'1.4rem', fontWeight:900, color:'#00ff88' }}>{overall} OVR</div>
               {initAttrs && Object.entries(initAttrs()).map(([k,v])=>(
@@ -335,7 +335,7 @@ const DraftScreen = ({ player, draftPos, overall, combineResults, onDone }) => {
             </div>
             <button style={{...S.btnGold, width:'100%', marginTop:'8px'}}
               onClick={()=>onDone(team, Math.round(overall), initAttrs())}>
-              Begin Your Career →
+              Begin Your Career â†’
             </button>
           </>
         )}
@@ -344,9 +344,9 @@ const DraftScreen = ({ player, draftPos, overall, combineResults, onDone }) => {
   );
 };
 
-/* ══════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    SCREEN: CAREER HUB
-══════════════════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 const CareerHub = ({ career, setCareer, username, coins, setCoins, onGame }) => {
   const [tab, setTab] = useState('home');
   const p = career.player;
@@ -384,16 +384,16 @@ const CareerHub = ({ career, setCareer, username, coins, setCoins, onGame }) => 
         </svg>
         <div>
           <div style={{ fontSize:'1.2rem', fontWeight:900, color:'#e7e9ea' }}>{p.name}</div>
-          <div style={{ color:'rgba(192,208,255,0.55)', fontSize:'0.85rem' }}>#{p.jersey} • {p.position} • {career.team}</div>
+          <div style={{ color:'rgba(192,208,255,0.55)', fontSize:'0.85rem' }}>#{p.jersey} â€¢ {p.position} â€¢ {career.team}</div>
           <div style={{ display:'flex', gap:'16px', marginTop:'6px', flexWrap:'wrap' }}>
             <span style={{ color:'var(--color-cyan)', fontWeight:700 }}>{career.overall} OVR</span>
-            <span style={{ color:'rgba(192,208,255,0.5)', fontSize:'0.82rem' }}>Year {career.year} • Age {20+career.year}</span>
+            <span style={{ color:'rgba(192,208,255,0.5)', fontSize:'0.82rem' }}>Year {career.year} â€¢ Age {20+career.year}</span>
             <span style={{ color:'#ffd700', fontSize:'0.82rem' }}>Coins: {coins}</span>
           </div>
         </div>
         <div style={{ marginLeft:'auto', textAlign:'right' }}>
           <div style={{ color:'rgba(192,208,255,0.4)', fontSize:'0.72rem' }}>SEASON</div>
-          <div style={{ fontSize:'0.85rem' }}>{career.wins}W – {career.losses}L</div>
+          <div style={{ fontSize:'0.85rem' }}>{career.wins}W â€“ {career.losses}L</div>
           <div style={{ color:'rgba(192,208,255,0.4)', fontSize:'0.72rem', marginTop:'4px' }}>
             Game {career.gamesPlayed || 0} / 162
           </div>
@@ -419,7 +419,7 @@ const CareerHub = ({ career, setCareer, username, coins, setCoins, onGame }) => 
               {career.team} vs {career.nextOpponent || ALL_TEAMS[Math.floor(Math.random()*30)]}
             </div>
             <div style={{ color:'rgba(192,208,255,0.4)', fontSize:'0.8rem', marginBottom:'20px' }}>
-              Game {(career.gamesPlayed||0)+1} — Regular Season
+              Game {(career.gamesPlayed||0)+1} â€” Regular Season
             </div>
             <div style={{ display:'flex', gap:'12px', justifyContent:'center', flexWrap:'wrap' }}>
               <button style={{...S.btnGold, padding:'14px 28px'}} onClick={()=>onGame('play')}>Play Game</button>
@@ -443,7 +443,7 @@ const CareerHub = ({ career, setCareer, username, coins, setCoins, onGame }) => 
       {tab==='attrs' && (
         <div style={S.card}>
           <h3 style={S.hdr}>Upgrade Attributes</h3>
-          <p style={{ color:'rgba(192,208,255,0.4)', fontSize:'0.8rem', marginBottom:'16px' }}>100 coins per +1 • Max 99</p>
+          <p style={{ color:'rgba(192,208,255,0.4)', fontSize:'0.8rem', marginBottom:'16px' }}>100 coins per +1 â€¢ Max 99</p>
           {ATTR_LIST.map(a=>(
             <div key={a.key} style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'12px' }}>
               <span style={{ minWidth:'100px', fontSize:'0.8rem', color:'rgba(192,208,255,0.7)' }}>{a.label}</span>
@@ -466,7 +466,7 @@ const CareerHub = ({ career, setCareer, username, coins, setCoins, onGame }) => 
       {/* Stats tab */}
       {tab==='stats' && (
         <div style={S.card}>
-          <h3 style={S.hdr}>Season Stats — Year {career.year}</h3>
+          <h3 style={S.hdr}>Season Stats â€” Year {career.year}</h3>
           {['SP','RP'].includes(p.position) ? (
             <>
               {[['W-L',`${s.wins||0}-${s.losses||0}`],['ERA',(s.era||0).toFixed(2)],['IP',(s.ip||0).toFixed(1)],['K',s.k||0],['BB',s.bb||0],['WHIP',(s.whip||0).toFixed(2)]].map(([l,v])=>(
@@ -520,7 +520,7 @@ const CareerHub = ({ career, setCareer, username, coins, setCoins, onGame }) => 
         <div style={S.card}>
           <h3 style={S.hdr}>Season Schedule</h3>
           <p style={{ color:'rgba(192,208,255,0.4)', fontSize:'0.8rem', marginBottom:'12px' }}>
-            {career.gamesPlayed||0} games played • {162-(career.gamesPlayed||0)} remaining
+            {career.gamesPlayed||0} games played â€¢ {162-(career.gamesPlayed||0)} remaining
           </p>
           {Array.from({length:10},(_,i)=>{
             const gn = (career.gamesPlayed||0)+i+1;
@@ -540,14 +540,14 @@ const CareerHub = ({ career, setCareer, username, coins, setCoins, onGame }) => 
   );
 };
 
-/* ══════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    SCREEN: GAME PLAY
-══════════════════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 const GamePlayScreen = ({ career, mode, onDone }) => {
   const isPitcher = ['SP','RP'].includes(career.player.position);
   const attrs = career.player.attrs;
 
-  // Play mode: key spam game — hooks MUST be before any early returns
+  // Play mode: key spam game â€” hooks MUST be before any early returns
   const [phase, setPhase] = useState('spam');
   const [gameResult, setGameResult] = useState(null);
 
@@ -624,7 +624,7 @@ function simulateGame(attrs, opponent, spamBonus=0) {
   const narratives = win ? [
     `${hr>0?`You went deep ${hr===2?'twice':'once'} and `:''}drove in ${rbi} runs to help clinch the win.`,
     `A clutch hit in the 7th broke the tie. Your team never looked back.`,
-    `${sb>0?`Your speed was on full display — ${sb} stolen base${sb>1?'s':''} and `:''}you sparked the offense early.`,
+    `${sb>0?`Your speed was on full display â€” ${sb} stolen base${sb>1?'s':''} and `:''}you sparked the offense early.`,
   ] : [
     `A tough outing. Left ${rbi} runners stranded and couldn't get the key hit.`,
     `Despite ${h>0?`going ${h}-for-4`:'a hitless game'}, the team fell short in the late innings.`,
@@ -641,9 +641,9 @@ function simulateGame(attrs, opponent, spamBonus=0) {
   };
 }
 
-/* ══════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    SCREEN: DRAMA EVENT
-══════════════════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 const DramaScreen = ({ event, username, career, onDone }) => {
   const [chosen, setChosen] = useState(null);
   const choose = (choice) => {
@@ -654,7 +654,7 @@ const DramaScreen = ({ event, username, career, onDone }) => {
   const effectSummary = (e) => Object.entries(e).filter(([k])=>k!=='coins').map(([k,v])=>`${v>0?'+':''} ${v} ${k}`).join(', ');
   return (
     <div style={S.card}>
-      <div style={{ fontSize:'2rem', marginBottom:'8px' }}>⚡</div>
+      <div style={{ fontSize:'2rem', marginBottom:'8px' }}>âš¡</div>
       <h2 style={{ color:'#ff9900', fontWeight:900, marginBottom:'8px' }}>{event.title}</h2>
       <p style={{ color:'rgba(192,208,255,0.75)', lineHeight:1.6, marginBottom:'20px' }}>{event.text}</p>
       {!chosen ? (
@@ -681,9 +681,9 @@ const DramaScreen = ({ event, username, career, onDone }) => {
   );
 };
 
-/* ══════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    SCREEN: CONTRACT NEGOTIATION
-══════════════════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 const ContractScreen = ({ career, username, onDone }) => {
   const [counter, setCounter] = useState({years:3, salary:500});
   const [phase, setPhase] = useState('offer');
@@ -707,7 +707,7 @@ const ContractScreen = ({ career, username, onDone }) => {
   return (
     <div>
       <div style={{ textAlign:'center', marginBottom:'20px' }}>
-        <div style={{ fontSize:'2rem' }}>📝</div>
+        <div style={{ fontSize:'2rem' }}>ðŸ“</div>
         <h2 style={{ color:'var(--color-cyan)', fontWeight:900 }}>Free Agency</h2>
         <p style={{ color:'rgba(192,208,255,0.5)' }}>You're a free agent. Review your offers.</p>
       </div>
@@ -718,7 +718,7 @@ const ContractScreen = ({ career, username, onDone }) => {
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:'10px' }}>
                 <div>
                   <div style={{ fontWeight:700, color:'#e7e9ea', marginBottom:'4px' }}>{o.team}</div>
-                  <div style={{ color:'rgba(192,208,255,0.5)', fontSize:'0.82rem' }}>{o.years} yr • {o.role}</div>
+                  <div style={{ color:'rgba(192,208,255,0.5)', fontSize:'0.82rem' }}>{o.years} yr â€¢ {o.role}</div>
                 </div>
                 <div style={{ textAlign:'right' }}>
                   <div style={{ color:'#ffd700', fontWeight:700 }}>{o.salary} coins/yr</div>
@@ -758,11 +758,11 @@ const ContractScreen = ({ career, username, onDone }) => {
       )}
       {phase==='signed' && chosen && (
         <div style={{ ...S.card, textAlign:'center' }}>
-          <div style={{ fontSize:'3rem', marginBottom:'10px' }}>🎉</div>
+          <div style={{ fontSize:'3rem', marginBottom:'10px' }}>ðŸŽ‰</div>
           <h2 style={{ color:'#ffd700' }}>Signed!</h2>
-          <p style={{ color:'#c0d0ff' }}>{chosen.years} years • {chosen.salary} coins/yr</p>
+          <p style={{ color:'#c0d0ff' }}>{chosen.years} years â€¢ {chosen.salary} coins/yr</p>
           <p style={{ color:'#00ff88', fontWeight:700, fontSize:'1.1rem' }}>+{chosen.salary*chosen.years} coins added</p>
-          <p style={{ color:'rgba(192,208,255,0.5)' }}>{chosen.team} • {chosen.role}</p>
+          <p style={{ color:'rgba(192,208,255,0.5)' }}>{chosen.team} â€¢ {chosen.role}</p>
           <button style={{...S.btnGold, marginTop:'16px'}} onClick={()=>onDone(chosen)}>Start Next Season</button>
         </div>
       )}
@@ -770,9 +770,9 @@ const ContractScreen = ({ career, username, onDone }) => {
   );
 };
 
-/* ══════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    SEASON END
-══════════════════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 const SeasonEndScreen = ({ career, onContinue }) => {
   const s = career.seasonStats;
   const isPitcher = ['SP','RP'].includes(career.player.position);
@@ -781,11 +781,11 @@ const SeasonEndScreen = ({ career, onContinue }) => {
   return (
     <div style={{ textAlign:'center' }}>
       <div style={S.card}>
-        <div style={{ fontSize:'3rem', marginBottom:'10px' }}>{ws?'🏆':playoffs?'⚾':'📊'}</div>
+        <div style={{ fontSize:'3rem', marginBottom:'10px' }}>{ws?'ðŸ†':playoffs?'âš¾':'ðŸ“Š'}</div>
         <h2 style={{ color: ws?'#ffd700':playoffs?'#00ff88':'var(--color-cyan)' }}>
           {ws?'World Series Champions!':playoffs?'Playoff Bound!':'Season Complete'}
         </h2>
-        <p style={{ color:'rgba(192,208,255,0.5)', marginBottom:'20px' }}>Year {career.year} — {career.wins}W {career.losses}L</p>
+        <p style={{ color:'rgba(192,208,255,0.5)', marginBottom:'20px' }}>Year {career.year} â€” {career.wins}W {career.losses}L</p>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'10px', marginBottom:'20px' }}>
           {(isPitcher
             ? [['W',s.wins||0],['ERA',(s.era||0).toFixed(2)],['K',s.k||0]]
@@ -799,15 +799,15 @@ const SeasonEndScreen = ({ career, onContinue }) => {
         </div>
         {ws && <p style={{ color:'#ffd700', marginBottom:'16px' }}>You're a World Series Champion!</p>}
         <p style={{ color:'rgba(192,208,255,0.5)', fontSize:'0.85rem', marginBottom:'20px' }}>Your contract is up. Time to negotiate a new deal.</p>
-        <button style={{...S.btnGold, padding:'14px 30px'}} onClick={onContinue}>Contract Negotiations →</button>
+        <button style={{...S.btnGold, padding:'14px 30px'}} onClick={onContinue}>Contract Negotiations â†’</button>
       </div>
     </div>
   );
 };
 
-/* ══════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    ROOT COMPONENT
-══════════════════════════════════════════════════════════ */
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 export default function RoadToTheShow() {
   const { user } = useAuth();
   const username = user?.username || 'guest';
@@ -818,7 +818,6 @@ export default function RoadToTheShow() {
   const [gameMode, setGameMode] = useState('play');
   const [tempPlayer, setTempPlayer]     = useState(null);
   const [tempCombine, setTempCombine]   = useState(null);
-  const [tempDraft, setTempDraft]       = useState(null);
 
   useEffect(() => {
     const saved = loadCareer(username);
@@ -929,7 +928,7 @@ export default function RoadToTheShow() {
       {/* Screen back button */}
       {screen !== 'home' && screen !== 'career' && (
         <button style={{ ...S.btn, marginBottom:'16px', fontSize:'0.8rem', padding:'6px 14px' }} onClick={()=>setScreen(career?'career':'home')}>
-          ← Back
+          â† Back
         </button>
       )}
 
