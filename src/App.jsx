@@ -37,7 +37,7 @@ const GamesPage = () => {
       {subTab === 'rtts' && <RoadToTheShow />}
       {subTab === 'more' && (
         <div style={{ textAlign:'center', padding:'60px 20px', color:'rgba(192,208,255,0.35)' }}>
-          <div style={{ fontSize:'3rem', marginBottom:'12px' }}>ðŸŽ®</div>
+          <div style={{ fontSize:'3rem', marginBottom:'12px' }}>Ã°Å¸Å½Â®</div>
           <p>More games coming soon!</p>
         </div>
       )}
