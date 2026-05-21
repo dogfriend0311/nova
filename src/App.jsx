@@ -101,6 +101,8 @@ const AppContent = () => {
       case 'members':  return <MemberPages />;
       case 'profile':  return user ? <MemberProfile /> : <Home />;
       case 'lastfm':   return <LastFmPage pendingToken={lfmToken} onTokenConsumed={() => setLfmToken(null)} />;
+      case 'games':    return <GamesPage />;
+      case 'store':    return <div style={{textAlign:'center',padding:'60px',color:'rgba(192,208,255,0.4)'}}>Store coming soon</div>;
       case 'player':   return (
         <LeaguePlayerPage
           player={selectedLeaguePlayer}
