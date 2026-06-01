@@ -61,6 +61,10 @@ export const AuthProvider = ({ children }) => {
     const newUser = { username, password, role: 'member' };
     users.push(newUser);
     localStorage.setItem('nova_users', JSON.stringify(users));
+    // Also save to Supabase (no password stored server-side)
+    import('../../services/db').then(({ default: db }) => {
+      db.saveUser({ username, role: 'member' }).catch(() => {});
+    }).catch(() => {});
     const memberProfiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
     memberProfiles.push({ username, bio: '', top_banner_url: '', left_banner_url: '', right_banner_url: '', spotify_url: '', twitter_url: '', twitch_url: '', youtube_url: '', instagram_url: '' });
     localStorage.setItem('member_profiles', JSON.stringify(memberProfiles));

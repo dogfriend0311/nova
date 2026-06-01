@@ -132,7 +132,12 @@ const MemberPagesTab = () => {
 
 const UserRolesTab = () => {
   const { updateUserRole } = useAuth();
-  const [users, setUsers] = useState(JSON.parse(localStorage.getItem('nova_users') || '[]'));
+  const [users, setUsers] = useState([]);
+  useEffect(() => {
+    import('../../../services/db').then(({ default: db }) => {
+      db.getUsers().then(setUsers);
+    });
+  }, []);
   const roles = ['member','nabb_helper','rbml_helper','mod','cofounder','owner'];
   const changeRole = (username, role) => {
     updateUserRole(username, role);

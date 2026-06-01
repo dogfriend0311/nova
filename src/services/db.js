@@ -1,5 +1,5 @@
 /**
- * db.js — Universal data service
+ * db.js â€” Universal data service
  * Tries Supabase first (cross-device). Falls back to localStorage if
  * Supabase isn't configured yet so the site still works locally.
  */
@@ -10,13 +10,13 @@ const hasSupabase = () => !!(
   process.env.REACT_APP_SUPABASE_ANON_KEY
 );
 
-/* ── Generic localStorage helpers ────────────────────────────── */
+/* â”€â”€ Generic localStorage helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const ls = {
   get: (key) => JSON.parse(localStorage.getItem(key) || '[]'),
   set: (key, val) => localStorage.setItem(key, JSON.stringify(val)),
 };
 
-/* ── League data (teams, players, games, etc.) ──────────────── */
+/* â”€â”€ League data (teams, players, games, etc.) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 export const db = {
 
   /* TEAMS */
@@ -369,9 +369,37 @@ export const db = {
     ls.set('member_profiles', list);
     return profile;
   },
+
+  async getUsers() {
+    try {
+      const { data, error } = await supabase.from('nova_users').select('username,role,created_at').order('created_at');
+      if (!error && data) return data;
+    } catch {}
+    return JSON.parse(localStorage.getItem('nova_users') || '[]');
+  },
+
+  async saveUser(user) {
+    try {
+      await supabase.from('nova_users').upsert([{ username: user.username, role: user.role || 'member' }], { onConflict: 'username' });
+    } catch {}
+    const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
+    if (!users.find(u => u.username === user.username)) {
+      users.push(user);
+      localStorage.setItem('nova_users', JSON.stringify(users));
+    }
+  },
+
+  async updateUserRole(username, role) {
+    try {
+      await supabase.from('nova_users').update({ role }).eq('username', username);
+    } catch {}
+    const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
+    const idx = users.findIndex(u => u.username === username);
+    if (idx >= 0) { users[idx].role = role; localStorage.setItem('nova_users', JSON.stringify(users)); }
+  },
 };
 
-/* ── Internal: keep localStorage in sync with Supabase ─────── */
+/* â”€â”€ Internal: keep localStorage in sync with Supabase â”€â”€â”€â”€â”€â”€â”€ */
 function _syncLs(league, table, record, op) {
   const key = `${league}_${table}`;
   const list = ls.get(key);
