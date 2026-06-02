@@ -62,7 +62,7 @@ export const AuthProvider = ({ children }) => {
     users.push(newUser);
     localStorage.setItem('nova_users', JSON.stringify(users));
     // Also save to Supabase (no password stored server-side)
-    import('../../services/db').then(({ default: db }) => {
+    import('../services/db').then(({ default: db }) => {
       db.saveUser({ username, role: 'member' }).catch(() => {});
     }).catch(() => {});
     const memberProfiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
