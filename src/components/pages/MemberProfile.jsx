@@ -10,7 +10,7 @@ const roleLabel = (role) => {
   return map[role] || role || 'Member';
 };
 
-const TYPE_ICONS = { anime: '🎌', movie: '🎬', tv: '📺' };
+const TYPE_ICONS = { anime: 'ðŸŽŒ', movie: 'ðŸŽ¬', tv: 'ðŸ“º' };
 const SPORT_KEYS = ['mlb', 'nfl', 'nba', 'nhl', 'cfb', 'cbb'];
 const DEFAULT_FAV_TEAMS = { mlb: [], nfl: [], nba: [], nhl: [], cfb: [], cbb: [] };
 
@@ -20,7 +20,7 @@ const DEFAULT_PROFILE = {
   discord_tag: '', fav_teams: DEFAULT_FAV_TEAMS,
 };
 
-/* ── Image upload field ─────────────────────────────────────── */
+/* â”€â”€ Image upload field â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const ImageField = ({ label, fieldKey, value, onChange }) => {
   const inputRef = useRef(null);
   const handleFile = (e) => {
@@ -37,12 +37,12 @@ const ImageField = ({ label, fieldKey, value, onChange }) => {
     <div className="form-group mp-image-field">
       <label>{label}</label>
       <div className="mp-image-upload-row">
-        <input type="text" value={isBase64 ? '' : (value || '')} onChange={(e) => onChange(fieldKey, e.target.value)} placeholder={isBase64 ? '(uploaded file)' : 'Paste image URL…'} style={{ flex: 1 }} />
+        <input type="text" value={isBase64 ? '' : (value || '')} onChange={(e) => onChange(fieldKey, e.target.value)} placeholder={isBase64 ? '(uploaded file)' : 'Paste image URLâ€¦'} style={{ flex: 1 }} />
         <label className="mp-upload-btn" title="Upload from device">
-          📁 Upload
+          ðŸ“ Upload
           <input ref={inputRef} type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} />
         </label>
-        {hasImage && <button className="mp-upload-clear" onClick={() => onChange(fieldKey, '')} title="Remove image">✕</button>}
+        {hasImage && <button className="mp-upload-clear" onClick={() => onChange(fieldKey, '')} title="Remove image">âœ•</button>}
       </div>
       {hasImage && (
         <div className="mp-image-preview-wrap">
@@ -53,7 +53,7 @@ const ImageField = ({ label, fieldKey, value, onChange }) => {
   );
 };
 
-/* ── Team Selector ──────────────────────────────────────────── */
+/* â”€â”€ Team Selector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const TeamSelector = ({ favTeams, onChange }) => {
   const [activeSport, setActiveSport] = useState('mlb');
   const hasLogos = ['mlb', 'nfl', 'nba', 'nhl'].includes(activeSport);
@@ -98,13 +98,13 @@ const TeamSelector = ({ favTeams, onChange }) => {
   );
 };
 
-/* ── Favorite Teams Display ─────────────────────────────────── */
+/* â”€â”€ Favorite Teams Display â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const FavTeamsDisplay = ({ favTeams }) => {
   const hasSome = SPORT_KEYS.some((s) => (favTeams?.[s] || []).length > 0);
   if (!hasSome) return null;
   return (
     <div className="discord-section">
-      <div className="discord-section-title">⭐ Favorite Teams</div>
+      <div className="discord-section-title">â­ Favorite Teams</div>
       {SPORT_KEYS.map((sport) => {
         const picked = favTeams?.[sport] || [];
         if (!picked.length) return null;
@@ -130,7 +130,7 @@ const FavTeamsDisplay = ({ favTeams }) => {
   );
 };
 
-/* ── Watch List Preview ─────────────────────────────────────── */
+/* â”€â”€ Watch List Preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const WatchListPreview = ({ username }) => {
   const list = getWatchList(username);
   if (!list.length) return null;
@@ -140,22 +140,22 @@ const WatchListPreview = ({ username }) => {
   const plan     = list.filter((i) => i.status === 'plan').length;
   return (
     <div className="discord-section">
-      <div className="discord-section-title">🎬 Watch List</div>
+      <div className="discord-section-title">ðŸŽ¬ Watch List</div>
       <div className="mp-wl-stats">
-        <span className="mp-wl-stat"><span style={{ color: '#a5d6a7' }}>✓</span> {watched} watched</span>
-        <span className="mp-wl-stat"><span style={{ color: '#66bb6a' }}>▶</span> {watching} watching</span>
-        <span className="mp-wl-stat"><span style={{ color: '#64b5f6' }}>📋</span> {plan} planned</span>
+        <span className="mp-wl-stat"><span style={{ color: '#a5d6a7' }}>âœ“</span> {watched} watched</span>
+        <span className="mp-wl-stat"><span style={{ color: '#66bb6a' }}>â–¶</span> {watching} watching</span>
+        <span className="mp-wl-stat"><span style={{ color: '#64b5f6' }}>ðŸ“‹</span> {plan} planned</span>
       </div>
       {pinned.length > 0 && (
         <>
           <div style={{ fontSize: '0.72rem', color: 'rgba(192,208,255,0.35)', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', marginTop: '10px', marginBottom: '8px' }}>
-            📌 Pinned
+            ðŸ“Œ Pinned
           </div>
           <div className="mp-pinned-grid">
             {pinned.slice(0, 6).map((item) => (
               <div key={item.id} className="mp-pinned-card" title={item.title}>
                 {item.poster ? <img src={item.poster} alt={item.title} /> : <div className="mp-pinned-ph">{TYPE_ICONS[item.type] || '?'}</div>}
-                {item.rating != null && <div className="mp-pinned-rating">★{item.rating}</div>}
+                {item.rating != null && <div className="mp-pinned-rating">â˜…{item.rating}</div>}
               </div>
             ))}
           </div>
@@ -165,7 +165,7 @@ const WatchListPreview = ({ username }) => {
   );
 };
 
-/* ── Last.fm Now Playing Widget ─────────────────────────────── */
+/* â”€â”€ Last.fm Now Playing Widget â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const LastFmWidget = ({ lastfmUsername }) => {
   const [track, setTrack] = useState(undefined);
 
@@ -188,14 +188,14 @@ const LastFmWidget = ({ lastfmUsername }) => {
     <div className="discord-section">
       <div className="discord-section-title-row">
         <span className="discord-section-title">
-          {track.isPlaying ? '🎵 Now Playing' : '🎵 Last Scrobbled'}
+          {track.isPlaying ? 'ðŸŽµ Now Playing' : 'ðŸŽµ Last Scrobbled'}
         </span>
-        <a className="lfm-mini-link" href={track.userUrl} target="_blank" rel="noreferrer">Last.fm →</a>
+        <a className="lfm-mini-link" href={track.userUrl} target="_blank" rel="noreferrer">Last.fm â†’</a>
       </div>
       <a className={`sp-track ${track.isPlaying ? 'playing' : 'paused'}`} href={track.trackUrl || '#'} target="_blank" rel="noreferrer" style={{ '--sp-color': '#d51007' }}>
         {track.albumArt
           ? <img className="sp-art" src={track.albumArt} alt="" onError={(e) => { e.target.style.display = 'none'; }} />
-          : <div className="sp-art sp-art-placeholder">🎵</div>}
+          : <div className="sp-art sp-art-placeholder">ðŸŽµ</div>}
         <div className="sp-info">
           <div className="sp-track-name">{track.trackName}</div>
           <div className="sp-artist-name">{track.artistName}</div>
@@ -213,7 +213,7 @@ const LastFmWidget = ({ lastfmUsername }) => {
   );
 };
 
-/* ── Main MemberProfile ─────────────────────────────────────── */
+/* â”€â”€ Main MemberProfile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 const MemberProfile = () => {
   const { user } = useAuth();
   const [profile,   setProfile]  = useState(null);
@@ -289,7 +289,7 @@ const MemberProfile = () => {
     setFavTab(false);
   };
 
-  if (!profile) return <div>Loading…</div>;
+  if (!profile) return <div>Loadingâ€¦</div>;
 
   if (editing) {
     return (
@@ -299,8 +299,8 @@ const MemberProfile = () => {
           <button className="neon-button" onClick={() => { setEditing(false); setFavTab(false); }}>Cancel</button>
         </div>
         <div className="mp-edit-tabs">
-          <button className={`sh-sub-tab ${!favTab ? 'active' : ''}`} onClick={() => setFavTab(false)}>👤 Profile</button>
-          <button className={`sh-sub-tab ${favTab ? 'active' : ''}`} onClick={() => setFavTab(true)}>⭐ Favorite Teams</button>
+          <button className={`sh-sub-tab ${!favTab ? 'active' : ''}`} onClick={() => setFavTab(false)}>ðŸ‘¤ Profile</button>
+          <button className={`sh-sub-tab ${favTab ? 'active' : ''}`} onClick={() => setFavTab(true)}>â­ Favorite Teams</button>
         </div>
         {!favTab ? (
           <div className="neon-card p-3">
@@ -308,7 +308,7 @@ const MemberProfile = () => {
             <ImageField label="Avatar / Profile Picture" fieldKey="avatar_url" value={formData.avatar_url || ''} onChange={handleField} />
             <div className="form-group">
               <label>About Me</label>
-              <textarea rows="4" value={formData.bio || ''} onChange={(e) => setFormData({ ...formData, bio: e.target.value })} placeholder="Tell us about yourself…" />
+              <textarea rows="4" value={formData.bio || ''} onChange={(e) => setFormData({ ...formData, bio: e.target.value })} placeholder="Tell us about yourselfâ€¦" />
             </div>
             <div className="form-group">
               <label>Discord Tag</label>
@@ -333,7 +333,7 @@ const MemberProfile = () => {
             ].map(({ key, label }) => (
               <div className="form-group" key={key}>
                 <label>{label}</label>
-                <input type="text" value={formData[key] || ''} onChange={(e) => setFormData({ ...formData, [key]: e.target.value })} placeholder="https://…" />
+                <input type="text" value={formData[key] || ''} onChange={(e) => setFormData({ ...formData, [key]: e.target.value })} placeholder="https://â€¦" />
               </div>
             ))}
             <div className="form-actions">
@@ -358,10 +358,10 @@ const MemberProfile = () => {
   }
 
   const socials = [
-    { key: 'twitter_url',   label: 'Twitter',   icon: '🐦' },
-    { key: 'twitch_url',    label: 'Twitch',    icon: '🎮' },
-    { key: 'youtube_url',   label: 'YouTube',   icon: '▶️' },
-    { key: 'instagram_url', label: 'Instagram', icon: '📸' },
+    { key: 'twitter_url',   label: 'Twitter',   icon: 'ðŸ¦' },
+    { key: 'twitch_url',    label: 'Twitch',    icon: 'ðŸŽ®' },
+    { key: 'youtube_url',   label: 'YouTube',   icon: 'â–¶ï¸' },
+    { key: 'instagram_url', label: 'Instagram', icon: 'ðŸ“¸' },
   ].filter((s) => profile[s.key]);
 
 
@@ -398,7 +398,7 @@ const MemberProfile = () => {
       <div className="tw-banner" style={{ backgroundImage: profile.top_banner_url ? `url(${profile.top_banner_url})` : undefined }}>
         <div className="tw-avatar-wrap">
           <div className="tw-avatar">
-            {profile.avatar_url ? <img src={profile.avatar_url} alt="avatar" /> : '🚀'}
+            {profile.avatar_url ? <img src={profile.avatar_url} alt="avatar" /> : 'ðŸš€'}
           </div>
         </div>
       </div>
