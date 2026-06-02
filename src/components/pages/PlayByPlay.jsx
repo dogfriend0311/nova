@@ -3,6 +3,12 @@
  * Live play-by-play for real sports leagues.
  * Baseball (MLB, MiLB, College): pitch-by-pitch via MLB Stats API
  * Football / Basketball / Hockey: play log via ESPN API
+ *
+ * FIX: Data no longer disappears when a game ends.
+ *   - Each polling component keeps `lastGoodData` in a ref so
+ *     a failed / empty fetch never blanks the screen.
+ *   - Polling stops automatically when the game is detected as final.
+ *   - "📡 Live" label switches to "📊 Final" when game is over.
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './PlayByPlay.css';
@@ -10,17 +16,13 @@ import './PlayByPlay.css';
 const MLB_API = 'https://statsapi.mlb.com/api/v1';
 const ESPN    = 'https://site.api.espn.com';
 
-/* ── Helpers ─────────────────────────────────────────────────── */
-
-
 const ESPN_PATHS = {
-  nfl:  'football/nfl',
-  nba:  'basketball/nba',
-  nhl:  'hockey/nhl',
-  cfb:  'football/college-football',
-  cbb:  'baseball/college-baseball',
+  nfl: 'football/nfl',
+  nba: 'basketball/nba',
+  nhl: 'hockey/nhl',
+  cfb: 'football/college-football',
+  cbb: 'baseball/college-baseball',
 };
-
 
 /* ── Strike Zone ─────────────────────────────────────────────── */
 const StrikeZone = ({ pitches = [] }) => {
@@ -38,22 +40,15 @@ const StrikeZone = ({ pitches = [] }) => {
   return (
     <svg viewBox={`0 0 ${S} ${S}`} className="pbp-zone">
       <rect x={0} y={0} width={S} height={S} fill="rgba(0,0,20,0.85)" rx={6}/>
-      {/* ball zone hint */}
       <rect x={22} y={16} width={136} height={138} fill="none" stroke="rgba(80,120,255,0.2)" strokeWidth={1} strokeDasharray="4 3" rx={3}/>
-      {/* strike zone */}
       <rect x={ZX} y={ZY} width={ZW} height={ZH} fill="rgba(0,255,255,0.04)" stroke="rgba(0,255,255,0.5)" strokeWidth={1.5}/>
-      {/* grid */}
       {[1,2].map(i=><line key={`v${i}`} x1={ZX+ZW*(i/3)} y1={ZY} x2={ZX+ZW*(i/3)} y2={ZY+ZH} stroke="rgba(0,255,255,0.15)" strokeWidth={0.7}/>)}
       {[1,2].map(i=><line key={`h${i}`} x1={ZX} y1={ZY+ZH*(i/3)} x2={ZX+ZW} y2={ZY+ZH*(i/3)} stroke="rgba(0,255,255,0.15)" strokeWidth={0.7}/>)}
-      {/* home plate */}
       <polygon points={`${S/2-14},${S-12} ${S/2+14},${S-12} ${S/2+17},${S-6} ${S/2},${S-2} ${S/2-17},${S-6}`} fill="rgba(255,255,255,0.07)" stroke="rgba(255,255,255,0.3)" strokeWidth={1}/>
-      {/* labels */}
       <text x={ZX-3} y={ZY+9} textAnchor="end" fill="rgba(100,150,255,0.45)" fontSize={7}>HH</text>
       <text x={ZX-3} y={ZY+ZH} textAnchor="end" fill="rgba(100,150,255,0.45)" fontSize={7}>KN</text>
-      {/* pitches */}
       {pitches.map((p,i)=>{
         if (p.px == null || p.pz == null) return null;
-        // MLB coords: pX horizontal (-1.5 to 1.5), pZ vertical (1 to 4 approx)
         const cx = ZX + ZW/2 + (p.px / 1.5) * (ZW/2);
         const cy = ZY + ZH - ((p.pz - 1.5) / 2.0) * ZH;
         const c = col(p.result);
@@ -100,25 +95,25 @@ const Count = ({ balls, strikes, outs }) => (
 
 /* ══════════════════════════════════════════════════════════════
    BASEBALL PBP — MLB Stats API live feed
+   FIX: keeps last good data; stops polling when game is final
 ══════════════════════════════════════════════════════════════ */
 const BaseballPBP = ({ gamePk, game }) => {
-  const [feed, setFeed]     = useState(null);
-  const [error, setError]   = useState(null);
+  const [feed, setFeed]       = useState(null);
+  const [error, setError]     = useState(null);
+  const [isFinal, setIsFinal] = useState(false);
   const [selectedPlay, setSelectedPlay] = useState(null);
-  const intervalRef = useRef(null);
-
+  const lastGoodRef  = useRef(null);   // ← persists last successful data
+  const intervalRef  = useRef(null);
   const [resolvedPk, setResolvedPk] = useState(null);
 
-  // Resolve gamePk: if it looks like an ESPN ID (>8 digits) find the MLB pk by date
+  /* Resolve gamePk */
   useEffect(() => {
     const pk = String(gamePk || '');
     if (!pk) { setError('No game ID'); return; }
-    // MLB Stats API gamePks are typically 6-7 digits; ESPN IDs are 9 digits
     if (pk.length <= 7) { setResolvedPk(pk); return; }
-    // Try to find game on today's schedule by searching recent dates
-    const tryDates = [0, -1, 1, -2, 2].map(offset => {
-      const d = new Date(); d.setDate(d.getDate() + offset);
-      return d.toISOString().slice(0, 10);
+    const tryDates = [0,-1,1,-2,2].map(offset => {
+      const d = new Date(); d.setDate(d.getDate()+offset);
+      return d.toISOString().slice(0,10);
     });
     (async () => {
       for (const date of tryDates) {
@@ -127,7 +122,6 @@ const BaseballPBP = ({ gamePk, game }) => {
           const data = await r.json();
           const games = data.dates?.[0]?.games || [];
           if (games.length > 0) {
-            // Take the first game on that date as a fallback, or match by teams
             const match = game ? games.find(g =>
               g.teams?.home?.team?.name?.toLowerCase().includes((game.home_team||'').toLowerCase().split(' ').pop()) ||
               g.teams?.away?.team?.name?.toLowerCase().includes((game.away_team||'').toLowerCase().split(' ').pop())
@@ -137,7 +131,6 @@ const BaseballPBP = ({ gamePk, game }) => {
           }
         } catch {}
       }
-      // Last resort: try treating the ID directly
       setResolvedPk(pk);
     })();
   }, [gamePk, game]);
@@ -145,37 +138,54 @@ const BaseballPBP = ({ gamePk, game }) => {
   const fetchFeed = useCallback(async () => {
     if (!resolvedPk) return;
     try {
-      // Try MLB first, then MiLB endpoint
       let r = await fetch(`${MLB_API}/game/${resolvedPk}/feed/live`);
       if (r.status === 404) {
-        // Try with different sport context
         r = await fetch(`https://statsapi.mlb.com/api/v1.1/game/${resolvedPk}/feed/live`);
       }
-      if (!r.ok) throw new Error(`Live feed unavailable (${r.status}). This game may not have live data yet — try during an active game.`);
+      if (!r.ok) throw new Error(`Feed unavailable (${r.status})`);
       const d = await r.json();
+
+      lastGoodRef.current = d;   // ← always save good data
       setFeed(d);
+      setError(null);
+
+      // Detect final — stop polling
+      const state = d.gameData?.status?.abstractGameState;
+      if (state === 'Final') {
+        setIsFinal(true);
+        clearInterval(intervalRef.current);
+      }
     } catch (e) {
-      setError(e.message);
+      // Don't blank the screen — show last good data if we have it
+      if (lastGoodRef.current) {
+        setFeed(lastGoodRef.current);
+        setError(null);
+      } else {
+        setError(e.message + ' — data will appear once the game starts.');
+      }
     }
   }, [resolvedPk]);
 
   useEffect(() => {
     if (!resolvedPk) return;
     fetchFeed();
-    intervalRef.current = setInterval(fetchFeed, 15000);
+    if (!isFinal) {
+      intervalRef.current = setInterval(fetchFeed, 15000);
+    }
     return () => clearInterval(intervalRef.current);
-  }, [fetchFeed, resolvedPk]);
+  }, [fetchFeed, resolvedPk]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (error) return <div className="pbp-error">{error}</div>;
+  if (error && !feed)  return <div className="pbp-error">{error}</div>;
   if (!resolvedPk) return <div className="pbp-loading">Resolving game ID…</div>;
-  if (!feed)  return <div className="pbp-loading">Loading live data…</div>;
+  if (!feed)       return <div className="pbp-loading">Loading play data…</div>;
 
   const ld  = feed.liveData;
   const gd  = feed.gameData;
-  const plays = ld?.plays?.allPlays || [];
-  const cur   = ld?.plays?.currentPlay;
-  const ls    = ld?.linescore || {};
+  const plays   = ld?.plays?.allPlays || [];
+  const cur     = ld?.plays?.currentPlay;
+  const ls      = ld?.linescore || {};
   const innings = ls.innings || [];
+  const gameFinal = gd?.status?.abstractGameState === 'Final';
 
   const batter  = cur?.matchup?.batter;
   const pitcher = cur?.matchup?.pitcher;
@@ -184,14 +194,14 @@ const BaseballPBP = ({ gamePk, game }) => {
   const pitches = events
     .filter(e => e.isPitch)
     .map(e => ({
-      px:     e.pitchData?.coordinates?.pX,
-      pz:     e.pitchData?.coordinates?.pZ,
-      mph:    e.pitchData?.startSpeed?.toFixed(1),
-      type:   e.details?.type?.description || '',
+      px:    e.pitchData?.coordinates?.pX,
+      pz:    e.pitchData?.coordinates?.pZ,
+      mph:   e.pitchData?.startSpeed?.toFixed(1),
+      type:  e.details?.type?.description || '',
       result: e.details?.description || '',
-      exitVelo:     e.hitData?.launchSpeed?.toFixed(0),
-      launchAngle:  e.hitData?.launchAngle?.toFixed(0),
-      distance:     e.hitData?.totalDistance?.toFixed(0),
+      exitVelo:    e.hitData?.launchSpeed?.toFixed(0),
+      launchAngle: e.hitData?.launchAngle?.toFixed(0),
+      distance:    e.hitData?.totalDistance?.toFixed(0),
     }));
 
   const runners = {
@@ -204,11 +214,17 @@ const BaseballPBP = ({ gamePk, game }) => {
     ? `${ls.inningHalf === 'Top' ? '▲' : '▼'} ${ls.currentInning}`
     : '—';
 
-  // Build at-bat log from all plays (reverse = newest first)
   const atBats = [...plays].reverse().slice(0, 30);
 
   return (
     <div className="pbp-baseball">
+      {/* Final badge */}
+      {gameFinal && (
+        <div style={{ textAlign:'center', marginBottom:'12px', padding:'6px 16px', background:'rgba(0,255,100,0.08)', border:'1px solid rgba(0,255,100,0.25)', borderRadius:'8px', color:'#00ff88', fontSize:'0.82rem', fontWeight:700 }}>
+          ✅ FINAL — Complete game data
+        </div>
+      )}
+
       {/* Score header */}
       <div className="pbp-scoreboard">
         <div className="pbp-team">
@@ -216,8 +232,8 @@ const BaseballPBP = ({ gamePk, game }) => {
           <span className="pbp-score">{ls.teams?.away?.runs ?? game?.away_score}</span>
         </div>
         <div className="pbp-inning-info">
-          <div className="pbp-inning">{inningLabel}</div>
-          <div className="pbp-outs">{count.outs ?? ls.outs ?? 0} out{(count.outs ?? 1) !== 1 ? 's' : ''}</div>
+          <div className="pbp-inning">{gameFinal ? 'FINAL' : inningLabel}</div>
+          <div className="pbp-outs">{!gameFinal && `${count.outs ?? ls.outs ?? 0} out${(count.outs ?? 1) !== 1 ? 's' : ''}`}</div>
         </div>
         <div className="pbp-team">
           <span className="pbp-score">{ls.teams?.home?.runs ?? game?.home_score}</span>
@@ -253,8 +269,8 @@ const BaseballPBP = ({ gamePk, game }) => {
         </div>
       )}
 
-      {/* Current at-bat */}
-      {batter && pitcher && (
+      {/* Current at-bat — only show if game is NOT final */}
+      {!gameFinal && batter && pitcher && (
         <div className="pbp-current-ab">
           <div className="pbp-matchup">
             <div className="pbp-matchup-side">
@@ -271,7 +287,6 @@ const BaseballPBP = ({ gamePk, game }) => {
           </div>
 
           <div className="pbp-live-row">
-            {/* Strike zone */}
             <div className="pbp-zone-wrap">
               <div className="pbp-zone-label">Strike Zone</div>
               <StrikeZone pitches={pitches}/>
@@ -281,15 +296,12 @@ const BaseballPBP = ({ gamePk, game }) => {
                 ))}
               </div>
             </div>
-
-            {/* Count + runners */}
             <div className="pbp-state">
               <Count balls={count.balls} strikes={count.strikes} outs={ls.outs ?? 0}/>
               <Runners first={runners.first} second={runners.second} third={runners.third}/>
             </div>
           </div>
 
-          {/* Current pitch sequence */}
           {pitches.length > 0 && (
             <div className="pbp-pitch-list">
               <div className="pbp-section-label">Current At-Bat Pitches</div>
@@ -311,15 +323,20 @@ const BaseballPBP = ({ gamePk, game }) => {
 
       {/* At-bat log */}
       <div className="pbp-log">
-        <div className="pbp-section-label">Play Log</div>
+        <div className="pbp-section-label">
+          {gameFinal ? `Play Log — ${atBats.length} plays` : 'Play Log'}
+        </div>
+        {atBats.length === 0 && (
+          <p className="pbp-empty">No play data yet.</p>
+        )}
         {atBats.map((ab,i)=>{
-          const res = ab.result;
+          const res   = ab.result;
           const about = ab.about;
           const abPitches = (ab.playEvents||[]).filter(e=>e.isPitch);
           const lastPitch = abPitches[abPitches.length-1];
           const inning = about ? `${about.halfInning==='top'?'▲':'▼'}${about.inning}` : '';
-          const isHit = ['Single','Double','Triple','Home Run'].includes(res?.event);
-          const isHR  = res?.event === 'Home Run';
+          const isHit  = ['Single','Double','Triple','Home Run'].includes(res?.event);
+          const isHR   = res?.event === 'Home Run';
           return (
             <div key={i}
               className={`pbp-ab-row ${isHR?'pbp-hr':isHit?'pbp-hit':''} ${selectedPlay===i?'pbp-selected':''}`}
@@ -340,7 +357,6 @@ const BaseballPBP = ({ gamePk, game }) => {
                   {lastPitch.hitData.totalDistance ? ` · ${lastPitch.hitData.totalDistance.toFixed(0)} ft` : ''}
                 </div>
               )}
-              {/* Expanded pitch zone on click */}
               {selectedPlay === i && abPitches.length > 0 && (
                 <div style={{ marginTop:'12px', display:'flex', gap:'16px', flexWrap:'wrap', alignItems:'flex-start' }}>
                   <div>
@@ -373,10 +389,13 @@ const BaseballPBP = ({ gamePk, game }) => {
 
 /* ══════════════════════════════════════════════════════════════
    FOOTBALL PBP — ESPN API
+   FIX: keeps last good data; stops polling when final
 ══════════════════════════════════════════════════════════════ */
 const FootballPBP = ({ eventId, sport, game }) => {
-  const [data, setData]   = useState(null);
-  const [error, setError] = useState(null);
+  const [data, setData]       = useState(null);
+  const [error, setError]     = useState(null);
+  const [isFinal, setIsFinal] = useState(false);
+  const lastGoodRef = useRef(null);
   const intervalRef = useRef(null);
   const path = ESPN_PATHS[sport];
 
@@ -385,9 +404,22 @@ const FootballPBP = ({ eventId, sport, game }) => {
       const r = await fetch(`${ESPN}/apis/site/v2/sports/${path}/summary?event=${eventId}`);
       if (!r.ok) throw new Error(`${r.status}`);
       const d = await r.json();
+      lastGoodRef.current = d;
       setData(d);
+      setError(null);
+
+      const state = d.header?.competitions?.[0]?.status?.type?.state;
+      if (state === 'post') {
+        setIsFinal(true);
+        clearInterval(intervalRef.current);
+      }
     } catch(e) {
-      setError(e.message);
+      if (lastGoodRef.current) {
+        setData(lastGoodRef.current);
+        setError(null);
+      } else {
+        setError(e.message);
+      }
     }
   }, [eventId, path]);
 
@@ -397,8 +429,8 @@ const FootballPBP = ({ eventId, sport, game }) => {
     return () => clearInterval(intervalRef.current);
   }, [fetchData]);
 
-  if (error) return <div className="pbp-error">Could not load data: {error}</div>;
-  if (!data)  return <div className="pbp-loading">Loading play-by-play…</div>;
+  if (error && !data)  return <div className="pbp-error">Could not load data: {error}</div>;
+  if (!data)           return <div className="pbp-loading">Loading play-by-play…</div>;
 
   const header   = data.header;
   const comps    = header?.competitions?.[0];
@@ -407,13 +439,19 @@ const FootballPBP = ({ eventId, sport, game }) => {
   const status   = comps?.status?.type?.shortDetail || '';
   const plays    = data.drives?.previous?.flatMap(d=>(d.plays||[])) || [];
   const curDrive = data.drives?.current;
-  const situation= data.situation;
+  const situation = data.situation;
+  const gameFinal = isFinal || comps?.status?.type?.state === 'post';
 
   const downStr = (d,ds) => d ? `${d}${['st','nd','rd','th'][Math.min(d-1,3)]} & ${ds}` : '';
 
   return (
     <div className="pbp-football">
-      {/* Scoreboard */}
+      {gameFinal && (
+        <div style={{ textAlign:'center', marginBottom:'12px', padding:'6px 16px', background:'rgba(0,255,100,0.08)', border:'1px solid rgba(0,255,100,0.25)', borderRadius:'8px', color:'#00ff88', fontSize:'0.82rem', fontWeight:700 }}>
+          ✅ FINAL — Complete game data
+        </div>
+      )}
+
       <div className="pbp-scoreboard">
         <div className="pbp-team">
           <span className="pbp-team-name">{away?.team?.abbreviation}</span>
@@ -428,8 +466,7 @@ const FootballPBP = ({ eventId, sport, game }) => {
         </div>
       </div>
 
-      {/* Situation */}
-      {situation && (
+      {!gameFinal && situation && (
         <div className="pbp-football-situation">
           {situation.down > 0 && (
             <div className="pbp-situation-item">
@@ -454,8 +491,7 @@ const FootballPBP = ({ eventId, sport, game }) => {
         </div>
       )}
 
-      {/* Current drive */}
-      {curDrive && (
+      {!gameFinal && curDrive && (
         <div className="pbp-current-drive">
           <div className="pbp-section-label">Current Drive — {curDrive.team?.abbreviation}</div>
           <div className="pbp-drive-summary">
@@ -473,9 +509,11 @@ const FootballPBP = ({ eventId, sport, game }) => {
         </div>
       )}
 
-      {/* Full play log */}
       <div className="pbp-log">
-        <div className="pbp-section-label">Play Log</div>
+        <div className="pbp-section-label">
+          {gameFinal ? `Play Log — ${plays.length} plays` : 'Play Log'}
+        </div>
+        {plays.length === 0 && <p className="pbp-empty">No plays recorded yet.</p>}
         {[...plays].reverse().slice(0,50).map((p,i)=>(
           <div key={i} className={`pbp-play-row ${p.scoringPlay?'pbp-scoring':''}`}>
             <span className="pbp-play-clock">{p.period?.number && `Q${p.period.number}`} {p.clock?.displayValue}</span>
@@ -483,7 +521,6 @@ const FootballPBP = ({ eventId, sport, game }) => {
             {p.scoringPlay && <span className="pbp-play-score-badge">⭐ Score</span>}
           </div>
         ))}
-        {plays.length === 0 && <p className="pbp-empty">No plays yet.</p>}
       </div>
     </div>
   );
@@ -491,64 +528,80 @@ const FootballPBP = ({ eventId, sport, game }) => {
 
 /* ══════════════════════════════════════════════════════════════
    BASKETBALL PBP — ESPN API
+   FIX: keeps last good data; stops polling when final
 ══════════════════════════════════════════════════════════════ */
 const BasketballPBP = ({ eventId, sport, game }) => {
-  const [data, setData]   = useState(null);
-  const [error, setError] = useState(null);
+  const [data, setData]       = useState(null);
+  const [error, setError]     = useState(null);
+  const [isFinal, setIsFinal] = useState(false);
+  const lastGoodRef = useRef(null);
   const intervalRef = useRef(null);
 
   const fetchData = useCallback(async () => {
     try {
       const r = await fetch(`${ESPN}/apis/site/v2/sports/${ESPN_PATHS[sport]}/summary?event=${eventId}`);
       if (!r.ok) throw new Error(`${r.status}`);
-      setData(await r.json());
-    } catch(e) { setError(e.message); }
+      const d = await r.json();
+      lastGoodRef.current = d;
+      setData(d);
+      setError(null);
+      const state = d.header?.competitions?.[0]?.status?.type?.state;
+      if (state === 'post') {
+        setIsFinal(true);
+        clearInterval(intervalRef.current);
+      }
+    } catch(e) {
+      if (lastGoodRef.current) { setData(lastGoodRef.current); setError(null); }
+      else setError(e.message);
+    }
   }, [eventId, sport]);
 
-  useEffect(() => { fetchData(); intervalRef.current = setInterval(fetchData, 15000); return ()=>clearInterval(intervalRef.current); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+    intervalRef.current = setInterval(fetchData, 15000);
+    return () => clearInterval(intervalRef.current);
+  }, [fetchData]);
 
-  if (error) return <div className="pbp-error">Could not load data: {error}</div>;
-  if (!data)  return <div className="pbp-loading">Loading…</div>;
+  if (error && !data)  return <div className="pbp-error">Could not load data: {error}</div>;
+  if (!data)           return <div className="pbp-loading">Loading…</div>;
 
-  const comps   = data.header?.competitions?.[0];
-  const home    = comps?.competitors?.find(c=>c.homeAway==='home');
-  const away    = comps?.competitors?.find(c=>c.homeAway==='away');
-  const status  = comps?.status?.type?.shortDetail || '';
-  const plays   = data.plays || [];
+  const comps     = data.header?.competitions?.[0];
+  const home      = comps?.competitors?.find(c=>c.homeAway==='home');
+  const away      = comps?.competitors?.find(c=>c.homeAway==='away');
+  const status    = comps?.status?.type?.shortDetail || '';
+  const plays     = data.plays || [];
+  const gameFinal = isFinal || comps?.status?.type?.state === 'post';
 
   return (
     <div className="pbp-basketball">
+      {gameFinal && (
+        <div style={{ textAlign:'center', marginBottom:'12px', padding:'6px 16px', background:'rgba(0,255,100,0.08)', border:'1px solid rgba(0,255,100,0.25)', borderRadius:'8px', color:'#00ff88', fontSize:'0.82rem', fontWeight:700 }}>
+          ✅ FINAL — Complete game data
+        </div>
+      )}
       <div className="pbp-scoreboard">
-        <div className="pbp-team">
-          <span className="pbp-team-name">{away?.team?.abbreviation}</span>
-          <span className="pbp-score">{away?.score || 0}</span>
-        </div>
+        <div className="pbp-team"><span className="pbp-team-name">{away?.team?.abbreviation}</span><span className="pbp-score">{away?.score || 0}</span></div>
         <div className="pbp-inning-info"><div className="pbp-inning">{status}</div></div>
-        <div className="pbp-team">
-          <span className="pbp-score">{home?.score || 0}</span>
-          <span className="pbp-team-name">{home?.team?.abbreviation}</span>
-        </div>
+        <div className="pbp-team"><span className="pbp-score">{home?.score || 0}</span><span className="pbp-team-name">{home?.team?.abbreviation}</span></div>
       </div>
       <div className="pbp-log">
-        <div className="pbp-section-label">Play Log</div>
+        <div className="pbp-section-label">
+          {gameFinal ? `Play Log — ${plays.length} plays` : 'Play Log'}
+        </div>
+        {plays.length === 0 && <p className="pbp-empty">No plays recorded yet.</p>}
         {[...plays].reverse().slice(0,60).map((p,i)=>{
           const isMake  = p.type?.text?.toLowerCase().includes('makes');
           const isMiss  = p.type?.text?.toLowerCase().includes('misses');
           const isFoul  = p.type?.text?.toLowerCase().includes('foul');
           return (
             <div key={i} className={`pbp-play-row ${isMake?'pbp-make':''} ${isMiss?'pbp-miss':''} ${isFoul?'pbp-foul':''}`}>
-              <span className="pbp-play-clock">
-                {p.period?.number && `Q${p.period.number}`} {p.clock?.displayValue}
-              </span>
-              <span className="pbp-play-team" style={{ color:'rgba(0,255,255,0.6)', fontSize:'0.75rem', marginRight:'6px' }}>
-                {p.team?.abbreviation}
-              </span>
+              <span className="pbp-play-clock">{p.period?.number && `Q${p.period.number}`} {p.clock?.displayValue}</span>
+              <span className="pbp-play-team" style={{ color:'rgba(0,255,255,0.6)', fontSize:'0.75rem', marginRight:'6px' }}>{p.team?.abbreviation}</span>
               <span className="pbp-play-text">{p.text}</span>
               {p.scoreValue > 0 && <span className="pbp-play-pts">+{p.scoreValue}</span>}
             </div>
           );
         })}
-        {plays.length === 0 && <p className="pbp-empty">No plays yet.</p>}
       </div>
     </div>
   );
@@ -556,40 +609,67 @@ const BasketballPBP = ({ eventId, sport, game }) => {
 
 /* ══════════════════════════════════════════════════════════════
    HOCKEY PBP — ESPN API
+   FIX: keeps last good data; stops polling when final
 ══════════════════════════════════════════════════════════════ */
 const HockeyPBP = ({ eventId, game }) => {
-  const [data, setData]   = useState(null);
-  const [error, setError] = useState(null);
+  const [data, setData]       = useState(null);
+  const [error, setError]     = useState(null);
+  const [isFinal, setIsFinal] = useState(false);
+  const lastGoodRef = useRef(null);
   const intervalRef = useRef(null);
 
   const fetchData = useCallback(async () => {
     try {
       const r = await fetch(`${ESPN}/apis/site/v2/sports/hockey/nhl/summary?event=${eventId}`);
       if (!r.ok) throw new Error(`${r.status}`);
-      setData(await r.json());
-    } catch(e) { setError(e.message); }
+      const d = await r.json();
+      lastGoodRef.current = d;
+      setData(d);
+      setError(null);
+      const state = d.header?.competitions?.[0]?.status?.type?.state;
+      if (state === 'post') {
+        setIsFinal(true);
+        clearInterval(intervalRef.current);
+      }
+    } catch(e) {
+      if (lastGoodRef.current) { setData(lastGoodRef.current); setError(null); }
+      else setError(e.message);
+    }
   }, [eventId]);
 
-  useEffect(() => { fetchData(); intervalRef.current = setInterval(fetchData, 15000); return ()=>clearInterval(intervalRef.current); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+    intervalRef.current = setInterval(fetchData, 15000);
+    return () => clearInterval(intervalRef.current);
+  }, [fetchData]);
 
-  if (error) return <div className="pbp-error">Could not load data: {error}</div>;
-  if (!data)  return <div className="pbp-loading">Loading…</div>;
+  if (error && !data)  return <div className="pbp-error">Could not load data: {error}</div>;
+  if (!data)           return <div className="pbp-loading">Loading…</div>;
 
-  const comps  = data.header?.competitions?.[0];
-  const home   = comps?.competitors?.find(c=>c.homeAway==='home');
-  const away   = comps?.competitors?.find(c=>c.homeAway==='away');
-  const status = comps?.status?.type?.shortDetail || '';
-  const plays  = data.plays || [];
+  const comps     = data.header?.competitions?.[0];
+  const home      = comps?.competitors?.find(c=>c.homeAway==='home');
+  const away      = comps?.competitors?.find(c=>c.homeAway==='away');
+  const status    = comps?.status?.type?.shortDetail || '';
+  const plays     = data.plays || [];
+  const gameFinal = isFinal || comps?.status?.type?.state === 'post';
 
   return (
     <div className="pbp-hockey">
+      {gameFinal && (
+        <div style={{ textAlign:'center', marginBottom:'12px', padding:'6px 16px', background:'rgba(0,255,100,0.08)', border:'1px solid rgba(0,255,100,0.25)', borderRadius:'8px', color:'#00ff88', fontSize:'0.82rem', fontWeight:700 }}>
+          ✅ FINAL — Complete game data
+        </div>
+      )}
       <div className="pbp-scoreboard">
         <div className="pbp-team"><span className="pbp-team-name">{away?.team?.abbreviation}</span><span className="pbp-score">{away?.score||0}</span></div>
         <div className="pbp-inning-info"><div className="pbp-inning">{status}</div></div>
         <div className="pbp-team"><span className="pbp-score">{home?.score||0}</span><span className="pbp-team-name">{home?.team?.abbreviation}</span></div>
       </div>
       <div className="pbp-log">
-        <div className="pbp-section-label">Play Log</div>
+        <div className="pbp-section-label">
+          {gameFinal ? `Play Log — ${plays.length} plays` : 'Play Log'}
+        </div>
+        {plays.length === 0 && <p className="pbp-empty">No plays recorded yet.</p>}
         {[...plays].reverse().slice(0,60).map((p,i)=>{
           const isGoal    = p.type?.text?.toLowerCase().includes('goal');
           const isPenalty = p.type?.text?.toLowerCase().includes('penalty');
@@ -603,7 +683,6 @@ const HockeyPBP = ({ eventId, game }) => {
             </div>
           );
         })}
-        {plays.length === 0 && <p className="pbp-empty">No plays yet.</p>}
       </div>
     </div>
   );
@@ -611,16 +690,19 @@ const HockeyPBP = ({ eventId, game }) => {
 
 /* ══════════════════════════════════════════════════════════════
    MAIN COMPONENT
+   FIX: button label shows "📊 Play-by-Play" for final games
 ══════════════════════════════════════════════════════════════ */
 const PlayByPlay = ({ game, sport, onBack }) => {
-  const isBaseball = sport === 'mlb' || sport.startsWith('milb_') || sport === 'cbb';
-  const isFootball = sport === 'nfl' || sport === 'cfb';
+  const isBaseball   = sport === 'mlb' || sport.startsWith('milb_') || sport === 'cbb';
+  const isFootball   = sport === 'nfl' || sport === 'cfb';
   const isBasketball = sport === 'nba';
-  const isHockey   = sport === 'nhl';
+  const isHockey     = sport === 'nhl';
 
-  // gamePk for baseball, eventId for ESPN sports
   const gamePk  = game?.gamePk || game?.id;
   const eventId = game?.espnId || game?.id;
+
+  const isFinalGame = game?.status === 'post' ||
+    game?.statusDetail?.toLowerCase().includes('final');
 
   return (
     <div className="pbp-wrapper">
@@ -631,7 +713,14 @@ const PlayByPlay = ({ game, sport, onBack }) => {
         <h2 className="pbp-game-title">
           {game?.away_team || game?.awayTeam} vs {game?.home_team || game?.homeTeam}
         </h2>
-        <div className="pbp-refresh-hint">Auto-refreshes every 15s</div>
+        {/* FIX: show FINAL badge instead of "auto-refreshes" hint for done games */}
+        {isFinalGame ? (
+          <div className="pbp-refresh-hint" style={{ color:'#00ff88', fontWeight:700 }}>
+            ✅ Final — full game data preserved
+          </div>
+        ) : (
+          <div className="pbp-refresh-hint">Auto-refreshes every 15s</div>
+        )}
       </div>
 
       {isBaseball   && <BaseballPBP gamePk={gamePk} game={game} />}
