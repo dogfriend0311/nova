@@ -142,12 +142,11 @@ const FullGameLog = ({ plays, gd }) => {
   });
 
   const inningKeys = Object.keys(innings).sort((a,b) => {
-    const [an,ah] = a.split('-'); const [bn,bh] = b.split('-');
+    const [an,ah] = a.split('-'); const [bn] = b.split('-');
     return (+an - +bn) || (ah === 'Top' ? -1 : 1);
   });
 
-  const SCORING_EVENTS = new Set(['Home Run','Single','Double','Triple','Sac Fly','Sac Fly DP','Ground Rule Double']);
-  const HIT_EVENTS     = new Set(['Single','Double','Triple','Home Run','Ground Rule Double']);
+  const HIT_EVENTS = new Set(['Single','Double','Triple','Home Run','Ground Rule Double']);
 
   return (
     <div className="pbp-log">
