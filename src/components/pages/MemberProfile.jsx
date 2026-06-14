@@ -10,7 +10,7 @@ const roleLabel = (role) => {
   return map[role] || role || 'Member';
 };
 
-const TYPE_ICONS = { anime: 'ðŸŽŒ', movie: 'ðŸŽ¬', tv: 'ðŸ“º' };
+const TYPE_ICONS = { anime: '🎌', movie: '🎬', tv: '📺' };
 const SPORT_KEYS = ['mlb', 'nfl', 'nba', 'nhl', 'cfb', 'cbb'];
 const DEFAULT_FAV_TEAMS = { mlb: [], nfl: [], nba: [], nhl: [], cfb: [], cbb: [] };
 
@@ -20,7 +20,7 @@ const DEFAULT_PROFILE = {
   discord_tag: '', fav_teams: DEFAULT_FAV_TEAMS,
 };
 
-/* â”€â”€ Image upload field â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* -- Image upload field ---------------------------------------- */
 const ImageField = ({ label, fieldKey, value, onChange }) => {
   const inputRef = useRef(null);
   const handleFile = (e) => {
@@ -37,12 +37,12 @@ const ImageField = ({ label, fieldKey, value, onChange }) => {
     <div className="form-group mp-image-field">
       <label>{label}</label>
       <div className="mp-image-upload-row">
-        <input type="text" value={isBase64 ? '' : (value || '')} onChange={(e) => onChange(fieldKey, e.target.value)} placeholder={isBase64 ? '(uploaded file)' : 'Paste image URLâ€¦'} style={{ flex: 1 }} />
+        <input type="text" value={isBase64 ? '' : (value || '')} onChange={(e) => onChange(fieldKey, e.target.value)} placeholder={isBase64 ? '(uploaded file)' : 'Paste image URL...'} style={{ flex: 1 }} />
         <label className="mp-upload-btn" title="Upload from device">
-          ðŸ“ Upload
+          Upload
           <input ref={inputRef} type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} />
         </label>
-        {hasImage && <button className="mp-upload-clear" onClick={() => onChange(fieldKey, '')} title="Remove image">âœ•</button>}
+        {hasImage && <button className="mp-upload-clear" onClick={() => onChange(fieldKey, '')} title="Remove image">x</button>}
       </div>
       {hasImage && (
         <div className="mp-image-preview-wrap">
@@ -53,7 +53,7 @@ const ImageField = ({ label, fieldKey, value, onChange }) => {
   );
 };
 
-/* â”€â”€ Team Selector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* -- Team Selector --------------------------------------------- */
 const TeamSelector = ({ favTeams, onChange }) => {
   const [activeSport, setActiveSport] = useState('mlb');
   const hasLogos = ['mlb', 'nfl', 'nba', 'nhl'].includes(activeSport);
@@ -98,13 +98,13 @@ const TeamSelector = ({ favTeams, onChange }) => {
   );
 };
 
-/* â”€â”€ Favorite Teams Display â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* -- Favorite Teams Display ------------------------------------ */
 const FavTeamsDisplay = ({ favTeams }) => {
   const hasSome = SPORT_KEYS.some((s) => (favTeams?.[s] || []).length > 0);
   if (!hasSome) return null;
   return (
     <div className="discord-section">
-      <div className="discord-section-title">â­ Favorite Teams</div>
+      <div className="discord-section-title">Favorite Teams</div>
       {SPORT_KEYS.map((sport) => {
         const picked = favTeams?.[sport] || [];
         if (!picked.length) return null;
@@ -130,7 +130,7 @@ const FavTeamsDisplay = ({ favTeams }) => {
   );
 };
 
-/* â”€â”€ Watch List Preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* -- Watch List Preview ---------------------------------------- */
 const WatchListPreview = ({ username }) => {
   const list = getWatchList(username);
   if (!list.length) return null;
@@ -140,22 +140,22 @@ const WatchListPreview = ({ username }) => {
   const plan     = list.filter((i) => i.status === 'plan').length;
   return (
     <div className="discord-section">
-      <div className="discord-section-title">ðŸŽ¬ Watch List</div>
+      <div className="discord-section-title">Watch List</div>
       <div className="mp-wl-stats">
-        <span className="mp-wl-stat"><span style={{ color: '#a5d6a7' }}>âœ“</span> {watched} watched</span>
-        <span className="mp-wl-stat"><span style={{ color: '#66bb6a' }}>â–¶</span> {watching} watching</span>
-        <span className="mp-wl-stat"><span style={{ color: '#64b5f6' }}>ðŸ“‹</span> {plan} planned</span>
+        <span className="mp-wl-stat"><span style={{ color: '#a5d6a7' }}>checked</span> {watched} watched</span>
+        <span className="mp-wl-stat"><span style={{ color: '#66bb6a' }}>playing</span> {watching} watching</span>
+        <span className="mp-wl-stat"><span style={{ color: '#64b5f6' }}>planned</span> {plan} planned</span>
       </div>
       {pinned.length > 0 && (
         <>
           <div style={{ fontSize: '0.72rem', color: 'rgba(192,208,255,0.35)', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', marginTop: '10px', marginBottom: '8px' }}>
-            ðŸ“Œ Pinned
+            Pinned
           </div>
           <div className="mp-pinned-grid">
             {pinned.slice(0, 6).map((item) => (
               <div key={item.id} className="mp-pinned-card" title={item.title}>
                 {item.poster ? <img src={item.poster} alt={item.title} /> : <div className="mp-pinned-ph">{TYPE_ICONS[item.type] || '?'}</div>}
-                {item.rating != null && <div className="mp-pinned-rating">â˜…{item.rating}</div>}
+                {item.rating != null && <div className="mp-pinned-rating">star{item.rating}</div>}
               </div>
             ))}
           </div>
@@ -165,10 +165,9 @@ const WatchListPreview = ({ username }) => {
   );
 };
 
-/* â”€â”€ Last.fm Now Playing Widget â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* -- Last.fm Now Playing Widget -------------------------------- */
 const LastFmWidget = ({ lastfmUsername }) => {
   const [track, setTrack] = useState(undefined);
-
   useEffect(() => {
     if (!lastfmUsername || !lfm.hasApiKey()) { setTrack(null); return; }
     let active = true;
@@ -180,55 +179,180 @@ const LastFmWidget = ({ lastfmUsername }) => {
     const id = setInterval(poll, 30000);
     return () => { active = false; clearInterval(id); };
   }, [lastfmUsername]);
-
-  if (!lastfmUsername || !lfm.hasApiKey() || track === null) return null;
-  if (track === undefined) return null;
-
+  if (!lastfmUsername || !lfm.hasApiKey() || track === null || track === undefined) return null;
   return (
     <div className="discord-section">
       <div className="discord-section-title-row">
         <span className="discord-section-title">
-          {track.isPlaying ? 'ðŸŽµ Now Playing' : 'ðŸŽµ Last Scrobbled'}
+          {track.isPlaying ? 'Now Playing' : 'Last Scrobbled'}
         </span>
-        <a className="lfm-mini-link" href={track.userUrl} target="_blank" rel="noreferrer">Last.fm â†’</a>
+        <a className="lfm-mini-link" href={track.userUrl} target="_blank" rel="noreferrer">Last.fm</a>
       </div>
       <a className={`sp-track ${track.isPlaying ? 'playing' : 'paused'}`} href={track.trackUrl || '#'} target="_blank" rel="noreferrer" style={{ '--sp-color': '#d51007' }}>
         {track.albumArt
           ? <img className="sp-art" src={track.albumArt} alt="" onError={(e) => { e.target.style.display = 'none'; }} />
-          : <div className="sp-art sp-art-placeholder">ðŸŽµ</div>}
+          : <div className="sp-art sp-art-placeholder">music</div>}
         <div className="sp-info">
           <div className="sp-track-name">{track.trackName}</div>
           <div className="sp-artist-name">{track.artistName}</div>
           <div className="sp-status" style={{ color: track.isPlaying ? '#d51007' : undefined }}>
-            {track.isPlaying
-              ? <><span className="sp-pulse" style={{ background: '#d51007' }} /> Playing on Spotify</>
-              : <span style={{ color: 'rgba(192,208,255,0.4)' }}>Last played</span>}
+            {track.isPlaying ? 'Playing' : 'Last played'}
           </div>
         </div>
-        <svg viewBox="0 0 512 512" fill="#d51007" width="18" height="18" style={{ flexShrink: 0, opacity: 0.7 }}>
-          <path d="M256 0C114.6 0 0 114.6 0 256s114.6 256 256 256 256-114.6 256-256S397.4 0 256 0zm117.4 369.3c-4.6 7.5-14.4 9.9-21.9 5.3-60-36.7-135.5-45-224.5-24.7-8.6 2-17.1-3.4-19.1-12-2-8.6 3.4-17.1 12-19.1 97.3-22.2 180.8-12.7 248.2 28.5 7.5 4.7 9.9 14.5 5.3 22zm31.3-69.6c-5.8 9.4-18.1 12.4-27.5 6.6-68.7-42.3-173.4-54.5-254.5-29.8-10.5 3.2-21.6-2.8-24.7-13.3-3.2-10.5 2.8-21.6 13.3-24.7 92.7-28.2 207.8-14.5 286.8 34 9.4 5.8 12.4 18.1 6.6 27.2zm2.7-72.4c-82.4-48.9-218.4-53.4-297-29.5-12.6 3.8-25.9-3.3-29.7-15.9-3.8-12.6 3.3-25.9 15.9-29.7 90.2-27.4 240.2-22.1 335 34.1 11.3 6.7 15 21.3 8.3 32.6-6.7 11.2-21.4 14.9-32.5 8.4z" />
-        </svg>
       </a>
     </div>
   );
 };
 
-/* â”€â”€ Main MemberProfile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* -- Roblox Games Tab ----------------------------------------- */
+const parsePlaceId = (url) => {
+  const match = url.match(/roblox\.com\/games\/(\d+)/);
+  return match ? match[1] : null;
+};
+
+const extractGameName = (url) => {
+  const match = url.match(/roblox\.com\/games\/\d+\/([^/?#]+)/);
+  if (!match || !match[1]) return 'Roblox Game';
+  return decodeURIComponent(match[1]).replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+};
+
+const fetchRobloxThumbnail = async (placeId) => {
+  try {
+    const r = await fetch(
+      `https://thumbnails.roblox.com/v1/places/gameicons?placeIds=${placeId}&returnPolicy=PlaceHolder&size=256x256&format=Png&isCircular=false`
+    );
+    const d = await r.json();
+    return d.data?.[0]?.imageUrl || null;
+  } catch {
+    return null;
+  }
+};
+
+const RobloxGamesTab = ({ username, editable = false }) => {
+  const storageKey = `nova_roblox_games_${username}`;
+  const [games, setGames]     = useState(() => JSON.parse(localStorage.getItem(storageKey) || '[]'));
+  const [urlInput, setUrlInput] = useState('');
+  const [adding, setAdding]   = useState(false);
+  const [errMsg, setErrMsg]   = useState('');
+
+  const addGame = async () => {
+    const url = urlInput.trim();
+    if (!url) return;
+    const placeId = parsePlaceId(url);
+    if (!placeId) {
+      setErrMsg('Paste a Roblox game URL like: roblox.com/games/123456/...');
+      return;
+    }
+    if (games.some(g => g.placeId === placeId)) {
+      setErrMsg('That game is already in your list.');
+      return;
+    }
+    setAdding(true);
+    setErrMsg('');
+    const thumbnail = await fetchRobloxThumbnail(placeId);
+    const name = extractGameName(url);
+    const gameUrl = url.startsWith('http') ? url : `https://www.roblox.com/games/${placeId}`;
+    const newGame = { id: Date.now().toString(), placeId, url: gameUrl, name, thumbnail, addedAt: new Date().toLocaleDateString() };
+    const updated = [...games, newGame];
+    setGames(updated);
+    localStorage.setItem(storageKey, JSON.stringify(updated));
+    setUrlInput('');
+    setAdding(false);
+  };
+
+  const removeGame = (id) => {
+    const updated = games.filter(g => g.id !== id);
+    setGames(updated);
+    localStorage.setItem(storageKey, JSON.stringify(updated));
+  };
+
+  return (
+    <div className="tw-section">
+      {editable && (
+        <div style={{ marginBottom: '16px' }}>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '6px' }}>
+            <input
+              type="text"
+              placeholder="Paste Roblox game URL..."
+              value={urlInput}
+              onChange={e => { setUrlInput(e.target.value); setErrMsg(''); }}
+              onKeyDown={e => e.key === 'Enter' && addGame()}
+              style={{ flex: 1, padding: '9px 12px', background: 'rgba(0,255,255,0.05)', border: '1px solid rgba(0,255,255,0.2)', color: '#c0d0ff', borderRadius: '8px', fontSize: '0.85rem', outline: 'none' }}
+            />
+            <button
+              onClick={addGame}
+              disabled={adding}
+              style={{ padding: '9px 16px', background: 'rgba(0,255,255,0.12)', border: '1px solid rgba(0,255,255,0.4)', color: 'var(--color-cyan)', borderRadius: '8px', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', whiteSpace: 'nowrap', opacity: adding ? 0.6 : 1 }}
+            >
+              {adding ? 'Adding...' : '+ Add'}
+            </button>
+          </div>
+          {errMsg && <p style={{ color: '#ff8080', fontSize: '0.78rem', margin: 0 }}>{errMsg}</p>}
+          <p style={{ color: 'rgba(192,208,255,0.35)', fontSize: '0.72rem', margin: '4px 0 0' }}>
+            e.g. https://www.roblox.com/games/6978052/MurderMystery2
+          </p>
+        </div>
+      )}
+
+      {games.length === 0 ? (
+        <div className="tw-empty">
+          {editable ? 'No games yet. Paste a Roblox game URL above.' : 'No favorite Roblox games yet.'}
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '12px' }}>
+          {games.map(g => (
+            <div key={g.id} style={{ position: 'relative', background: 'rgba(10,10,30,0.85)', border: '1px solid rgba(100,120,200,0.2)', borderRadius: '10px', overflow: 'hidden', transition: 'border-color 0.15s, transform 0.12s' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(0,200,255,0.5)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(100,120,200,0.2)'; e.currentTarget.style.transform = 'none'; }}
+            >
+              {editable && (
+                <button
+                  onClick={() => removeGame(g.id)}
+                  style={{ position: 'absolute', top: '4px', right: '4px', zIndex: 5, background: 'rgba(0,0,0,0.75)', border: 'none', color: 'rgba(255,100,100,0.9)', borderRadius: '4px', width: '20px', height: '20px', cursor: 'pointer', fontSize: '0.82rem', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
+                >
+                  x
+                </button>
+              )}
+              <a href={g.url} target="_blank" rel="noreferrer" style={{ display: 'block', textDecoration: 'none' }}>
+                <div style={{ width: '100%', aspectRatio: '1', background: 'rgba(20,20,50,0.9)', overflow: 'hidden' }}>
+                  {g.thumbnail
+                    ? <img src={g.thumbnail} alt={g.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { e.target.style.display = 'none'; }} />
+                    : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', opacity: 0.35 }}>🎮</div>
+                  }
+                </div>
+                <div style={{ padding: '8px 10px' }}>
+                  <p style={{ margin: 0, fontSize: '0.76rem', fontWeight: 700, color: 'rgba(192,208,255,0.9)', lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                    {g.name}
+                  </p>
+                  <p style={{ margin: '3px 0 0', fontSize: '0.66rem', color: 'rgba(0,200,255,0.55)' }}>
+                    Play on Roblox
+                  </p>
+                </div>
+              </a>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* -- Main MemberProfile --------------------------------------- */
 const MemberProfile = () => {
   const { user } = useAuth();
   const [profile,   setProfile]  = useState(null);
   const [editing,   setEditing]  = useState(false);
-  const [activeTab,  setActiveTab] = useState('about');
+  const [activeTab, setActiveTab] = useState('about');
   const [formData,  setFormData] = useState({});
   const [favTab,    setFavTab]   = useState(false);
   const [presence,  setPresence] = useState(() => localStorage.getItem(`nova_presence_${user?.username}`) || 'online');
   const [coins,     setCoins]    = useState(() => parseInt(localStorage.getItem(`nova_coins_${user?.username}`) || '0'));
   const coinsRef = useRef(null);
-  const [favGames, setFavGames] = useState(() => JSON.parse(localStorage.getItem(`nova_favgames_${user?.username}`) || '[]'));
+  const [favGames,  setFavGames] = useState(() => JSON.parse(localStorage.getItem(`nova_favgames_${user?.username}`) || '[]'));
   const [showAddGame, setShowAddGame] = useState(false);
+  const [newGameText, setNewGameText] = useState('');
   const [newGameNote, setNewGameNote] = useState('');
 
-  // Earn 1 coin every 2 minutes while on the page
   useEffect(() => {
     if (!user?.username) return;
     coinsRef.current = setInterval(() => {
@@ -237,7 +361,7 @@ const MemberProfile = () => {
         localStorage.setItem(`nova_coins_${user.username}`, next);
         return next;
       });
-    }, 120000); // 2 minutes
+    }, 120000);
     return () => clearInterval(coinsRef.current);
   }, [user]);
 
@@ -248,12 +372,10 @@ const MemberProfile = () => {
 
   useEffect(() => {
     if (!user?.username) return;
-    // Try Supabase first for cross-device sync
     import('../../services/db').then(({ default: db }) => {
       db.getMemberProfiles().then(profiles => {
         const found = profiles.find(p => p.username === user.username);
         if (!found) {
-          // If not in Supabase yet, check localStorage and sync up
           const lsProfiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
           const lsFound = lsProfiles.find(p => p.username === user.username);
           const p = { ...DEFAULT_PROFILE, username: user.username, ...(lsFound || {}), fav_teams: { ...DEFAULT_FAV_TEAMS, ...(lsFound?.fav_teams || {}) } };
@@ -275,21 +397,17 @@ const MemberProfile = () => {
   const handleField = (key, val) => setFormData((prev) => ({ ...prev, [key]: val }));
 
   const handleSave = () => {
-    // Save to localStorage
     const profiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
     const idx = profiles.findIndex((p) => p.username === user?.username);
     if (idx !== -1) profiles[idx] = formData; else profiles.push(formData);
     localStorage.setItem('member_profiles', JSON.stringify(profiles));
-    // Save to Supabase for cross-device
-    import('../../services/db').then(({ default: db }) => {
-      db.saveMemberProfile(formData).catch(() => {});
-    });
+    import('../../services/db').then(({ default: db }) => { db.saveMemberProfile(formData).catch(() => {}); });
     setProfile(formData);
     setEditing(false);
     setFavTab(false);
   };
 
-  if (!profile) return <div>Loadingâ€¦</div>;
+  if (!profile) return <div>Loading...</div>;
 
   if (editing) {
     return (
@@ -299,8 +417,8 @@ const MemberProfile = () => {
           <button className="neon-button" onClick={() => { setEditing(false); setFavTab(false); }}>Cancel</button>
         </div>
         <div className="mp-edit-tabs">
-          <button className={`sh-sub-tab ${!favTab ? 'active' : ''}`} onClick={() => setFavTab(false)}>ðŸ‘¤ Profile</button>
-          <button className={`sh-sub-tab ${favTab ? 'active' : ''}`} onClick={() => setFavTab(true)}>â­ Favorite Teams</button>
+          <button className={`sh-sub-tab ${!favTab ? 'active' : ''}`} onClick={() => setFavTab(false)}>Profile</button>
+          <button className={`sh-sub-tab ${favTab ? 'active' : ''}`} onClick={() => setFavTab(true)}>Favorite Teams</button>
         </div>
         {!favTab ? (
           <div className="neon-card p-3">
@@ -308,7 +426,7 @@ const MemberProfile = () => {
             <ImageField label="Avatar / Profile Picture" fieldKey="avatar_url" value={formData.avatar_url || ''} onChange={handleField} />
             <div className="form-group">
               <label>About Me</label>
-              <textarea rows="4" value={formData.bio || ''} onChange={(e) => setFormData({ ...formData, bio: e.target.value })} placeholder="Tell us about yourselfâ€¦" />
+              <textarea rows="4" value={formData.bio || ''} onChange={(e) => setFormData({ ...formData, bio: e.target.value })} placeholder="Tell us about yourself..." />
             </div>
             <div className="form-group">
               <label>Discord Tag</label>
@@ -322,7 +440,6 @@ const MemberProfile = () => {
             <div className="form-group">
               <label>Spotify Song / Playlist URL</label>
               <input type="text" value={formData.spotify_url || ''} onChange={(e) => setFormData({ ...formData, spotify_url: e.target.value })} placeholder="https://open.spotify.com/track/..." />
-              <small style={{ color: 'rgba(192,208,255,0.4)', fontSize: '0.75rem' }}>Paste a Spotify track or playlist link to embed on your profile</small>
             </div>
             <h4 className="gradient-text-cyan" style={{ margin: '20px 0 10px' }}>Socials</h4>
             {[
@@ -333,7 +450,7 @@ const MemberProfile = () => {
             ].map(({ key, label }) => (
               <div className="form-group" key={key}>
                 <label>{label}</label>
-                <input type="text" value={formData[key] || ''} onChange={(e) => setFormData({ ...formData, [key]: e.target.value })} placeholder="https://â€¦" />
+                <input type="text" value={formData[key] || ''} onChange={(e) => setFormData({ ...formData, [key]: e.target.value })} placeholder="https://..." />
               </div>
             ))}
             <div className="form-actions">
@@ -344,7 +461,7 @@ const MemberProfile = () => {
         ) : (
           <div className="neon-card p-3">
             <p style={{ color: 'rgba(192,208,255,0.5)', fontSize: '0.85rem', marginBottom: '16px' }}>
-              Pick your favorite teams for each sport. You can select multiple.
+              Pick your favorite teams. You can select multiple.
             </p>
             <TeamSelector favTeams={formData.fav_teams || DEFAULT_FAV_TEAMS} onChange={(ft) => setFormData({ ...formData, fav_teams: ft })} />
             <div className="form-actions" style={{ marginTop: '20px' }}>
@@ -358,20 +475,21 @@ const MemberProfile = () => {
   }
 
   const socials = [
-    { key: 'twitter_url',   label: 'Twitter',   icon: 'ðŸ¦' },
-    { key: 'twitch_url',    label: 'Twitch',    icon: 'ðŸŽ®' },
-    { key: 'youtube_url',   label: 'YouTube',   icon: 'â–¶ï¸' },
-    { key: 'instagram_url', label: 'Instagram', icon: 'ðŸ“¸' },
+    { key: 'twitter_url',   label: 'Twitter',   icon: 'Twitter' },
+    { key: 'twitch_url',    label: 'Twitch',    icon: 'Twitch'  },
+    { key: 'youtube_url',   label: 'YouTube',   icon: 'YouTube' },
+    { key: 'instagram_url', label: 'Instagram', icon: 'Insta'   },
   ].filter((s) => profile[s.key]);
 
-
-  const addFavGame = (gameText) => {
-    if (!gameText.trim()) return;
-    const newG = { id: Date.now().toString(), text: gameText, note: newGameNote, date: new Date().toLocaleDateString() };
+  const addFavGame = () => {
+    if (!newGameText.trim()) return;
+    const newG = { id: Date.now().toString(), text: newGameText.trim(), note: newGameNote, date: new Date().toLocaleDateString() };
     const updated = [...favGames, newG];
     setFavGames(updated);
     localStorage.setItem(`nova_favgames_${user?.username}`, JSON.stringify(updated));
-    setNewGameNote(''); setShowAddGame(false);
+    setNewGameText('');
+    setNewGameNote('');
+    setShowAddGame(false);
   };
 
   const removeFavGame = (id) => {
@@ -380,14 +498,13 @@ const MemberProfile = () => {
     localStorage.setItem(`nova_favgames_${user?.username}`, JSON.stringify(updated));
   };
 
-
-
   const TABS = [
-    { id: 'about',    label: 'About'      },
-    { id: 'music',    label: 'Music'      },
-    { id: 'favgames', label: 'Fav Games'  },
-    { id: 'teams',    label: 'Teams'      },
-    { id: 'watchlist',label: 'Watch List' },
+    { id: 'about',     label: 'About'         },
+    { id: 'music',     label: 'Music'         },
+    { id: 'favgames',  label: 'Fav Games'     },
+    { id: 'roblox',    label: 'Roblox Games'  },
+    { id: 'teams',     label: 'Teams'         },
+    { id: 'watchlist', label: 'Watch List'    },
   ];
 
   const SI = { padding:'10px', background:'rgba(0,255,255,0.05)', border:'1px solid rgba(0,255,255,0.2)', color:'#c0d0ff', borderRadius:'6px', width:'100%', marginBottom:'8px' };
@@ -398,7 +515,7 @@ const MemberProfile = () => {
       <div className="tw-banner" style={{ backgroundImage: profile.top_banner_url ? `url(${profile.top_banner_url})` : undefined }}>
         <div className="tw-avatar-wrap">
           <div className="tw-avatar">
-            {profile.avatar_url ? <img src={profile.avatar_url} alt="avatar" /> : 'ðŸš€'}
+            {profile.avatar_url ? <img src={profile.avatar_url} alt="avatar" /> : 'N'}
           </div>
         </div>
       </div>
@@ -465,14 +582,10 @@ const MemberProfile = () => {
         {/* ABOUT */}
         {activeTab === 'about' && (
           <>
-            {profile.bio ? (
-              <div className="tw-section">
-                <div className="tw-section-title">Bio</div>
-                <p style={{ color:'rgba(192,208,255,0.85)', lineHeight:1.6, margin:0 }}>{profile.bio}</p>
-              </div>
-            ) : (
-              <div className="tw-empty">No bio yet. Click Edit Profile to add one.</div>
-            )}
+            {profile.bio
+              ? <div className="tw-section"><p style={{ color:'rgba(192,208,255,0.85)', lineHeight:1.6, margin:0 }}>{profile.bio}</p></div>
+              : <div className="tw-empty">No bio yet. Click Edit Profile to add one.</div>
+            }
           </>
         )}
 
@@ -497,26 +610,35 @@ const MemberProfile = () => {
           </div>
         )}
 
-        {/* FAV GAMES */}
+        {/* FAV GAMES (sports) */}
         {activeTab === 'favgames' && (
           <div className="tw-section">
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px' }}>
-              <div className="tw-section-title" style={{ margin:0 }}>Favorite Games</div>
+              <div className="tw-section-title" style={{ margin:0 }}>Favorite Sports Games</div>
               <button className="neon-button" style={{ padding:'5px 14px', fontSize:'0.8rem' }} onClick={() => setShowAddGame(s => !s)}>
                 {showAddGame ? 'Cancel' : '+ Add Game'}
               </button>
             </div>
             {showAddGame && (
               <div style={{ marginBottom:'16px', padding:'14px', background:'rgba(0,255,255,0.04)', borderRadius:'10px', border:'1px solid rgba(0,255,255,0.12)' }}>
-                <input type="text" placeholder="Game name (e.g. Yankees vs Red Sox, April 20 2024)" style={SI}
-                  onKeyDown={e => { if (e.key === 'Enter') addFavGame(e.target.value); }}
-                  id="favgame-input"
+                <input
+                  type="text"
+                  placeholder="Game name (e.g. Yankees vs Red Sox, April 20 2024)"
+                  value={newGameText}
+                  onChange={e => setNewGameText(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addFavGame()}
+                  style={SI}
                 />
-                <input type="text" placeholder="Why is it your favorite? (optional)" value={newGameNote} onChange={e => setNewGameNote(e.target.value)} style={SI} />
-                <button className="neon-button" style={{ width:'100%' }} onClick={() => {
-                  const el = document.getElementById('favgame-input');
-                  if (el) addFavGame(el.value);
-                }}>Add to Favorites</button>
+                <input
+                  type="text"
+                  placeholder="Why is it your favorite? (optional)"
+                  value={newGameNote}
+                  onChange={e => setNewGameNote(e.target.value)}
+                  style={SI}
+                />
+                <button className="neon-button" style={{ width:'100%' }} onClick={addFavGame}>
+                  Add to Favorites
+                </button>
               </div>
             )}
             {favGames.length === 0 ? (
@@ -524,16 +646,21 @@ const MemberProfile = () => {
             ) : (
               favGames.map(g => (
                 <div key={g.id} className="tw-fav-game">
-                  <div className="tw-fav-game-teams">{g.text}</div>
+                  <div className="tw-fav-game-title">{g.text}</div>
                   {g.note && <div className="tw-fav-game-note">"{g.note}"</div>}
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                    <span className="tw-fav-game-date">{g.date}</span>
+                    <span className="tw-fav-game-meta">{g.date}</span>
                     <button onClick={() => removeFavGame(g.id)} style={{ background:'none', border:'none', color:'rgba(255,60,60,0.6)', cursor:'pointer', fontSize:'0.82rem' }}>Remove</button>
                   </div>
                 </div>
               ))
             )}
           </div>
+        )}
+
+        {/* ROBLOX GAMES */}
+        {activeTab === 'roblox' && (
+          <RobloxGamesTab username={profile.username} editable={true} />
         )}
 
         {/* TEAMS */}
@@ -552,7 +679,6 @@ const MemberProfile = () => {
       </div>
     </div>
   );
-
 };
 
 export default MemberProfile;
