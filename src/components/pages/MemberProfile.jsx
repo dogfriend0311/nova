@@ -217,15 +217,23 @@ const extractGameName = (url) => {
 };
 
 const fetchRobloxThumbnail = async (placeId) => {
+  // Method 1: Roblox thumbnails JSON API → proxy image through wsrv.nl
   try {
     const r = await fetch(
-      `https://thumbnails.roblox.com/v1/places/gameicons?placeIds=${placeId}&returnPolicy=PlaceHolder&size=256x256&format=Png&isCircular=false`
+      `https://thumbnails.roblox.com/v1/places/gameicons?placeIds=${placeId}&returnPolicy=PlaceHolder&size=256x256&format=Png&isCircular=false`,
+      { mode: 'cors' }
     );
-    const d = await r.json();
-    return d.data?.[0]?.imageUrl || null;
-  } catch {
-    return null;
-  }
+    if (r.ok) {
+      const d = await r.json();
+      const imageUrl = d.data?.[0]?.imageUrl;
+      if (imageUrl) {
+        // Proxy through wsrv.nl so the image loads without hotlink blocks
+        return `https://wsrv.nl/?url=${encodeURIComponent(imageUrl)}&w=256&h=256`;
+      }
+    }
+  } catch {}
+  // Method 2: direct Roblox ashx endpoint (works as <img src> without CORS)
+  return `https://www.roblox.com/Thumbs/GameIcon.ashx?placeId=${placeId}&width=256&height=256`;
 };
 
 const RobloxGamesTab = ({ username, editable = false }) => {
