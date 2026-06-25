@@ -6,21 +6,41 @@ import * as lfm from '../../services/lastfmService';
 import './MemberProfile.css';
 
 const roleLabel = (role) => {
-  const map = { owner: 'Owner', cofounder: 'Co-Founder', mod: 'Moderator', nabb_helper: 'NABB Helper', member: 'Member', guest: 'Guest' };
+  const map = { owner: 'Owner', cofounder: 'Co-Founder', mod: 'Moderator', vitza_helper: 'Vitza Helper', member: 'Member', guest: 'Guest' };
   return map[role] || role || 'Member';
 };
 
-const TYPE_ICONS = { anime: '🎌', movie: '🎬', tv: '📺' };
-const SPORT_KEYS = ['mlb', 'nfl', 'nba', 'nhl', 'cfb', 'cbb'];
+const TYPE_ICONS  = { anime: '🎌', movie: '🎬', tv: '📺' };
+const SPORT_KEYS  = ['mlb', 'nfl', 'nba', 'nhl', 'cfb', 'cbb'];
 const DEFAULT_FAV_TEAMS = { mlb: [], nfl: [], nba: [], nhl: [], cfb: [], cbb: [] };
 
 const DEFAULT_PROFILE = {
   bio: '', top_banner_url: '', avatar_url: '', lastfm_username: '',
   twitter_url: '', twitch_url: '', youtube_url: '', instagram_url: '',
   discord_tag: '', fav_teams: DEFAULT_FAV_TEAMS,
+  fav_games: [],
 };
 
-/* -- Image upload field ---------------------------------------- */
+// ── Roblox URL helpers ────────────────────────────────────────
+function parseRobloxPlaceId(input) {
+  if (!input) return null;
+  const match = input.match(/roblox\.com\/games\/(\d+)/i);
+  return match ? match[1] : null;
+}
+
+function extractRobloxGameName(url) {
+  const match = url.match(/roblox\.com\/games\/\d+\/([^?#\s]+)/i);
+  if (match) return decodeURIComponent(match[1].replace(/-/g, ' '));
+  return url;
+}
+
+function robloxThumbUrl(placeId) {
+  return `https://wsrv.nl/?url=${encodeURIComponent(
+    `https://www.roblox.com/Thumbs/GameIcon.ashx?placeId=${placeId}&width=256&height=256`
+  )}&w=64&h=64`;
+}
+
+// ── Image upload field ────────────────────────────────────────
 const ImageField = ({ label, fieldKey, value, onChange }) => {
   const inputRef = useRef(null);
   const handleFile = (e) => {
@@ -37,12 +57,12 @@ const ImageField = ({ label, fieldKey, value, onChange }) => {
     <div className="form-group mp-image-field">
       <label>{label}</label>
       <div className="mp-image-upload-row">
-        <input type="text" value={isBase64 ? '' : (value || '')} onChange={(e) => onChange(fieldKey, e.target.value)} placeholder={isBase64 ? '(uploaded file)' : 'Paste image URL...'} style={{ flex: 1 }} />
+        <input type="text" value={isBase64 ? '' : (value || '')} onChange={(e) => onChange(fieldKey, e.target.value)} placeholder={isBase64 ? '(uploaded file)' : 'Paste image URL…'} style={{ flex: 1 }} />
         <label className="mp-upload-btn" title="Upload from device">
-          Upload
+          📁 Upload
           <input ref={inputRef} type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} />
         </label>
-        {hasImage && <button className="mp-upload-clear" onClick={() => onChange(fieldKey, '')} title="Remove image">x</button>}
+        {hasImage && <button className="mp-upload-clear" onClick={() => onChange(fieldKey, '')} title="Remove image">✕</button>}
       </div>
       {hasImage && (
         <div className="mp-image-preview-wrap">
@@ -53,13 +73,13 @@ const ImageField = ({ label, fieldKey, value, onChange }) => {
   );
 };
 
-/* -- Team Selector --------------------------------------------- */
+// ── Team Selector ─────────────────────────────────────────────
 const TeamSelector = ({ favTeams, onChange }) => {
   const [activeSport, setActiveSport] = useState('mlb');
   const hasLogos = ['mlb', 'nfl', 'nba', 'nhl'].includes(activeSport);
   const toggle = (sport, abbr) => {
     const current = favTeams[sport] || [];
-    const next = current.includes(abbr) ? current.filter((a) => a !== abbr) : [...current, abbr];
+    const next    = current.includes(abbr) ? current.filter((a) => a !== abbr) : [...current, abbr];
     onChange({ ...favTeams, [sport]: next });
   };
   return (
@@ -82,7 +102,7 @@ const TeamSelector = ({ favTeams, onChange }) => {
             <div className="mp-team-row">
               {teams.map((t) => {
                 const selected = (favTeams[activeSport] || []).includes(t.abbr);
-                const logo = hasLogos ? getTeamLogoUrl(activeSport, t.abbr) : null;
+                const logo     = hasLogos ? getTeamLogoUrl(activeSport, t.abbr) : null;
                 return (
                   <button key={t.abbr} className={`mp-team-btn ${selected ? 'selected' : ''}`} onClick={() => toggle(activeSport, t.abbr)} title={t.name}>
                     {logo && <img src={logo} alt="" className="mp-team-logo" onError={(e) => { e.target.style.display = 'none'; }} />}
@@ -98,15 +118,15 @@ const TeamSelector = ({ favTeams, onChange }) => {
   );
 };
 
-/* -- Favorite Teams Display ------------------------------------ */
+// ── Fav Teams Display ─────────────────────────────────────────
 const FavTeamsDisplay = ({ favTeams }) => {
   const hasSome = SPORT_KEYS.some((s) => (favTeams?.[s] || []).length > 0);
   if (!hasSome) return null;
   return (
     <div className="discord-section">
-      <div className="discord-section-title">Favorite Teams</div>
+      <div className="discord-section-title">★ Favorite Teams</div>
       {SPORT_KEYS.map((sport) => {
-        const picked = favTeams?.[sport] || [];
+        const picked   = favTeams?.[sport] || [];
         if (!picked.length) return null;
         const hasLogos = ['mlb', 'nfl', 'nba', 'nhl'].includes(sport);
         return (
@@ -130,7 +150,7 @@ const FavTeamsDisplay = ({ favTeams }) => {
   );
 };
 
-/* -- Watch List Preview ---------------------------------------- */
+// ── Watch List Preview ────────────────────────────────────────
 const WatchListPreview = ({ username }) => {
   const list = getWatchList(username);
   if (!list.length) return null;
@@ -140,22 +160,22 @@ const WatchListPreview = ({ username }) => {
   const plan     = list.filter((i) => i.status === 'plan').length;
   return (
     <div className="discord-section">
-      <div className="discord-section-title">Watch List</div>
+      <div className="discord-section-title">🎬 Watch List</div>
       <div className="mp-wl-stats">
-        <span className="mp-wl-stat"><span style={{ color: '#a5d6a7' }}>checked</span> {watched} watched</span>
-        <span className="mp-wl-stat"><span style={{ color: '#66bb6a' }}>playing</span> {watching} watching</span>
-        <span className="mp-wl-stat"><span style={{ color: '#64b5f6' }}>planned</span> {plan} planned</span>
+        <span className="mp-wl-stat"><span style={{ color: '#a5d6a7' }}>✓</span> {watched} watched</span>
+        <span className="mp-wl-stat"><span style={{ color: '#66bb6a' }}>▶</span> {watching} watching</span>
+        <span className="mp-wl-stat"><span style={{ color: '#64b5f6' }}>📋</span> {plan} planned</span>
       </div>
       {pinned.length > 0 && (
         <>
           <div style={{ fontSize: '0.72rem', color: 'rgba(192,208,255,0.35)', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', marginTop: '10px', marginBottom: '8px' }}>
-            Pinned
+            📌 Pinned
           </div>
           <div className="mp-pinned-grid">
             {pinned.slice(0, 6).map((item) => (
               <div key={item.id} className="mp-pinned-card" title={item.title}>
                 {item.poster ? <img src={item.poster} alt={item.title} /> : <div className="mp-pinned-ph">{TYPE_ICONS[item.type] || '?'}</div>}
-                {item.rating != null && <div className="mp-pinned-rating">star{item.rating}</div>}
+                {item.rating != null && <div className="mp-pinned-rating">★{item.rating}</div>}
               </div>
             ))}
           </div>
@@ -165,9 +185,10 @@ const WatchListPreview = ({ username }) => {
   );
 };
 
-/* -- Last.fm Now Playing Widget -------------------------------- */
+// ── Last.fm Widget ────────────────────────────────────────────
 const LastFmWidget = ({ lastfmUsername }) => {
   const [track, setTrack] = useState(undefined);
+
   useEffect(() => {
     if (!lastfmUsername || !lfm.hasApiKey()) { setTrack(null); return; }
     let active = true;
@@ -179,24 +200,28 @@ const LastFmWidget = ({ lastfmUsername }) => {
     const id = setInterval(poll, 30000);
     return () => { active = false; clearInterval(id); };
   }, [lastfmUsername]);
+
   if (!lastfmUsername || !lfm.hasApiKey() || track === null || track === undefined) return null;
+
   return (
     <div className="discord-section">
       <div className="discord-section-title-row">
         <span className="discord-section-title">
-          {track.isPlaying ? 'Now Playing' : 'Last Scrobbled'}
+          {track.isPlaying ? '🎵 Now Playing' : '🎵 Last Scrobbled'}
         </span>
-        <a className="lfm-mini-link" href={track.userUrl} target="_blank" rel="noreferrer">Last.fm</a>
+        <a className="lfm-mini-link" href={track.userUrl} target="_blank" rel="noreferrer">Last.fm →</a>
       </div>
       <a className={`sp-track ${track.isPlaying ? 'playing' : 'paused'}`} href={track.trackUrl || '#'} target="_blank" rel="noreferrer" style={{ '--sp-color': '#d51007' }}>
         {track.albumArt
           ? <img className="sp-art" src={track.albumArt} alt="" onError={(e) => { e.target.style.display = 'none'; }} />
-          : <div className="sp-art sp-art-placeholder">music</div>}
+          : <div className="sp-art sp-art-placeholder">🎵</div>}
         <div className="sp-info">
           <div className="sp-track-name">{track.trackName}</div>
           <div className="sp-artist-name">{track.artistName}</div>
           <div className="sp-status" style={{ color: track.isPlaying ? '#d51007' : undefined }}>
-            {track.isPlaying ? 'Playing' : 'Last played'}
+            {track.isPlaying
+              ? <><span className="sp-pulse" style={{ background: '#d51007' }} /> Playing</>
+              : <span style={{ color: 'rgba(192,208,255,0.4)' }}>Last played</span>}
           </div>
         </div>
       </a>
@@ -204,163 +229,28 @@ const LastFmWidget = ({ lastfmUsername }) => {
   );
 };
 
-/* -- Roblox Games Tab ----------------------------------------- */
-const parsePlaceId = (url) => {
-  const match = url.match(/roblox\.com\/games\/(\d+)/);
-  return match ? match[1] : null;
-};
-
-const extractGameName = (url) => {
-  const match = url.match(/roblox\.com\/games\/\d+\/([^/?#]+)/);
-  if (!match || !match[1]) return 'Roblox Game';
-  return decodeURIComponent(match[1]).replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-};
-
-const fetchRobloxThumbnail = async (placeId) => {
-  // Method 1: Roblox thumbnails JSON API → proxy image through wsrv.nl
-  try {
-    const r = await fetch(
-      `https://thumbnails.roblox.com/v1/places/gameicons?placeIds=${placeId}&returnPolicy=PlaceHolder&size=256x256&format=Png&isCircular=false`,
-      { mode: 'cors' }
-    );
-    if (r.ok) {
-      const d = await r.json();
-      const imageUrl = d.data?.[0]?.imageUrl;
-      if (imageUrl) {
-        // Proxy through wsrv.nl so the image loads without hotlink blocks
-        return `https://wsrv.nl/?url=${encodeURIComponent(imageUrl)}&w=256&h=256`;
-      }
-    }
-  } catch {}
-  // Method 2: direct Roblox ashx endpoint (works as <img src> without CORS)
-  return `https://www.roblox.com/Thumbs/GameIcon.ashx?placeId=${placeId}&width=256&height=256`;
-};
-
-const RobloxGamesTab = ({ username, editable = false }) => {
-  const storageKey = `nova_roblox_games_${username}`;
-  const [games, setGames]     = useState(() => JSON.parse(localStorage.getItem(storageKey) || '[]'));
-  const [urlInput, setUrlInput] = useState('');
-  const [adding, setAdding]   = useState(false);
-  const [errMsg, setErrMsg]   = useState('');
-
-  const addGame = async () => {
-    const url = urlInput.trim();
-    if (!url) return;
-    const placeId = parsePlaceId(url);
-    if (!placeId) {
-      setErrMsg('Paste a Roblox game URL like: roblox.com/games/123456/...');
-      return;
-    }
-    if (games.some(g => g.placeId === placeId)) {
-      setErrMsg('That game is already in your list.');
-      return;
-    }
-    setAdding(true);
-    setErrMsg('');
-    const thumbnail = await fetchRobloxThumbnail(placeId);
-    const name = extractGameName(url);
-    const gameUrl = url.startsWith('http') ? url : `https://www.roblox.com/games/${placeId}`;
-    const newGame = { id: Date.now().toString(), placeId, url: gameUrl, name, thumbnail, addedAt: new Date().toLocaleDateString() };
-    const updated = [...games, newGame];
-    setGames(updated);
-    localStorage.setItem(storageKey, JSON.stringify(updated));
-    setUrlInput('');
-    setAdding(false);
-  };
-
-  const removeGame = (id) => {
-    const updated = games.filter(g => g.id !== id);
-    setGames(updated);
-    localStorage.setItem(storageKey, JSON.stringify(updated));
-  };
-
-  return (
-    <div className="tw-section">
-      {editable && (
-        <div style={{ marginBottom: '16px' }}>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '6px' }}>
-            <input
-              type="text"
-              placeholder="Paste Roblox game URL..."
-              value={urlInput}
-              onChange={e => { setUrlInput(e.target.value); setErrMsg(''); }}
-              onKeyDown={e => e.key === 'Enter' && addGame()}
-              style={{ flex: 1, padding: '9px 12px', background: 'rgba(0,255,255,0.05)', border: '1px solid rgba(0,255,255,0.2)', color: '#c0d0ff', borderRadius: '8px', fontSize: '0.85rem', outline: 'none' }}
-            />
-            <button
-              onClick={addGame}
-              disabled={adding}
-              style={{ padding: '9px 16px', background: 'rgba(0,255,255,0.12)', border: '1px solid rgba(0,255,255,0.4)', color: 'var(--color-cyan)', borderRadius: '8px', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', whiteSpace: 'nowrap', opacity: adding ? 0.6 : 1 }}
-            >
-              {adding ? 'Adding...' : '+ Add'}
-            </button>
-          </div>
-          {errMsg && <p style={{ color: '#ff8080', fontSize: '0.78rem', margin: 0 }}>{errMsg}</p>}
-          <p style={{ color: 'rgba(192,208,255,0.35)', fontSize: '0.72rem', margin: '4px 0 0' }}>
-            e.g. https://www.roblox.com/games/6978052/MurderMystery2
-          </p>
-        </div>
-      )}
-
-      {games.length === 0 ? (
-        <div className="tw-empty">
-          {editable ? 'No games yet. Paste a Roblox game URL above.' : 'No favorite Roblox games yet.'}
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '12px' }}>
-          {games.map(g => (
-            <div key={g.id} style={{ position: 'relative', background: 'rgba(10,10,30,0.85)', border: '1px solid rgba(100,120,200,0.2)', borderRadius: '10px', overflow: 'hidden', transition: 'border-color 0.15s, transform 0.12s' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(0,200,255,0.5)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(100,120,200,0.2)'; e.currentTarget.style.transform = 'none'; }}
-            >
-              {editable && (
-                <button
-                  onClick={() => removeGame(g.id)}
-                  style={{ position: 'absolute', top: '4px', right: '4px', zIndex: 5, background: 'rgba(0,0,0,0.75)', border: 'none', color: 'rgba(255,100,100,0.9)', borderRadius: '4px', width: '20px', height: '20px', cursor: 'pointer', fontSize: '0.82rem', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
-                >
-                  x
-                </button>
-              )}
-              <a href={g.url} target="_blank" rel="noreferrer" style={{ display: 'block', textDecoration: 'none' }}>
-                <div style={{ width: '100%', aspectRatio: '1', background: 'rgba(20,20,50,0.9)', overflow: 'hidden' }}>
-                  {g.thumbnail
-                    ? <img src={g.thumbnail} alt={g.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} onError={e => { e.target.style.display = 'none'; }} />
-                    : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', opacity: 0.35 }}>🎮</div>
-                  }
-                </div>
-                <div style={{ padding: '8px 10px' }}>
-                  <p style={{ margin: 0, fontSize: '0.76rem', fontWeight: 700, color: 'rgba(192,208,255,0.9)', lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                    {g.name}
-                  </p>
-                  <p style={{ margin: '3px 0 0', fontSize: '0.66rem', color: 'rgba(0,200,255,0.55)' }}>
-                    Play on Roblox
-                  </p>
-                </div>
-              </a>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-/* -- Main MemberProfile --------------------------------------- */
+// ══════════════════════════════════════════════════════════════
+//  Main MemberProfile
+// ══════════════════════════════════════════════════════════════
 const MemberProfile = () => {
   const { user } = useAuth();
-  const [profile,   setProfile]  = useState(null);
-  const [editing,   setEditing]  = useState(false);
-  const [activeTab, setActiveTab] = useState('about');
-  const [formData,  setFormData] = useState({});
-  const [favTab,    setFavTab]   = useState(false);
-  const [presence,  setPresence] = useState(() => localStorage.getItem(`nova_presence_${user?.username}`) || 'online');
-  const [coins,     setCoins]    = useState(() => parseInt(localStorage.getItem(`nova_coins_${user?.username}`) || '0'));
+  const [profile,      setProfile]     = useState(null);
+  const [editing,      setEditing]     = useState(false);
+  const [activeTab,    setActiveTab]   = useState('about');
+  const [formData,     setFormData]    = useState({});
+  const [favTab,       setFavTab]      = useState(false);
+  const [presence,     setPresence]    = useState(() => localStorage.getItem(`nova_presence_${user?.username}`) || 'online');
+  const [coins,        setCoins]       = useState(() => parseInt(localStorage.getItem(`nova_coins_${user?.username}`) || '0'));
+  const [copied,       setCopied]      = useState(false);
   const coinsRef = useRef(null);
-  const [favGames,  setFavGames] = useState(() => JSON.parse(localStorage.getItem(`nova_favgames_${user?.username}`) || '[]'));
-  const [showAddGame, setShowAddGame] = useState(false);
-  const [newGameText, setNewGameText] = useState('');
-  const [newGameNote, setNewGameNote] = useState('');
 
+  // fav games — synced to Supabase profile
+  const [favGames,     setFavGames]    = useState([]);
+  const [showAddGame,  setShowAddGame] = useState(false);
+  const [newGameNote,  setNewGameNote] = useState('');
+  const addGameInputRef = useRef(null);
+
+  // Earn 1 coin every 2 minutes while on the page
   useEffect(() => {
     if (!user?.username) return;
     coinsRef.current = setInterval(() => {
@@ -378,6 +268,7 @@ const MemberProfile = () => {
     localStorage.setItem(`nova_presence_${user?.username}`, p);
   };
 
+  // ── Load profile from Supabase ────────────────────────────
   useEffect(() => {
     if (!user?.username) return;
     import('../../services/db').then(({ default: db }) => {
@@ -385,23 +276,33 @@ const MemberProfile = () => {
         const found = profiles.find(p => p.username === user.username);
         if (!found) {
           const lsProfiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
-          const lsFound = lsProfiles.find(p => p.username === user.username);
-          const p = { ...DEFAULT_PROFILE, username: user.username, ...(lsFound || {}), fav_teams: { ...DEFAULT_FAV_TEAMS, ...(lsFound?.fav_teams || {}) } };
+          const lsFound    = lsProfiles.find(p => p.username === user.username);
+          const p = { ...DEFAULT_PROFILE, username: user.username, ...(lsFound || {}), fav_teams: { ...DEFAULT_FAV_TEAMS, ...(lsFound?.fav_teams || {}) }, fav_games: lsFound?.fav_games || [] };
           setProfile(p); setFormData(p);
+          // Seed fav_games from localStorage
+          const lsGames = JSON.parse(localStorage.getItem(`nova_favgames_${user.username}`) || '[]');
+          setFavGames(p.fav_games.length > 0 ? p.fav_games : lsGames);
           if (lsFound) db.saveMemberProfile(p).catch(() => {});
         } else {
-          const p = { ...DEFAULT_PROFILE, ...found, fav_teams: { ...DEFAULT_FAV_TEAMS, ...(found.fav_teams || {}) } };
+          const p = { ...DEFAULT_PROFILE, ...found, fav_teams: { ...DEFAULT_FAV_TEAMS, ...(found.fav_teams || {}) }, fav_games: found.fav_games || [] };
           setProfile(p); setFormData(p);
+          // Prefer Supabase fav_games; fall back to localStorage
+          const supaGames = found.fav_games || [];
+          const lsGames   = JSON.parse(localStorage.getItem(`nova_favgames_${user.username}`) || '[]');
+          setFavGames(supaGames.length > 0 ? supaGames : lsGames);
         }
       }).catch(() => {
         const profiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
-        const found = profiles.find(p => p.username === user.username);
-        const p = { ...DEFAULT_PROFILE, username: user.username, ...(found || {}), fav_teams: { ...DEFAULT_FAV_TEAMS, ...(found?.fav_teams || {}) } };
+        const found    = profiles.find(p => p.username === user.username);
+        const p = { ...DEFAULT_PROFILE, username: user.username, ...(found || {}), fav_teams: { ...DEFAULT_FAV_TEAMS, ...(found?.fav_teams || {}) }, fav_games: found?.fav_games || [] };
         setProfile(p); setFormData(p);
+        const lsGames = JSON.parse(localStorage.getItem(`nova_favgames_${user.username}`) || '[]');
+        setFavGames(p.fav_games.length > 0 ? p.fav_games : lsGames);
       });
     });
   }, [user]);
 
+  // ── Save helpers ──────────────────────────────────────────
   const handleField = (key, val) => setFormData((prev) => ({ ...prev, [key]: val }));
 
   const handleSave = () => {
@@ -409,13 +310,55 @@ const MemberProfile = () => {
     const idx = profiles.findIndex((p) => p.username === user?.username);
     if (idx !== -1) profiles[idx] = formData; else profiles.push(formData);
     localStorage.setItem('member_profiles', JSON.stringify(profiles));
-    import('../../services/db').then(({ default: db }) => { db.saveMemberProfile(formData).catch(() => {}); });
+    import('../../services/db').then(({ default: db }) => {
+      db.saveMemberProfile(formData).catch(() => {});
+    });
     setProfile(formData);
     setEditing(false);
     setFavTab(false);
   };
 
-  if (!profile) return <div>Loading...</div>;
+  // ── Fav games helpers ─────────────────────────────────────
+  const persistFavGames = (updated) => {
+    setFavGames(updated);
+    localStorage.setItem(`nova_favgames_${user?.username}`, JSON.stringify(updated));
+    // Sync to Supabase profile for cross-device visibility
+    const cur = profile || { username: user?.username };
+    import('../../services/db').then(({ default: db }) => {
+      db.saveMemberProfile({ ...cur, fav_games: updated }).catch(() => {});
+    });
+  };
+
+  const addFavGame = (gameText) => {
+    if (!gameText.trim()) return;
+    const placeId     = parseRobloxPlaceId(gameText);
+    const displayText = placeId ? extractRobloxGameName(gameText) : gameText.trim();
+    const newG = {
+      id:       Date.now().toString(),
+      text:     displayText,
+      placeId:  placeId || null,
+      note:     newGameNote,
+      date:     new Date().toLocaleDateString(),
+    };
+    persistFavGames([...favGames, newG]);
+    setNewGameNote('');
+    setShowAddGame(false);
+  };
+
+  const removeFavGame = (id) => {
+    persistFavGames(favGames.filter(g => g.id !== id));
+  };
+
+  const shareProfile = () => {
+    const url = `${window.location.origin}${window.location.pathname}#members/${user?.username}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
+  };
+
+  // ── Edit mode ─────────────────────────────────────────────
+  if (!profile) return <div style={{ padding: '40px', textAlign: 'center', color: 'rgba(192,208,255,0.4)' }}>Loading…</div>;
 
   if (editing) {
     return (
@@ -425,16 +368,16 @@ const MemberProfile = () => {
           <button className="neon-button" onClick={() => { setEditing(false); setFavTab(false); }}>Cancel</button>
         </div>
         <div className="mp-edit-tabs">
-          <button className={`sh-sub-tab ${!favTab ? 'active' : ''}`} onClick={() => setFavTab(false)}>Profile</button>
-          <button className={`sh-sub-tab ${favTab ? 'active' : ''}`} onClick={() => setFavTab(true)}>Favorite Teams</button>
+          <button className={`sh-sub-tab ${!favTab ? 'active' : ''}`} onClick={() => setFavTab(false)}>👤 Profile</button>
+          <button className={`sh-sub-tab ${favTab ? 'active' : ''}`} onClick={() => setFavTab(true)}>★ Favorite Teams</button>
         </div>
         {!favTab ? (
           <div className="neon-card p-3">
-            <ImageField label="Banner Image" fieldKey="top_banner_url" value={formData.top_banner_url || ''} onChange={handleField} />
-            <ImageField label="Avatar / Profile Picture" fieldKey="avatar_url" value={formData.avatar_url || ''} onChange={handleField} />
+            <ImageField label="Banner Image"          fieldKey="top_banner_url" value={formData.top_banner_url || ''} onChange={handleField} />
+            <ImageField label="Avatar / Profile Pic"  fieldKey="avatar_url"     value={formData.avatar_url || ''}     onChange={handleField} />
             <div className="form-group">
               <label>About Me</label>
-              <textarea rows="4" value={formData.bio || ''} onChange={(e) => setFormData({ ...formData, bio: e.target.value })} placeholder="Tell us about yourself..." />
+              <textarea rows="4" value={formData.bio || ''} onChange={(e) => setFormData({ ...formData, bio: e.target.value })} placeholder="Tell us about yourself…" />
             </div>
             <div className="form-group">
               <label>Discord Tag</label>
@@ -443,22 +386,22 @@ const MemberProfile = () => {
             <div className="form-group">
               <label>Last.fm Username</label>
               <input type="text" value={formData.lastfm_username || ''} onChange={(e) => setFormData({ ...formData, lastfm_username: e.target.value })} placeholder="your-lastfm-username" />
-              <small style={{ color: 'rgba(192,208,255,0.4)', fontSize: '0.75rem' }}>Shows your now-playing track on your profile. Free at last.fm</small>
+              <small style={{ color: 'rgba(192,208,255,0.4)', fontSize: '0.75rem' }}>Shows your now-playing track. Free at last.fm</small>
             </div>
             <div className="form-group">
-              <label>Spotify Song / Playlist URL</label>
+              <label>Spotify URL</label>
               <input type="text" value={formData.spotify_url || ''} onChange={(e) => setFormData({ ...formData, spotify_url: e.target.value })} placeholder="https://open.spotify.com/track/..." />
             </div>
             <h4 className="gradient-text-cyan" style={{ margin: '20px 0 10px' }}>Socials</h4>
             {[
-              { key: 'twitter_url',   label: 'Twitter URL' },
-              { key: 'twitch_url',    label: 'Twitch URL' },
-              { key: 'youtube_url',   label: 'YouTube URL' },
+              { key: 'twitter_url',   label: 'Twitter URL'   },
+              { key: 'twitch_url',    label: 'Twitch URL'    },
+              { key: 'youtube_url',   label: 'YouTube URL'   },
               { key: 'instagram_url', label: 'Instagram URL' },
             ].map(({ key, label }) => (
               <div className="form-group" key={key}>
                 <label>{label}</label>
-                <input type="text" value={formData[key] || ''} onChange={(e) => setFormData({ ...formData, [key]: e.target.value })} placeholder="https://..." />
+                <input type="text" value={formData[key] || ''} onChange={(e) => setFormData({ ...formData, [key]: e.target.value })} placeholder="https://…" />
               </div>
             ))}
             <div className="form-actions">
@@ -469,9 +412,12 @@ const MemberProfile = () => {
         ) : (
           <div className="neon-card p-3">
             <p style={{ color: 'rgba(192,208,255,0.5)', fontSize: '0.85rem', marginBottom: '16px' }}>
-              Pick your favorite teams. You can select multiple.
+              Pick your favorite teams. You can select multiple per sport.
             </p>
-            <TeamSelector favTeams={formData.fav_teams || DEFAULT_FAV_TEAMS} onChange={(ft) => setFormData({ ...formData, fav_teams: ft })} />
+            <TeamSelector
+              favTeams={formData.fav_teams || DEFAULT_FAV_TEAMS}
+              onChange={(ft) => setFormData({ ...formData, fav_teams: ft })}
+            />
             <div className="form-actions" style={{ marginTop: '20px' }}>
               <button className="neon-button" onClick={handleSave}>Save</button>
               <button className="neon-button" onClick={() => { setEditing(false); setFavTab(false); }}>Cancel</button>
@@ -482,40 +428,23 @@ const MemberProfile = () => {
     );
   }
 
+  // ── View mode ─────────────────────────────────────────────
   const socials = [
-    { key: 'twitter_url',   label: 'Twitter',   icon: 'Twitter' },
-    { key: 'twitch_url',    label: 'Twitch',    icon: 'Twitch'  },
-    { key: 'youtube_url',   label: 'YouTube',   icon: 'YouTube' },
-    { key: 'instagram_url', label: 'Instagram', icon: 'Insta'   },
+    { key: 'twitter_url',   label: 'Twitter',   icon: '🐦' },
+    { key: 'twitch_url',    label: 'Twitch',    icon: '🎮' },
+    { key: 'youtube_url',   label: 'YouTube',   icon: '▶️' },
+    { key: 'instagram_url', label: 'Instagram', icon: '📸' },
   ].filter((s) => profile[s.key]);
 
-  const addFavGame = () => {
-    if (!newGameText.trim()) return;
-    const newG = { id: Date.now().toString(), text: newGameText.trim(), note: newGameNote, date: new Date().toLocaleDateString() };
-    const updated = [...favGames, newG];
-    setFavGames(updated);
-    localStorage.setItem(`nova_favgames_${user?.username}`, JSON.stringify(updated));
-    setNewGameText('');
-    setNewGameNote('');
-    setShowAddGame(false);
-  };
-
-  const removeFavGame = (id) => {
-    const updated = favGames.filter(g => g.id !== id);
-    setFavGames(updated);
-    localStorage.setItem(`nova_favgames_${user?.username}`, JSON.stringify(updated));
-  };
-
   const TABS = [
-    { id: 'about',     label: 'About'         },
-    { id: 'music',     label: 'Music'         },
-    { id: 'favgames',  label: 'Fav Games'     },
-    { id: 'roblox',    label: 'Roblox Games'  },
-    { id: 'teams',     label: 'Teams'         },
-    { id: 'watchlist', label: 'Watch List'    },
+    { id: 'about',     label: 'About'      },
+    { id: 'music',     label: 'Music'      },
+    { id: 'favgames',  label: 'Fav Games'  },
+    { id: 'teams',     label: 'Teams'      },
+    { id: 'watchlist', label: 'Watch List' },
   ];
 
-  const SI = { padding:'10px', background:'rgba(0,255,255,0.05)', border:'1px solid rgba(0,255,255,0.2)', color:'#c0d0ff', borderRadius:'6px', width:'100%', marginBottom:'8px' };
+  const SI = { padding: '10px', background: 'rgba(0,255,255,0.05)', border: '1px solid rgba(0,255,255,0.2)', color: '#c0d0ff', borderRadius: '6px', width: '100%', marginBottom: '8px' };
 
   return (
     <div className="tw-page">
@@ -523,19 +452,26 @@ const MemberProfile = () => {
       <div className="tw-banner" style={{ backgroundImage: profile.top_banner_url ? `url(${profile.top_banner_url})` : undefined }}>
         <div className="tw-avatar-wrap">
           <div className="tw-avatar">
-            {profile.avatar_url ? <img src={profile.avatar_url} alt="avatar" /> : 'N'}
+            {profile.avatar_url ? <img src={profile.avatar_url} alt="avatar" /> : '🚀'}
           </div>
         </div>
       </div>
 
-      {/* Action row */}
+      {/* Actions */}
       <div className="tw-action-row">
         <button className="neon-button" onClick={() => setEditing(true)}>Edit Profile</button>
+        <button
+          className="neon-button"
+          onClick={shareProfile}
+          style={{ fontSize: '0.82rem', padding: '8px 14px', borderColor: copied ? '#00ff88' : 'rgba(0,255,255,0.3)', color: copied ? '#00ff88' : 'rgba(192,208,255,0.7)' }}
+        >
+          {copied ? '✓ Copied!' : '🔗 Share Profile'}
+        </button>
       </div>
 
       {/* Info */}
       <div className="tw-info">
-        <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <h2 className="tw-name">{profile.username}</h2>
           <span className={`tw-role-badge ${user?.role || 'member'}`}>{roleLabel(user?.role)}</span>
         </div>
@@ -546,14 +482,14 @@ const MemberProfile = () => {
         {/* Presence toggle */}
         <div className="tw-status-row">
           {[
-            { key:'online',  label:'Online',         color:'#43b581' },
-            { key:'idle',    label:'Do Not Disturb', color:'#f04747' },
-            { key:'offline', label:'Invisible',      color:'#747f8d' },
+            { key: 'online',  label: 'Online',          color: '#43b581' },
+            { key: 'idle',    label: 'Do Not Disturb',  color: '#f04747' },
+            { key: 'offline', label: 'Invisible',        color: '#747f8d' },
           ].map(({ key, label, color }) => (
             <button key={key} className="tw-presence-btn"
               onClick={() => changePresence(key)}
-              style={{ borderColor: presence===key ? color : 'rgba(100,120,200,0.2)', color: presence===key ? color : 'rgba(192,208,255,0.4)', background: presence===key ? `${color}18` : 'transparent' }}>
-              <span className="tw-presence-dot" style={{ background: presence===key ? color : 'rgba(100,120,200,0.3)' }} />
+              style={{ borderColor: presence === key ? color : 'rgba(100,120,200,0.2)', color: presence === key ? color : 'rgba(192,208,255,0.4)', background: presence === key ? `${color}18` : 'transparent' }}>
+              <span className="tw-presence-dot" style={{ background: presence === key ? color : 'rgba(100,120,200,0.3)' }} />
               {label}
             </button>
           ))}
@@ -563,12 +499,11 @@ const MemberProfile = () => {
           </div>
         </div>
 
-        {/* Socials */}
         {socials.length > 0 && (
           <div className="tw-socials">
             {socials.map(s => (
               <a key={s.key} href={profile[s.key]} target="_blank" rel="noreferrer" className="tw-social-link">
-                {s.label}
+                {s.icon} {s.label}
               </a>
             ))}
           </div>
@@ -578,7 +513,7 @@ const MemberProfile = () => {
       {/* Tabs */}
       <div className="tw-tabs">
         {TABS.map(t => (
-          <button key={t.id} className={`tw-tab ${activeTab===t.id?'active':''}`} onClick={() => setActiveTab(t.id)}>
+          <button key={t.id} className={`tw-tab ${activeTab === t.id ? 'active' : ''}`} onClick={() => setActiveTab(t.id)}>
             {t.label}
           </button>
         ))}
@@ -590,10 +525,14 @@ const MemberProfile = () => {
         {/* ABOUT */}
         {activeTab === 'about' && (
           <>
-            {profile.bio
-              ? <div className="tw-section"><p style={{ color:'rgba(192,208,255,0.85)', lineHeight:1.6, margin:0 }}>{profile.bio}</p></div>
-              : <div className="tw-empty">No bio yet. Click Edit Profile to add one.</div>
-            }
+            {profile.bio ? (
+              <div className="tw-section">
+                <div className="tw-section-title">Bio</div>
+                <p style={{ color: 'rgba(192,208,255,0.85)', lineHeight: 1.6, margin: 0 }}>{profile.bio}</p>
+              </div>
+            ) : (
+              <div className="tw-empty">No bio yet. Click Edit Profile to add one.</div>
+            )}
           </>
         )}
 
@@ -603,12 +542,12 @@ const MemberProfile = () => {
             <LastFmWidget lastfmUsername={profile.lastfm_username} />
             {profile.spotify_url && (
               <>
-                <div className="tw-section-title" style={{ marginTop:'16px' }}>Spotify</div>
+                <div className="tw-section-title" style={{ marginTop: '16px' }}>Spotify</div>
                 <iframe
-                  src={profile.spotify_url.includes('/embed/') ? profile.spotify_url : profile.spotify_url.replace('open.spotify.com/','open.spotify.com/embed/')}
+                  src={profile.spotify_url.includes('/embed/') ? profile.spotify_url : profile.spotify_url.replace('open.spotify.com/', 'open.spotify.com/embed/')}
                   width="100%" height="80" frameBorder="0"
                   allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                  title="Spotify" style={{ borderRadius:'10px', display:'block' }}
+                  title="Spotify" style={{ borderRadius: '10px', display: 'block' }}
                 />
               </>
             )}
@@ -618,57 +557,68 @@ const MemberProfile = () => {
           </div>
         )}
 
-        {/* FAV GAMES (sports) */}
+        {/* FAV GAMES */}
         {activeTab === 'favgames' && (
           <div className="tw-section">
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px' }}>
-              <div className="tw-section-title" style={{ margin:0 }}>Favorite Sports Games</div>
-              <button className="neon-button" style={{ padding:'5px 14px', fontSize:'0.8rem' }} onClick={() => setShowAddGame(s => !s)}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <div className="tw-section-title" style={{ margin: 0 }}>Favorite Games</div>
+              <button className="neon-button" style={{ padding: '5px 14px', fontSize: '0.8rem' }} onClick={() => setShowAddGame(s => !s)}>
                 {showAddGame ? 'Cancel' : '+ Add Game'}
               </button>
             </div>
+
             {showAddGame && (
-              <div style={{ marginBottom:'16px', padding:'14px', background:'rgba(0,255,255,0.04)', borderRadius:'10px', border:'1px solid rgba(0,255,255,0.12)' }}>
+              <div style={{ marginBottom: '16px', padding: '14px', background: 'rgba(0,255,255,0.04)', borderRadius: '10px', border: '1px solid rgba(0,255,255,0.12)' }}>
                 <input
+                  ref={addGameInputRef}
                   type="text"
-                  placeholder="Game name (e.g. Yankees vs Red Sox, April 20 2024)"
-                  value={newGameText}
-                  onChange={e => setNewGameText(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addFavGame()}
+                  placeholder="Roblox game URL or event name (e.g. Yankees vs Red Sox)"
                   style={SI}
+                  onKeyDown={(e) => { if (e.key === 'Enter') addFavGame(e.target.value); }}
                 />
                 <input
                   type="text"
                   placeholder="Why is it your favorite? (optional)"
                   value={newGameNote}
-                  onChange={e => setNewGameNote(e.target.value)}
+                  onChange={(e) => setNewGameNote(e.target.value)}
                   style={SI}
                 />
-                <button className="neon-button" style={{ width:'100%' }} onClick={addFavGame}>
-                  Add to Favorites
-                </button>
+                <p style={{ margin: '0 0 8px', fontSize: '0.72rem', color: 'rgba(192,208,255,0.4)' }}>
+                  Paste a Roblox game URL to auto-fetch its thumbnail, or type any game/event name.
+                </p>
+                <button className="neon-button" style={{ width: '100%' }} onClick={() => {
+                  if (addGameInputRef.current) addFavGame(addGameInputRef.current.value);
+                }}>Add to Favorites</button>
               </div>
             )}
+
             {favGames.length === 0 ? (
-              <div className="tw-empty">No favorite games yet. Add your most memorable games!</div>
+              <div className="tw-empty">No favorite games yet. Add your most memorable games or Roblox links!</div>
             ) : (
               favGames.map(g => (
                 <div key={g.id} className="tw-fav-game">
-                  <div className="tw-fav-game-title">{g.text}</div>
-                  {g.note && <div className="tw-fav-game-note">"{g.note}"</div>}
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                    <span className="tw-fav-game-meta">{g.date}</span>
-                    <button onClick={() => removeFavGame(g.id)} style={{ background:'none', border:'none', color:'rgba(255,60,60,0.6)', cursor:'pointer', fontSize:'0.82rem' }}>Remove</button>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                    {g.placeId && (
+                      <img
+                        src={robloxThumbUrl(g.placeId)}
+                        alt={g.text}
+                        style={{ width: '54px', height: '54px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(0,255,255,0.15)' }}
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                      />
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="tw-fav-game-title">{g.text}</div>
+                      {g.note && <div className="tw-fav-game-note">"{g.note}"</div>}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                        <span className="tw-fav-game-meta">{g.date}</span>
+                        <button className="tw-fav-game-remove" onClick={() => removeFavGame(g.id)}>Remove</button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))
             )}
           </div>
-        )}
-
-        {/* ROBLOX GAMES */}
-        {activeTab === 'roblox' && (
-          <RobloxGamesTab username={profile.username} editable={true} />
         )}
 
         {/* TEAMS */}

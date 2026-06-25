@@ -1,39 +1,54 @@
 import React, { useEffect, useState } from 'react';
 import { SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl } from '../../data/teams';
 import { getWatchList } from '../../services/mediaService';
-import './Pages.css';
 
-const SPORT_KEYS  = ['mlb', 'nfl', 'nba', 'nhl', 'cfb', 'cbb'];
+const SPORT_KEYS   = ['mlb', 'nfl', 'nba', 'nhl', 'cfb', 'cbb'];
+const TYPE_ICONS   = { anime: '🎌', movie: '🎬', tv: '📺' };
 const STATUS_COLORS = { plan: '#64b5f6', watching: '#66bb6a', watched: '#a5d6a7', dropped: '#ef9a9a' };
 const STATUS_LABELS = { plan: 'Plan to Watch', watching: 'Watching', watched: 'Watched', dropped: 'Dropped' };
-const TYPE_ICONS  = { anime: 'A', movie: 'M', tv: 'TV' };
 
+// ── Helpers ───────────────────────────────────────────────────
 const roleLabel = (role) => {
-  const map = { owner: 'Owner', cofounder: 'Co-Founder', mod: 'Moderator', nabb_helper: 'NABB Helper', member: 'Member' };
+  const map = { owner: 'Owner', cofounder: 'Co-Founder', mod: 'Moderator', vitza_helper: 'Vitza Helper', member: 'Member' };
   return map[role] || 'Member';
 };
 
 const roleBadgeStyle = (role) => {
   const styles = {
-    owner:       { background: 'rgba(255,215,0,0.15)',   border: '1px solid rgba(255,215,0,0.4)',   color: '#ffd700' },
-    cofounder:   { background: 'rgba(255,100,0,0.15)',   border: '1px solid rgba(255,100,0,0.4)',   color: '#ff6400' },
-    mod:         { background: 'rgba(0,200,100,0.15)',   border: '1px solid rgba(0,200,100,0.4)',   color: '#00c864' },
-    nabb_helper: { background: 'rgba(150,0,255,0.15)',   border: '1px solid rgba(150,0,255,0.4)',   color: '#9600ff' },
+    owner:        { background: 'rgba(255,215,0,0.15)',  border: '1px solid rgba(255,215,0,0.4)',  color: '#ffd700' },
+    cofounder:    { background: 'rgba(255,100,0,0.15)',  border: '1px solid rgba(255,100,0,0.4)',  color: '#ff6400' },
+    mod:          { background: 'rgba(0,200,100,0.15)',  border: '1px solid rgba(0,200,100,0.4)',  color: '#00c864' },
+    vitza_helper: { background: 'rgba(180,0,255,0.15)',  border: '1px solid rgba(180,0,255,0.4)',  color: '#cc66ff' },
   };
   return styles[role] || { background: 'rgba(0,255,255,0.1)', border: '1px solid rgba(0,255,255,0.3)', color: 'var(--color-cyan)' };
 };
 
-/* -- Fav Teams ------------------------------------------------- */
+// Roblox game thumbnail via wsrv.nl proxy (avoids CORS)
+function robloxThumbUrl(placeId) {
+  return `https://wsrv.nl/?url=${encodeURIComponent(
+    `https://www.roblox.com/Thumbs/GameIcon.ashx?placeId=${placeId}&width=256&height=256`
+  )}&w=64&h=64`;
+}
+
+// Copy a URL to clipboard with a brief toast
+function copyToClipboard(text, setCopied) {
+  navigator.clipboard.writeText(text).then(() => {
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }).catch(() => {});
+}
+
+// ── Fav Teams Display ─────────────────────────────────────────
 const FavTeams = ({ favTeams }) => {
   const hasSome = SPORT_KEYS.some((s) => (favTeams?.[s] || []).length > 0);
   if (!hasSome) return null;
   return (
     <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: '8px', padding: '14px 16px', marginTop: '14px' }}>
       <div style={{ fontSize: '0.72rem', fontWeight: '700', color: 'rgba(192,208,255,0.45)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
-        Favorite Teams
+        ★ Favorite Teams
       </div>
       {SPORT_KEYS.map((sport) => {
-        const picked = favTeams?.[sport] || [];
+        const picked   = favTeams?.[sport] || [];
         if (!picked.length) return null;
         const hasLogos = ['mlb', 'nfl', 'nba', 'nhl'].includes(sport);
         return (
@@ -46,7 +61,7 @@ const FavTeams = ({ favTeams }) => {
                 const logo = hasLogos ? getTeamLogoUrl(sport, abbr) : null;
                 return (
                   <span key={abbr} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 9px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: '800', background: 'rgba(0,200,255,0.08)', border: '1px solid rgba(0,200,255,0.3)', color: '#00c8ff', letterSpacing: '0.04em' }}>
-                    {logo && <img src={logo} alt="" style={{ width: 15, height: 15, objectFit: 'contain', flexShrink: 0 }} onError={(e) => { e.target.style.display = 'none'; }} />}
+                    {logo && <img src={logo} alt="" style={{ width: 15, height: 15, objectFit: 'contain' }} onError={(e) => { e.target.style.display = 'none'; }} />}
                     {abbr}
                   </span>
                 );
@@ -59,34 +74,62 @@ const FavTeams = ({ favTeams }) => {
   );
 };
 
-/* -- Watch List Preview ---------------------------------------- */
-const WatchPreview = ({ username }) => {
-  const [list, setList] = useState([]);
-  useEffect(() => {
-    getWatchList(username).then(d => setList(Array.isArray(d) ? d : [])).catch(() => setList([]));
-  }, [username]);
+// ── Fav Games Display ─────────────────────────────────────────
+const FavGames = ({ favGames }) => {
+  if (!favGames || favGames.length === 0) {
+    return <p style={{ color: 'rgba(192,208,255,0.3)', textAlign: 'center', padding: '20px' }}>No favorite games yet.</p>;
+  }
+  return (
+    <div>
+      {favGames.map((g) => (
+        <div key={g.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          {g.placeId && (
+            <img
+              src={robloxThumbUrl(g.placeId)}
+              alt={g.text}
+              style={{ width: '54px', height: '54px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(0,255,255,0.15)' }}
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
+          )}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: '0 0 3px', fontWeight: 700, color: 'var(--color-cyan)', fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.text}</p>
+            {g.note && <p style={{ margin: '0 0 3px', color: 'rgba(192,208,255,0.65)', fontSize: '0.85rem' }}>"{g.note}"</p>}
+            <p style={{ margin: 0, fontSize: '0.72rem', color: 'rgba(192,208,255,0.35)' }}>{g.date}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
 
+// ── Watch List Preview ────────────────────────────────────────
+const WatchPreview = ({ username }) => {
+  const list = getWatchList(username);
   if (!list.length) return null;
+
   const pinned   = list.filter((i) => i.pinned);
   const watched  = list.filter((i) => i.status === 'watched').length;
   const watching = list.filter((i) => i.status === 'watching').length;
   const plan     = list.filter((i) => i.status === 'plan').length;
-  const recentReviews = list.filter((i) => i.review || i.rating != null)
-    .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 3);
+
+  const recentReviews = list
+    .filter((i) => i.review || i.rating != null)
+    .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+    .slice(0, 3);
 
   return (
     <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: '8px', padding: '14px 16px', marginTop: '14px' }}>
       <div style={{ fontSize: '0.72rem', fontWeight: '700', color: 'rgba(192,208,255,0.45)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
-        Watch List
+        🎬 Watch List
       </div>
       <div style={{ display: 'flex', gap: '14px', fontSize: '0.8rem', marginBottom: '12px', flexWrap: 'wrap' }}>
-        <span style={{ color: '#a5d6a7' }}>{watched} watched</span>
-        <span style={{ color: '#66bb6a' }}>{watching} watching</span>
-        <span style={{ color: '#64b5f6' }}>{plan} planned</span>
+        <span style={{ color: '#a5d6a7' }}>✓ {watched} watched</span>
+        <span style={{ color: '#66bb6a' }}>▶ {watching} watching</span>
+        <span style={{ color: '#64b5f6' }}>📋 {plan} planned</span>
       </div>
       {pinned.length > 0 && (
         <div style={{ marginBottom: '12px' }}>
-          <div style={{ fontSize: '0.7rem', color: 'rgba(192,208,255,0.3)', marginBottom: '6px' }}>Pinned</div>
+          <div style={{ fontSize: '0.7rem', color: 'rgba(192,208,255,0.3)', marginBottom: '6px' }}>📌 Pinned</div>
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
             {pinned.slice(0, 6).map((item) => (
               <div key={item.id} style={{ width: '52px', height: '74px', borderRadius: '6px', overflow: 'hidden', position: 'relative', background: 'rgba(20,20,50,0.8)', border: '1px solid rgba(100,120,200,0.25)', flexShrink: 0 }} title={item.title}>
@@ -96,7 +139,7 @@ const WatchPreview = ({ username }) => {
                 }
                 {item.rating != null && (
                   <div style={{ position: 'absolute', bottom: 2, right: 2, background: 'rgba(0,0,0,0.8)', color: '#fbbf24', fontSize: '0.6rem', fontWeight: 700, padding: '1px 3px', borderRadius: '3px' }}>
-                    {item.rating}
+                    ★{item.rating}
                   </div>
                 )}
               </div>
@@ -111,14 +154,14 @@ const WatchPreview = ({ username }) => {
             <div key={i} style={{ borderBottom: '1px solid rgba(100,120,200,0.08)', paddingBottom: '8px', marginBottom: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                 <span style={{ fontSize: '0.88rem', fontWeight: '700', color: 'rgba(192,208,255,0.85)' }}>{item.title}</span>
-                {item.rating != null && <span style={{ color: '#fbbf24', fontSize: '0.78rem' }}>{item.rating}/10</span>}
+                {item.rating != null && <span style={{ color: '#fbbf24', fontSize: '0.78rem' }}>★ {item.rating}/10</span>}
                 <span style={{ background: `${STATUS_COLORS[item.status]}1a`, color: STATUS_COLORS[item.status], border: `1px solid ${STATUS_COLORS[item.status]}44`, padding: '1px 7px', borderRadius: '8px', fontSize: '0.68rem', fontWeight: 700 }}>
                   {STATUS_LABELS[item.status]}
                 </span>
               </div>
               {item.review && (
                 <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: 'rgba(192,208,255,0.55)', lineHeight: 1.4, fontStyle: 'italic' }}>
-                  "{item.review.length > 100 ? item.review.slice(0, 100) + '...' : item.review}"
+                  "{item.review.length > 100 ? item.review.slice(0, 100) + '…' : item.review}"
                 </p>
               )}
             </div>
@@ -129,72 +172,57 @@ const WatchPreview = ({ username }) => {
   );
 };
 
-/* -- Roblox Games Viewer (read-only) --------------------------- */
-const RobloxGamesViewer = ({ username }) => {
-  const [games, setGames] = useState([]);
-  useEffect(() => {
-    try {
-      setGames(JSON.parse(localStorage.getItem(`nova_roblox_games_${username}`) || '[]'));
-    } catch { setGames([]); }
-  }, [username]);
-
-  if (!games.length) {
-    return <p style={{ color: 'rgba(192,208,255,0.35)', textAlign: 'center', padding: '20px 0', fontSize: '0.88rem' }}>No favorite Roblox games added yet.</p>;
-  }
-
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '12px' }}>
-      {games.map((game) => (
-        <div
-          key={game.id}
-          style={{ position: 'relative', borderRadius: '10px', overflow: 'hidden', background: 'rgba(10,10,30,0.9)', border: '1px solid rgba(100,120,200,0.2)', cursor: 'pointer', transition: 'transform 0.15s, border-color 0.15s' }}
-          onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.borderColor = 'rgba(0,200,255,0.4)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.transform = ''; e.currentTarget.style.borderColor = 'rgba(100,120,200,0.2)'; }}
-          onClick={() => window.open(game.gameUrl || game.url || `https://www.roblox.com/games/${game.placeId}`, '_blank', 'noopener,noreferrer')}
-          title={game.name}
-        >
-          <div style={{ width: '100%', aspectRatio: '1/1', background: 'rgba(20,20,50,0.8)', overflow: 'hidden' }}>
-            {(game.thumbnailUrl || game.thumbnail) ? (
-              <img
-                src={game.thumbnailUrl || game.thumbnail}
-                alt={game.name}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                onError={(e) => { e.target.style.display = 'none'; }}
-              />
-            ) : (
-              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', opacity: 0.3 }}>
-                🎮
-              </div>
-            )}
-          </div>
-          <div style={{ padding: '8px 10px 10px' }}>
-            <p style={{ margin: 0, fontSize: '0.76rem', fontWeight: 700, color: 'rgba(192,208,255,0.9)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {game.name}
-            </p>
-            <p style={{ margin: '3px 0 0', fontSize: '0.64rem', color: 'rgba(0,200,255,0.5)', fontWeight: 600 }}>
-              Play on Roblox
-            </p>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-};
-
-/* -- Member List ----------------------------------------------- */
-const MemberPages = () => {
-  const [members, setMembers]               = useState([]);
+// ── Member List ───────────────────────────────────────────────
+const MemberPages = ({ targetUsername, onMemberSelect }) => {
+  const [members,        setMembers]        = useState([]);
   const [selectedMember, setSelectedMember] = useState(null);
-  const [search, setSearch]                 = useState('');
+  const [search,         setSearch]         = useState('');
+  const [loading,        setLoading]        = useState(true);
 
   useEffect(() => {
-    const profiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
-    const users    = JSON.parse(localStorage.getItem('nova_users')       || '[]');
-    setMembers(profiles.map((p) => ({ ...p, role: users.find((u) => u.username === p.username)?.role || 'member' })));
-  }, []);
+    // Load from Supabase (includes fav_games column)
+    import('../../services/db').then(({ default: db }) => {
+      db.getMemberProfiles().then((profiles) => {
+        const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
+        const enriched = profiles.map((p) => ({
+          ...p,
+          role: users.find((u) => u.username === p.username)?.role || p.role || 'member',
+        }));
+        setMembers(enriched);
+        setLoading(false);
+
+        // Auto-open profile from URL deep link
+        if (targetUsername) {
+          const found = enriched.find((m) => m.username === targetUsername);
+          if (found) setSelectedMember(found);
+        }
+      }).catch(() => {
+        // Fallback to localStorage
+        const profiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
+        const users    = JSON.parse(localStorage.getItem('nova_users')       || '[]');
+        const enriched = profiles.map((p) => ({ ...p, role: users.find((u) => u.username === p.username)?.role || 'member' }));
+        setMembers(enriched);
+        setLoading(false);
+        if (targetUsername) {
+          const found = enriched.find((m) => m.username === targetUsername);
+          if (found) setSelectedMember(found);
+        }
+      });
+    });
+  }, [targetUsername]);
+
+  const handleSelect = (member) => {
+    setSelectedMember(member);
+    if (onMemberSelect) onMemberSelect(member.username);
+  };
+
+  const handleBack = () => {
+    setSelectedMember(null);
+    if (onMemberSelect) onMemberSelect(null);
+  };
 
   if (selectedMember) {
-    return <MemberProfileView member={selectedMember} onBack={() => setSelectedMember(null)} />;
+    return <MemberProfileView member={selectedMember} onBack={handleBack} />;
   }
 
   const filtered = members.filter((m) =>
@@ -211,14 +239,16 @@ const MemberPages = () => {
       <div style={{ marginBottom: '20px' }}>
         <input
           type="text"
-          placeholder="Search members..."
+          placeholder="Search members…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{ width: '100%', maxWidth: '400px' }}
         />
       </div>
 
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(192,208,255,0.4)' }}>Loading…</div>
+      ) : filtered.length === 0 ? (
         <div className="neon-card p-3" style={{ textAlign: 'center' }}>
           <p style={{ color: 'rgba(192,208,255,0.5)' }}>
             {members.length === 0 ? 'No member profiles yet' : 'No members match your search'}
@@ -227,11 +257,11 @@ const MemberPages = () => {
       ) : (
         <div className="card-grid">
           {filtered.map((member, i) => (
-            <div key={i} className="neon-card" style={{ cursor: 'pointer', overflow: 'hidden' }} onClick={() => setSelectedMember(member)}>
+            <div key={i} className="neon-card" style={{ cursor: 'pointer', overflow: 'hidden' }} onClick={() => handleSelect(member)}>
               <div style={{ height: '70px', background: member.top_banner_url ? `url(${member.top_banner_url}) center/cover` : 'linear-gradient(135deg, #0d1b2e 0%, #001a2e 50%, #0d1229 100%)', position: 'relative' }} />
               <div style={{ padding: '0 16px 16px', position: 'relative' }}>
                 <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-cyan), var(--color-magenta))', border: '4px solid #1a1d2e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', marginTop: '-30px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,255,255,0.2)' }}>
-                  {member.avatar_url ? <img src={member.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : 'N'}
+                  {member.avatar_url ? <img src={member.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🚀'}
                 </div>
                 <div style={{ marginTop: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -255,7 +285,7 @@ const MemberPages = () => {
   );
 };
 
-/* -- Member Profile View --------------------------------------- */
+// ── Member Profile View ───────────────────────────────────────
 const MemberProfileView = ({ member, onBack }) => {
   const users      = JSON.parse(localStorage.getItem('nova_users') || '[]');
   const userRecord = users.find((u) => u.username === member.username);
@@ -264,32 +294,47 @@ const MemberProfileView = ({ member, onBack }) => {
   const onlineData = JSON.parse(localStorage.getItem('nova_online') || '{}');
   const isOnline   = onlineData[member.username] > Date.now() - 5 * 60 * 1000;
 
-  const socials = [
-    { key: 'twitter_url',   label: 'Twitter',   icon: 'T' },
-    { key: 'twitch_url',    label: 'Twitch',    icon: 'Tw' },
-    { key: 'youtube_url',   label: 'YouTube',   icon: 'YT' },
-    { key: 'instagram_url', label: 'Instagram', icon: 'IG' },
-  ].filter((s) => member[s.key]);
-
   const [viewTab, setViewTab] = React.useState('about');
+  const [copied,  setCopied]  = React.useState(false);
 
-  const favGames       = JSON.parse(localStorage.getItem(`nova_favgames_${member.username}`) || '[]');
+  // fav_games comes from the Supabase profile (cross-device)
+  const favGames = member.fav_games || [];
+
   const presenceStatus = localStorage.getItem(`nova_presence_${member.username}`) || 'online';
   const presenceDot    = presenceStatus === 'online' ? '#43b581' : presenceStatus === 'idle' ? '#f04747' : '#747f8d';
-  const presenceTxt    = isOnline ? (presenceStatus === 'online' ? 'Online' : presenceStatus === 'idle' ? 'Do Not Disturb' : 'Invisible') : 'Offline';
+  const presenceTxt    = isOnline
+    ? (presenceStatus === 'online' ? 'Online' : presenceStatus === 'idle' ? 'Do Not Disturb' : 'Invisible')
+    : 'Offline';
+
+  const socials = [
+    { key: 'twitter_url',   label: 'Twitter',   icon: '🐦' },
+    { key: 'twitch_url',    label: 'Twitch',    icon: '🎮' },
+    { key: 'youtube_url',   label: 'YouTube',   icon: '▶️' },
+    { key: 'instagram_url', label: 'Instagram', icon: '📸' },
+  ].filter((s) => member[s.key]);
 
   const VTABS = [
-    { id: 'about',     label: 'About'         },
-    { id: 'music',     label: 'Music'         },
-    { id: 'favgames',  label: 'Fav Games'     },
-    { id: 'roblox',    label: 'Roblox Games'  },
-    { id: 'teams',     label: 'Teams'         },
-    { id: 'watchlist', label: 'Watch List'    },
+    { id: 'about',     label: 'About'      },
+    { id: 'music',     label: 'Music'      },
+    { id: 'favgames',  label: 'Fav Games'  },
+    { id: 'teams',     label: 'Teams'      },
+    { id: 'watchlist', label: 'Watch List' },
   ];
+
+  const shareUrl = `${window.location.origin}${window.location.pathname}#members/${member.username}`;
 
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', paddingBottom: '60px' }}>
-      <button className="neon-button" style={{ margin: '0 0 16px 16px' }} onClick={onBack}>Back to Members</button>
+      <div style={{ display: 'flex', gap: '10px', margin: '0 0 16px 16px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <button className="neon-button" onClick={onBack}>← Back to Members</button>
+        <button
+          className="neon-button"
+          onClick={() => copyToClipboard(shareUrl, setCopied)}
+          style={{ fontSize: '0.82rem', padding: '8px 14px', borderColor: copied ? '#00ff88' : 'rgba(0,255,255,0.3)', color: copied ? '#00ff88' : 'rgba(192,208,255,0.7)' }}
+        >
+          {copied ? '✓ Copied!' : '🔗 Share Profile'}
+        </button>
+      </div>
 
       {/* Banner */}
       <div style={{ width: '100%', height: '200px', background: member.top_banner_url ? `url(${member.top_banner_url}) center/cover` : 'linear-gradient(135deg,rgba(0,60,120,0.8),rgba(0,20,60,0.9))', position: 'relative', overflow: 'visible' }}>
@@ -308,7 +353,6 @@ const MemberProfileView = ({ member, onBack }) => {
         </div>
         <p style={{ color: 'rgba(192,208,255,0.45)', fontSize: '0.88rem', margin: '0 0 8px' }}>@{member.username}</p>
 
-        {/* Presence */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: isOnline ? presenceDot : 'rgba(192,208,255,0.3)', display: 'inline-block' }} />
           <span style={{ color: 'rgba(192,208,255,0.5)', fontSize: '0.78rem' }}>{presenceTxt}</span>
@@ -316,13 +360,11 @@ const MemberProfileView = ({ member, onBack }) => {
 
         {member.bio && <p style={{ color: 'rgba(220,230,255,0.85)', fontSize: '0.95rem', lineHeight: 1.5, margin: '8px 0' }}>{member.bio}</p>}
 
-        {/* Socials */}
         {socials.length > 0 && (
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', margin: '8px 0' }}>
-            {socials.map(s => (
-              <a key={s.key} href={member[s.key]} target="_blank" rel="noreferrer"
-                style={{ color: 'rgba(192,208,255,0.5)', textDecoration: 'none', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                {s.label}
+            {socials.map((s) => (
+              <a key={s.key} href={member[s.key]} target="_blank" rel="noreferrer" style={{ color: 'rgba(192,208,255,0.5)', textDecoration: 'none', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                {s.icon} {s.label}
               </a>
             ))}
           </div>
@@ -331,9 +373,9 @@ const MemberProfileView = ({ member, onBack }) => {
 
       {/* Tabs */}
       <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.08)', margin: '16px 0 0', overflowX: 'auto', scrollbarWidth: 'none' }}>
-        {VTABS.map(t => (
+        {VTABS.map((t) => (
           <button key={t.id} onClick={() => setViewTab(t.id)}
-            style={{ flex: 1, minWidth: '80px', padding: '14px 8px', background: 'none', border: 'none', borderBottom: viewTab === t.id ? '2px solid var(--color-cyan)' : '2px solid transparent', color: viewTab === t.id ? '#e7e9ea' : 'rgba(192,208,255,0.5)', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            style={{ flex: 1, minWidth: '80px', padding: '14px 8px', background: 'none', border: 'none', borderBottom: viewTab === t.id ? '2px solid var(--color-cyan)' : '2px solid transparent', color: viewTab === t.id ? '#e7e9ea' : 'rgba(192,208,255,0.5)', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
             {t.label}
           </button>
         ))}
@@ -341,7 +383,6 @@ const MemberProfileView = ({ member, onBack }) => {
 
       {/* Tab content */}
       <div style={{ padding: '0 16px' }}>
-
         {viewTab === 'about' && (
           <div style={{ padding: '20px 0' }}>
             {member.bio
@@ -358,7 +399,8 @@ const MemberProfileView = ({ member, onBack }) => {
                 src={member.spotify_url.includes('/embed/') ? member.spotify_url : member.spotify_url.replace('open.spotify.com/', 'open.spotify.com/embed/')}
                 width="100%" height="80" frameBorder="0"
                 allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                style={{ borderRadius: '10px', display: 'block' }} />
+                style={{ borderRadius: '10px', display: 'block' }}
+              />
             )}
             {!member.spotify_url && <p style={{ color: 'rgba(192,208,255,0.3)', textAlign: 'center', padding: '20px' }}>No music linked.</p>}
           </div>
@@ -366,23 +408,7 @@ const MemberProfileView = ({ member, onBack }) => {
 
         {viewTab === 'favgames' && (
           <div style={{ padding: '20px 0' }}>
-            {favGames.length === 0
-              ? <p style={{ color: 'rgba(192,208,255,0.3)', textAlign: 'center', padding: '20px' }}>No favorite games yet.</p>
-              : favGames.map(g => (
-                <div key={g.id} style={{ padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                  <p style={{ margin: '0 0 4px', fontWeight: 700, color: 'var(--color-cyan)', fontSize: '0.95rem' }}>{g.text}</p>
-                  {g.note && <p style={{ margin: '0 0 4px', color: 'rgba(192,208,255,0.65)', fontSize: '0.85rem' }}>"{g.note}"</p>}
-                  <p style={{ margin: 0, fontSize: '0.72rem', color: 'rgba(192,208,255,0.35)' }}>{g.date}</p>
-                </div>
-              ))
-            }
-          </div>
-        )}
-
-        {/* ROBLOX GAMES — read-only view */}
-        {viewTab === 'roblox' && (
-          <div style={{ padding: '20px 0' }}>
-            <RobloxGamesViewer username={member.username} />
+            <FavGames favGames={favGames} />
           </div>
         )}
 

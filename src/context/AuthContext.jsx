@@ -61,7 +61,6 @@ export const AuthProvider = ({ children }) => {
     const newUser = { username, password, role: 'member' };
     users.push(newUser);
     localStorage.setItem('nova_users', JSON.stringify(users));
-    // Also save to Supabase (no password stored server-side)
     import('../services/db').then(({ default: db }) => {
       db.saveUser({ username, role: 'member' }).catch(() => {});
     }).catch(() => {});
@@ -98,20 +97,19 @@ export const AuthProvider = ({ children }) => {
   const hasPermission = (requiredRole) => {
     if (!user) return false;
     const permissions = {
-      owner:       ['owner', 'cofounder', 'mod', 'nabb_helper', 'rbml_helper', 'member'],
-      cofounder:   ['cofounder', 'mod', 'nabb_helper', 'rbml_helper', 'member'],
-      mod:         ['mod', 'nabb_helper', 'rbml_helper', 'member'],
-      nabb_helper: ['nabb_helper', 'member'],
-      rbml_helper: ['rbml_helper', 'member'],
-      member:      ['member'],
-      guest:       []
+      owner:         ['owner', 'cofounder', 'mod', 'vitza_helper', 'member'],
+      cofounder:     ['cofounder', 'mod', 'vitza_helper', 'member'],
+      mod:           ['mod', 'vitza_helper', 'member'],
+      vitza_helper:  ['vitza_helper', 'member'],
+      member:        ['member'],
+      guest:         [],
     };
     return (permissions[user.role] || []).includes(requiredRole);
   };
 
   const canAccessDashboard = () => {
     if (!user) return false;
-    return ['owner', 'cofounder', 'mod', 'nabb_helper', 'rbml_helper'].includes(user.role);
+    return ['owner', 'cofounder', 'mod', 'vitza_helper'].includes(user.role);
   };
 
   return (
