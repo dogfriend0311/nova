@@ -1,23 +1,29 @@
 import React, { useState } from 'react';
 import './LeaguePlayerPage.css';
 
+// Converts any Spotify link to an embed URL and appends autoplay=1
+// so the song starts automatically when a player's page opens.
 const toSpotifyEmbed = (url) => {
   if (!url) return url;
-  if (url.includes('/embed/')) return url;
-  return url.replace('open.spotify.com/', 'open.spotify.com/embed/');
+  const embed = url.includes('/embed/')
+    ? url
+    : url.replace('open.spotify.com/', 'open.spotify.com/embed/');
+  // autoplay=1 works when the page is reached via user navigation
+  return embed.includes('autoplay=') ? embed : embed + (embed.includes('?') ? '&' : '?') + 'autoplay=1';
 };
 
-const safe = (n) => parseFloat(n) || 0;
-const safeInt = (n) => parseInt(n) || 0;
-const fmt = (n, decimals = 2) => isNaN(n) || !isFinite(n) ? '—' : Number(n).toFixed(decimals);
+const safe    = (n) => parseFloat(n) || 0;
+const safeInt = (n) => parseInt(n)   || 0;
+const fmt     = (n, decimals = 2) =>
+  isNaN(n) || !isFinite(n) ? '—' : Number(n).toFixed(decimals);
 
-// ── Savant Card ─────────────────────────────────────────────────────────────
+// ── Savant Card ──────────────────────────────────────────────
 const SavantCard = ({ player }) => {
   const pctColor = (p) => {
     const n = parseFloat(p);
     if (isNaN(n)) return 'rgba(192,208,255,0.3)';
-    if (n >= 70) return '#00d4f5';
-    if (n >= 30) return '#ffd700';
+    if (n >= 70)  return '#00d4f5';
+    if (n >= 30)  return '#ffd700';
     return '#ff4d4d';
   };
 
@@ -58,34 +64,31 @@ const SavantCard = ({ player }) => {
   return (
     <div className="savant-card neon-card">
       <div className="sv-header">
-        <h3 className="gradient-text-cyan">⭐ Savant Card</h3>
+        <h3 className="gradient-text-cyan">Savant Card</h3>
         <span className="sv-subtitle">Percentile Rankings</span>
       </div>
       <div className="sv-legend">
-        <span style={{ color: '#ff4d4d' }}>● POOR</span>
-        <span style={{ color: '#ffd700' }}>● AVERAGE</span>
-        <span style={{ color: '#00d4f5' }}>● GREAT</span>
+        <span style={{ color: '#ff4d4d' }}>POOR</span>
+        <span style={{ color: '#ffd700' }}>AVERAGE</span>
+        <span style={{ color: '#00d4f5' }}>GREAT</span>
       </div>
       {batting.length > 0 && (
         <>
           <div className="sv-section-label">Batting</div>
-          <div className="sv-bars">
-            {batting.map((s, i) => <Bar key={i} {...s} />)}
-          </div>
+          <div className="sv-bars">{batting.map((s, i) => <Bar key={i} {...s} />)}</div>
         </>
       )}
       {pitching.length > 0 && (
         <>
           <div className="sv-section-label">Pitching</div>
-          <div className="sv-bars">
-            {pitching.map((s, i) => <Bar key={i} {...s} />)}
-          </div>
+          <div className="sv-bars">{pitching.map((s, i) => <Bar key={i} {...s} />)}</div>
         </>
       )}
     </div>
   );
 };
 
+// ── Stat Section ─────────────────────────────────────────────
 const StatSection = ({ title, color, stats, isCareer, onToggle }) => (
   <div className="stats-section neon-card">
     <div className="stats-header">
@@ -105,12 +108,13 @@ const StatSection = ({ title, color, stats, isCareer, onToggle }) => (
   </div>
 );
 
+// ── Main Component ───────────────────────────────────────────
 const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
   const [toggles, setToggles] = useState({
-    hitBasic: false,
-    hitAdv: false,
+    hitBasic:   false,
+    hitAdv:     false,
     pitchBasic: false,
-    pitchAdv: false,
+    pitchAdv:   false,
   });
 
   const toggle = (key) => setToggles(prev => ({ ...prev, [key]: !prev[key] }));
@@ -120,19 +124,22 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
       <div className="league-player-page">
         <div className="neon-card p-3" style={{ textAlign: 'center' }}>
           <p style={{ color: 'rgba(192,208,255,0.6)' }}>No player selected.</p>
-          {onBack && <button className="neon-button" style={{ marginTop: '15px' }} onClick={onBack}>← Back</button>}
+          {onBack && (
+            <button className="neon-button" style={{ marginTop: '15px' }} onClick={onBack}>
+              Back
+            </button>
+          )}
         </div>
       </div>
     );
   }
 
-  
-  const boxScores = JSON.parse(localStorage.getItem(`${(leaguePrefix || 'nabb')}_box_scores`) || '[]');
+  const boxScores    = JSON.parse(localStorage.getItem(`${(leaguePrefix || 'vitza')}_box_scores`) || '[]');
   const playerScores = boxScores.filter(b => b.player_id === player.id);
-  const gamesPlayed = playerScores.length;
+  const gamesPlayed  = playerScores.length;
   const gamesPitched = playerScores.filter(b => safe(b.innings_pitched) > 0).length;
 
-  // Season aggregates (box scores + editable season base stats from dashboard)
+  // Season aggregates
   const sH   = playerScores.reduce((s, b) => s + safeInt(b.hits), 0)               + safeInt(player.season_hits);
   const sR   = playerScores.reduce((s, b) => s + safeInt(b.runs), 0)               + safeInt(player.season_runs);
   const sRBI = playerScores.reduce((s, b) => s + safeInt(b.rbis), 0)               + safeInt(player.season_rbis);
@@ -144,29 +151,28 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
   const sER  = playerScores.reduce((s, b) => s + safeInt(b.earned_runs), 0)        + safeInt(player.season_earned_runs);
   const sG   = safeInt(player.season_g) || playerScores.length;
   const sAB  = safeInt(player.season_ab);
-  const sAVG = player.season_avg || (sAB > 0 ? (sH/sAB).toFixed(3) : '—');
+  const sAVG = player.season_avg || (sAB > 0 ? (sH / sAB).toFixed(3) : '—');
   const sOBP = player.season_obp || '—';
   const sSLG = player.season_slg || '—';
   const sOPS = player.season_ops || '—';
 
-  // Career aggregates (career base stats from dashboard)
-  const cH   = safeInt(player.hits)   || sH;
-  const cR   = safeInt(player.runs)   || sR;
-  const cRBI = safeInt(player.rbis)   || sRBI;
-  const cHR  = safeInt(player.home_runs) || sHR;
-  const cSO  = safeInt(player.strike_outs) || sSO;
-  const cIP  = safe(player.innings_pitched) || sIP;
+  // Career aggregates
+  const cH   = safeInt(player.hits)               || sH;
+  const cR   = safeInt(player.runs)               || sR;
+  const cRBI = safeInt(player.rbis)               || sRBI;
+  const cHR  = safeInt(player.home_runs)          || sHR;
+  const cSO  = safeInt(player.strike_outs)        || sSO;
+  const cIP  = safe(player.innings_pitched)       || sIP;
   const cKP  = safeInt(player.strikeouts_pitched) || sKP;
-  const cHA  = safeInt(player.hits_allowed) || sHA;
-  const cER  = safeInt(player.earned_runs) || sER;
-  const cG   = safeInt(player.career_g) || sG;
-  const cAB  = safeInt(player.career_ab) || sAB;
-  const cAVG = player.career_avg || (cAB > 0 ? (cH/cAB).toFixed(3) : '—');
+  const cHA  = safeInt(player.hits_allowed)       || sHA;
+  const cER  = safeInt(player.earned_runs)        || sER;
+  const cG   = safeInt(player.career_g)           || sG;
+  const cAB  = safeInt(player.career_ab)          || sAB;
+  const cAVG = player.career_avg || (cAB > 0 ? (cH / cAB).toFixed(3) : '—');
   const cOBP = player.career_obp || '—';
   const cSLG = player.career_slg || '—';
   const cOPS = player.career_ops || '—';
 
-  // Build stat rows
   const hitBasicSeason = [
     { label: 'G',   value: sG },
     { label: 'AB',  value: sAB || '—' },
@@ -215,27 +221,25 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
   ];
 
   const pitchBasicSeason = [
-    { label: 'Games Pitched',  value: gamesPitched },
+    { label: 'Games Pitched',   value: gamesPitched },
     { label: 'Innings Pitched', value: sIP.toFixed(1) },
-    { label: 'Strikeouts',     value: sKP },
-    { label: 'Hits Allowed',   value: sHA },
-    { label: 'Earned Runs',    value: sER },
+    { label: 'Strikeouts',      value: sKP },
+    { label: 'Hits Allowed',    value: sHA },
+    { label: 'Earned Runs',     value: sER },
   ];
   const pitchBasicCareer = [
-    { label: 'Games Pitched',  value: gamesPitched },
+    { label: 'Games Pitched',   value: gamesPitched },
     { label: 'Innings Pitched', value: cIP.toFixed(1) },
-    { label: 'Strikeouts',     value: cKP },
-    { label: 'Hits Allowed',   value: cHA },
-    { label: 'Earned Runs',    value: cER },
+    { label: 'Strikeouts',      value: cKP },
+    { label: 'Hits Allowed',    value: cHA },
+    { label: 'Earned Runs',     value: cER },
   ];
 
   const calcAdv = (ip, er, k, ha) => ({
     era:  ip > 0 ? fmt((er / ip) * 9) : '—',
     k9:   ip > 0 ? fmt((k  / ip) * 9) : '—',
     h9:   ip > 0 ? fmt((ha / ip) * 9) : '—',
-    kPer: ip > 0 ? fmt(k / (ip / 9)) : '—',
   });
-
   const sAdv = calcAdv(sIP, sER, sKP, sHA);
   const cAdv = calcAdv(cIP, cER, cKP, cHA);
 
@@ -256,23 +260,36 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
 
   const avatarSrc = player.avatar_data || null;
 
+  // Build a shareable link for this player page
+  const sharePlayer = () => {
+    const url = `${window.location.origin}${window.location.pathname}#leagues/player/${player.id}`;
+    navigator.clipboard.writeText(url).then(() => alert('Player link copied!')).catch(() => alert(url));
+  };
+
   return (
     <div className="league-player-page">
       {onBack && (
-        <button className="neon-button" style={{ marginBottom: '20px', fontSize: '0.9rem' }} onClick={onBack}>
-          ← Back to League
-        </button>
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <button className="neon-button" style={{ fontSize: '0.9rem' }} onClick={onBack}>
+            Back to League
+          </button>
+          <button
+            onClick={sharePlayer}
+            style={{ padding: '8px 16px', background: 'rgba(0,255,255,0.06)', border: '1px solid rgba(0,255,255,0.25)', color: 'var(--color-cyan)', borderRadius: '8px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700 }}
+          >
+            Share Link
+          </button>
+        </div>
       )}
 
       <div className="player-container">
         {/* LEFT — Trading Card */}
         <div className="player-card neon-card">
           <div className="card-avatar">
-            {avatarSrc ? (
-              <img src={avatarSrc} alt={player.player_name} />
-            ) : (
-              <div className="avatar-placeholder">🎮</div>
-            )}
+            {avatarSrc
+              ? <img src={avatarSrc} alt={player.player_name} />
+              : <div className="avatar-placeholder">🎮</div>
+            }
           </div>
 
           <div className="card-content">
@@ -292,11 +309,12 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
               </div>
             )}
 
-            <div className="card-divider"></div>
+            <div className="card-divider" />
 
+            {/* Spotify embed — autoplay=1 is baked into the URL by toSpotifyEmbed */}
             {player.spotify_url && (
               <div className="card-spotify">
-                <div className="spotify-label">🎵 Favorite Song</div>
+                <div className="spotify-label">Favorite Song</div>
                 <iframe
                   title="Spotify player"
                   src={toSpotifyEmbed(player.spotify_url)}
@@ -314,6 +332,7 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
         {/* RIGHT — Stats */}
         <div className="player-stats">
           <SavantCard player={player} />
+
           <StatSection
             title="Season Hitting Stats"
             color="cyan"
@@ -346,7 +365,7 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
           {/* Game Log */}
           {playerScores.length > 0 && (
             <div className="stats-section neon-card">
-              <h3 className="gradient-text-cyan" style={{ marginBottom: '15px' }}>📋 Game Log</h3>
+              <h3 className="gradient-text-cyan" style={{ marginBottom: '15px' }}>Game Log</h3>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                   <thead>

@@ -39,11 +39,12 @@ function parseHash() {
   return {
     page: parts[0] || 'home',
     sub1: parts[1] || null,
+    sub2: parts[2] || null,
   };
 }
 
-function pushHash(page, sub1) {
-  const parts = [page, sub1].filter(Boolean);
+function pushHash(page, sub1, sub2) {
+  const parts = [page, sub1, sub2].filter(Boolean);
   const next = '#' + parts.join('/');
   if (window.location.hash !== next) {
     window.location.hash = next;
@@ -96,19 +97,53 @@ const AppContent = () => {
   }, [user]);
 
   // ── Route state — driven by URL hash ──────────────────────
-  const [currentPage, setCurrentPage] = useState(() => parseHash().page);
+  // #leagues/player/ID → start on player view (data loaded by effect below)
+  const [currentPage, setCurrentPage] = useState(() => {
+    const { page, sub1 } = parseHash();
+    if (page === 'leagues' && sub1 === 'player') return 'player';
+    return page;
+  });
   const [routeSub,    setRouteSub]    = useState(() => parseHash().sub1);
 
   // Handle browser back / forward
   useEffect(() => {
     const handler = () => {
-      const { page, sub1 } = parseHash();
-      setCurrentPage(page);
-      setRouteSub(sub1 || null);
+      const { page, sub1, sub2 } = parseHash();
+      if (page === 'leagues' && sub1 === 'player' && sub2) {
+        // Player deep-link via browser history navigation
+        setCurrentPage('player');
+        setRouteSub(sub1);
+        import('./services/db').then(({ default: db }) => {
+          db.getPlayers('vitza').then(players => {
+            const found = players.find(p => String(p.id) === String(sub2));
+            if (found) { setSelectedLeaguePlayer(found); setSelectedLeague('vitza'); }
+            else { setCurrentPage('leagues'); pushHash('leagues'); }
+          }).catch(() => { setCurrentPage('leagues'); pushHash('leagues'); });
+        });
+      } else {
+        setCurrentPage(page);
+        setRouteSub(sub1 || null);
+        if (page !== 'player') setSelectedLeaguePlayer(null);
+      }
     };
     window.addEventListener('hashchange', handler);
     return () => window.removeEventListener('hashchange', handler);
   }, []);
+
+  // On initial mount: load player if URL is a player deep-link
+  // e.g. someone opens a shared link like #leagues/player/abc123
+  useEffect(() => {
+    const { page, sub1, sub2 } = parseHash();
+    if (page === 'leagues' && sub1 === 'player' && sub2) {
+      import('./services/db').then(({ default: db }) => {
+        db.getPlayers('vitza').then(players => {
+          const found = players.find(p => String(p.id) === String(sub2));
+          if (found) { setSelectedLeaguePlayer(found); setSelectedLeague('vitza'); }
+          else { setCurrentPage('leagues'); pushHash('leagues'); }
+        }).catch(() => { setCurrentPage('leagues'); pushHash('leagues'); });
+      });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Other state ───────────────────────────────────────────
   const [lfmToken,             setLfmToken]             = useState(null);
@@ -142,7 +177,8 @@ const AppContent = () => {
     setSelectedLeaguePlayer(player);
     setSelectedLeague(league);
     setCurrentPage('player');
-    // Player detail is ephemeral — no URL change needed
+    // Push a shareable URL: #leagues/player/PLAYER_ID
+    pushHash('leagues', 'player', String(player.id));
   };
 
   // Called by MemberPages when a profile is opened or closed
@@ -212,10 +248,17 @@ const AppContent = () => {
         );
 
       case 'player':
+        if (!selectedLeaguePlayer) {
+          return (
+            <div style={{ textAlign: 'center', padding: '60px', color: 'rgba(192,208,255,0.4)' }}>
+              Loading player…
+            </div>
+          );
+        }
         return (
           <LeaguePlayerPage
             player={selectedLeaguePlayer}
-            onBack={() => { setCurrentPage('leagues'); pushHash('leagues'); }}
+            onBack={() => { setSelectedLeaguePlayer(null); setCurrentPage('leagues'); pushHash('leagues'); }}
             leaguePrefix={selectedLeague}
           />
         );

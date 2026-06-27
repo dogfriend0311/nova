@@ -44,6 +44,25 @@ export const AuthProvider = ({ children }) => {
       const userData = { username: foundUser.username, role: foundUser.role || 'member' };
       setUser(userData);
       localStorage.setItem('nova_user', JSON.stringify(userData));
+      // Async: pull the latest role from Supabase so cross-device role assignments
+      // (e.g. owner sets vitza_helper on their computer) take effect immediately.
+      import('../services/db').then(({ default: db }) => {
+        db.getUsers().then(supaUsers => {
+          const supaUser = supaUsers.find(u => u.username === username);
+          if (supaUser?.role && supaUser.role !== userData.role) {
+            const updated = { ...userData, role: supaUser.role };
+            setUser(updated);
+            localStorage.setItem('nova_user', JSON.stringify(updated));
+            // Also update the local users list so future logins are correct
+            const localUsers = JSON.parse(localStorage.getItem('nova_users') || '[]');
+            const idx = localUsers.findIndex(u => u.username === username);
+            if (idx >= 0) {
+              localUsers[idx].role = supaUser.role;
+              localStorage.setItem('nova_users', JSON.stringify(localUsers));
+            }
+          }
+        }).catch(() => {});
+      }).catch(() => {});
       return { success: true };
     }
     return { success: false, error: 'Invalid credentials' };
@@ -84,14 +103,19 @@ export const AuthProvider = ({ children }) => {
   };
 
   const updateUserRole = (targetUsername, newRole) => {
+    // 1. Update this device's localStorage immediately
     const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
     const userIndex = users.findIndex(u => u.username === targetUsername);
     if (userIndex !== -1) {
       users[userIndex].role = newRole;
       localStorage.setItem('nova_users', JSON.stringify(users));
-      return { success: true };
     }
-    return { success: false, error: 'User not found' };
+    // 2. Persist to Supabase so the change takes effect on every device
+    //    (the friend's next login will pick this up via the check in login())
+    import('../services/db').then(({ default: db }) => {
+      db.updateUserRole(targetUsername, newRole).catch(() => {});
+    }).catch(() => {});
+    return { success: true };
   };
 
   const hasPermission = (requiredRole) => {
