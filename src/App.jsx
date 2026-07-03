@@ -24,7 +24,7 @@ import './styles/responsive.css';
 //   #sports            → Sports Hub (defaults to MLB)
 //   #sports/nfl        → Sports Hub with NFL active
 //   #sports/mlb        → Sports Hub with MLB active
-//   #leagues           → Vitza League
+//   #leagues           → Vizta League
 //   #members           → Member list
 //   #members/username  → That user's profile directly
 //   #watchlist
@@ -114,9 +114,9 @@ const AppContent = () => {
         setCurrentPage('player');
         setRouteSub(sub1);
         import('./services/db').then(({ default: db }) => {
-          db.getPlayers('vitza').then(players => {
+          db.getPlayers('vizta').then(players => {
             const found = players.find(p => String(p.id) === String(sub2));
-            if (found) { setSelectedLeaguePlayer(found); setSelectedLeague('vitza'); }
+            if (found) { setSelectedLeaguePlayer(found); setSelectedLeague('vizta'); }
             else { setCurrentPage('leagues'); pushHash('leagues'); }
           }).catch(() => { setCurrentPage('leagues'); pushHash('leagues'); });
         });
@@ -136,9 +136,9 @@ const AppContent = () => {
     const { page, sub1, sub2 } = parseHash();
     if (page === 'leagues' && sub1 === 'player' && sub2) {
       import('./services/db').then(({ default: db }) => {
-        db.getPlayers('vitza').then(players => {
+        db.getPlayers('vizta').then(players => {
           const found = players.find(p => String(p.id) === String(sub2));
-          if (found) { setSelectedLeaguePlayer(found); setSelectedLeague('vitza'); }
+          if (found) { setSelectedLeaguePlayer(found); setSelectedLeague('vizta'); }
           else { setCurrentPage('leagues'); pushHash('leagues'); }
         }).catch(() => { setCurrentPage('leagues'); pushHash('leagues'); });
       });
@@ -151,7 +151,7 @@ const AppContent = () => {
   const [showLoginModal,       setShowLoginModal]       = useState(false);
   const [signUpMode,           setSignUpMode]           = useState(false);
   const [selectedLeaguePlayer, setSelectedLeaguePlayer] = useState(null);
-  const [selectedLeague,       setSelectedLeague]       = useState('vitza');
+  const [selectedLeague,       setSelectedLeague]       = useState('vizta');
 
   // Handle Last.fm OAuth token in query string
   useEffect(() => {
@@ -173,7 +173,7 @@ const AppContent = () => {
     pushHash(page, sub1);
   };
 
-  const handleSelectPlayer = (player, league = 'vitza') => {
+  const handleSelectPlayer = (player, league = 'vizta') => {
     setSelectedLeaguePlayer(player);
     setSelectedLeague(league);
     setCurrentPage('player');

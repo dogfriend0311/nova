@@ -1,5 +1,5 @@
 /**
- * db.js â€” Universal data service
+ * db.js — Universal data service
  * Tries Supabase first (cross-device). Falls back to localStorage if
  * Supabase isn't configured yet so the site still works locally.
  */
@@ -10,13 +10,13 @@ const hasSupabase = () => !!(
   process.env.REACT_APP_SUPABASE_ANON_KEY
 );
 
-/* â”€â”€ Generic localStorage helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Generic localStorage helpers ─────────────────────────────── */
 const ls = {
   get: (key) => JSON.parse(localStorage.getItem(key) || '[]'),
   set: (key, val) => localStorage.setItem(key, JSON.stringify(val)),
 };
 
-/* â”€â”€ League data (teams, players, games, etc.) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── League data (teams, players, games, etc.) ────────────────── */
 export const db = {
 
   /* TEAMS */
@@ -45,7 +45,6 @@ export const db = {
         if (!error) { _syncLs(league, 'teams', data[0], 'update'); return data[0]; }
       }
     }
-    // localStorage fallback
     const list = ls.get(`${league}_teams`);
     if (isNew) {
       const newItem = { ...record, id: Date.now().toString() };
@@ -324,14 +323,12 @@ export const db = {
 
   async saveWatchlist(username, list) {
     if (hasSupabase()) {
-      // Delete all existing for user, then insert fresh
       await supabase.from('nova_watchlist').delete().eq('username', username);
       if (list.length > 0) {
         const records = list.map(item => ({ ...item, username, updated_at: new Date().toISOString() }));
         await supabase.from('nova_watchlist').insert(records);
       }
     }
-    // Always keep localStorage in sync too
     const all = JSON.parse(localStorage.getItem('nova_watchlists') || '{}');
     all[username] = list;
     localStorage.setItem('nova_watchlists', JSON.stringify(all));
@@ -353,7 +350,6 @@ export const db = {
         .upsert([{ ...profile, updated_at: new Date().toISOString() }], { onConflict: 'username' })
         .select();
       if (!error) {
-        // sync to localStorage
         const list = ls.get('member_profiles');
         const exists = list.findIndex(p => p.username === profile.username);
         if (exists >= 0) list[exists] = { ...list[exists], ...profile };
@@ -370,9 +366,10 @@ export const db = {
     return profile;
   },
 
+  /* USERS / ROLES */
   async getUsers() {
     try {
-      const { data, error } = await supabase.from('nova_users').select('username,role,created_at').order('created_at');
+      const { data, error } = await supabase.from('nova_users').select('username,role,created_at,last_seen').order('created_at');
       if (!error && data) return data;
     } catch {}
     return JSON.parse(localStorage.getItem('nova_users') || '[]');
@@ -397,9 +394,87 @@ export const db = {
     const idx = users.findIndex(u => u.username === username);
     if (idx >= 0) { users[idx].role = role; localStorage.setItem('nova_users', JSON.stringify(users)); }
   },
+
+  /* ── ONLINE PRESENCE (cross-device) ──────────────────────────
+     Heartbeat writes last_seen to Supabase every 30s while logged in.
+     getOnlineUsers() reads everyone whose last_seen is within the
+     last 5 minutes, so you can see which of your friends are online
+     from any device — not just yourself in localStorage.          */
+  async updateLastSeen(username) {
+    if (!username) return;
+    try {
+      await supabase.from('nova_users').update({ last_seen: new Date().toISOString() }).eq('username', username);
+    } catch {}
+    // Keep a local fallback too
+    const online = JSON.parse(localStorage.getItem('nova_online') || '{}');
+    online[username] = Date.now();
+    localStorage.setItem('nova_online', JSON.stringify(online));
+  },
+
+  async getOnlineUsers() {
+    const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+    if (hasSupabase()) {
+      try {
+        const cutoff = new Date(fiveMinAgo).toISOString();
+        const { data, error } = await supabase
+          .from('nova_users')
+          .select('username,last_seen')
+          .gte('last_seen', cutoff);
+        if (!error && data) return data.map(u => u.username);
+      } catch {}
+    }
+    // localStorage fallback — only reflects this device
+    const online = JSON.parse(localStorage.getItem('nova_online') || '{}');
+    return Object.entries(online).filter(([, ts]) => ts > fiveMinAgo).map(([u]) => u);
+  },
+
+  /* ── COMMENTS (member profile comments) ──────────────────────── */
+  async getComments(toUsername) {
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase
+          .from('nova_comments')
+          .select('*')
+          .eq('to_username', toUsername)
+          .order('created_at', { ascending: false });
+        if (!error) return data;
+      } catch {}
+    }
+    const all = JSON.parse(localStorage.getItem('nova_comments') || '{}');
+    return all[toUsername] || [];
+  },
+
+  async addComment(comment) {
+    if (hasSupabase()) {
+      try {
+        const record = { ...comment };
+        delete record.id;
+        const { data, error } = await supabase.from('nova_comments').insert([record]).select();
+        if (!error) return data[0];
+      } catch {}
+    }
+    const all = JSON.parse(localStorage.getItem('nova_comments') || '{}');
+    all[comment.to_username] = [comment, ...(all[comment.to_username] || [])];
+    localStorage.setItem('nova_comments', JSON.stringify(all));
+    return comment;
+  },
+
+  async deleteComment(id) {
+    if (hasSupabase()) {
+      try {
+        await supabase.from('nova_comments').delete().eq('id', id);
+        return;
+      } catch {}
+    }
+    const all = JSON.parse(localStorage.getItem('nova_comments') || '{}');
+    for (const key of Object.keys(all)) {
+      all[key] = (all[key] || []).filter(c => c.id !== id);
+    }
+    localStorage.setItem('nova_comments', JSON.stringify(all));
+  },
 };
 
-/* â”€â”€ Internal: keep localStorage in sync with Supabase â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Internal: keep localStorage in sync with Supabase ─────────── */
 function _syncLs(league, table, record, op) {
   const key = `${league}_${table}`;
   const list = ls.get(key);

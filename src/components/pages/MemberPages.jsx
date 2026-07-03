@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl } from '../../data/teams';
 import { getWatchList } from '../../services/mediaService';
+import * as lfm from '../../services/lastfmService';
 
 const SPORT_KEYS   = ['mlb', 'nfl', 'nba', 'nhl', 'cfb', 'cbb'];
 const TYPE_ICONS   = { anime: '🎌', movie: '🎬', tv: '📺' };
@@ -9,7 +10,7 @@ const STATUS_LABELS = { plan: 'Plan to Watch', watching: 'Watching', watched: 'W
 
 // ── Helpers ───────────────────────────────────────────────────
 const roleLabel = (role) => {
-  const map = { owner: 'Owner', cofounder: 'Co-Founder', mod: 'Moderator', vitza_helper: 'Vitza Helper', member: 'Member' };
+  const map = { owner: 'Owner', cofounder: 'Co-Founder', mod: 'Moderator', vizta_helper: 'Vizta Helper', member: 'Member' };
   return map[role] || 'Member';
 };
 
@@ -18,7 +19,7 @@ const roleBadgeStyle = (role) => {
     owner:        { background: 'rgba(255,215,0,0.15)',  border: '1px solid rgba(255,215,0,0.4)',  color: '#ffd700' },
     cofounder:    { background: 'rgba(255,100,0,0.15)',  border: '1px solid rgba(255,100,0,0.4)',  color: '#ff6400' },
     mod:          { background: 'rgba(0,200,100,0.15)',  border: '1px solid rgba(0,200,100,0.4)',  color: '#00c864' },
-    vitza_helper: { background: 'rgba(180,0,255,0.15)',  border: '1px solid rgba(180,0,255,0.4)',  color: '#cc66ff' },
+    vizta_helper: { background: 'rgba(180,0,255,0.15)',  border: '1px solid rgba(180,0,255,0.4)',  color: '#cc66ff' },
   };
   return styles[role] || { background: 'rgba(0,255,255,0.1)', border: '1px solid rgba(0,255,255,0.3)', color: 'var(--color-cyan)' };
 };
@@ -75,30 +76,88 @@ const FavTeams = ({ favTeams }) => {
 };
 
 // ── Fav Games Display ─────────────────────────────────────────
+/* ── Sports Fav Games (no placeId) ─────────────────────────── */
 const FavGames = ({ favGames }) => {
-  if (!favGames || favGames.length === 0) {
+  const sports = (favGames || []).filter(g => !g.placeId);
+  if (!sports.length) {
     return <p style={{ color: 'rgba(192,208,255,0.3)', textAlign: 'center', padding: '20px' }}>No favorite games yet.</p>;
   }
   return (
     <div>
-      {favGames.map((g) => (
-        <div key={g.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          {g.placeId && (
-            <img
-              src={robloxThumbUrl(g.placeId)}
-              alt={g.text}
-              style={{ width: '54px', height: '54px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(0,255,255,0.15)' }}
-              onError={(e) => { e.target.style.display = 'none'; }}
-            />
-          )}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: '0 0 3px', fontWeight: 700, color: 'var(--color-cyan)', fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.text}</p>
-            {g.note && <p style={{ margin: '0 0 3px', color: 'rgba(192,208,255,0.65)', fontSize: '0.85rem' }}>"{g.note}"</p>}
-            <p style={{ margin: 0, fontSize: '0.72rem', color: 'rgba(192,208,255,0.35)' }}>{g.date}</p>
+      {sports.map((g) => (
+        <div key={g.id} style={{ padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <p style={{ margin: '0 0 3px', fontWeight: 700, color: 'var(--color-cyan)', fontSize: '0.95rem' }}>{g.text}</p>
+          {g.note && <p style={{ margin: '0 0 3px', color: 'rgba(192,208,255,0.65)', fontSize: '0.85rem' }}>"{g.note}"</p>}
+          <p style={{ margin: 0, fontSize: '0.72rem', color: 'rgba(192,208,255,0.35)' }}>{g.date}</p>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+/* ── Roblox Games grid (has placeId) ───────────────────────── */
+const RobloxGames = ({ favGames }) => {
+  const roblox = (favGames || []).filter(g => g.placeId);
+  if (!roblox.length) {
+    return <p style={{ color: 'rgba(192,208,255,0.3)', textAlign: 'center', padding: '20px' }}>No Roblox games added yet.</p>;
+  }
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '10px' }}>
+      {roblox.map((g) => (
+        <div key={g.id} style={{ background: 'rgba(0,255,255,0.04)', border: '1px solid rgba(0,255,255,0.1)', borderRadius: '10px', overflow: 'hidden' }}>
+          <img
+            src={robloxThumbUrl(g.placeId)}
+            alt={g.text}
+            style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }}
+            onError={(e) => { e.target.style.display = 'none'; }}
+          />
+          <div style={{ padding: '6px 8px' }}>
+            <p style={{ margin: '0 0 2px', fontWeight: 700, color: 'var(--color-cyan)', fontSize: '0.78rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.text}</p>
+            {g.note && <p style={{ margin: 0, color: 'rgba(192,208,255,0.5)', fontSize: '0.7rem', fontStyle: 'italic' }}>"{g.note}"</p>}
           </div>
         </div>
       ))}
     </div>
+  );
+};
+
+/* ── Last.fm Now Playing (public) ───────────────────────────── */
+const NowPlayingPublic = ({ lastfmUsername }) => {
+  const [track, setTrack] = useState(null);
+
+  useEffect(() => {
+    if (!lastfmUsername || !lfm.hasApiKey()) return;
+    let active = true;
+    const poll = async () => {
+      const t = await lfm.getNowPlaying(lastfmUsername);
+      if (active) setTrack(t);
+    };
+    poll();
+    const id = setInterval(poll, 30000);
+    return () => { active = false; clearInterval(id); };
+  }, [lastfmUsername]);
+
+  if (!track) return null;
+
+  return (
+    <a
+      href={track.trackUrl || `https://www.last.fm/user/${lastfmUsername}`}
+      target="_blank" rel="noreferrer"
+      style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', background: 'rgba(213,16,7,0.07)', border: '1px solid rgba(213,16,7,0.25)', borderRadius: '10px', textDecoration: 'none', marginBottom: '14px' }}
+    >
+      {track.albumArt
+        ? <img src={track.albumArt} alt="" style={{ width: '44px', height: '44px', borderRadius: '6px', objectFit: 'cover', flexShrink: 0 }} />
+        : <div style={{ width: '44px', height: '44px', borderRadius: '6px', background: 'rgba(213,16,7,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>&#127925;</div>
+      }
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: '0.68rem', color: '#d51007', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '2px' }}>
+          <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: '#d51007', animation: 'lfm-np-pulse 1.4s infinite' }} />
+          {track.isPlaying ? 'Listening Now' : 'Last Played'}
+        </div>
+        <div style={{ fontWeight: 700, color: '#e8efff', fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{track.trackName}</div>
+        <div style={{ fontSize: '0.76rem', color: 'rgba(192,208,255,0.5)' }}>{track.artistName}</div>
+      </div>
+    </a>
   );
 };
 
@@ -173,6 +232,134 @@ const WatchPreview = ({ username }) => {
 };
 
 // ── Member List ───────────────────────────────────────────────
+/* ── Comments Section ────────────────────────────────────────── */
+const CommentsSection = ({ toUsername, currentUser }) => {
+  const [comments, setComments] = useState([]);
+  const [text, setText]         = useState('');
+  const [loading, setLoading]   = useState(true);
+  const [posting, setPosting]   = useState(false);
+
+  const loadComments = async () => {
+    setLoading(true);
+    try {
+      const { db } = await import('../../services/db');
+      const data = await db.getComments(toUsername);
+      setComments(Array.isArray(data) ? data : []);
+    } catch {
+      // fallback: localStorage
+      const all = JSON.parse(localStorage.getItem('nova_comments') || '{}');
+      setComments(all[toUsername] || []);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadComments(); }, [toUsername]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handlePost = async () => {
+    if (!text.trim() || !currentUser) return;
+    setPosting(true);
+    const newComment = {
+      id:            Date.now().toString(),
+      from_username: currentUser,
+      to_username:   toUsername,
+      content:       text.trim(),
+      created_at:    new Date().toISOString(),
+    };
+    try {
+      const { db } = await import('../../services/db');
+      const saved = await db.addComment(newComment);
+      setComments(prev => [saved || newComment, ...prev]);
+    } catch {
+      // localStorage fallback
+      const all = JSON.parse(localStorage.getItem('nova_comments') || '{}');
+      all[toUsername] = [newComment, ...(all[toUsername] || [])];
+      localStorage.setItem('nova_comments', JSON.stringify(all));
+      setComments(prev => [newComment, ...prev]);
+    }
+    setText('');
+    setPosting(false);
+  };
+
+  const handleDelete = async (commentId, fromUsername) => {
+    if (currentUser !== fromUsername && currentUser !== toUsername) return;
+    try {
+      const { db } = await import('../../services/db');
+      await db.deleteComment(commentId);
+    } catch {
+      const all = JSON.parse(localStorage.getItem('nova_comments') || '{}');
+      all[toUsername] = (all[toUsername] || []).filter(c => c.id !== commentId);
+      localStorage.setItem('nova_comments', JSON.stringify(all));
+    }
+    setComments(prev => prev.filter(c => c.id !== commentId));
+  };
+
+  const timeAgo = (iso) => {
+    if (!iso) return '';
+    const s = Math.floor((Date.now() - new Date(iso)) / 1000);
+    if (s < 60)    return `${s}s ago`;
+    if (s < 3600)  return `${Math.floor(s/60)}m ago`;
+    if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+    return `${Math.floor(s/86400)}d ago`;
+  };
+
+  return (
+    <div style={{ padding: '20px 0' }}>
+      {/* Post a comment */}
+      {currentUser ? (
+        <div style={{ marginBottom: '20px' }}>
+          <textarea
+            rows={2}
+            placeholder={`Leave a comment on ${toUsername}'s profile...`}
+            value={text}
+            onChange={e => setText(e.target.value)}
+            style={{ width: '100%', padding: '10px 12px', background: 'rgba(0,255,255,0.05)', border: '1px solid rgba(0,255,255,0.2)', color: '#c0d0ff', borderRadius: '8px', fontFamily: 'inherit', fontSize: '0.9rem', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
+          />
+          <button
+            className="neon-button"
+            onClick={handlePost}
+            disabled={posting || !text.trim()}
+            style={{ marginTop: '8px', padding: '8px 20px', opacity: (!text.trim() || posting) ? 0.4 : 1 }}
+          >
+            {posting ? 'Posting...' : 'Post Comment'}
+          </button>
+        </div>
+      ) : (
+        <p style={{ color: 'rgba(192,208,255,0.4)', fontSize: '0.85rem', marginBottom: '16px' }}>
+          Sign in to leave a comment.
+        </p>
+      )}
+
+      {/* Comment list */}
+      {loading ? (
+        <p style={{ color: 'rgba(192,208,255,0.3)', fontSize: '0.85rem' }}>Loading comments...</p>
+      ) : comments.length === 0 ? (
+        <p style={{ color: 'rgba(192,208,255,0.3)', fontSize: '0.85rem', textAlign: 'center', padding: '20px 0' }}>No comments yet. Be the first!</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {comments.map(c => (
+            <div key={c.id} style={{ padding: '12px 14px', background: 'rgba(0,255,255,0.04)', border: '1px solid rgba(0,255,255,0.1)', borderRadius: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
+                <span style={{ fontWeight: 700, color: 'var(--color-cyan)', fontSize: '0.88rem' }}>{c.from_username}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ color: 'rgba(192,208,255,0.35)', fontSize: '0.72rem' }}>{timeAgo(c.created_at)}</span>
+                  {(currentUser === c.from_username || currentUser === toUsername) && (
+                    <button onClick={() => handleDelete(c.id, c.from_username)}
+                      style={{ background: 'none', border: 'none', color: 'rgba(255,80,80,0.5)', cursor: 'pointer', fontSize: '0.75rem', padding: 0 }}>
+                      Delete
+                    </button>
+                  )}
+                </div>
+              </div>
+              <p style={{ margin: 0, color: 'rgba(220,230,255,0.85)', fontSize: '0.88rem', lineHeight: 1.5 }}>{c.content}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const MemberPages = ({ targetUsername, onMemberSelect }) => {
   const [members,        setMembers]        = useState([]);
   const [selectedMember, setSelectedMember] = useState(null);
@@ -291,6 +478,9 @@ const MemberProfileView = ({ member, onBack }) => {
   const userRecord = users.find((u) => u.username === member.username);
   const role       = userRecord?.role || member.role || 'member';
 
+  const savedUser   = JSON.parse(localStorage.getItem('nova_user') || 'null');
+  const currentUser = savedUser?.username || null;
+
   const onlineData = JSON.parse(localStorage.getItem('nova_online') || '{}');
   const isOnline   = onlineData[member.username] > Date.now() - 5 * 60 * 1000;
 
@@ -314,11 +504,13 @@ const MemberProfileView = ({ member, onBack }) => {
   ].filter((s) => member[s.key]);
 
   const VTABS = [
-    { id: 'about',     label: 'About'      },
-    { id: 'music',     label: 'Music'      },
-    { id: 'favgames',  label: 'Fav Games'  },
-    { id: 'teams',     label: 'Teams'      },
-    { id: 'watchlist', label: 'Watch List' },
+    { id: 'about',       label: 'About'        },
+    { id: 'music',       label: 'Music'        },
+    { id: 'favgames',    label: 'Fav Games'    },
+    { id: 'robloxgames', label: 'Roblox Games' },
+    { id: 'teams',       label: 'Teams'        },
+    { id: 'watchlist',   label: 'Watch List'   },
+    { id: 'comments',    label: 'Comments'     },
   ];
 
   const shareUrl = `${window.location.origin}${window.location.pathname}#members/${member.username}`;
@@ -394,6 +586,10 @@ const MemberProfileView = ({ member, onBack }) => {
 
         {viewTab === 'music' && (
           <div style={{ padding: '20px 0' }}>
+            {/* Last.fm now playing — public, shows for everyone */}
+            {member.lastfm_username && (
+              <NowPlayingPublic lastfmUsername={member.lastfm_username} />
+            )}
             {member.spotify_url && (
               <iframe title="Spotify"
                 src={member.spotify_url.includes('/embed/') ? member.spotify_url : member.spotify_url.replace('open.spotify.com/', 'open.spotify.com/embed/')}
@@ -402,13 +598,21 @@ const MemberProfileView = ({ member, onBack }) => {
                 style={{ borderRadius: '10px', display: 'block' }}
               />
             )}
-            {!member.spotify_url && <p style={{ color: 'rgba(192,208,255,0.3)', textAlign: 'center', padding: '20px' }}>No music linked.</p>}
+            {!member.lastfm_username && !member.spotify_url && (
+              <p style={{ color: 'rgba(192,208,255,0.3)', textAlign: 'center', padding: '20px' }}>No music linked.</p>
+            )}
           </div>
         )}
 
         {viewTab === 'favgames' && (
           <div style={{ padding: '20px 0' }}>
             <FavGames favGames={favGames} />
+          </div>
+        )}
+
+        {viewTab === 'robloxgames' && (
+          <div style={{ padding: '20px 0' }}>
+            <RobloxGames favGames={favGames} />
           </div>
         )}
 
@@ -422,6 +626,10 @@ const MemberProfileView = ({ member, onBack }) => {
           <div style={{ padding: '20px 0' }}>
             <WatchPreview username={member.username} />
           </div>
+        )}
+
+        {viewTab === 'comments' && (
+          <CommentsSection toUsername={member.username} currentUser={currentUser} />
         )}
       </div>
     </div>

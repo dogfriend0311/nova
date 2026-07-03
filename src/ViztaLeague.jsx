@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import db from './services/db';
 import './RBMLLeague.css';
 
-const VitzaLeague = ({ onSelectPlayer }) => {
+const ViztaLeague = ({ onSelectPlayer }) => {
   const [activeTab, setActiveTab] = useState('overview');
 
   const renderTabContent = () => {
@@ -22,7 +22,7 @@ const VitzaLeague = ({ onSelectPlayer }) => {
   return (
     <div className="page nabb-league">
       <div className="page-header">
-        <h1 className="gradient-text">Vitza</h1>
+        <h1 className="gradient-text">Vizta</h1>
         <p className="subtitle">Roblox Baseball League</p>
       </div>
 
@@ -57,18 +57,18 @@ const OverviewTab = () => {
   const [players, setPlayers] = useState([]);
   const [bsGames, setBsGames] = useState([]);
   useEffect(() => {
-    db.getTeams('vitza').then(setTeams);
-    db.getPlayers('vitza').then(setPlayers);
-    db.getBsGames('vitza').then(setBsGames);
+    db.getTeams('vizta').then(setTeams);
+    db.getPlayers('vizta').then(setPlayers);
+    db.getBsGames('vizta').then(setBsGames);
   }, []);
   const recentGames = [...bsGames].reverse().slice(0, 3);
 
   return (
     <div className="card-container">
       <div className="neon-card p-3">
-        <h3 className="gradient-text-cyan">Vitza Overview</h3>
+        <h3 className="gradient-text-cyan">Vizta Overview</h3>
         <div className="mt-2">
-          <div className="data-row"><span className="data-label">League</span><span className="data-value">Vitza</span></div>
+          <div className="data-row"><span className="data-label">League</span><span className="data-value">Vizta</span></div>
           <div className="data-row"><span className="data-label">Sport</span><span className="data-value">Roblox Baseball</span></div>
           <div className="data-row">
             <span className="data-label">Status</span>
@@ -111,7 +111,7 @@ const RostersTab = ({ onSelectPlayer }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([db.getTeams('vitza'), db.getPlayers('vitza')])
+    Promise.all([db.getTeams('vizta'), db.getPlayers('vizta')])
       .then(([t, p]) => { setTeams(t); setPlayers(p); setLoading(false); });
   }, []);
 
@@ -212,7 +212,7 @@ const RostersTab = ({ onSelectPlayer }) => {
 const PlayersTab = ({ onSelectPlayer }) => {
   const [players, setPlayers] = useState([]);
   const [search, setSearch] = useState('');
-  useEffect(() => { db.getPlayers('vitza').then(setPlayers); }, []);
+  useEffect(() => { db.getPlayers('vizta').then(setPlayers); }, []);
 
   const filtered = players.filter(p =>
     p.player_name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -254,7 +254,7 @@ const LeagueLeadersTab = ({ onSelectPlayer }) => {
   const [statType, setStatType] = useState('hitting');
 
   useEffect(() => {
-    Promise.all([db.getPlayers('vitza'), db.getBoxScores('vitza')])
+    Promise.all([db.getPlayers('vizta'), db.getBoxScores('vizta')])
       .then(([p, b]) => { setPlayers(p); setBoxScores(Array.isArray(b)?b:[]); setLoading(false); });
   }, []);
 
@@ -352,7 +352,7 @@ const LeagueLeadersTab = ({ onSelectPlayer }) => {
 
 const GameFeedTab = () => {
   const [feed, setFeed] = useState([]);
-  useEffect(() => { db.getFeed('vitza').then(setFeed); }, []);
+  useEffect(() => { db.getFeed('vizta').then(setFeed); }, []);
   const sorted = [...feed].reverse();
   return (
     <div className="card-container">
@@ -386,10 +386,10 @@ const BoxScoresTab = () => {
   const [selectedGame, setSelectedGame] = useState(null);
 
   useEffect(() => {
-    db.getBsGames('vitza').then(setBsGames);
-    db.getBoxScores('vitza').then(setBoxScores);
-    db.getPlayers('vitza').then(setPlayers);
-    db.getTeams('vitza').then(setTeams);
+    db.getBsGames('vizta').then(setBsGames);
+    db.getBoxScores('vizta').then(setBoxScores);
+    db.getPlayers('vizta').then(setPlayers);
+    db.getTeams('vizta').then(setTeams);
   }, []);
 
   const getTeamColor = (name) => teams.find(t=>t.team_name===name)?.team_color||null;
@@ -514,7 +514,7 @@ const CompareTab = ({ onSelectPlayer }) => {
   const [statFilter, setStatFilter] = useState('hitting');
 
   useEffect(() => {
-    Promise.all([db.getPlayers('vitza'), db.getTeams('vitza')])
+    Promise.all([db.getPlayers('vizta'), db.getTeams('vizta')])
       .then(([p, t]) => { setPlayers(p); setTeams(t); setLoading(false); });
   }, []);
 
@@ -670,7 +670,7 @@ const CompareTab = ({ onSelectPlayer }) => {
 
 const HallOfFameTab = () => {
   const [hof, setHof] = useState([]);
-  useEffect(() => { db.getHof('vitza').then(setHof); }, []);
+  useEffect(() => { db.getHof('vizta').then(setHof); }, []);
   return (
     <div className="card-container">
       <div className="neon-card p-3">
@@ -693,4 +693,4 @@ const HallOfFameTab = () => {
   );
 };
 
-export default VitzaLeague;
+export default ViztaLeague;

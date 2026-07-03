@@ -1,11 +1,11 @@
 import React from 'react';
-import VitzaLeague from '../../VitzaLeague';
+import ViztaLeague from '../../ViztaLeague';
 import './LeaguesPage.css';
 
 const LeaguesPage = ({ onSelectPlayer }) => {
   return (
     <div className="leagues-page">
-      <VitzaLeague onSelectPlayer={(p) => onSelectPlayer(p, 'vitza')} />
+      <ViztaLeague onSelectPlayer={(p) => onSelectPlayer(p, 'vizta')} />
     </div>
   );
 };

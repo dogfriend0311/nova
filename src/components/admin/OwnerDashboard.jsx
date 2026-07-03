@@ -12,7 +12,7 @@ const C_HIT = [['career_g','G'],['career_ab','AB'],['career_avg','AVG'],['career
 const C_PIT = [['career_w','W'],['career_l','L'],['career_era','ERA'],['career_pg','G'],['career_gs','GS'],['innings_pitched','IP'],['strikeouts_pitched','K'],['career_pit_bb','BB'],['hits_allowed','H'],['earned_runs','ER'],['career_whip','WHIP'],['career_sv','SV'],['career_hld','HLD']];
 
 const emptyPlayer = {
-  player_name:'', position:'', number:'', overall:75, avatar_data:'', spotify_url:'',
+  player_name:'', nickname:'', roblox_username:'', position:'', number:'', overall:75, avatar_data:'', spotify_url:'',
   season_g:'',season_ab:'',season_avg:'',season_obp:'',season_slg:'',season_ops:'',season_hits:'',season_runs:'',season_2b:'',season_3b:'',season_home_runs:'',season_rbis:'',season_bb:'',season_strike_outs:'',season_sb:'',
   season_w:'',season_l:'',season_era:'',season_pg:'',season_gs:'',season_innings_pitched:'',season_strikeouts_pitched:'',season_pit_bb:'',season_hits_allowed:'',season_earned_runs:'',season_whip:'',season_sv:'',season_hld:'',
   career_g:'',career_ab:'',career_avg:'',career_obp:'',career_slg:'',career_ops:'',hits:'',runs:'',career_2b:'',career_3b:'',home_runs:'',rbis:'',career_bb:'',strike_outs:'',career_sb:'',
@@ -98,8 +98,8 @@ const UserRolesTab = () => {
       db.getUsers().then(setUsers);
     });
   }, []);
-  const roles = ['member','vitza_helper','mod','cofounder','owner'];
-  const roleLabel = (r) => ({ member:'Member', vitza_helper:'Vitza Helper', mod:'Moderator', cofounder:'Co-Founder', owner:'Owner' }[r] || r);
+  const roles = ['member','vizta_helper','mod','cofounder','owner'];
+  const roleLabel = (r) => ({ member:'Member', vizta_helper:'Vizta Helper', mod:'Moderator', cofounder:'Co-Founder', owner:'Owner' }[r] || r);
   const changeRole = (username, role) => {
     updateUserRole(username, role);
     setUsers(prev => prev.map(u => u.username === username ? { ...u, role } : u));
@@ -164,11 +164,12 @@ const GiveCoinsTab = () => {
   );
 };
 
-/* ── VITZA LEAGUE TABS ─────────────────────────────────────── */
+/* ── VIZTA LEAGUE TABS ─────────────────────────────────────── */
 
 const LeaguePlayersTab = ({ prefix }) => {
-  const label = prefix === 'vitza' ? 'Vitza' : prefix.toUpperCase();
+  const label = prefix === 'vizta' ? 'Vizta' : prefix.toUpperCase();
   const [players, setPlayers] = useState([]);
+  const [playerSearch, setPlayerSearch] = useState('');
   const [form, setForm]       = useState(emptyPlayer);
   const [editing, setEditing] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
@@ -234,6 +235,17 @@ const LeaguePlayersTab = ({ prefix }) => {
               <input type={t} value={form[f]} onChange={e=>setForm({...form,[f]:e.target.value})} placeholder={l} style={SI} />
             </div>
           ))}
+          {/* Nickname + Roblox username side-by-side */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
+            <div className="form-field">
+              <label>Nickname</label>
+              <input type="text" value={form.nickname||''} onChange={e=>setForm({...form,nickname:e.target.value})} placeholder='e.g. "The Machine"' style={SI} />
+            </div>
+            <div className="form-field">
+              <label>Roblox Username</label>
+              <input type="text" value={form.roblox_username||''} onChange={e=>setForm({...form,roblox_username:e.target.value})} placeholder="e.g. coolplayer123" style={SI} />
+            </div>
+          </div>
           <div className="form-field">
             <label>Player Avatar Photo</label>
             <input type="file" accept="image/*" onChange={handleAvatarUpload} style={{ color:'#c0d0ff', padding:'8px 0' }} />
@@ -287,30 +299,60 @@ const LeaguePlayersTab = ({ prefix }) => {
         </div>
       </div>
       {loading ? <p style={{ color:'rgba(192,208,255,0.5)' }}>Loading...</p> : (
-        <div style={{ display:'grid', gap:'10px' }}>
-          {players.map(p => (
-            <div key={p.id} className="neon-card p-3" style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'10px' }}>
-              <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
-                {p.avatar_data ? <img src={p.avatar_data} alt={p.player_name} style={{ width:'44px', height:'44px', borderRadius:'6px', objectFit:'cover', border:'1px solid rgba(0,255,255,0.2)' }} /> : <div style={{ width:'44px', height:'44px', borderRadius:'6px', background:'rgba(0,255,255,0.1)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.4rem' }}>G</div>}
-                <div>
-                  <p style={{ margin:0, color:'var(--color-cyan)', fontWeight:700 }}>{p.player_name}</p>
-                  <p style={{ margin:'2px 0 0', fontSize:'0.8rem', color:'rgba(192,208,255,0.6)' }}>{p.team||'FA'} - {p.position||'--'} - OVR {p.overall}</p>
+        <>
+          {/* Player search */}
+          <div style={{ marginBottom:'12px' }}>
+            <input
+              type="text"
+              placeholder="Search players by name, team, or position..."
+              value={playerSearch}
+              onChange={e => setPlayerSearch(e.target.value)}
+              style={{ ...SI, maxWidth:'420px' }}
+            />
+          </div>
+          <div style={{ display:'grid', gap:'10px' }}>
+            {players
+              .filter(p => {
+                const q = playerSearch.toLowerCase();
+                return !q ||
+                  (p.player_name||'').toLowerCase().includes(q) ||
+                  (p.team||'').toLowerCase().includes(q) ||
+                  (p.position||'').toLowerCase().includes(q) ||
+                  (p.nickname||'').toLowerCase().includes(q);
+              })
+              .map(p => (
+                <div key={p.id} className="neon-card p-3" style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'10px' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
+                    {p.avatar_data ? <img src={p.avatar_data} alt={p.player_name} style={{ width:'44px', height:'44px', borderRadius:'6px', objectFit:'cover', border:'1px solid rgba(0,255,255,0.2)' }} /> : <div style={{ width:'44px', height:'44px', borderRadius:'6px', background:'rgba(0,255,255,0.1)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.4rem' }}>G</div>}
+                    <div>
+                      <p style={{ margin:0, color:'var(--color-cyan)', fontWeight:700 }}>{p.player_name}{p.nickname ? <span style={{ color:'rgba(192,208,255,0.45)', fontWeight:400, fontSize:'0.82rem', marginLeft:'6px' }}>"{p.nickname}"</span> : null}</p>
+                      <p style={{ margin:'2px 0 0', fontSize:'0.8rem', color:'rgba(192,208,255,0.6)' }}>{p.team||'FA'} · {p.position||'--'} · OVR {p.overall}{p.roblox_username ? <span style={{ color:'rgba(192,208,255,0.35)', marginLeft:'6px' }}>@{p.roblox_username}</span> : null}</p>
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', gap:'8px' }}>
+                    <button className="neon-button" style={{ padding:'6px 14px' }} onClick={() => startEdit(p)}>Edit</button>
+                    <button className="neon-button" style={{ padding:'6px 14px', borderColor:'#ff3333', color:'#ff3333' }} onClick={() => del(p.id)}>Delete</button>
+                  </div>
                 </div>
+              ))
+            }
+            {players.filter(p => {
+              const q = playerSearch.toLowerCase();
+              return !q || (p.player_name||'').toLowerCase().includes(q) || (p.team||'').toLowerCase().includes(q) || (p.position||'').toLowerCase().includes(q) || (p.nickname||'').toLowerCase().includes(q);
+            }).length === 0 && (
+              <div className="neon-card p-3">
+                <p style={{ color:'rgba(192,208,255,0.4)', textAlign:'center' }}>No players match "{playerSearch}"</p>
               </div>
-              <div style={{ display:'flex', gap:'8px' }}>
-                <button className="neon-button" style={{ padding:'6px 14px' }} onClick={() => startEdit(p)}>Edit</button>
-                <button className="neon-button" style={{ padding:'6px 14px', borderColor:'#ff3333', color:'#ff3333' }} onClick={() => del(p.id)}>Delete</button>
-              </div>
-            </div>
-          ))}
-        </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
 };
 
 const LeagueTeamsTab = ({ prefix }) => {
-  const label = prefix === 'vitza' ? 'Vitza' : prefix.toUpperCase();
+  const label = prefix === 'vizta' ? 'Vizta' : prefix.toUpperCase();
   const [teams, setTeams]   = useState([]);
   const [form, setForm]     = useState({ team_name:'', team_color:'#00ffff', logo_url:'' });
   const [editing, setEditing] = useState(null);
@@ -383,7 +425,7 @@ const LeagueTeamsTab = ({ prefix }) => {
 };
 
 const LeagueRostersTab = ({ prefix }) => {
-  const label = prefix === 'vitza' ? 'Vitza' : prefix.toUpperCase();
+  const label = prefix === 'vizta' ? 'Vizta' : prefix.toUpperCase();
   const [teams, setTeams]     = useState([]);
   const [players, setPlayers] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState(null);
@@ -469,7 +511,7 @@ const LeagueRostersTab = ({ prefix }) => {
 };
 
 const LeagueGamesTab = ({ prefix }) => {
-  const label = prefix === 'vitza' ? 'Vitza' : prefix.toUpperCase();
+  const label = prefix === 'vizta' ? 'Vizta' : prefix.toUpperCase();
   const [games, setGames]   = useState([]);
   const [teams, setTeams]   = useState([]);
   const [newGame, setNewGame] = useState({ home_team:'', away_team:'', game_date:'', home_score:0, away_score:0 });
@@ -549,7 +591,7 @@ const LeagueGamesTab = ({ prefix }) => {
 };
 
 const LeagueBoxScoresTab = ({ prefix }) => {
-  const label = prefix === 'vitza' ? 'Vitza' : prefix.toUpperCase();
+  const label = prefix === 'vizta' ? 'Vizta' : prefix.toUpperCase();
   const [bsGames, setBsGames]     = useState([]);
   const [boxScores, setBoxScores] = useState([]);
   const [players, setPlayers]     = useState([]);
@@ -707,7 +749,7 @@ const LeagueBoxScoresTab = ({ prefix }) => {
 };
 
 const LeagueGameFeedTab = ({ prefix }) => {
-  const label = prefix === 'vitza' ? 'Vitza' : prefix.toUpperCase();
+  const label = prefix === 'vizta' ? 'Vizta' : prefix.toUpperCase();
   const [games, setGames]   = useState([]);
   const [players, setPlayers] = useState([]);
   const [feed, setFeed]     = useState([]);
@@ -829,7 +871,7 @@ const LeagueGameFeedTab = ({ prefix }) => {
 };
 
 const LeagueHofTab = ({ prefix }) => {
-  const label = prefix === 'vitza' ? 'Vitza' : prefix.toUpperCase();
+  const label = prefix === 'vizta' ? 'Vizta' : prefix.toUpperCase();
   const [hofMembers, setHofMembers] = useState([]);
   const [players, setPlayers]       = useState([]);
   const [form, setForm] = useState({ player_name:'', year:new Date().getFullYear() });
@@ -881,10 +923,10 @@ const OwnerDashboard = ({ onExit }) => {
   const { logout, user } = useAuth();
   const role = user?.role;
   const isOwnerLevel  = ['owner','cofounder','mod'].includes(role);
-  const isVitzaHelper = role === 'vitza_helper';
+  const isViztaHelper = role === 'vizta_helper';
 
   const [activeTab, setActiveTab] = useState(
-    isOwnerLevel ? 'member-pages' : 'vitza-players'
+    isOwnerLevel ? 'member-pages' : 'vizta-players'
   );
 
   const renderContent = () => {
@@ -892,13 +934,13 @@ const OwnerDashboard = ({ onExit }) => {
       case 'member-pages':    return <MemberPagesTab />;
       case 'user-roles':      return <UserRolesTab />;
       case 'give-coins':      return <GiveCoinsTab />;
-      case 'vitza-players':   return <LeaguePlayersTab prefix="vitza" />;
-      case 'vitza-teams':     return <LeagueTeamsTab prefix="vitza" />;
-      case 'vitza-rosters':   return <LeagueRostersTab prefix="vitza" />;
-      case 'vitza-games':     return <LeagueGamesTab prefix="vitza" />;
-      case 'vitza-boxscores': return <LeagueBoxScoresTab prefix="vitza" />;
-      case 'vitza-feed':      return <LeagueGameFeedTab prefix="vitza" />;
-      case 'vitza-hof':       return <LeagueHofTab prefix="vitza" />;
+      case 'vizta-players':   return <LeaguePlayersTab prefix="vizta" />;
+      case 'vizta-teams':     return <LeagueTeamsTab prefix="vizta" />;
+      case 'vizta-rosters':   return <LeagueRostersTab prefix="vizta" />;
+      case 'vizta-games':     return <LeagueGamesTab prefix="vizta" />;
+      case 'vizta-boxscores': return <LeagueBoxScoresTab prefix="vizta" />;
+      case 'vizta-feed':      return <LeagueGameFeedTab prefix="vizta" />;
+      case 'vizta-hof':       return <LeagueHofTab prefix="vizta" />;
       default: return null;
     }
   };
@@ -929,17 +971,17 @@ const OwnerDashboard = ({ onExit }) => {
             </div>
           </div>
         )}
-        {(isOwnerLevel || isVitzaHelper) && (
+        {(isOwnerLevel || isViztaHelper) && (
           <div className="dashboard-section">
-            <div className="section-label">VITZA</div>
+            <div className="section-label">VIZTA</div>
             <div className="dashboard-tabs">
-              <Btn id="vitza-players"   label="Players" />
-              <Btn id="vitza-teams"     label="Teams" />
-              <Btn id="vitza-rosters"   label="Rosters" />
-              <Btn id="vitza-games"     label="Games" />
-              <Btn id="vitza-boxscores" label="Box Scores" />
-              <Btn id="vitza-feed"      label="Feed" />
-              <Btn id="vitza-hof"       label="HoF" />
+              <Btn id="vizta-players"   label="Players" />
+              <Btn id="vizta-teams"     label="Teams" />
+              <Btn id="vizta-rosters"   label="Rosters" />
+              <Btn id="vizta-games"     label="Games" />
+              <Btn id="vizta-boxscores" label="Box Scores" />
+              <Btn id="vizta-feed"      label="Feed" />
+              <Btn id="vizta-hof"       label="HoF" />
             </div>
           </div>
         )}

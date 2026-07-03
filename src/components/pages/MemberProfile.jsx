@@ -6,7 +6,7 @@ import * as lfm from '../../services/lastfmService';
 import './MemberProfile.css';
 
 const roleLabel = (role) => {
-  const map = { owner: 'Owner', cofounder: 'Co-Founder', mod: 'Moderator', vitza_helper: 'Vitza Helper', member: 'Member', guest: 'Guest' };
+  const map = { owner: 'Owner', cofounder: 'Co-Founder', mod: 'Moderator', vizta_helper: 'Vizta Helper', member: 'Member', guest: 'Guest' };
   return map[role] || role || 'Member';
 };
 
@@ -329,9 +329,9 @@ const MemberProfile = () => {
     });
   };
 
-  const addFavGame = (gameText) => {
+  const addFavGame = (gameText, isRoblox = false) => {
     if (!gameText.trim()) return;
-    const placeId     = parseRobloxPlaceId(gameText);
+    const placeId     = isRoblox ? parseRobloxPlaceId(gameText) : null;
     const displayText = placeId ? extractRobloxGameName(gameText) : gameText.trim();
     const newG = {
       id:       Date.now().toString(),
@@ -343,6 +343,7 @@ const MemberProfile = () => {
     persistFavGames([...favGames, newG]);
     setNewGameNote('');
     setShowAddGame(false);
+    if (addGameInputRef.current) addGameInputRef.current.value = '';
   };
 
   const removeFavGame = (id) => {
@@ -437,11 +438,12 @@ const MemberProfile = () => {
   ].filter((s) => profile[s.key]);
 
   const TABS = [
-    { id: 'about',     label: 'About'      },
-    { id: 'music',     label: 'Music'      },
-    { id: 'favgames',  label: 'Fav Games'  },
-    { id: 'teams',     label: 'Teams'      },
-    { id: 'watchlist', label: 'Watch List' },
+    { id: 'about',       label: 'About'        },
+    { id: 'music',       label: 'Music'        },
+    { id: 'favgames',    label: 'Fav Games'    },
+    { id: 'robloxgames', label: 'Roblox Games' },
+    { id: 'teams',       label: 'Teams'        },
+    { id: 'watchlist',   label: 'Watch List'   },
   ];
 
   const SI = { padding: '10px', background: 'rgba(0,255,255,0.05)', border: '1px solid rgba(0,255,255,0.2)', color: '#c0d0ff', borderRadius: '6px', width: '100%', marginBottom: '8px' };
@@ -557,7 +559,7 @@ const MemberProfile = () => {
           </div>
         )}
 
-        {/* FAV GAMES */}
+        {/* FAV GAMES — sports / baseball events only */}
         {activeTab === 'favgames' && (
           <div className="tw-section">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
@@ -572,9 +574,58 @@ const MemberProfile = () => {
                 <input
                   ref={addGameInputRef}
                   type="text"
-                  placeholder="Roblox game URL or event name (e.g. Yankees vs Red Sox)"
+                  placeholder="Game or event name (e.g. Yankees vs Red Sox, April 20)"
                   style={SI}
-                  onKeyDown={(e) => { if (e.key === 'Enter') addFavGame(e.target.value); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') addFavGame(e.target.value, false); }}
+                />
+                <input
+                  type="text"
+                  placeholder="Why is it your favorite? (optional)"
+                  value={newGameNote}
+                  onChange={(e) => setNewGameNote(e.target.value)}
+                  style={SI}
+                />
+                <button className="neon-button" style={{ width: '100%' }} onClick={() => {
+                  if (addGameInputRef.current) addFavGame(addGameInputRef.current.value, false);
+                }}>Add to Favorites</button>
+              </div>
+            )}
+
+            {favGames.filter(g => !g.placeId).length === 0 ? (
+              <div className="tw-empty">No favorite games yet. Add your most memorable games or events!</div>
+            ) : (
+              favGames.filter(g => !g.placeId).map(g => (
+                <div key={g.id} className="tw-fav-game">
+                  <div className="tw-fav-game-title">{g.text}</div>
+                  {g.note && <div className="tw-fav-game-note">"{g.note}"</div>}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                    <span className="tw-fav-game-meta">{g.date}</span>
+                    <button className="tw-fav-game-remove" onClick={() => removeFavGame(g.id)}>Remove</button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* ROBLOX GAMES — Roblox links with thumbnails */}
+        {activeTab === 'robloxgames' && (
+          <div className="tw-section">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <div className="tw-section-title" style={{ margin: 0 }}>Favorite Roblox Games</div>
+              <button className="neon-button" style={{ padding: '5px 14px', fontSize: '0.8rem' }} onClick={() => setShowAddGame(s => !s)}>
+                {showAddGame ? 'Cancel' : '+ Add Game'}
+              </button>
+            </div>
+
+            {showAddGame && (
+              <div style={{ marginBottom: '16px', padding: '14px', background: 'rgba(0,255,255,0.04)', borderRadius: '10px', border: '1px solid rgba(0,255,255,0.12)' }}>
+                <input
+                  ref={addGameInputRef}
+                  type="text"
+                  placeholder="Paste a Roblox game URL (e.g. roblox.com/games/12345)"
+                  style={SI}
+                  onKeyDown={(e) => { if (e.key === 'Enter') addFavGame(e.target.value, true); }}
                 />
                 <input
                   type="text"
@@ -584,39 +635,37 @@ const MemberProfile = () => {
                   style={SI}
                 />
                 <p style={{ margin: '0 0 8px', fontSize: '0.72rem', color: 'rgba(192,208,255,0.4)' }}>
-                  Paste a Roblox game URL to auto-fetch its thumbnail, or type any game/event name.
+                  Paste a Roblox game URL to auto-fetch its thumbnail.
                 </p>
                 <button className="neon-button" style={{ width: '100%' }} onClick={() => {
-                  if (addGameInputRef.current) addFavGame(addGameInputRef.current.value);
-                }}>Add to Favorites</button>
+                  if (addGameInputRef.current) addFavGame(addGameInputRef.current.value, true);
+                }}>Add Roblox Game</button>
               </div>
             )}
 
-            {favGames.length === 0 ? (
-              <div className="tw-empty">No favorite games yet. Add your most memorable games or Roblox links!</div>
+            {favGames.filter(g => g.placeId).length === 0 ? (
+              <div className="tw-empty">No Roblox games yet. Paste a Roblox game URL to add one!</div>
             ) : (
-              favGames.map(g => (
-                <div key={g.id} className="tw-fav-game">
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                    {g.placeId && (
-                      <img
-                        src={robloxThumbUrl(g.placeId)}
-                        alt={g.text}
-                        style={{ width: '54px', height: '54px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(0,255,255,0.15)' }}
-                        onError={(e) => { e.target.style.display = 'none'; }}
-                      />
-                    )}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="tw-fav-game-title">{g.text}</div>
-                      {g.note && <div className="tw-fav-game-note">"{g.note}"</div>}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                        <span className="tw-fav-game-meta">{g.date}</span>
-                        <button className="tw-fav-game-remove" onClick={() => removeFavGame(g.id)}>Remove</button>
-                      </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px' }}>
+                {favGames.filter(g => g.placeId).map(g => (
+                  <div key={g.id} style={{ position: 'relative', background: 'rgba(0,255,255,0.04)', border: '1px solid rgba(0,255,255,0.1)', borderRadius: '10px', overflow: 'hidden' }}>
+                    <img
+                      src={robloxThumbUrl(g.placeId)}
+                      alt={g.text}
+                      style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }}
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                    <div style={{ padding: '8px' }}>
+                      <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--color-cyan)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.text}</div>
+                      {g.note && <div style={{ fontSize: '0.7rem', color: 'rgba(192,208,255,0.5)', marginTop: '2px', fontStyle: 'italic' }}>"{g.note}"</div>}
                     </div>
+                    <button onClick={() => removeFavGame(g.id)}
+                      style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.6)', border: 'none', color: 'rgba(255,80,80,0.8)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.7rem', padding: '2px 6px' }}>
+                      x
+                    </button>
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
         )}

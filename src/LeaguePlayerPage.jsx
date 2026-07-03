@@ -134,7 +134,7 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
     );
   }
 
-  const boxScores    = JSON.parse(localStorage.getItem(`${(leaguePrefix || 'vitza')}_box_scores`) || '[]');
+  const boxScores    = JSON.parse(localStorage.getItem(`${(leaguePrefix || 'vizta')}_box_scores`) || '[]');
   const playerScores = boxScores.filter(b => b.player_id === player.id);
   const gamesPlayed  = playerScores.length;
   const gamesPitched = playerScores.filter(b => safe(b.innings_pitched) > 0).length;
@@ -293,7 +293,23 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
           </div>
 
           <div className="card-content">
-            <h2 className="card-name">{player.player_name}</h2>
+            {/* Nickname (large) + real name below it */}
+            {player.nickname ? (
+              <>
+                <h2 className="card-name">{player.nickname}</h2>
+                <div style={{ fontSize: '0.82rem', color: 'rgba(192,208,255,0.45)', marginBottom: '4px', marginTop: '-6px', fontStyle: 'italic' }}>
+                  {player.player_name}
+                </div>
+              </>
+            ) : (
+              <h2 className="card-name">{player.player_name}</h2>
+            )}
+            {/* Roblox username in small print */}
+            {player.roblox_username && (
+              <div style={{ fontSize: '0.75rem', color: 'rgba(192,208,255,0.35)', marginBottom: '6px' }}>
+                @{player.roblox_username} on Roblox
+              </div>
+            )}
             <div className="card-team">{player.team || 'Free Agent'}</div>
             <div className="card-position">{player.position || '—'}</div>
 

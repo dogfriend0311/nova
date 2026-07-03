@@ -12,13 +12,18 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
+  // Online heartbeat: update every 30s while logged in.
+  // Writes to Supabase (via db.updateLastSeen) so ANY device can see who's
+  // online — not just this browser's own localStorage.
   useEffect(() => {
     if (!user || user.role === 'guest') return;
+
     const updateOnline = () => {
-      const online = JSON.parse(localStorage.getItem('nova_online') || '{}');
-      online[user.username] = Date.now();
-      localStorage.setItem('nova_online', JSON.stringify(online));
+      import('../services/db').then(({ default: db }) => {
+        db.updateLastSeen(user.username).catch(() => {});
+      }).catch(() => {});
     };
+
     updateOnline();
     const interval = setInterval(updateOnline, 30000);
     return () => clearInterval(interval);
@@ -45,7 +50,7 @@ export const AuthProvider = ({ children }) => {
       setUser(userData);
       localStorage.setItem('nova_user', JSON.stringify(userData));
       // Async: pull the latest role from Supabase so cross-device role assignments
-      // (e.g. owner sets vitza_helper on their computer) take effect immediately.
+      // (e.g. owner sets vizta_helper on their computer) take effect immediately.
       import('../services/db').then(({ default: db }) => {
         db.getUsers().then(supaUsers => {
           const supaUser = supaUsers.find(u => u.username === username);
@@ -121,10 +126,10 @@ export const AuthProvider = ({ children }) => {
   const hasPermission = (requiredRole) => {
     if (!user) return false;
     const permissions = {
-      owner:         ['owner', 'cofounder', 'mod', 'vitza_helper', 'member'],
-      cofounder:     ['cofounder', 'mod', 'vitza_helper', 'member'],
-      mod:           ['mod', 'vitza_helper', 'member'],
-      vitza_helper:  ['vitza_helper', 'member'],
+      owner:         ['owner', 'cofounder', 'mod', 'vizta_helper', 'member'],
+      cofounder:     ['cofounder', 'mod', 'vizta_helper', 'member'],
+      mod:           ['mod', 'vizta_helper', 'member'],
+      vizta_helper:  ['vizta_helper', 'member'],
       member:        ['member'],
       guest:         [],
     };
@@ -133,7 +138,7 @@ export const AuthProvider = ({ children }) => {
 
   const canAccessDashboard = () => {
     if (!user) return false;
-    return ['owner', 'cofounder', 'mod', 'vitza_helper'].includes(user.role);
+    return ['owner', 'cofounder', 'mod', 'vizta_helper'].includes(user.role);
   };
 
   return (
