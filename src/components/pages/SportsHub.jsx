@@ -87,8 +87,8 @@ const HighlightsPanel = ({ gamePk }) => {
           <div style={{ maxWidth:'900px', width:'100%' }} onClick={e => e.stopPropagation()}>
             <video src={playing.videoUrl} controls autoPlay style={{ width:'100%', borderRadius:'10px', background:'#000' }} />
             <div style={{ marginTop:'10px', color:'#e0e8ff', fontWeight:700 }}>{playing.title}</div>
-            {playing.description && <div style={{ marginTop:'4px', fontSize:'0.85rem', color:'rgba(192,208,255,0.55)' }}>{playing.description}</div>}
-            <button onClick={() => setPlaying(null)} style={{ marginTop:'14px', background:'none', border:'1px solid rgba(192,208,255,0.3)', color:'rgba(192,208,255,0.6)', borderRadius:'6px', padding:'6px 16px', cursor:'pointer', fontSize:'0.82rem' }}>Close</button>
+            {playing.description && <div style={{ marginTop:'4px', fontSize:'0.85rem', color:'rgba(158, 165, 196,0.55)' }}>{playing.description}</div>}
+            <button onClick={() => setPlaying(null)} style={{ marginTop:'14px', background:'none', border:'1px solid rgba(158, 165, 196,0.3)', color:'rgba(158, 165, 196,0.6)', borderRadius:'6px', padding:'6px 16px', cursor:'pointer', fontSize:'0.82rem' }}>Close</button>
           </div>
         </div>
       )}
@@ -97,7 +97,7 @@ const HighlightsPanel = ({ gamePk }) => {
           <div key={clip.id}
             onClick={() => setPlaying(clip)}
             style={{ borderRadius:'10px', overflow:'hidden', background:'rgba(10,10,30,0.9)', border:'1px solid rgba(100,120,200,0.2)', cursor:'pointer', transition:'border-color 0.18s, transform 0.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor='rgba(0,200,255,0.45)'; e.currentTarget.style.transform='translateY(-2px)'; }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor='rgba(94, 129, 244,0.45)'; e.currentTarget.style.transform='translateY(-2px)'; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(100,120,200,0.2)'; e.currentTarget.style.transform=''; }}
           >
             <div style={{ position:'relative', width:'100%', aspectRatio:'16/9', background:'rgba(5,5,20,0.9)', overflow:'hidden' }}>
@@ -105,7 +105,7 @@ const HighlightsPanel = ({ gamePk }) => {
                 ? <img src={clip.thumb} alt={clip.title} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} />
                 : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'2.5rem', opacity:0.3 }}>play</div>}
               <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.25)' }}>
-                <div style={{ width:'44px', height:'44px', borderRadius:'50%', background:'rgba(0,200,255,0.85)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.1rem', boxShadow:'0 2px 18px rgba(0,200,255,0.5)' }}>
+                <div style={{ width:'44px', height:'44px', borderRadius:'50%', background:'rgba(94, 129, 244,0.85)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.1rem', boxShadow:'0 2px 18px rgba(94, 129, 244,0.5)' }}>
                   play
                 </div>
               </div>
@@ -116,7 +116,7 @@ const HighlightsPanel = ({ gamePk }) => {
               )}
             </div>
             <div style={{ padding:'10px 12px 12px' }}>
-              <p style={{ margin:0, fontSize:'0.82rem', fontWeight:700, color:'rgba(192,208,255,0.92)', lineHeight:1.35, display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>
+              <p style={{ margin:0, fontSize:'0.82rem', fontWeight:700, color:'rgba(158, 165, 196,0.92)', lineHeight:1.35, display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' }}>
                 {clip.title}
               </p>
             </div>
@@ -199,8 +199,8 @@ const ScoreCard = ({ game, onSelectGame }) => {
         {starred ? 'star' : 'star-outline'}
       </button>
       {showNote && (
-        <div style={{ position:'absolute', top:'30px', right:'6px', zIndex:20, background:'rgba(5,5,20,0.98)', border:'1px solid rgba(0,200,255,0.4)', borderRadius:'8px', padding:'10px 12px', width:'220px', boxShadow:'0 8px 32px rgba(0,0,0,0.5)' }} onClick={e=>e.stopPropagation()}>
-          <p style={{ margin:'0 0 8px', fontSize:'0.78rem', color:'rgba(192,208,255,0.7)', fontWeight:600 }}>Add a note (optional)</p>
+        <div style={{ position:'absolute', top:'30px', right:'6px', zIndex:20, background:'rgba(5,5,20,0.98)', border:'1px solid rgba(94, 129, 244,0.4)', borderRadius:'8px', padding:'10px 12px', width:'220px', boxShadow:'0 8px 32px rgba(0,0,0,0.5)' }} onClick={e=>e.stopPropagation()}>
+          <p style={{ margin:'0 0 8px', fontSize:'0.78rem', color:'rgba(158, 165, 196,0.7)', fontWeight:600 }}>Add a note (optional)</p>
           <input
             autoFocus
             type="text"
@@ -208,11 +208,11 @@ const ScoreCard = ({ game, onSelectGame }) => {
             onChange={e=>setNoteText(e.target.value)}
             onKeyDown={e=>{ if(e.key==='Enter') confirmStar(e); if(e.key==='Escape'){setShowNote(false);setNoteText('');} }}
             placeholder="e.g. Amazing comeback game"
-            style={{ width:'100%', padding:'6px 8px', background:'rgba(0,200,255,0.06)', border:'1px solid rgba(0,200,255,0.3)', color:'#c0d0ff', borderRadius:'5px', fontSize:'0.8rem', boxSizing:'border-box' }}
+            style={{ width:'100%', padding:'6px 8px', background:'rgba(94, 129, 244,0.06)', border:'1px solid rgba(94, 129, 244,0.3)', color:'#e2e5f0', borderRadius:'5px', fontSize:'0.8rem', boxSizing:'border-box' }}
           />
           <div style={{ display:'flex', gap:'6px', marginTop:'8px' }}>
-            <button onClick={confirmStar} style={{ flex:1, padding:'5px', background:'rgba(0,200,255,0.15)', border:'1px solid rgba(0,200,255,0.4)', color:'#00c8ff', borderRadius:'5px', cursor:'pointer', fontSize:'0.78rem', fontWeight:700 }}>Save</button>
-            <button onClick={e=>{e.stopPropagation();setShowNote(false);setNoteText('');}} style={{ flex:1, padding:'5px', background:'transparent', border:'1px solid rgba(192,208,255,0.15)', color:'rgba(192,208,255,0.5)', borderRadius:'5px', cursor:'pointer', fontSize:'0.78rem' }}>Cancel</button>
+            <button onClick={confirmStar} style={{ flex:1, padding:'5px', background:'rgba(94, 129, 244,0.15)', border:'1px solid rgba(94, 129, 244,0.4)', color:'#5e81f4', borderRadius:'5px', cursor:'pointer', fontSize:'0.78rem', fontWeight:700 }}>Save</button>
+            <button onClick={e=>{e.stopPropagation();setShowNote(false);setNoteText('');}} style={{ flex:1, padding:'5px', background:'transparent', border:'1px solid rgba(158, 165, 196,0.15)', color:'rgba(158, 165, 196,0.5)', borderRadius:'5px', cursor:'pointer', fontSize:'0.78rem' }}>Cancel</button>
           </div>
         </div>
       )}
@@ -293,19 +293,19 @@ const MiLBGameDetailView = ({ game, onBack }) => {
     fetchMiLBGameDetail(game.id).then(setDetail).catch(e=>setError(e.message)).finally(()=>setLoading(false));
   }, [game.id]);
 
-  const thS = { padding:'6px 10px', color:'rgba(192,208,255,0.45)', fontSize:'0.72rem', fontWeight:'700', textTransform:'uppercase', letterSpacing:'0.08em', borderBottom:'1px solid rgba(100,120,200,0.18)', textAlign:'center', whiteSpace:'nowrap' };
-  const tdS = { padding:'6px 10px', textAlign:'center', color:'rgba(192,208,255,0.82)', fontSize:'0.82rem', borderBottom:'1px solid rgba(100,120,200,0.07)' };
+  const thS = { padding:'6px 10px', color:'rgba(158, 165, 196,0.45)', fontSize:'0.72rem', fontWeight:'700', textTransform:'uppercase', letterSpacing:'0.08em', borderBottom:'1px solid rgba(100,120,200,0.18)', textAlign:'center', whiteSpace:'nowrap' };
+  const tdS = { padding:'6px 10px', textAlign:'center', color:'rgba(158, 165, 196,0.82)', fontSize:'0.82rem', borderBottom:'1px solid rgba(100,120,200,0.07)' };
 
   return (
     <div className="sh-detail-view">
       <button className="sh-back-btn" onClick={onBack}>Back to Scores</button>
       <div className="sh-detail-header" style={{ textAlign:'center', marginBottom:'20px' }}>
         <div style={{ display:'flex', justifyContent:'center', alignItems:'center', gap:'16px', flexWrap:'wrap', marginBottom:'6px' }}>
-          <span style={{ fontSize:'1rem', fontWeight:'700', color:'rgba(192,208,255,0.9)' }}>{game.awayTeam.name}</span>
+          <span style={{ fontSize:'1rem', fontWeight:'700', color:'rgba(158, 165, 196,0.9)' }}>{game.awayTeam.name}</span>
           {game.status!=='pre' && <span style={{ fontSize:'1.6rem', fontWeight:'800', color:'var(--color-cyan)', letterSpacing:'2px' }}>{game.awayTeam.score??'--'} - {game.homeTeam.score??'--'}</span>}
-          <span style={{ fontSize:'1rem', fontWeight:'700', color:'rgba(192,208,255,0.9)' }}>{game.homeTeam.name}</span>
+          <span style={{ fontSize:'1rem', fontWeight:'700', color:'rgba(158, 165, 196,0.9)' }}>{game.homeTeam.name}</span>
         </div>
-        <div style={{ fontSize:'0.82rem', color:'rgba(192,208,255,0.45)' }}>{game.statusDetail}</div>
+        <div style={{ fontSize:'0.82rem', color:'rgba(158, 165, 196,0.45)' }}>{game.statusDetail}</div>
       </div>
       {loading && <div className="sh-loading"><div className="sh-spinner" /></div>}
       {error && <div className="sh-error">Could not load box score: {error}</div>}
@@ -315,7 +315,7 @@ const MiLBGameDetailView = ({ game, onBack }) => {
           <>
             {ls?.innings?.length > 0 ? (
               <div style={{ overflowX:'auto', marginBottom:'28px' }}>
-                <h4 style={{ fontSize:'0.78rem', color:'rgba(192,208,255,0.4)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:'8px' }}>Linescore</h4>
+                <h4 style={{ fontSize:'0.78rem', color:'rgba(158, 165, 196,0.4)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:'8px' }}>Linescore</h4>
                 <table style={{ borderCollapse:'collapse', minWidth:'500px' }}>
                   <thead><tr>
                     <th style={{ ...thS, textAlign:'left', minWidth:'70px' }}>Team</th>
@@ -326,7 +326,7 @@ const MiLBGameDetailView = ({ game, onBack }) => {
                   <tbody>
                     {[{label:game.awayTeam.abbr,k:'away'},{label:game.homeTeam.abbr,k:'home'}].map(({label,k})=>(
                       <tr key={k}>
-                        <td style={{ ...tdS, textAlign:'left', fontWeight:'700', color:'rgba(192,208,255,0.9)' }}>{label}</td>
+                        <td style={{ ...tdS, textAlign:'left', fontWeight:'700', color:'rgba(158, 165, 196,0.9)' }}>{label}</td>
                         {ls.innings.map(inn=><td key={inn.num} style={tdS}>{inn[k]?.runs??'--'}</td>)}
                         <td style={{ ...tdS, borderLeft:'1px solid rgba(100,120,200,0.3)', fontWeight:'700' }}>{ls.teams?.[k]?.runs??'--'}</td>
                         <td style={tdS}>{ls.teams?.[k]?.hits??'--'}</td>
@@ -337,7 +337,7 @@ const MiLBGameDetailView = ({ game, onBack }) => {
                 </table>
               </div>
             ) : (
-              <div style={{ color:'rgba(192,208,255,0.4)', fontSize:'0.85rem', marginBottom:'20px', padding:'20px', textAlign:'center', background:'rgba(255,255,255,0.02)', borderRadius:'8px' }}>
+              <div style={{ color:'rgba(158, 165, 196,0.4)', fontSize:'0.85rem', marginBottom:'20px', padding:'20px', textAlign:'center', background:'rgba(255,255,255,0.02)', borderRadius:'8px' }}>
                 {game.status==='pre'?'Game has not started yet.':'Linescore not available.'}
               </div>
             )}
@@ -358,7 +358,7 @@ const MiLBGameDetailView = ({ game, onBack }) => {
                   {pitchers.length>0&&<div style={{ overflowX:'auto' }}>
                     <table style={{ borderCollapse:'collapse', width:'100%' }}>
                       <thead><tr><th style={{ ...thS, textAlign:'left', minWidth:'140px' }}>Pitcher</th>{['IP','H','R','ER','BB','K','Dec'].map(h=><th key={h} style={thS}>{h}</th>)}</tr></thead>
-                      <tbody>{pitchers.map((p,i)=>{const pt=p.stats?.pitching||{};return(<tr key={i}><td style={{ ...tdS, textAlign:'left' }}>{p.person?.fullName}</td><td style={tdS}>{pt.inningsPitched??'--'}</td><td style={tdS}>{pt.hits??'--'}</td><td style={tdS}>{pt.runs??'--'}</td><td style={tdS}>{pt.earnedRuns??'--'}</td><td style={tdS}>{pt.baseOnBalls??'--'}</td><td style={tdS}>{pt.strikeOuts??'--'}</td><td style={{ ...tdS, color:'rgba(192,208,255,0.5)', fontStyle:'italic' }}>{pt.note||'--'}</td></tr>);})}</tbody>
+                      <tbody>{pitchers.map((p,i)=>{const pt=p.stats?.pitching||{};return(<tr key={i}><td style={{ ...tdS, textAlign:'left' }}>{p.person?.fullName}</td><td style={tdS}>{pt.inningsPitched??'--'}</td><td style={tdS}>{pt.hits??'--'}</td><td style={tdS}>{pt.runs??'--'}</td><td style={tdS}>{pt.earnedRuns??'--'}</td><td style={tdS}>{pt.baseOnBalls??'--'}</td><td style={tdS}>{pt.strikeOuts??'--'}</td><td style={{ ...tdS, color:'rgba(158, 165, 196,0.5)', fontStyle:'italic' }}>{pt.note||'--'}</td></tr>);})}</tbody>
                     </table>
                   </div>}
                 </div>
@@ -418,8 +418,8 @@ const GameDetailView = ({ game, sport, onBack }) => {
     fetchGameSummary(sport, game.id).then(raw=>setSummary(normalizeGameSummary(raw))).catch(e=>setError(e.message)).finally(()=>setLoading(false));
   }, [game.id, sport]);
 
-  const thStyle = { padding:'8px 10px', color:'rgba(192,208,255,0.5)', fontSize:'0.75rem', fontWeight:'700', textTransform:'uppercase', letterSpacing:'0.08em', borderBottom:'1px solid rgba(100,120,200,0.18)', textAlign:'center' };
-  const tdStyle = { padding:'8px 10px', textAlign:'center', color:'rgba(192,208,255,0.85)', fontSize:'0.85rem', borderBottom:'1px solid rgba(100,120,200,0.07)' };
+  const thStyle = { padding:'8px 10px', color:'rgba(158, 165, 196,0.5)', fontSize:'0.75rem', fontWeight:'700', textTransform:'uppercase', letterSpacing:'0.08em', borderBottom:'1px solid rgba(100,120,200,0.18)', textAlign:'center' };
+  const tdStyle = { padding:'8px 10px', textAlign:'center', color:'rgba(158, 165, 196,0.85)', fontSize:'0.85rem', borderBottom:'1px solid rgba(100,120,200,0.07)' };
 
   if (showPbp) return (
     <PlayByPlay
@@ -433,7 +433,7 @@ const GameDetailView = ({ game, sport, onBack }) => {
     <div className="sh-detail-view">
       <div style={{ display:'flex', gap:'10px', marginBottom:'20px', flexWrap:'wrap' }}>
         <button className="neon-button" onClick={onBack}>Back to Scores</button>
-        <button className="neon-button" onClick={()=>setShowPbp(true)} style={{ borderColor:'rgba(0,255,255,0.5)', color:'var(--color-cyan)' }}>
+        <button className="neon-button" onClick={()=>setShowPbp(true)} style={{ borderColor:'rgba(94, 129, 244,0.5)', color:'var(--color-cyan)' }}>
           Live Play-by-Play
         </button>
       </div>
@@ -521,7 +521,7 @@ const GameDetailView = ({ game, sport, onBack }) => {
                       <tbody>
                         {summary.teamStats[0].stats.slice(0,12).map((s,i)=>{
                           const s2=summary.teamStats[1].stats[i];
-                          return(<tr key={i}><td style={{ ...tdStyle, color:'rgba(192,208,255,0.5)', fontSize:'0.78rem' }}>{s.label}</td><td style={tdStyle}>{s.value}</td><td style={tdStyle}>{s2?.value||'--'}</td></tr>);
+                          return(<tr key={i}><td style={{ ...tdStyle, color:'rgba(158, 165, 196,0.5)', fontSize:'0.78rem' }}>{s.label}</td><td style={tdStyle}>{s.value}</td><td style={tdStyle}>{s2?.value||'--'}</td></tr>);
                         })}
                       </tbody>
                     </table>
@@ -536,7 +536,7 @@ const GameDetailView = ({ game, sport, onBack }) => {
                     {group.categories.map((cat,ci)=>(
                       cat.athletes.length>0&&(
                         <div key={ci} style={{ marginBottom:'16px' }}>
-                          <h4 style={{ fontSize:'0.8rem', color:'rgba(192,208,255,0.45)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:'8px' }}>{cat.name}</h4>
+                          <h4 style={{ fontSize:'0.8rem', color:'rgba(158, 165, 196,0.45)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:'8px' }}>{cat.name}</h4>
                           <div style={{ overflowX:'auto' }}>
                             <table style={{ width:'100%', borderCollapse:'collapse', minWidth:`${200+cat.keys.length*60}px` }}>
                               <thead><tr>
@@ -549,8 +549,8 @@ const GameDetailView = ({ game, sport, onBack }) => {
                                     <td style={{ ...tdStyle, textAlign:'left' }}>
                                       <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
                                         {a.photo&&<img src={a.photo} alt={a.name} style={{ width:'26px', height:'26px', borderRadius:'50%', objectFit:'cover', flexShrink:0 }} />}
-                                        <span style={{ color:'rgba(192,208,255,0.9)' }}>{a.name}</span>
-                                        {a.position&&<span style={{ fontSize:'0.72rem', color:'rgba(192,208,255,0.35)' }}>{a.position}</span>}
+                                        <span style={{ color:'rgba(158, 165, 196,0.9)' }}>{a.name}</span>
+                                        {a.position&&<span style={{ fontSize:'0.72rem', color:'rgba(158, 165, 196,0.35)' }}>{a.position}</span>}
                                       </div>
                                     </td>
                                     {a.stats.map((v,vi)=><td key={vi} style={tdStyle}>{v||'--'}</td>)}
@@ -613,14 +613,14 @@ const PlayerSearchPanel = ({ sport }) => {
     finally { setStatsLoading(false); }
   };
 
-  const thS={padding:'7px 10px',color:'rgba(192,208,255,0.45)',fontSize:'0.72rem',fontWeight:'700',textTransform:'uppercase',letterSpacing:'0.08em',borderBottom:'1px solid rgba(100,120,200,0.18)',textAlign:'center'};
-  const tdS={padding:'7px 10px',textAlign:'center',color:'rgba(192,208,255,0.82)',fontSize:'0.83rem',borderBottom:'1px solid rgba(100,120,200,0.07)'};
+  const thS={padding:'7px 10px',color:'rgba(158, 165, 196,0.45)',fontSize:'0.72rem',fontWeight:'700',textTransform:'uppercase',letterSpacing:'0.08em',borderBottom:'1px solid rgba(100,120,200,0.18)',textAlign:'center'};
+  const tdS={padding:'7px 10px',textAlign:'center',color:'rgba(158, 165, 196,0.82)',fontSize:'0.83rem',borderBottom:'1px solid rgba(100,120,200,0.07)'};
 
   return (
     <div className="sh-players-panel">
       <div className="sh-players-header">
         <h3 className="gradient-text-cyan">Player Lookup</h3>
-        <p style={{ color:'rgba(192,208,255,0.5)', fontSize:'0.85rem', marginTop:'6px' }}>Search by player name or team{sport==='cfb'?' (first search loads all rosters ~10s)':''}</p>
+        <p style={{ color:'rgba(158, 165, 196,0.5)', fontSize:'0.85rem', marginTop:'6px' }}>Search by player name or team{sport==='cfb'?' (first search loads all rosters ~10s)':''}</p>
       </div>
       <form className="sh-search-form" onSubmit={handleSearch}>
         <input className="sh-search-input" type="text" placeholder="Search player or team name..." value={query} onChange={e=>setQuery(e.target.value)} />
@@ -629,7 +629,7 @@ const PlayerSearchPanel = ({ sport }) => {
       {error && <div className="sh-error" style={{ marginTop:'14px' }}>{error}</div>}
       {results.length>0 && (
         <div className="sh-search-results">
-          <p style={{ fontSize:'0.78rem', color:'rgba(192,208,255,0.4)', marginBottom:'10px' }}>{results.length} result{results.length!==1?'s':''} found</p>
+          <p style={{ fontSize:'0.78rem', color:'rgba(158, 165, 196,0.4)', marginBottom:'10px' }}>{results.length} result{results.length!==1?'s':''} found</p>
           {results.map(athlete=>(
             <div key={athlete.id} className="sh-athlete-result">
               <button className={`sh-athlete-btn ${selectedId===athlete.id?'selected':''}`} onClick={()=>handleSelectAthlete(athlete)}>
@@ -652,7 +652,7 @@ const PlayerSearchPanel = ({ sport }) => {
                           {playerData.profile.headshot?.href && <img src={playerData.profile.headshot.href} alt={playerData.profile.displayName} className="sh-profile-photo" />}
                           <div className="sh-profile-info">
                             <h4 style={{ color:'var(--color-cyan)', margin:'0 0 6px', fontSize:'1rem' }}>{playerData.profile.displayName}</h4>
-                            {playerData.profile.team?.displayName && <p style={{ margin:'0 0 4px', color:'rgba(192,208,255,0.7)', fontSize:'0.85rem' }}>{playerData.profile.team.displayName}</p>}
+                            {playerData.profile.team?.displayName && <p style={{ margin:'0 0 4px', color:'rgba(158, 165, 196,0.7)', fontSize:'0.85rem' }}>{playerData.profile.team.displayName}</p>}
                             <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', marginTop:'6px' }}>
                               {playerData.profile.position?.displayName && <span className="sh-profile-badge">{playerData.profile.position.displayName}</span>}
                               {playerData.profile.jersey && <span className="sh-profile-badge">#{playerData.profile.jersey}</span>}
@@ -663,10 +663,10 @@ const PlayerSearchPanel = ({ sport }) => {
                       )}
                       {playerData.statsCat.length>0 ? (
                         <div style={{ marginTop:'16px' }}>
-                          <h4 style={{ fontSize:'0.8rem', color:'rgba(192,208,255,0.45)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:'12px' }}>Stats</h4>
+                          <h4 style={{ fontSize:'0.8rem', color:'rgba(158, 165, 196,0.45)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:'12px' }}>Stats</h4>
                           {playerData.statsCat.slice(0,1).map((cat,ci)=>(
                             <div key={ci} style={{ marginBottom:'16px' }}>
-                              <h5 style={{ fontSize:'0.75rem', color:'rgba(192,208,255,0.35)', marginBottom:'8px' }}>{cat.displayName||cat.name}</h5>
+                              <h5 style={{ fontSize:'0.75rem', color:'rgba(158, 165, 196,0.35)', marginBottom:'8px' }}>{cat.displayName||cat.name}</h5>
                               <div style={{ overflowX:'auto' }}>
                                 <table style={{ width:'100%', borderCollapse:'collapse' }}>
                                   <thead><tr><th style={thS}>Year</th>{(cat.labels||[]).map((lbl,li)=><th key={li} style={thS}>{lbl}</th>)}</tr></thead>
@@ -686,7 +686,7 @@ const PlayerSearchPanel = ({ sport }) => {
                             </div>
                           ))}
                         </div>
-                      ) : <p style={{ color:'rgba(192,208,255,0.4)', fontSize:'0.85rem', marginTop:'14px' }}>No stats available.</p>}
+                      ) : <p style={{ color:'rgba(158, 165, 196,0.4)', fontSize:'0.85rem', marginTop:'14px' }}>No stats available.</p>}
                     </>
                   )}
                 </div>
@@ -861,7 +861,7 @@ const SportsHub = ({ initialSport }) => {
           }}>Next</button>
           {selectedDate && <button className="neon-button" style={{ padding:'5px 12px', fontSize:'0.8rem' }} onClick={()=>{setSelectedDate('');setRefreshKey(k=>k+1);}}>Today</button>}
           <input type="date" value={selectedDate} onChange={e=>{setSelectedDate(e.target.value);setRefreshKey(k=>k+1);}}
-            style={{ padding:'5px 8px', background:'rgba(0,255,255,0.05)', border:'1px solid rgba(0,255,255,0.2)', color:'#c0d0ff', borderRadius:'6px', fontSize:'0.82rem' }} />
+            style={{ padding:'5px 8px', background:'rgba(94, 129, 244,0.05)', border:'1px solid rgba(94, 129, 244,0.2)', color:'#e2e5f0', borderRadius:'6px', fontSize:'0.82rem' }} />
         </div>
       )}
 

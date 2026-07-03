@@ -52,13 +52,13 @@ const StrikeZone = ({ pitches = [] }) => {
   return (
     <svg viewBox={`0 0 ${S} ${S}`} className="pbp-zone">
       <rect x={0} y={0} width={S} height={S} fill="rgba(0,0,20,0.85)" rx={6}/>
-      <rect x={22} y={16} width={136} height={138} fill="none" stroke="rgba(80,120,255,0.2)" strokeWidth={1} strokeDasharray="4 3" rx={3}/>
-      <rect x={ZX} y={ZY} width={ZW} height={ZH} fill="rgba(0,255,255,0.04)" stroke="rgba(0,255,255,0.5)" strokeWidth={1.5}/>
-      {[1,2].map(i=><line key={`v${i}`} x1={ZX+ZW*(i/3)} y1={ZY} x2={ZX+ZW*(i/3)} y2={ZY+ZH} stroke="rgba(0,255,255,0.15)" strokeWidth={0.7}/>)}
-      {[1,2].map(i=><line key={`h${i}`} x1={ZX} y1={ZY+ZH*(i/3)} x2={ZX+ZW} y2={ZY+ZH*(i/3)} stroke="rgba(0,255,255,0.15)" strokeWidth={0.7}/>)}
+      <rect x={22} y={16} width={136} height={138} fill="none" stroke="rgba(80,1294, 230, 168.2)" strokeWidth={1} strokeDasharray="4 3" rx={3}/>
+      <rect x={ZX} y={ZY} width={ZW} height={ZH} fill="rgba(94, 129, 244,0.04)" stroke="rgba(94, 129, 244,0.5)" strokeWidth={1.5}/>
+      {[1,2].map(i=><line key={`v${i}`} x1={ZX+ZW*(i/3)} y1={ZY} x2={ZX+ZW*(i/3)} y2={ZY+ZH} stroke="rgba(94, 129, 244,0.15)" strokeWidth={0.7}/>)}
+      {[1,2].map(i=><line key={`h${i}`} x1={ZX} y1={ZY+ZH*(i/3)} x2={ZX+ZW} y2={ZY+ZH*(i/3)} stroke="rgba(94, 129, 244,0.15)" strokeWidth={0.7}/>)}
       <polygon points={`${S/2-14},${S-12} ${S/2+14},${S-12} ${S/2+17},${S-6} ${S/2},${S-2} ${S/2-17},${S-6}`} fill="rgba(255,255,255,0.07)" stroke="rgba(255,255,255,0.3)" strokeWidth={1}/>
-      <text x={ZX-3} y={ZY+9} textAnchor="end" fill="rgba(100,150,255,0.45)" fontSize={7}>HH</text>
-      <text x={ZX-3} y={ZY+ZH} textAnchor="end" fill="rgba(100,150,255,0.45)" fontSize={7}>KN</text>
+      <text x={ZX-3} y={ZY+9} textAnchor="end" fill="rgba(100,1594, 230, 168.45)" fontSize={7}>HH</text>
+      <text x={ZX-3} y={ZY+ZH} textAnchor="end" fill="rgba(100,1594, 230, 168.45)" fontSize={7}>KN</text>
       {pitches.map((p,i)=>{
         if (p.px == null || p.pz == null) return null;
         const cx = ZX + ZW/2 + (p.px / 1.5) * (ZW/2);
@@ -380,11 +380,11 @@ const BaseballPBP = ({ gamePk, game }) => {
                   </div>
                   <div style={{ flex:1, minWidth:'160px' }}>
                     {abPitches.map((p, pi) => (
-                      <div key={pi} style={{ display:'flex', gap:'8px', padding:'4px 0', borderBottom:'1px solid rgba(0,255,255,0.06)', fontSize:'0.78rem', alignItems:'center' }}>
-                        <span style={{ color:'rgba(192,208,255,0.35)', minWidth:'18px' }}>#{pi+1}</span>
+                      <div key={pi} style={{ display:'flex', gap:'8px', padding:'4px 0', borderBottom:'1px solid rgba(94, 129, 244,0.06)', fontSize:'0.78rem', alignItems:'center' }}>
+                        <span style={{ color:'rgba(158, 165, 196,0.35)', minWidth:'18px' }}>#{pi+1}</span>
                         <span style={{ color:'var(--color-cyan)', minWidth:'60px' }}>{p.details?.type?.description||'—'}</span>
                         {p.pitchData?.startSpeed && <span style={{ color:'#ffd700' }}>{p.pitchData.startSpeed.toFixed(0)} mph</span>}
-                        <span style={{ color:'rgba(192,208,255,0.7)' }}>{p.details?.description||'—'}</span>
+                        <span style={{ color:'rgba(158, 165, 196,0.7)' }}>{p.details?.description||'—'}</span>
                       </div>
                     ))}
                   </div>
@@ -596,7 +596,7 @@ const BasketballPBP = ({ eventId, sport, game }) => {
           return (
             <div key={i} className={`pbp-play-row ${isMake?'pbp-make':''} ${isFoul?'pbp-foul':''}`}>
               <span className="pbp-play-clock">{p.period?.number && `Q${p.period.number}`} {p.clock?.displayValue}</span>
-              <span className="pbp-play-team" style={{ color:'rgba(0,255,255,0.6)', fontSize:'0.75rem', marginRight:'6px' }}>{p.team?.abbreviation}</span>
+              <span className="pbp-play-team" style={{ color:'rgba(94, 129, 244,0.6)', fontSize:'0.75rem', marginRight:'6px' }}>{p.team?.abbreviation}</span>
               <span className="pbp-play-text">{p.text}</span>
               {p.scoreValue > 0 && <span className="pbp-play-pts">+{p.scoreValue}</span>}
             </div>
@@ -712,7 +712,7 @@ const PlayByPlay = ({ game, sport, onBack }) => {
           <div className="pbp-refresh-hint">Auto-refreshes every 15s</div>
         )}
         {game?.status === 'post' && (
-          <div className="pbp-refresh-hint" style={{ color: 'rgba(0,255,255,0.4)' }}>Final — cached data</div>
+          <div className="pbp-refresh-hint" style={{ color: 'rgba(94, 129, 244,0.4)' }}>Final — cached data</div>
         )}
       </div>
 

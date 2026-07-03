@@ -168,7 +168,7 @@ const WatchListPreview = ({ username }) => {
       </div>
       {pinned.length > 0 && (
         <>
-          <div style={{ fontSize: '0.72rem', color: 'rgba(192,208,255,0.35)', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', marginTop: '10px', marginBottom: '8px' }}>
+          <div style={{ fontSize: '0.72rem', color: 'rgba(158, 165, 196,0.35)', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', marginTop: '10px', marginBottom: '8px' }}>
             📌 Pinned
           </div>
           <div className="mp-pinned-grid">
@@ -221,7 +221,7 @@ const LastFmWidget = ({ lastfmUsername }) => {
           <div className="sp-status" style={{ color: track.isPlaying ? '#d51007' : undefined }}>
             {track.isPlaying
               ? <><span className="sp-pulse" style={{ background: '#d51007' }} /> Playing</>
-              : <span style={{ color: 'rgba(192,208,255,0.4)' }}>Last played</span>}
+              : <span style={{ color: 'rgba(158, 165, 196,0.4)' }}>Last played</span>}
           </div>
         </div>
       </a>
@@ -359,7 +359,7 @@ const MemberProfile = () => {
   };
 
   // ── Edit mode ─────────────────────────────────────────────
-  if (!profile) return <div style={{ padding: '40px', textAlign: 'center', color: 'rgba(192,208,255,0.4)' }}>Loading…</div>;
+  if (!profile) return <div style={{ padding: '40px', textAlign: 'center', color: 'rgba(158, 165, 196,0.4)' }}>Loading…</div>;
 
   if (editing) {
     return (
@@ -387,7 +387,7 @@ const MemberProfile = () => {
             <div className="form-group">
               <label>Last.fm Username</label>
               <input type="text" value={formData.lastfm_username || ''} onChange={(e) => setFormData({ ...formData, lastfm_username: e.target.value })} placeholder="your-lastfm-username" />
-              <small style={{ color: 'rgba(192,208,255,0.4)', fontSize: '0.75rem' }}>Shows your now-playing track. Free at last.fm</small>
+              <small style={{ color: 'rgba(158, 165, 196,0.4)', fontSize: '0.75rem' }}>Shows your now-playing track. Free at last.fm</small>
             </div>
             <div className="form-group">
               <label>Spotify URL</label>
@@ -412,7 +412,7 @@ const MemberProfile = () => {
           </div>
         ) : (
           <div className="neon-card p-3">
-            <p style={{ color: 'rgba(192,208,255,0.5)', fontSize: '0.85rem', marginBottom: '16px' }}>
+            <p style={{ color: 'rgba(158, 165, 196,0.5)', fontSize: '0.85rem', marginBottom: '16px' }}>
               Pick your favorite teams. You can select multiple per sport.
             </p>
             <TeamSelector
@@ -446,7 +446,7 @@ const MemberProfile = () => {
     { id: 'watchlist',   label: 'Watch List'   },
   ];
 
-  const SI = { padding: '10px', background: 'rgba(0,255,255,0.05)', border: '1px solid rgba(0,255,255,0.2)', color: '#c0d0ff', borderRadius: '6px', width: '100%', marginBottom: '8px' };
+  const SI = { padding: '10px', background: 'rgba(94, 129, 244,0.05)', border: '1px solid rgba(94, 129, 244,0.2)', color: '#e2e5f0', borderRadius: '6px', width: '100%', marginBottom: '8px' };
 
   return (
     <div className="tw-page">
@@ -465,7 +465,7 @@ const MemberProfile = () => {
         <button
           className="neon-button"
           onClick={shareProfile}
-          style={{ fontSize: '0.82rem', padding: '8px 14px', borderColor: copied ? '#00ff88' : 'rgba(0,255,255,0.3)', color: copied ? '#00ff88' : 'rgba(192,208,255,0.7)' }}
+          style={{ fontSize: '0.82rem', padding: '8px 14px', borderColor: copied ? '#00ff88' : 'rgba(94, 129, 244,0.3)', color: copied ? '#00ff88' : 'rgba(158, 165, 196,0.7)' }}
         >
           {copied ? '✓ Copied!' : '🔗 Share Profile'}
         </button>
@@ -490,7 +490,7 @@ const MemberProfile = () => {
           ].map(({ key, label, color }) => (
             <button key={key} className="tw-presence-btn"
               onClick={() => changePresence(key)}
-              style={{ borderColor: presence === key ? color : 'rgba(100,120,200,0.2)', color: presence === key ? color : 'rgba(192,208,255,0.4)', background: presence === key ? `${color}18` : 'transparent' }}>
+              style={{ borderColor: presence === key ? color : 'rgba(100,120,200,0.2)', color: presence === key ? color : 'rgba(158, 165, 196,0.4)', background: presence === key ? `${color}18` : 'transparent' }}>
               <span className="tw-presence-dot" style={{ background: presence === key ? color : 'rgba(100,120,200,0.3)' }} />
               {label}
             </button>
@@ -530,7 +530,7 @@ const MemberProfile = () => {
             {profile.bio ? (
               <div className="tw-section">
                 <div className="tw-section-title">Bio</div>
-                <p style={{ color: 'rgba(192,208,255,0.85)', lineHeight: 1.6, margin: 0 }}>{profile.bio}</p>
+                <p style={{ color: 'rgba(158, 165, 196,0.85)', lineHeight: 1.6, margin: 0 }}>{profile.bio}</p>
               </div>
             ) : (
               <div className="tw-empty">No bio yet. Click Edit Profile to add one.</div>
@@ -570,7 +570,7 @@ const MemberProfile = () => {
             </div>
 
             {showAddGame && (
-              <div style={{ marginBottom: '16px', padding: '14px', background: 'rgba(0,255,255,0.04)', borderRadius: '10px', border: '1px solid rgba(0,255,255,0.12)' }}>
+              <div style={{ marginBottom: '16px', padding: '14px', background: 'rgba(94, 129, 244,0.04)', borderRadius: '10px', border: '1px solid rgba(94, 129, 244,0.12)' }}>
                 <input
                   ref={addGameInputRef}
                   type="text"
@@ -619,7 +619,7 @@ const MemberProfile = () => {
             </div>
 
             {showAddGame && (
-              <div style={{ marginBottom: '16px', padding: '14px', background: 'rgba(0,255,255,0.04)', borderRadius: '10px', border: '1px solid rgba(0,255,255,0.12)' }}>
+              <div style={{ marginBottom: '16px', padding: '14px', background: 'rgba(94, 129, 244,0.04)', borderRadius: '10px', border: '1px solid rgba(94, 129, 244,0.12)' }}>
                 <input
                   ref={addGameInputRef}
                   type="text"
@@ -634,7 +634,7 @@ const MemberProfile = () => {
                   onChange={(e) => setNewGameNote(e.target.value)}
                   style={SI}
                 />
-                <p style={{ margin: '0 0 8px', fontSize: '0.72rem', color: 'rgba(192,208,255,0.4)' }}>
+                <p style={{ margin: '0 0 8px', fontSize: '0.72rem', color: 'rgba(158, 165, 196,0.4)' }}>
                   Paste a Roblox game URL to auto-fetch its thumbnail.
                 </p>
                 <button className="neon-button" style={{ width: '100%' }} onClick={() => {
@@ -648,7 +648,7 @@ const MemberProfile = () => {
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px' }}>
                 {favGames.filter(g => g.placeId).map(g => (
-                  <div key={g.id} style={{ position: 'relative', background: 'rgba(0,255,255,0.04)', border: '1px solid rgba(0,255,255,0.1)', borderRadius: '10px', overflow: 'hidden' }}>
+                  <div key={g.id} style={{ position: 'relative', background: 'rgba(94, 129, 244,0.04)', border: '1px solid rgba(94, 129, 244,0.1)', borderRadius: '10px', overflow: 'hidden' }}>
                     <img
                       src={robloxThumbUrl(g.placeId)}
                       alt={g.text}
@@ -657,10 +657,10 @@ const MemberProfile = () => {
                     />
                     <div style={{ padding: '8px' }}>
                       <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--color-cyan)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.text}</div>
-                      {g.note && <div style={{ fontSize: '0.7rem', color: 'rgba(192,208,255,0.5)', marginTop: '2px', fontStyle: 'italic' }}>"{g.note}"</div>}
+                      {g.note && <div style={{ fontSize: '0.7rem', color: 'rgba(158, 165, 196,0.5)', marginTop: '2px', fontStyle: 'italic' }}>"{g.note}"</div>}
                     </div>
                     <button onClick={() => removeFavGame(g.id)}
-                      style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.6)', border: 'none', color: 'rgba(255,80,80,0.8)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.7rem', padding: '2px 6px' }}>
+                      style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.6)', border: 'none', color: 'rgba(255, 107, 122,0.8)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.7rem', padding: '2px 6px' }}>
                       x
                     </button>
                   </div>

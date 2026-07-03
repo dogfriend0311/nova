@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import db from '../../services/db';
 import './OwnerDashboard.css';
 
-const SI = { padding:'10px', background:'rgba(0,255,255,0.05)', border:'1px solid rgba(0,255,255,0.2)', color:'#c0d0ff', borderRadius:'4px', width:'100%' };
+const SI = { padding:'10px', background:'rgba(94, 129, 244,0.05)', border:'1px solid rgba(94, 129, 244,0.2)', color:'#e2e5f0', borderRadius:'4px', width:'100%' };
 const SS = { ...SI };
 
 const S_HIT = [['season_g','G'],['season_ab','AB'],['season_avg','AVG'],['season_obp','OBP'],['season_slg','SLG'],['season_ops','OPS'],['season_hits','H'],['season_runs','R'],['season_2b','2B'],['season_3b','3B'],['season_home_runs','HR'],['season_rbis','RBI'],['season_bb','BB'],['season_strike_outs','K'],['season_sb','SB']];
@@ -59,12 +59,12 @@ const MemberPagesTab = () => {
     <div className="tab-content">
       <h2 className="gradient-text-cyan">Member Pages</h2>
       <div style={{ marginTop:'20px', display:'grid', gap:'12px' }}>
-        {profiles.length === 0 && <div className="neon-card p-3"><p style={{ color:'rgba(192,208,255,0.5)', textAlign:'center' }}>No profiles yet.</p></div>}
+        {profiles.length === 0 && <div className="neon-card p-3"><p style={{ color:'rgba(158, 165, 196,0.5)', textAlign:'center' }}>No profiles yet.</p></div>}
         {profiles.map(p => (
           <div key={p.username} className="neon-card p-3" style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
             <div>
               <p style={{ margin:0, color:'var(--color-cyan)', fontWeight:700 }}>{p.username}</p>
-              <p style={{ margin:'4px 0 0', fontSize:'0.8rem', color:'rgba(192,208,255,0.5)' }}>{p.bio||'No bio'}</p>
+              <p style={{ margin:'4px 0 0', fontSize:'0.8rem', color:'rgba(158, 165, 196,0.5)' }}>{p.bio||'No bio'}</p>
             </div>
             <div style={{ display:'flex', gap:'8px' }}>
               <button className="neon-button" onClick={() => startEdit(p)}>Edit</button>
@@ -74,7 +74,7 @@ const MemberPagesTab = () => {
                 setProfiles(updated);
                 localStorage.setItem('member_profiles', JSON.stringify(updated));
               }}>Del Profile</button>
-              <button className="neon-button" style={{ borderColor:'#ff3333', color:'#ff3333' }} onClick={() => {
+              <button className="neon-button" style={{ borderColor:'#ff6b7a', color:'#ff6b7a' }} onClick={() => {
                 if (!window.confirm(`DELETE ACCOUNT for ${p.username}? Cannot be undone.`)) return;
                 const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
                 localStorage.setItem('nova_users', JSON.stringify(users.filter(u => u.username !== p.username)));
@@ -108,12 +108,12 @@ const UserRolesTab = () => {
     <div className="tab-content">
       <h2 className="gradient-text-cyan">User Roles</h2>
       <div style={{ marginTop:'20px', display:'grid', gap:'12px' }}>
-        {users.length === 0 && <div className="neon-card p-3"><p style={{ color:'rgba(192,208,255,0.5)', textAlign:'center' }}>No registered users.</p></div>}
+        {users.length === 0 && <div className="neon-card p-3"><p style={{ color:'rgba(158, 165, 196,0.5)', textAlign:'center' }}>No registered users.</p></div>}
         {users.map(u => (
           <div key={u.username} className="neon-card p-3" style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'10px' }}>
             <div>
               <span style={{ color:'var(--color-cyan)', fontWeight:700 }}>{u.username}</span>
-              <span style={{ marginLeft:'10px', fontSize:'0.8rem', color:'rgba(192,208,255,0.5)' }}>{roleLabel(u.role||'member')}</span>
+              <span style={{ marginLeft:'10px', fontSize:'0.8rem', color:'rgba(158, 165, 196,0.5)' }}>{roleLabel(u.role||'member')}</span>
             </div>
             <select value={u.role||'member'} onChange={e=>changeRole(u.username, e.target.value)} style={{ ...SS, width:'auto' }}>
               {roles.map(r => <option key={r} value={r}>{roleLabel(r)}</option>)}
@@ -130,7 +130,7 @@ const GiveCoinsTab = () => {
   const [username, setUsername] = useState('');
   const [amount, setAmount]     = useState(100);
   const [msg, setMsg]           = useState('');
-  const SI2 = { padding:'10px', background:'rgba(0,255,255,0.05)', border:'1px solid rgba(0,255,255,0.2)', color:'#c0d0ff', borderRadius:'4px', width:'100%' };
+  const SI2 = { padding:'10px', background:'rgba(94, 129, 244,0.05)', border:'1px solid rgba(94, 129, 244,0.2)', color:'#e2e5f0', borderRadius:'4px', width:'100%' };
   const give = () => {
     if (!username) { setMsg('Select a user first.'); return; }
     const key = `nova_coins_${username}`;
@@ -228,7 +228,7 @@ const LeaguePlayersTab = ({ prefix }) => {
       <div className="neon-card p-3" style={{ marginTop:'20px', marginBottom:'30px' }}>
         <h3 className="gradient-text-magenta">{editing ? 'Edit Player' : 'Add Player'}</h3>
         <div className="edit-form">
-          <h4 style={{ color:'rgba(192,208,255,0.7)', margin:'10px 0 8px', fontSize:'0.85rem', textTransform:'uppercase' }}>Basic Info</h4>
+          <h4 style={{ color:'rgba(158, 165, 196,0.7)', margin:'10px 0 8px', fontSize:'0.85rem', textTransform:'uppercase' }}>Basic Info</h4>
           {[['player_name','Player Name','text'],['position','Position','text'],['number','Jersey #','number'],['overall','Overall Rating','number']].map(([f,l,t]) => (
             <div className="form-field" key={f}>
               <label>{l}</label>
@@ -248,17 +248,17 @@ const LeaguePlayersTab = ({ prefix }) => {
           </div>
           <div className="form-field">
             <label>Player Avatar Photo</label>
-            <input type="file" accept="image/*" onChange={handleAvatarUpload} style={{ color:'#c0d0ff', padding:'8px 0' }} />
+            <input type="file" accept="image/*" onChange={handleAvatarUpload} style={{ color:'#e2e5f0', padding:'8px 0' }} />
             {avatarPreview && (
               <div style={{ marginTop:'12px' }}>
-                <div style={{ width:'120px', height:'120px', overflow:'hidden', border:'2px solid rgba(0,255,255,0.3)', borderRadius:'8px', cursor:dragging?'grabbing':'grab', position:'relative', background:'#0a0a23', userSelect:'none' }}
+                <div style={{ width:'120px', height:'120px', overflow:'hidden', border:'2px solid rgba(94, 129, 244,0.3)', borderRadius:'8px', cursor:dragging?'grabbing':'grab', position:'relative', background:'#0a0d1a', userSelect:'none' }}
                   onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
                   <img ref={imgRef} src={avatarPreview} alt="preview"
                     style={{ position:'absolute', width:`${120*zoom}px`, left:`${(120-120*zoom)/2+offsetX}px`, top:`${(120-120*zoom)/2+offsetY}px`, pointerEvents:'none' }}
                     onLoad={() => { const d=bakeAvatar(); if(d) setForm(f=>({...f,avatar_data:d})); }} />
                 </div>
                 <div style={{ marginTop:'10px', display:'flex', alignItems:'center', gap:'10px' }}>
-                  <label style={{ fontSize:'0.8rem', color:'rgba(192,208,255,0.7)' }}>Zoom</label>
+                  <label style={{ fontSize:'0.8rem', color:'rgba(158, 165, 196,0.7)' }}>Zoom</label>
                   <input type="range" min="0.5" max="3" step="0.05" value={zoom}
                     onChange={e=>{ setZoom(parseFloat(e.target.value)); setTimeout(()=>{ const d=bakeAvatar(); if(d) setForm(f=>({...f,avatar_data:d})); },50); }} style={{ flex:1 }} />
                   <span style={{ fontSize:'0.8rem', color:'var(--color-cyan)', minWidth:'35px' }}>{Math.round(zoom*100)}%</span>
@@ -271,23 +271,23 @@ const LeaguePlayersTab = ({ prefix }) => {
             <label>Spotify Song URL</label>
             <input type="text" value={form.spotify_url||''} onChange={e=>setForm({...form,spotify_url:e.target.value})} placeholder="https://open.spotify.com/track/..." style={SI} />
           </div>
-          <h4 style={{ color:'rgba(192,208,255,0.7)', margin:'18px 0 8px', fontSize:'0.85rem', textTransform:'uppercase' }}>Stats</h4>
+          <h4 style={{ color:'rgba(158, 165, 196,0.7)', margin:'18px 0 8px', fontSize:'0.85rem', textTransform:'uppercase' }}>Stats</h4>
           <div style={{ display:'flex', gap:'8px', marginBottom:'8px', flexWrap:'wrap' }}>
             {['season','career'].map(t => (
               <button key={t} type="button" onClick={()=>setStatTab(prev=>({...prev,period:t}))}
-                style={{ padding:'6px 16px', background:statTab.period===t?'rgba(0,255,255,0.15)':'rgba(0,255,255,0.05)', border:`1px solid ${statTab.period===t?'var(--color-cyan)':'rgba(0,255,255,0.2)'}`, color:statTab.period===t?'var(--color-cyan)':'rgba(192,208,255,0.6)', borderRadius:'4px', cursor:'pointer', textTransform:'capitalize', fontWeight:600, fontSize:'0.85rem' }}>{t}</button>
+                style={{ padding:'6px 16px', background:statTab.period===t?'rgba(94, 129, 244,0.15)':'rgba(94, 129, 244,0.05)', border:`1px solid ${statTab.period===t?'var(--color-cyan)':'rgba(94, 129, 244,0.2)'}`, color:statTab.period===t?'var(--color-cyan)':'rgba(158, 165, 196,0.6)', borderRadius:'4px', cursor:'pointer', textTransform:'capitalize', fontWeight:600, fontSize:'0.85rem' }}>{t}</button>
             ))}
           </div>
           <div style={{ display:'flex', gap:'8px', marginBottom:'14px', flexWrap:'wrap' }}>
             {['hitting','pitching'].map(t => (
               <button key={t} type="button" onClick={()=>setStatTab(prev=>({...prev,type:t}))}
-                style={{ padding:'5px 14px', background:statTab.type===t?'rgba(255,0,255,0.15)':'rgba(0,255,255,0.05)', border:`1px solid ${statTab.type===t?'var(--color-magenta)':'rgba(0,255,255,0.15)'}`, color:statTab.type===t?'var(--color-magenta)':'rgba(192,208,255,0.5)', borderRadius:'4px', cursor:'pointer', textTransform:'capitalize', fontWeight:600, fontSize:'0.8rem' }}>{t}</button>
+                style={{ padding:'5px 14px', background:statTab.type===t?'rgba(255, 158, 87,0.15)':'rgba(94, 129, 244,0.05)', border:`1px solid ${statTab.type===t?'var(--color-magenta)':'rgba(94, 129, 244,0.15)'}`, color:statTab.type===t?'var(--color-magenta)':'rgba(158, 165, 196,0.5)', borderRadius:'4px', cursor:'pointer', textTransform:'capitalize', fontWeight:600, fontSize:'0.8rem' }}>{t}</button>
             ))}
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(110px, 1fr))', gap:'8px' }}>
             {(statTab.period==='season'?(statTab.type==='hitting'?S_HIT:S_PIT):(statTab.type==='hitting'?C_HIT:C_PIT)).map(([f,l]) => (
               <div key={f}>
-                <label style={{ fontSize:'0.75rem', color:'rgba(192,208,255,0.6)', display:'block', marginBottom:'3px' }}>{l}</label>
+                <label style={{ fontSize:'0.75rem', color:'rgba(158, 165, 196,0.6)', display:'block', marginBottom:'3px' }}>{l}</label>
                 <input type="text" value={form[f]||''} onChange={e=>setForm({...form,[f]:e.target.value})} placeholder="--" style={{ ...SI, padding:'7px', fontSize:'0.9rem' }} />
               </div>
             ))}
@@ -298,7 +298,7 @@ const LeaguePlayersTab = ({ prefix }) => {
           </div>
         </div>
       </div>
-      {loading ? <p style={{ color:'rgba(192,208,255,0.5)' }}>Loading...</p> : (
+      {loading ? <p style={{ color:'rgba(158, 165, 196,0.5)' }}>Loading...</p> : (
         <>
           {/* Player search */}
           <div style={{ marginBottom:'12px' }}>
@@ -323,15 +323,15 @@ const LeaguePlayersTab = ({ prefix }) => {
               .map(p => (
                 <div key={p.id} className="neon-card p-3" style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'10px' }}>
                   <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
-                    {p.avatar_data ? <img src={p.avatar_data} alt={p.player_name} style={{ width:'44px', height:'44px', borderRadius:'6px', objectFit:'cover', border:'1px solid rgba(0,255,255,0.2)' }} /> : <div style={{ width:'44px', height:'44px', borderRadius:'6px', background:'rgba(0,255,255,0.1)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.4rem' }}>G</div>}
+                    {p.avatar_data ? <img src={p.avatar_data} alt={p.player_name} style={{ width:'44px', height:'44px', borderRadius:'6px', objectFit:'cover', border:'1px solid rgba(94, 129, 244,0.2)' }} /> : <div style={{ width:'44px', height:'44px', borderRadius:'6px', background:'rgba(94, 129, 244,0.1)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.4rem' }}>G</div>}
                     <div>
-                      <p style={{ margin:0, color:'var(--color-cyan)', fontWeight:700 }}>{p.player_name}{p.nickname ? <span style={{ color:'rgba(192,208,255,0.45)', fontWeight:400, fontSize:'0.82rem', marginLeft:'6px' }}>"{p.nickname}"</span> : null}</p>
-                      <p style={{ margin:'2px 0 0', fontSize:'0.8rem', color:'rgba(192,208,255,0.6)' }}>{p.team||'FA'} · {p.position||'--'} · OVR {p.overall}{p.roblox_username ? <span style={{ color:'rgba(192,208,255,0.35)', marginLeft:'6px' }}>@{p.roblox_username}</span> : null}</p>
+                      <p style={{ margin:0, color:'var(--color-cyan)', fontWeight:700 }}>{p.player_name}{p.nickname ? <span style={{ color:'rgba(158, 165, 196,0.45)', fontWeight:400, fontSize:'0.82rem', marginLeft:'6px' }}>"{p.nickname}"</span> : null}</p>
+                      <p style={{ margin:'2px 0 0', fontSize:'0.8rem', color:'rgba(158, 165, 196,0.6)' }}>{p.team||'FA'} · {p.position||'--'} · OVR {p.overall}{p.roblox_username ? <span style={{ color:'rgba(158, 165, 196,0.35)', marginLeft:'6px' }}>@{p.roblox_username}</span> : null}</p>
                     </div>
                   </div>
                   <div style={{ display:'flex', gap:'8px' }}>
                     <button className="neon-button" style={{ padding:'6px 14px' }} onClick={() => startEdit(p)}>Edit</button>
-                    <button className="neon-button" style={{ padding:'6px 14px', borderColor:'#ff3333', color:'#ff3333' }} onClick={() => del(p.id)}>Delete</button>
+                    <button className="neon-button" style={{ padding:'6px 14px', borderColor:'#ff6b7a', color:'#ff6b7a' }} onClick={() => del(p.id)}>Delete</button>
                   </div>
                 </div>
               ))
@@ -341,7 +341,7 @@ const LeaguePlayersTab = ({ prefix }) => {
               return !q || (p.player_name||'').toLowerCase().includes(q) || (p.team||'').toLowerCase().includes(q) || (p.position||'').toLowerCase().includes(q) || (p.nickname||'').toLowerCase().includes(q);
             }).length === 0 && (
               <div className="neon-card p-3">
-                <p style={{ color:'rgba(192,208,255,0.4)', textAlign:'center' }}>No players match "{playerSearch}"</p>
+                <p style={{ color:'rgba(158, 165, 196,0.4)', textAlign:'center' }}>No players match "{playerSearch}"</p>
               </div>
             )}
           </div>
@@ -354,7 +354,7 @@ const LeaguePlayersTab = ({ prefix }) => {
 const LeagueTeamsTab = ({ prefix }) => {
   const label = prefix === 'vizta' ? 'Vizta' : prefix.toUpperCase();
   const [teams, setTeams]   = useState([]);
-  const [form, setForm]     = useState({ team_name:'', team_color:'#00ffff', logo_url:'' });
+  const [form, setForm]     = useState({ team_name:'', team_color:'#5e81f4', logo_url:'' });
   const [editing, setEditing] = useState(null);
   const [uploadMode, setUploadMode] = useState('url');
   const [loading, setLoading] = useState(true);
@@ -373,10 +373,10 @@ const LeagueTeamsTab = ({ prefix }) => {
     const payload = editing ? { ...form, id:editing } : form;
     const saved = await db.saveTeam(prefix, payload);
     setTeams(prev => editing ? prev.map(t => t.id===editing ? saved : t) : [...prev, saved]);
-    setForm({ team_name:'', team_color:'#00ffff', logo_url:'' }); setEditing(null);
+    setForm({ team_name:'', team_color:'#5e81f4', logo_url:'' }); setEditing(null);
   };
   const del = async (id) => { await db.deleteTeam(prefix, id); setTeams(prev => prev.filter(t => t.id !== id)); };
-  const startEdit = (t) => { setEditing(t.id); setForm({ team_name:t.team_name, team_color:t.team_color||'#00ffff', logo_url:t.logo_url||'' }); };
+  const startEdit = (t) => { setEditing(t.id); setForm({ team_name:t.team_name, team_color:t.team_color||'#5e81f4', logo_url:t.logo_url||'' }); };
 
   return (
     <div className="tab-content">
@@ -389,32 +389,32 @@ const LeagueTeamsTab = ({ prefix }) => {
           <div className="form-field">
             <label>Team Logo</label>
             <div style={{ display:'flex', gap:'10px', marginBottom:'10px' }}>
-              {['url','upload'].map(m => <button key={m} type="button" onClick={()=>setUploadMode(m)} style={{ padding:'6px 14px', background:uploadMode===m?'rgba(0,255,255,0.2)':'rgba(0,255,255,0.05)', border:'1px solid rgba(0,255,255,0.3)', color:'var(--color-cyan)', borderRadius:'4px', cursor:'pointer', fontSize:'0.85rem' }}>{m==='url'?'URL':'Upload'}</button>)}
+              {['url','upload'].map(m => <button key={m} type="button" onClick={()=>setUploadMode(m)} style={{ padding:'6px 14px', background:uploadMode===m?'rgba(94, 129, 244,0.2)':'rgba(94, 129, 244,0.05)', border:'1px solid rgba(94, 129, 244,0.3)', color:'var(--color-cyan)', borderRadius:'4px', cursor:'pointer', fontSize:'0.85rem' }}>{m==='url'?'URL':'Upload'}</button>)}
             </div>
             {uploadMode==='url'
               ? <input type="text" value={form.logo_url} onChange={e=>setForm({...form,logo_url:e.target.value})} placeholder="Logo URL" style={SI} />
               : <div>
-                  <input type="file" accept="image/*" onChange={handleUpload} style={{ color:'#c0d0ff', padding:'8px 0' }} />
-                  {form.logo_url?.startsWith('data:') && <img src={form.logo_url} alt="Preview" style={{ width:'60px', height:'60px', objectFit:'contain', marginTop:'8px', borderRadius:'6px', border:'1px solid rgba(0,255,255,0.2)' }} />}
+                  <input type="file" accept="image/*" onChange={handleUpload} style={{ color:'#e2e5f0', padding:'8px 0' }} />
+                  {form.logo_url?.startsWith('data:') && <img src={form.logo_url} alt="Preview" style={{ width:'60px', height:'60px', objectFit:'contain', marginTop:'8px', borderRadius:'6px', border:'1px solid rgba(94, 129, 244,0.2)' }} />}
                 </div>}
           </div>
           <div className="form-actions">
             <button className="neon-button" onClick={save}>{editing ? 'Save' : 'Create Team'}</button>
-            {editing && <button className="neon-button" onClick={()=>{ setEditing(null); setForm({ team_name:'', team_color:'#00ffff', logo_url:'' }); }}>Cancel</button>}
+            {editing && <button className="neon-button" onClick={()=>{ setEditing(null); setForm({ team_name:'', team_color:'#5e81f4', logo_url:'' }); }}>Cancel</button>}
           </div>
         </div>
       </div>
-      {loading ? <p style={{ color:'rgba(192,208,255,0.5)' }}>Loading...</p> : (
+      {loading ? <p style={{ color:'rgba(158, 165, 196,0.5)' }}>Loading...</p> : (
         <div className="teams-grid">
           {teams.map(team => (
             <div key={team.id} className="neon-card p-3">
               <div style={{ display:'flex', alignItems:'center', gap:'12px', marginBottom:'15px' }}>
-                {team.logo_url ? <img src={team.logo_url} alt={team.team_name} style={{ width:'48px', height:'48px', objectFit:'contain', borderRadius:'6px', border:'1px solid rgba(0,255,255,0.2)' }} /> : <div style={{ width:'48px', height:'48px', background:team.team_color, borderRadius:'6px' }} />}
+                {team.logo_url ? <img src={team.logo_url} alt={team.team_name} style={{ width:'48px', height:'48px', objectFit:'contain', borderRadius:'6px', border:'1px solid rgba(94, 129, 244,0.2)' }} /> : <div style={{ width:'48px', height:'48px', background:team.team_color, borderRadius:'6px' }} />}
                 <h4 className="gradient-text-cyan" style={{ margin:0 }}>{team.team_name}</h4>
               </div>
               <div style={{ display:'flex', gap:'8px' }}>
                 <button className="neon-button" style={{ flex:1 }} onClick={() => startEdit(team)}>Edit</button>
-                <button className="neon-button" style={{ flex:1, borderColor:'#ff3333', color:'#ff3333' }} onClick={() => del(team.id)}>Delete</button>
+                <button className="neon-button" style={{ flex:1, borderColor:'#ff6b7a', color:'#ff6b7a' }} onClick={() => del(team.id)}>Delete</button>
               </div>
             </div>
           ))}
@@ -453,14 +453,14 @@ const LeagueRostersTab = ({ prefix }) => {
     <div className="tab-content">
       <h2 className="gradient-text-cyan">{label} Rosters</h2>
       <div className="teams-grid" style={{ marginTop:'20px' }}>
-        {teams.length===0 && <div className="neon-card p-3"><p style={{ color:'rgba(192,208,255,0.5)' }}>No teams yet.</p></div>}
+        {teams.length===0 && <div className="neon-card p-3"><p style={{ color:'rgba(158, 165, 196,0.5)' }}>No teams yet.</p></div>}
         {teams.map(t => (
           <div key={t.id} className="neon-card p-3" style={{ cursor:'pointer' }} onClick={()=>setSelectedTeam(t)}>
             <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
               {t.logo_url ? <img src={t.logo_url} alt={t.team_name} style={{ width:'40px', height:'40px', objectFit:'contain', borderRadius:'4px' }} /> : <div style={{ width:'40px', height:'40px', background:t.team_color, borderRadius:'4px' }} />}
               <span className="gradient-text-cyan" style={{ fontWeight:700 }}>{t.team_name}</span>
             </div>
-            <p style={{ margin:'8px 0 0', fontSize:'0.8rem', color:'rgba(192,208,255,0.5)' }}>{players.filter(p=>p.team===t.team_name).length} players</p>
+            <p style={{ margin:'8px 0 0', fontSize:'0.8rem', color:'rgba(158, 165, 196,0.5)' }}>{players.filter(p=>p.team===t.team_name).length} players</p>
           </div>
         ))}
       </div>
@@ -474,7 +474,7 @@ const LeagueRostersTab = ({ prefix }) => {
     <div className="tab-content">
       <div style={{ display:'flex', gap:'10px', marginBottom:'20px', flexWrap:'wrap' }}>
         <button className="neon-button" onClick={()=>setSelectedTeam(null)}>Back</button>
-        {teamPlayers.length>0 && <button className="neon-button" style={{ borderColor:'#ff3333', color:'#ff3333' }} onClick={clearRoster}>Clear Roster</button>}
+        {teamPlayers.length>0 && <button className="neon-button" style={{ borderColor:'#ff6b7a', color:'#ff6b7a' }} onClick={clearRoster}>Clear Roster</button>}
       </div>
       <h2 className="gradient-text-cyan">{selectedTeam.team_name} Roster</h2>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px', marginTop:'20px' }}>
@@ -482,27 +482,27 @@ const LeagueRostersTab = ({ prefix }) => {
           <h4 className="gradient-text-cyan">On Roster ({teamPlayers.length})</h4>
           <div style={{ marginTop:'10px', display:'grid', gap:'8px' }}>
             {teamPlayers.map(p => (
-              <div key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px', background:'rgba(0,255,255,0.05)', borderRadius:'4px' }}>
+              <div key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px', background:'rgba(94, 129, 244,0.05)', borderRadius:'4px' }}>
                 <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
                   {p.avatar_data && <img src={p.avatar_data} alt="" style={{ width:'28px', height:'28px', borderRadius:'4px', objectFit:'cover' }} />}
-                  <span style={{ color:'#c0d0ff' }}>{p.player_name}</span>
+                  <span style={{ color:'#e2e5f0' }}>{p.player_name}</span>
                 </div>
-                <button onClick={()=>unassign(p.id)} style={{ background:'none', border:'1px solid #ff3333', color:'#ff3333', borderRadius:'4px', cursor:'pointer', padding:'2px 8px', fontSize:'0.8rem' }}>Remove</button>
+                <button onClick={()=>unassign(p.id)} style={{ background:'none', border:'1px solid #ff6b7a', color:'#ff6b7a', borderRadius:'4px', cursor:'pointer', padding:'2px 8px', fontSize:'0.8rem' }}>Remove</button>
               </div>
             ))}
-            {teamPlayers.length===0 && <p style={{ color:'rgba(192,208,255,0.4)', fontSize:'0.85rem' }}>No players on this roster</p>}
+            {teamPlayers.length===0 && <p style={{ color:'rgba(158, 165, 196,0.4)', fontSize:'0.85rem' }}>No players on this roster</p>}
           </div>
         </div>
         <div className="neon-card p-3">
           <h4 className="gradient-text-magenta">Free Agents ({freePlayers.length})</h4>
           <div style={{ marginTop:'10px', display:'grid', gap:'8px' }}>
             {freePlayers.map(p => (
-              <div key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px', background:'rgba(255,0,255,0.05)', borderRadius:'4px' }}>
-                <span style={{ color:'#c0d0ff' }}>{p.player_name}</span>
+              <div key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px', background:'rgba(255, 158, 87,0.05)', borderRadius:'4px' }}>
+                <span style={{ color:'#e2e5f0' }}>{p.player_name}</span>
                 <button onClick={()=>assign(p.id, selectedTeam.team_name)} style={{ background:'none', border:'1px solid var(--color-cyan)', color:'var(--color-cyan)', borderRadius:'4px', cursor:'pointer', padding:'2px 8px', fontSize:'0.8rem' }}>Add</button>
               </div>
             ))}
-            {freePlayers.length===0 && <p style={{ color:'rgba(192,208,255,0.4)', fontSize:'0.85rem' }}>No free agents</p>}
+            {freePlayers.length===0 && <p style={{ color:'rgba(158, 165, 196,0.4)', fontSize:'0.85rem' }}>No free agents</p>}
           </div>
         </div>
       </div>
@@ -524,7 +524,7 @@ const LeagueGamesTab = ({ prefix }) => {
   const addGame = async () => {
     if (!newGame.home_team||!newGame.away_team||newGame.home_team===newGame.away_team) return;
     const ht=teams.find(t=>t.team_name===newGame.home_team), at=teams.find(t=>t.team_name===newGame.away_team);
-    const saved = await db.saveGame(prefix, { ...newGame, status:'scheduled', home_team_logo:ht?.logo_url||'', away_team_logo:at?.logo_url||'', home_team_color:ht?.team_color||'#00ffff', away_team_color:at?.team_color||'#00ffff' });
+    const saved = await db.saveGame(prefix, { ...newGame, status:'scheduled', home_team_logo:ht?.logo_url||'', away_team_logo:at?.logo_url||'', home_team_color:ht?.team_color||'#5e81f4', away_team_color:at?.team_color||'#5e81f4' });
     setGames(prev=>[saved,...prev]); setNewGame({ home_team:'', away_team:'', game_date:'', home_score:0, away_score:0 });
   };
   const updateGame = async () => {
@@ -571,17 +571,17 @@ const LeagueGamesTab = ({ prefix }) => {
           </div>
         </div>
       )}
-      {loading ? <p style={{ color:'rgba(192,208,255,0.5)' }}>Loading...</p> : games.map(game => (
+      {loading ? <p style={{ color:'rgba(158, 165, 196,0.5)' }}>Loading...</p> : games.map(game => (
         <div key={game.id} className="neon-card p-3" style={{ marginBottom:'12px' }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'10px' }}>
             <div>
               <p style={{ margin:'0 0 4px', color:'var(--color-cyan)', fontWeight:700 }}>{game.home_team} <span style={{ color:'var(--color-magenta)' }}>{game.home_score}</span> - <span style={{ color:'var(--color-magenta)' }}>{game.away_score}</span> {game.away_team}</p>
-              {game.game_date && <p style={{ margin:0, fontSize:'0.8rem', color:'rgba(192,208,255,0.4)' }}>{new Date(game.game_date).toLocaleString()}</p>}
+              {game.game_date && <p style={{ margin:0, fontSize:'0.8rem', color:'rgba(158, 165, 196,0.4)' }}>{new Date(game.game_date).toLocaleString()}</p>}
               <span className={`badge badge-${game.status==='live'?'active':'pending'}`} style={{ marginTop:'6px', display:'inline-block' }}>{game.status}</span>
             </div>
             <div style={{ display:'flex', gap:'8px' }}>
               <button className="neon-button" style={{ padding:'6px 14px' }} onClick={()=>{ setEditing(game.id); setEditForm({ home_score:game.home_score||0, away_score:game.away_score||0, status:game.status||'scheduled' }); }}>Edit</button>
-              <button className="neon-button" style={{ padding:'6px 14px', borderColor:'#ff3333', color:'#ff3333' }} onClick={()=>del(game.id)}>Delete</button>
+              <button className="neon-button" style={{ padding:'6px 14px', borderColor:'#ff6b7a', color:'#ff6b7a' }} onClick={()=>del(game.id)}>Delete</button>
             </div>
           </div>
         </div>
@@ -659,14 +659,14 @@ const LeagueBoxScoresTab = ({ prefix }) => {
         <button className="neon-button" style={{ marginBottom:'20px' }} onClick={()=>setSelectedGame(null)}>Back</button>
         <h2 className="gradient-text-cyan">{selectedGame.game_name}</h2>
         <div className="neon-card p-3" style={{ marginBottom:'20px', display:'flex', gap:'20px', alignItems:'center', flexWrap:'wrap' }}>
-          <span style={{ color:'rgba(192,208,255,0.7)' }}>{selectedGame.home_team||'Home'}</span>
-          <input type="number" value={selectedGame.home_score||0} onChange={e=>updateBsScore(selectedGame.id,'home_score',+e.target.value)} style={{ width:'60px', padding:'6px', background:'rgba(0,255,255,0.05)', border:'1px solid rgba(0,255,255,0.2)', color:'var(--color-cyan)', borderRadius:'4px', textAlign:'center', fontWeight:'700', fontSize:'1.1rem' }} />
-          <span style={{ color:'rgba(192,208,255,0.4)' }}>-</span>
-          <input type="number" value={selectedGame.away_score||0} onChange={e=>updateBsScore(selectedGame.id,'away_score',+e.target.value)} style={{ width:'60px', padding:'6px', background:'rgba(255,0,255,0.05)', border:'1px solid rgba(255,0,255,0.2)', color:'var(--color-magenta)', borderRadius:'4px', textAlign:'center', fontWeight:'700', fontSize:'1.1rem' }} />
-          <span style={{ color:'rgba(192,208,255,0.7)' }}>{selectedGame.away_team||'Away'}</span>
+          <span style={{ color:'rgba(158, 165, 196,0.7)' }}>{selectedGame.home_team||'Home'}</span>
+          <input type="number" value={selectedGame.home_score||0} onChange={e=>updateBsScore(selectedGame.id,'home_score',+e.target.value)} style={{ width:'60px', padding:'6px', background:'rgba(94, 129, 244,0.05)', border:'1px solid rgba(94, 129, 244,0.2)', color:'var(--color-cyan)', borderRadius:'4px', textAlign:'center', fontWeight:'700', fontSize:'1.1rem' }} />
+          <span style={{ color:'rgba(158, 165, 196,0.4)' }}>-</span>
+          <input type="number" value={selectedGame.away_score||0} onChange={e=>updateBsScore(selectedGame.id,'away_score',+e.target.value)} style={{ width:'60px', padding:'6px', background:'rgba(255, 158, 87,0.05)', border:'1px solid rgba(255, 158, 87,0.2)', color:'var(--color-magenta)', borderRadius:'4px', textAlign:'center', fontWeight:'700', fontSize:'1.1rem' }} />
+          <span style={{ color:'rgba(158, 165, 196,0.7)' }}>{selectedGame.away_team||'Away'}</span>
         </div>
         <div className="neon-card p-3" style={{ marginBottom:'20px' }}>
-          <label style={{ fontSize:'0.8rem', color:'rgba(192,208,255,0.7)' }}>Add Player</label>
+          <label style={{ fontSize:'0.8rem', color:'rgba(158, 165, 196,0.7)' }}>Add Player</label>
           <select style={SS} onChange={e=>{ if(e.target.value){ addPlayerScore(e.target.value); e.target.value=''; } }}>
             <option value="">Select player...</option>
             {players.filter(p=>!addedIds.has(String(p.id))).map(p=><option key={p.id} value={p.id}>{p.player_name} {p.team?`(${p.team})`:''}</option>)}
@@ -675,16 +675,16 @@ const LeagueBoxScoresTab = ({ prefix }) => {
         {gameScores.length>0 && (
           <div className="neon-card p-3" style={{ overflowX:'auto' }}>
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.82rem' }}>
-              <thead><tr>{['Player','Team','H','R','RBI','HR','K','IP','KP','HA','ER',''].map(h=><th key={h} style={{ padding:'8px', color:'rgba(192,208,255,0.6)', textAlign:'center', borderBottom:'1px solid rgba(0,255,255,0.1)' }}>{h}</th>)}</tr></thead>
+              <thead><tr>{['Player','Team','H','R','RBI','HR','K','IP','KP','HA','ER',''].map(h=><th key={h} style={{ padding:'8px', color:'rgba(158, 165, 196,0.6)', textAlign:'center', borderBottom:'1px solid rgba(94, 129, 244,0.1)' }}>{h}</th>)}</tr></thead>
               <tbody>
                 {gameScores.map(score => {
                   const player = players.find(p=>String(p.id)===String(score.player_id));
                   return (
-                    <tr key={score.id} style={{ borderBottom:'1px solid rgba(0,255,255,0.05)' }}>
+                    <tr key={score.id} style={{ borderBottom:'1px solid rgba(94, 129, 244,0.05)' }}>
                       <td style={{ padding:'8px', color:'var(--color-cyan)' }}>{player?.player_name||'?'}</td>
-                      <td style={{ padding:'8px', textAlign:'center', color:'rgba(192,208,255,0.6)' }}>{score.team||'--'}</td>
+                      <td style={{ padding:'8px', textAlign:'center', color:'rgba(158, 165, 196,0.6)' }}>{score.team||'--'}</td>
                       {[score.hits,score.runs,score.rbis,score.home_runs,score.strike_outs,score.innings_pitched,score.strikeouts_pitched,score.hits_allowed,score.earned_runs].map((v,i)=>(
-                        <td key={i} style={{ padding:'8px', textAlign:'center', color:'rgba(192,208,255,0.85)' }}>{v||0}</td>
+                        <td key={i} style={{ padding:'8px', textAlign:'center', color:'rgba(158, 165, 196,0.85)' }}>{v||0}</td>
                       ))}
                       <td style={{ padding:'8px', textAlign:'center' }}>
                         <button onClick={()=>{ setEditingScore(score); setEditForm({...score}); }} style={{ background:'none', border:'none', color:'var(--color-cyan)', cursor:'pointer' }}>Edit</button>
@@ -733,16 +733,16 @@ const LeagueBoxScoresTab = ({ prefix }) => {
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
               <div>
                 <p style={{ margin:'0 0 4px', color:'var(--color-cyan)', fontWeight:'700' }}>{game.game_name}</p>
-                <p style={{ margin:0, color:'rgba(192,208,255,0.75)' }}>{game.home_team||'Home'} <strong>{game.home_score}</strong> - <strong>{game.away_score}</strong> {game.away_team||'Away'}</p>
+                <p style={{ margin:0, color:'rgba(158, 165, 196,0.75)' }}>{game.home_team||'Home'} <strong>{game.home_score}</strong> - <strong>{game.away_score}</strong> {game.away_team||'Away'}</p>
               </div>
               <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
-                <span style={{ color:'rgba(0,255,255,0.5)', fontSize:'0.8rem' }}>Open</span>
-                <button onClick={e=>{e.stopPropagation();deleteGame(game.id);}} style={{ background:'none', border:'none', color:'#ff3333', cursor:'pointer', fontSize:'0.9rem', padding:'4px 8px' }}>X</button>
+                <span style={{ color:'rgba(94, 129, 244,0.5)', fontSize:'0.8rem' }}>Open</span>
+                <button onClick={e=>{e.stopPropagation();deleteGame(game.id);}} style={{ background:'none', border:'none', color:'#ff6b7a', cursor:'pointer', fontSize:'0.9rem', padding:'4px 8px' }}>X</button>
               </div>
             </div>
           </div>
         ))}
-        {bsGames.length===0 && <div className="neon-card p-3"><p style={{ color:'rgba(192,208,255,0.5)', textAlign:'center' }}>No box score games yet.</p></div>}
+        {bsGames.length===0 && <div className="neon-card p-3"><p style={{ color:'rgba(158, 165, 196,0.5)', textAlign:'center' }}>No box score games yet.</p></div>}
       </div>
     </div>
   );
@@ -780,10 +780,10 @@ const LeagueGameFeedTab = ({ prefix }) => {
   if (!selectedGame) return (
     <div className="tab-content">
       <h2 className="gradient-text-cyan">{label} Game Feed</h2>
-      <p style={{ color:'rgba(192,208,255,0.7)', marginTop:'10px' }}>Select a live or final game</p>
+      <p style={{ color:'rgba(158, 165, 196,0.7)', marginTop:'10px' }}>Select a live or final game</p>
       <div style={{ marginTop:'20px' }}>
         {liveGames.length===0
-          ? <div className="neon-card p-3"><p style={{ color:'rgba(192,208,255,0.5)', textAlign:'center' }}>No live or final games. Set a game status to Live in the Games tab.</p></div>
+          ? <div className="neon-card p-3"><p style={{ color:'rgba(158, 165, 196,0.5)', textAlign:'center' }}>No live or final games. Set a game status to Live in the Games tab.</p></div>
           : liveGames.map(game=>(
             <div key={game.id} className="neon-card p-3" style={{ marginBottom:'15px', cursor:'pointer' }} onClick={()=>setSelectedGame(game)}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
@@ -810,25 +810,25 @@ const LeagueGameFeedTab = ({ prefix }) => {
             <div style={{ marginTop:'15px', maxHeight:'250px', overflowY:'auto', display:'grid', gap:'6px' }}>
               {plist.map(player=>(
                 <button key={player.id} onClick={()=>setSelectedPlayer(player.id)}
-                  style={{ padding:'8px', background:selectedPlayer===player.id?`rgba(${color==='cyan'?'0,255,255':'255,0,255'},0.2)`:`rgba(${color==='cyan'?'0,255,255':'255,0,255'},0.05)`, border:`${selectedPlayer===player.id?'2px':'1px'} solid ${color==='cyan'?'rgba(0,255,255,0.4)':'rgba(255,0,255,0.4)'}`, color:'#c0d0ff', borderRadius:'4px', cursor:'pointer', textAlign:'left', display:'flex', alignItems:'center', gap:'8px' }}>
+                  style={{ padding:'8px', background:selectedPlayer===player.id?`rgba(${color==='cyan'?'94, 129, 244':'255, 158, 87'},0.2)`:`rgba(${color==='cyan'?'94, 129, 244':'255, 158, 87'},0.05)`, border:`${selectedPlayer===player.id?'2px':'1px'} solid ${color==='cyan'?'rgba(94, 129, 244,0.4)':'rgba(255, 158, 87,0.4)'}`, color:'#e2e5f0', borderRadius:'4px', cursor:'pointer', textAlign:'left', display:'flex', alignItems:'center', gap:'8px' }}>
                   {player.avatar_data && <img src={player.avatar_data} alt="" style={{ width:'24px', height:'24px', borderRadius:'3px', objectFit:'cover' }} />}
                   {player.player_name}
                 </button>
               ))}
-              {plist.length===0 && <p style={{ color:'rgba(192,208,255,0.4)', fontSize:'0.85rem' }}>No players on roster</p>}
+              {plist.length===0 && <p style={{ color:'rgba(158, 165, 196,0.4)', fontSize:'0.85rem' }}>No players on roster</p>}
             </div>
           </div>
         ))}
       </div>
       <div className="neon-card p-3" style={{ marginTop:'20px' }}>
         <h4 className="gradient-text-magenta">Log Event</h4>
-        <label style={{ fontSize:'0.8rem', color:'rgba(192,208,255,0.7)', display:'block', marginBottom:'8px', marginTop:'10px' }}>
+        <label style={{ fontSize:'0.8rem', color:'rgba(158, 165, 196,0.7)', display:'block', marginBottom:'8px', marginTop:'10px' }}>
           {selectedPlayer ? `Player: ${players.find(p=>p.id===selectedPlayer)?.player_name}` : 'Select a player first'}
         </label>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(100px, 1fr))', gap:'8px' }}>
           {eventTypes.map(event=>(
             <button key={event} onClick={()=>setSelectedEvent(event)}
-              style={{ padding:'8px', background:selectedEvent===event?'rgba(0,255,255,0.2)':'rgba(0,255,255,0.05)', border:`${selectedEvent===event?'2':'1'}px solid rgba(0,255,255,0.3)`, color:selectedEvent===event?'var(--color-cyan)':'rgba(192,208,255,0.7)', borderRadius:'4px', cursor:'pointer', fontSize:'0.78rem', fontWeight:'600' }}>
+              style={{ padding:'8px', background:selectedEvent===event?'rgba(94, 129, 244,0.2)':'rgba(94, 129, 244,0.05)', border:`${selectedEvent===event?'2':'1'}px solid rgba(94, 129, 244,0.3)`, color:selectedEvent===event?'var(--color-cyan)':'rgba(158, 165, 196,0.7)', borderRadius:'4px', cursor:'pointer', fontSize:'0.78rem', fontWeight:'600' }}>
               {event}
             </button>
           ))}
@@ -838,9 +838,9 @@ const LeagueGameFeedTab = ({ prefix }) => {
       <div className="neon-card p-3" style={{ marginTop:'20px' }}>
         <h4 className="gradient-text-cyan">Live Feed ({gameFeed.length} events)</h4>
         <div style={{ marginTop:'15px', maxHeight:'400px', overflowY:'auto', display:'grid', gap:'8px' }}>
-          {gameFeed.length===0 ? <p style={{ color:'rgba(192,208,255,0.6)' }}>No events logged yet</p> :
+          {gameFeed.length===0 ? <p style={{ color:'rgba(158, 165, 196,0.6)' }}>No events logged yet</p> :
             [...gameFeed].reverse().map(event=>(
-              <div key={event.id} style={{ padding:'12px', background:'rgba(0,255,255,0.05)', border:'1px solid rgba(0,255,255,0.1)', borderRadius:'4px' }}>
+              <div key={event.id} style={{ padding:'12px', background:'rgba(94, 129, 244,0.05)', border:'1px solid rgba(94, 129, 244,0.1)', borderRadius:'4px' }}>
                 {editingEvent===event.id ? (
                   <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
                     <select value={editNote} onChange={e=>setEditNote(e.target.value)} style={{ ...SS, flex:1 }}>
@@ -853,12 +853,12 @@ const LeagueGameFeedTab = ({ prefix }) => {
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
                     <div>
                       <p style={{ margin:0, color:'var(--color-cyan)', fontWeight:600 }}>{event.player_name}</p>
-                      <p style={{ margin:'4px 0 0', color:'rgba(192,208,255,0.8)' }}>{event.event_type}</p>
-                      <p style={{ margin:'2px 0 0', fontSize:'0.75rem', color:'rgba(192,208,255,0.4)' }}>{new Date(event.created_at||event.timestamp).toLocaleTimeString()}</p>
+                      <p style={{ margin:'4px 0 0', color:'rgba(158, 165, 196,0.8)' }}>{event.event_type}</p>
+                      <p style={{ margin:'2px 0 0', fontSize:'0.75rem', color:'rgba(158, 165, 196,0.4)' }}>{new Date(event.created_at||event.timestamp).toLocaleTimeString()}</p>
                     </div>
                     <div style={{ display:'flex', gap:'6px' }}>
                       <button onClick={()=>{setEditingEvent(event.id);setEditNote(event.event_type);}} style={{ background:'none', border:'none', color:'var(--color-cyan)', cursor:'pointer' }}>Edit</button>
-                      <button onClick={()=>deleteEvent(event.id)} style={{ background:'none', border:'none', color:'#ff3333', cursor:'pointer' }}>X</button>
+                      <button onClick={()=>deleteEvent(event.id)} style={{ background:'none', border:'none', color:'#ff6b7a', cursor:'pointer' }}>X</button>
                     </div>
                   </div>
                 )}
@@ -907,9 +907,9 @@ const LeagueHofTab = ({ prefix }) => {
           <div key={m.id} className="neon-card p-3">
             <div style={{ textAlign:'center' }}>
               <h4 className="gradient-text-magenta" style={{ marginBottom:'5px' }}>{m.player_name}</h4>
-              <p style={{ margin:0, color:'rgba(192,208,255,0.7)', fontSize:'0.9rem' }}>Class of {m.year}</p>
+              <p style={{ margin:0, color:'rgba(158, 165, 196,0.7)', fontSize:'0.9rem' }}>Class of {m.year}</p>
             </div>
-            <button className="neon-button" style={{ width:'100%', marginTop:'15px', borderColor:'#ff3333', color:'#ff3333' }} onClick={()=>remove(m.id)}>Remove</button>
+            <button className="neon-button" style={{ width:'100%', marginTop:'15px', borderColor:'#ff6b7a', color:'#ff6b7a' }} onClick={()=>remove(m.id)}>Remove</button>
           </div>
         ))}
       </div>

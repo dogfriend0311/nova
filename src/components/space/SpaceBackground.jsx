@@ -13,9 +13,9 @@ const SpaceBackground = () => {
           width: '100%',
           height: '100%',
           background: `
-            radial-gradient(ellipse at 20% 50%, rgba(138, 43, 226, 0.1) 0%, transparent 50%),
-            radial-gradient(ellipse at 80% 80%, rgba(0, 191, 255, 0.1) 0%, transparent 50%),
-            linear-gradient(180deg, #0a0a23 0%, #1a0a3a 50%, #0a0a23 100%)
+            radial-gradient(ellipse at 20% 50%, rgba(108, 92, 231, 0.12) 0%, transparent 50%),
+            radial-gradient(ellipse at 80% 80%, rgba(94, 129, 244, 0.12) 0%, transparent 50%),
+            linear-gradient(180deg, #0a0d1a 0%, #131729 50%, #0a0d1a 100%)
           `,
           zIndex: 0,
         }}

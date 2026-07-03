@@ -21,10 +21,10 @@ const fmt     = (n, decimals = 2) =>
 const SavantCard = ({ player }) => {
   const pctColor = (p) => {
     const n = parseFloat(p);
-    if (isNaN(n)) return 'rgba(192,208,255,0.3)';
-    if (n >= 70)  return '#00d4f5';
+    if (isNaN(n)) return 'rgba(158, 165, 196,0.3)';
+    if (n >= 70)  return '#5e81f4';
     if (n >= 30)  return '#ffd700';
-    return '#ff4d4d';
+    return '#ff6b7a';
   };
 
   const Bar = ({ label, value, pct }) => {
@@ -68,9 +68,9 @@ const SavantCard = ({ player }) => {
         <span className="sv-subtitle">Percentile Rankings</span>
       </div>
       <div className="sv-legend">
-        <span style={{ color: '#ff4d4d' }}>POOR</span>
+        <span style={{ color: '#ff6b7a' }}>POOR</span>
         <span style={{ color: '#ffd700' }}>AVERAGE</span>
-        <span style={{ color: '#00d4f5' }}>GREAT</span>
+        <span style={{ color: '#5e81f4' }}>GREAT</span>
       </div>
       {batting.length > 0 && (
         <>
@@ -123,7 +123,7 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
     return (
       <div className="league-player-page">
         <div className="neon-card p-3" style={{ textAlign: 'center' }}>
-          <p style={{ color: 'rgba(192,208,255,0.6)' }}>No player selected.</p>
+          <p style={{ color: 'rgba(158, 165, 196,0.6)' }}>No player selected.</p>
           {onBack && (
             <button className="neon-button" style={{ marginTop: '15px' }} onClick={onBack}>
               Back
@@ -275,7 +275,7 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
           </button>
           <button
             onClick={sharePlayer}
-            style={{ padding: '8px 16px', background: 'rgba(0,255,255,0.06)', border: '1px solid rgba(0,255,255,0.25)', color: 'var(--color-cyan)', borderRadius: '8px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700 }}
+            style={{ padding: '8px 16px', background: 'rgba(94, 129, 244,0.06)', border: '1px solid rgba(94, 129, 244,0.25)', color: 'var(--color-cyan)', borderRadius: '8px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700 }}
           >
             Share Link
           </button>
@@ -297,7 +297,7 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
             {player.nickname ? (
               <>
                 <h2 className="card-name">{player.nickname}</h2>
-                <div style={{ fontSize: '0.82rem', color: 'rgba(192,208,255,0.45)', marginBottom: '4px', marginTop: '-6px', fontStyle: 'italic' }}>
+                <div style={{ fontSize: '0.82rem', color: 'rgba(158, 165, 196,0.45)', marginBottom: '4px', marginTop: '-6px', fontStyle: 'italic' }}>
                   {player.player_name}
                 </div>
               </>
@@ -306,7 +306,7 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
             )}
             {/* Roblox username in small print */}
             {player.roblox_username && (
-              <div style={{ fontSize: '0.75rem', color: 'rgba(192,208,255,0.35)', marginBottom: '6px' }}>
+              <div style={{ fontSize: '0.75rem', color: 'rgba(158, 165, 196,0.35)', marginBottom: '6px' }}>
                 @{player.roblox_username} on Roblox
               </div>
             )}
@@ -387,7 +387,7 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
                   <thead>
                     <tr>
                       {['H', 'R', 'RBI', 'HR', 'K', 'IP', 'KP', 'HA', 'ER'].map(h => (
-                        <th key={h} style={{ padding: '8px', color: 'rgba(192,208,255,0.6)', textAlign: 'center', borderBottom: '1px solid rgba(0,255,255,0.1)' }}>{h}</th>
+                        <th key={h} style={{ padding: '8px', color: 'rgba(158, 165, 196,0.6)', textAlign: 'center', borderBottom: '1px solid rgba(94, 129, 244,0.1)' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -397,7 +397,7 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
                         {[score.hits, score.runs, score.rbis, score.home_runs, score.strike_outs,
                           score.innings_pitched, score.strikeouts_pitched, score.hits_allowed, score.earned_runs
                         ].map((v, j) => (
-                          <td key={j} style={{ padding: '8px', textAlign: 'center', color: 'var(--color-cyan)', borderBottom: '1px solid rgba(0,255,255,0.05)' }}>{v || 0}</td>
+                          <td key={j} style={{ padding: '8px', textAlign: 'center', color: 'var(--color-cyan)', borderBottom: '1px solid rgba(94, 129, 244,0.05)' }}>{v || 0}</td>
                         ))}
                       </tr>
                     ))}

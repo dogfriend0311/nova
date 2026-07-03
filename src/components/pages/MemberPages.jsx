@@ -19,9 +19,9 @@ const roleBadgeStyle = (role) => {
     owner:        { background: 'rgba(255,215,0,0.15)',  border: '1px solid rgba(255,215,0,0.4)',  color: '#ffd700' },
     cofounder:    { background: 'rgba(255,100,0,0.15)',  border: '1px solid rgba(255,100,0,0.4)',  color: '#ff6400' },
     mod:          { background: 'rgba(0,200,100,0.15)',  border: '1px solid rgba(0,200,100,0.4)',  color: '#00c864' },
-    vizta_helper: { background: 'rgba(180,0,255,0.15)',  border: '1px solid rgba(180,0,255,0.4)',  color: '#cc66ff' },
+    vizta_helper: { background: 'rgba(180,94, 230, 168.15)',  border: '1px solid rgba(180,94, 230, 168.4)',  color: '#cc66ff' },
   };
-  return styles[role] || { background: 'rgba(0,255,255,0.1)', border: '1px solid rgba(0,255,255,0.3)', color: 'var(--color-cyan)' };
+  return styles[role] || { background: 'rgba(94, 129, 244,0.1)', border: '1px solid rgba(94, 129, 244,0.3)', color: 'var(--color-cyan)' };
 };
 
 // Roblox game thumbnail via wsrv.nl proxy (avoids CORS)
@@ -45,7 +45,7 @@ const FavTeams = ({ favTeams }) => {
   if (!hasSome) return null;
   return (
     <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: '8px', padding: '14px 16px', marginTop: '14px' }}>
-      <div style={{ fontSize: '0.72rem', fontWeight: '700', color: 'rgba(192,208,255,0.45)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
+      <div style={{ fontSize: '0.72rem', fontWeight: '700', color: 'rgba(158, 165, 196,0.45)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
         ★ Favorite Teams
       </div>
       {SPORT_KEYS.map((sport) => {
@@ -54,14 +54,14 @@ const FavTeams = ({ favTeams }) => {
         const hasLogos = ['mlb', 'nfl', 'nba', 'nhl'].includes(sport);
         return (
           <div key={sport} style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '7px' }}>
-            <span style={{ fontSize: '0.72rem', color: 'rgba(192,208,255,0.38)', minWidth: '88px', flexShrink: 0 }}>
+            <span style={{ fontSize: '0.72rem', color: 'rgba(158, 165, 196,0.38)', minWidth: '88px', flexShrink: 0 }}>
               {SPORT_ICONS[sport]} {SPORT_SHORT[sport]}
             </span>
             <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
               {picked.map((abbr) => {
                 const logo = hasLogos ? getTeamLogoUrl(sport, abbr) : null;
                 return (
-                  <span key={abbr} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 9px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: '800', background: 'rgba(0,200,255,0.08)', border: '1px solid rgba(0,200,255,0.3)', color: '#00c8ff', letterSpacing: '0.04em' }}>
+                  <span key={abbr} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 9px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: '800', background: 'rgba(94, 129, 244,0.08)', border: '1px solid rgba(94, 129, 244,0.3)', color: '#5e81f4', letterSpacing: '0.04em' }}>
                     {logo && <img src={logo} alt="" style={{ width: 15, height: 15, objectFit: 'contain' }} onError={(e) => { e.target.style.display = 'none'; }} />}
                     {abbr}
                   </span>
@@ -80,15 +80,15 @@ const FavTeams = ({ favTeams }) => {
 const FavGames = ({ favGames }) => {
   const sports = (favGames || []).filter(g => !g.placeId);
   if (!sports.length) {
-    return <p style={{ color: 'rgba(192,208,255,0.3)', textAlign: 'center', padding: '20px' }}>No favorite games yet.</p>;
+    return <p style={{ color: 'rgba(158, 165, 196,0.3)', textAlign: 'center', padding: '20px' }}>No favorite games yet.</p>;
   }
   return (
     <div>
       {sports.map((g) => (
         <div key={g.id} style={{ padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <p style={{ margin: '0 0 3px', fontWeight: 700, color: 'var(--color-cyan)', fontSize: '0.95rem' }}>{g.text}</p>
-          {g.note && <p style={{ margin: '0 0 3px', color: 'rgba(192,208,255,0.65)', fontSize: '0.85rem' }}>"{g.note}"</p>}
-          <p style={{ margin: 0, fontSize: '0.72rem', color: 'rgba(192,208,255,0.35)' }}>{g.date}</p>
+          {g.note && <p style={{ margin: '0 0 3px', color: 'rgba(158, 165, 196,0.65)', fontSize: '0.85rem' }}>"{g.note}"</p>}
+          <p style={{ margin: 0, fontSize: '0.72rem', color: 'rgba(158, 165, 196,0.35)' }}>{g.date}</p>
         </div>
       ))}
     </div>
@@ -99,12 +99,12 @@ const FavGames = ({ favGames }) => {
 const RobloxGames = ({ favGames }) => {
   const roblox = (favGames || []).filter(g => g.placeId);
   if (!roblox.length) {
-    return <p style={{ color: 'rgba(192,208,255,0.3)', textAlign: 'center', padding: '20px' }}>No Roblox games added yet.</p>;
+    return <p style={{ color: 'rgba(158, 165, 196,0.3)', textAlign: 'center', padding: '20px' }}>No Roblox games added yet.</p>;
   }
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '10px' }}>
       {roblox.map((g) => (
-        <div key={g.id} style={{ background: 'rgba(0,255,255,0.04)', border: '1px solid rgba(0,255,255,0.1)', borderRadius: '10px', overflow: 'hidden' }}>
+        <div key={g.id} style={{ background: 'rgba(94, 129, 244,0.04)', border: '1px solid rgba(94, 129, 244,0.1)', borderRadius: '10px', overflow: 'hidden' }}>
           <img
             src={robloxThumbUrl(g.placeId)}
             alt={g.text}
@@ -113,7 +113,7 @@ const RobloxGames = ({ favGames }) => {
           />
           <div style={{ padding: '6px 8px' }}>
             <p style={{ margin: '0 0 2px', fontWeight: 700, color: 'var(--color-cyan)', fontSize: '0.78rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.text}</p>
-            {g.note && <p style={{ margin: 0, color: 'rgba(192,208,255,0.5)', fontSize: '0.7rem', fontStyle: 'italic' }}>"{g.note}"</p>}
+            {g.note && <p style={{ margin: 0, color: 'rgba(158, 165, 196,0.5)', fontSize: '0.7rem', fontStyle: 'italic' }}>"{g.note}"</p>}
           </div>
         </div>
       ))}
@@ -155,7 +155,7 @@ const NowPlayingPublic = ({ lastfmUsername }) => {
           {track.isPlaying ? 'Listening Now' : 'Last Played'}
         </div>
         <div style={{ fontWeight: 700, color: '#e8efff', fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{track.trackName}</div>
-        <div style={{ fontSize: '0.76rem', color: 'rgba(192,208,255,0.5)' }}>{track.artistName}</div>
+        <div style={{ fontSize: '0.76rem', color: 'rgba(158, 165, 196,0.5)' }}>{track.artistName}</div>
       </div>
     </a>
   );
@@ -178,7 +178,7 @@ const WatchPreview = ({ username }) => {
 
   return (
     <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: '8px', padding: '14px 16px', marginTop: '14px' }}>
-      <div style={{ fontSize: '0.72rem', fontWeight: '700', color: 'rgba(192,208,255,0.45)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
+      <div style={{ fontSize: '0.72rem', fontWeight: '700', color: 'rgba(158, 165, 196,0.45)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>
         🎬 Watch List
       </div>
       <div style={{ display: 'flex', gap: '14px', fontSize: '0.8rem', marginBottom: '12px', flexWrap: 'wrap' }}>
@@ -188,7 +188,7 @@ const WatchPreview = ({ username }) => {
       </div>
       {pinned.length > 0 && (
         <div style={{ marginBottom: '12px' }}>
-          <div style={{ fontSize: '0.7rem', color: 'rgba(192,208,255,0.3)', marginBottom: '6px' }}>📌 Pinned</div>
+          <div style={{ fontSize: '0.7rem', color: 'rgba(158, 165, 196,0.3)', marginBottom: '6px' }}>📌 Pinned</div>
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
             {pinned.slice(0, 6).map((item) => (
               <div key={item.id} style={{ width: '52px', height: '74px', borderRadius: '6px', overflow: 'hidden', position: 'relative', background: 'rgba(20,20,50,0.8)', border: '1px solid rgba(100,120,200,0.25)', flexShrink: 0 }} title={item.title}>
@@ -208,18 +208,18 @@ const WatchPreview = ({ username }) => {
       )}
       {recentReviews.length > 0 && (
         <div>
-          <div style={{ fontSize: '0.7rem', color: 'rgba(192,208,255,0.3)', marginBottom: '6px' }}>Recent Reviews</div>
+          <div style={{ fontSize: '0.7rem', color: 'rgba(158, 165, 196,0.3)', marginBottom: '6px' }}>Recent Reviews</div>
           {recentReviews.map((item, i) => (
             <div key={i} style={{ borderBottom: '1px solid rgba(100,120,200,0.08)', paddingBottom: '8px', marginBottom: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '0.88rem', fontWeight: '700', color: 'rgba(192,208,255,0.85)' }}>{item.title}</span>
+                <span style={{ fontSize: '0.88rem', fontWeight: '700', color: 'rgba(158, 165, 196,0.85)' }}>{item.title}</span>
                 {item.rating != null && <span style={{ color: '#fbbf24', fontSize: '0.78rem' }}>★ {item.rating}/10</span>}
                 <span style={{ background: `${STATUS_COLORS[item.status]}1a`, color: STATUS_COLORS[item.status], border: `1px solid ${STATUS_COLORS[item.status]}44`, padding: '1px 7px', borderRadius: '8px', fontSize: '0.68rem', fontWeight: 700 }}>
                   {STATUS_LABELS[item.status]}
                 </span>
               </div>
               {item.review && (
-                <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: 'rgba(192,208,255,0.55)', lineHeight: 1.4, fontStyle: 'italic' }}>
+                <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: 'rgba(158, 165, 196,0.55)', lineHeight: 1.4, fontStyle: 'italic' }}>
                   "{item.review.length > 100 ? item.review.slice(0, 100) + '…' : item.review}"
                 </p>
               )}
@@ -313,7 +313,7 @@ const CommentsSection = ({ toUsername, currentUser }) => {
             placeholder={`Leave a comment on ${toUsername}'s profile...`}
             value={text}
             onChange={e => setText(e.target.value)}
-            style={{ width: '100%', padding: '10px 12px', background: 'rgba(0,255,255,0.05)', border: '1px solid rgba(0,255,255,0.2)', color: '#c0d0ff', borderRadius: '8px', fontFamily: 'inherit', fontSize: '0.9rem', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '10px 12px', background: 'rgba(94, 129, 244,0.05)', border: '1px solid rgba(94, 129, 244,0.2)', color: '#e2e5f0', borderRadius: '8px', fontFamily: 'inherit', fontSize: '0.9rem', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
           />
           <button
             className="neon-button"
@@ -325,33 +325,33 @@ const CommentsSection = ({ toUsername, currentUser }) => {
           </button>
         </div>
       ) : (
-        <p style={{ color: 'rgba(192,208,255,0.4)', fontSize: '0.85rem', marginBottom: '16px' }}>
+        <p style={{ color: 'rgba(158, 165, 196,0.4)', fontSize: '0.85rem', marginBottom: '16px' }}>
           Sign in to leave a comment.
         </p>
       )}
 
       {/* Comment list */}
       {loading ? (
-        <p style={{ color: 'rgba(192,208,255,0.3)', fontSize: '0.85rem' }}>Loading comments...</p>
+        <p style={{ color: 'rgba(158, 165, 196,0.3)', fontSize: '0.85rem' }}>Loading comments...</p>
       ) : comments.length === 0 ? (
-        <p style={{ color: 'rgba(192,208,255,0.3)', fontSize: '0.85rem', textAlign: 'center', padding: '20px 0' }}>No comments yet. Be the first!</p>
+        <p style={{ color: 'rgba(158, 165, 196,0.3)', fontSize: '0.85rem', textAlign: 'center', padding: '20px 0' }}>No comments yet. Be the first!</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {comments.map(c => (
-            <div key={c.id} style={{ padding: '12px 14px', background: 'rgba(0,255,255,0.04)', border: '1px solid rgba(0,255,255,0.1)', borderRadius: '10px' }}>
+            <div key={c.id} style={{ padding: '12px 14px', background: 'rgba(94, 129, 244,0.04)', border: '1px solid rgba(94, 129, 244,0.1)', borderRadius: '10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
                 <span style={{ fontWeight: 700, color: 'var(--color-cyan)', fontSize: '0.88rem' }}>{c.from_username}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ color: 'rgba(192,208,255,0.35)', fontSize: '0.72rem' }}>{timeAgo(c.created_at)}</span>
+                  <span style={{ color: 'rgba(158, 165, 196,0.35)', fontSize: '0.72rem' }}>{timeAgo(c.created_at)}</span>
                   {(currentUser === c.from_username || currentUser === toUsername) && (
                     <button onClick={() => handleDelete(c.id, c.from_username)}
-                      style={{ background: 'none', border: 'none', color: 'rgba(255,80,80,0.5)', cursor: 'pointer', fontSize: '0.75rem', padding: 0 }}>
+                      style={{ background: 'none', border: 'none', color: 'rgba(255, 107, 122,0.5)', cursor: 'pointer', fontSize: '0.75rem', padding: 0 }}>
                       Delete
                     </button>
                   )}
                 </div>
               </div>
-              <p style={{ margin: 0, color: 'rgba(220,230,255,0.85)', fontSize: '0.88rem', lineHeight: 1.5 }}>{c.content}</p>
+              <p style={{ margin: 0, color: 'rgba(220,2394, 230, 168.85)', fontSize: '0.88rem', lineHeight: 1.5 }}>{c.content}</p>
             </div>
           ))}
         </div>
@@ -434,10 +434,10 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(192,208,255,0.4)' }}>Loading…</div>
+        <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(158, 165, 196,0.4)' }}>Loading…</div>
       ) : filtered.length === 0 ? (
         <div className="neon-card p-3" style={{ textAlign: 'center' }}>
-          <p style={{ color: 'rgba(192,208,255,0.5)' }}>
+          <p style={{ color: 'rgba(158, 165, 196,0.5)' }}>
             {members.length === 0 ? 'No member profiles yet' : 'No members match your search'}
           </p>
         </div>
@@ -447,7 +447,7 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
             <div key={i} className="neon-card" style={{ cursor: 'pointer', overflow: 'hidden' }} onClick={() => handleSelect(member)}>
               <div style={{ height: '70px', background: member.top_banner_url ? `url(${member.top_banner_url}) center/cover` : 'linear-gradient(135deg, #0d1b2e 0%, #001a2e 50%, #0d1229 100%)', position: 'relative' }} />
               <div style={{ padding: '0 16px 16px', position: 'relative' }}>
-                <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-cyan), var(--color-magenta))', border: '4px solid #1a1d2e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', marginTop: '-30px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,255,255,0.2)' }}>
+                <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-cyan), var(--color-magenta))', border: '4px solid #1a1d2e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', marginTop: '-30px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(94, 129, 244,0.2)' }}>
                   {member.avatar_url ? <img src={member.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '🚀'}
                 </div>
                 <div style={{ marginTop: '8px' }}>
@@ -458,7 +458,7 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
                     </span>
                   </div>
                   {member.bio && (
-                    <p style={{ margin: '8px 0 0 0', color: 'rgba(192,208,255,0.65)', fontSize: '0.85rem', lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                    <p style={{ margin: '8px 0 0 0', color: 'rgba(158, 165, 196,0.65)', fontSize: '0.85rem', lineHeight: 1.4, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                       {member.bio}
                     </p>
                   )}
@@ -522,7 +522,7 @@ const MemberProfileView = ({ member, onBack }) => {
         <button
           className="neon-button"
           onClick={() => copyToClipboard(shareUrl, setCopied)}
-          style={{ fontSize: '0.82rem', padding: '8px 14px', borderColor: copied ? '#00ff88' : 'rgba(0,255,255,0.3)', color: copied ? '#00ff88' : 'rgba(192,208,255,0.7)' }}
+          style={{ fontSize: '0.82rem', padding: '8px 14px', borderColor: copied ? '#00ff88' : 'rgba(94, 129, 244,0.3)', color: copied ? '#00ff88' : 'rgba(158, 165, 196,0.7)' }}
         >
           {copied ? '✓ Copied!' : '🔗 Share Profile'}
         </button>
@@ -531,7 +531,7 @@ const MemberProfileView = ({ member, onBack }) => {
       {/* Banner */}
       <div style={{ width: '100%', height: '200px', background: member.top_banner_url ? `url(${member.top_banner_url}) center/cover` : 'linear-gradient(135deg,rgba(0,60,120,0.8),rgba(0,20,60,0.9))', position: 'relative', overflow: 'visible' }}>
         <div style={{ position: 'absolute', bottom: '-48px', left: '20px' }}>
-          <div style={{ width: '96px', height: '96px', borderRadius: '50%', border: '4px solid #0d1117', background: 'rgba(0,255,255,0.1)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', boxShadow: '0 0 0 2px rgba(0,255,255,0.3)' }}>
+          <div style={{ width: '96px', height: '96px', borderRadius: '50%', border: '4px solid #0d1117', background: 'rgba(94, 129, 244,0.1)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', boxShadow: '0 0 0 2px rgba(94, 129, 244,0.3)' }}>
             {member.avatar_url ? <img src={member.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : 'N'}
           </div>
         </div>
@@ -543,19 +543,19 @@ const MemberProfileView = ({ member, onBack }) => {
           <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#e7e9ea', margin: '0 0 2px' }}>{member.username}</h2>
           <span style={{ ...roleBadgeStyle(role), padding: '3px 10px', borderRadius: '20px', fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{roleLabel(role)}</span>
         </div>
-        <p style={{ color: 'rgba(192,208,255,0.45)', fontSize: '0.88rem', margin: '0 0 8px' }}>@{member.username}</p>
+        <p style={{ color: 'rgba(158, 165, 196,0.45)', fontSize: '0.88rem', margin: '0 0 8px' }}>@{member.username}</p>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: isOnline ? presenceDot : 'rgba(192,208,255,0.3)', display: 'inline-block' }} />
-          <span style={{ color: 'rgba(192,208,255,0.5)', fontSize: '0.78rem' }}>{presenceTxt}</span>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: isOnline ? presenceDot : 'rgba(158, 165, 196,0.3)', display: 'inline-block' }} />
+          <span style={{ color: 'rgba(158, 165, 196,0.5)', fontSize: '0.78rem' }}>{presenceTxt}</span>
         </div>
 
-        {member.bio && <p style={{ color: 'rgba(220,230,255,0.85)', fontSize: '0.95rem', lineHeight: 1.5, margin: '8px 0' }}>{member.bio}</p>}
+        {member.bio && <p style={{ color: 'rgba(220,2394, 230, 168.85)', fontSize: '0.95rem', lineHeight: 1.5, margin: '8px 0' }}>{member.bio}</p>}
 
         {socials.length > 0 && (
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', margin: '8px 0' }}>
             {socials.map((s) => (
-              <a key={s.key} href={member[s.key]} target="_blank" rel="noreferrer" style={{ color: 'rgba(192,208,255,0.5)', textDecoration: 'none', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <a key={s.key} href={member[s.key]} target="_blank" rel="noreferrer" style={{ color: 'rgba(158, 165, 196,0.5)', textDecoration: 'none', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 {s.icon} {s.label}
               </a>
             ))}
@@ -567,7 +567,7 @@ const MemberProfileView = ({ member, onBack }) => {
       <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.08)', margin: '16px 0 0', overflowX: 'auto', scrollbarWidth: 'none' }}>
         {VTABS.map((t) => (
           <button key={t.id} onClick={() => setViewTab(t.id)}
-            style={{ flex: 1, minWidth: '80px', padding: '14px 8px', background: 'none', border: 'none', borderBottom: viewTab === t.id ? '2px solid var(--color-cyan)' : '2px solid transparent', color: viewTab === t.id ? '#e7e9ea' : 'rgba(192,208,255,0.5)', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            style={{ flex: 1, minWidth: '80px', padding: '14px 8px', background: 'none', border: 'none', borderBottom: viewTab === t.id ? '2px solid var(--color-cyan)' : '2px solid transparent', color: viewTab === t.id ? '#e7e9ea' : 'rgba(158, 165, 196,0.5)', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
             {t.label}
           </button>
         ))}
@@ -578,8 +578,8 @@ const MemberProfileView = ({ member, onBack }) => {
         {viewTab === 'about' && (
           <div style={{ padding: '20px 0' }}>
             {member.bio
-              ? <p style={{ color: 'rgba(192,208,255,0.85)', lineHeight: 1.6, margin: 0 }}>{member.bio}</p>
-              : <p style={{ color: 'rgba(192,208,255,0.3)', textAlign: 'center', padding: '20px' }}>No bio yet.</p>
+              ? <p style={{ color: 'rgba(158, 165, 196,0.85)', lineHeight: 1.6, margin: 0 }}>{member.bio}</p>
+              : <p style={{ color: 'rgba(158, 165, 196,0.3)', textAlign: 'center', padding: '20px' }}>No bio yet.</p>
             }
           </div>
         )}
@@ -599,7 +599,7 @@ const MemberProfileView = ({ member, onBack }) => {
               />
             )}
             {!member.lastfm_username && !member.spotify_url && (
-              <p style={{ color: 'rgba(192,208,255,0.3)', textAlign: 'center', padding: '20px' }}>No music linked.</p>
+              <p style={{ color: 'rgba(158, 165, 196,0.3)', textAlign: 'center', padding: '20px' }}>No music linked.</p>
             )}
           </div>
         )}

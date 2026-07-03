@@ -56,23 +56,23 @@ const GamesPage = () => {
   const [subTab, setSubTab] = React.useState('rtts');
   return (
     <div style={{ maxWidth: '860px', margin: '0 auto', padding: '0 16px' }}>
-      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid rgba(0,255,255,0.1)', overflowX: 'auto' }}>
+      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid rgba(94, 129, 244,0.1)', overflowX: 'auto' }}>
         <button
           onClick={() => setSubTab('rtts')}
-          style={{ padding: '10px 20px', background: subTab === 'rtts' ? 'rgba(0,255,255,0.12)' : 'none', border: 'none', borderBottom: subTab === 'rtts' ? '2px solid var(--color-cyan)' : '2px solid transparent', color: subTab === 'rtts' ? 'var(--color-cyan)' : 'rgba(192,208,255,0.5)', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.88rem' }}
+          style={{ padding: '10px 20px', background: subTab === 'rtts' ? 'rgba(94, 129, 244,0.12)' : 'none', border: 'none', borderBottom: subTab === 'rtts' ? '2px solid var(--color-cyan)' : '2px solid transparent', color: subTab === 'rtts' ? 'var(--color-cyan)' : 'rgba(158, 165, 196,0.5)', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.88rem' }}
         >
           Road to the Show SIM
         </button>
         <button
           onClick={() => setSubTab('more')}
-          style={{ padding: '10px 20px', background: 'none', border: 'none', borderBottom: '2px solid transparent', color: 'rgba(192,208,255,0.35)', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.88rem' }}
+          style={{ padding: '10px 20px', background: 'none', border: 'none', borderBottom: '2px solid transparent', color: 'rgba(158, 165, 196,0.35)', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.88rem' }}
         >
           More Games (Coming Soon)
         </button>
       </div>
       {subTab === 'rtts' && <RoadToTheShow />}
       {subTab === 'more' && (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'rgba(192,208,255,0.35)' }}>
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'rgba(158, 165, 196,0.35)' }}>
           <div style={{ fontSize: '3rem', marginBottom: '12px' }}>🎮</div>
           <p>More games coming soon!</p>
         </div>
@@ -195,7 +195,7 @@ const AppContent = () => {
   // ── Dashboard full-screen override ───────────────────────
   if (showDashboard) {
     return (
-      <div style={{ height: '100vh', overflowY: 'auto', overflowX: 'hidden', background: '#0a0a23' }}>
+      <div style={{ height: '100vh', overflowY: 'auto', overflowX: 'hidden', background: '#0a0d1a' }}>
         <OwnerDashboard onExit={() => setShowDashboard(false)} />
       </div>
     );
@@ -242,7 +242,7 @@ const AppContent = () => {
 
       case 'store':
         return (
-          <div style={{ textAlign: 'center', padding: '60px', color: 'rgba(192,208,255,0.4)' }}>
+          <div style={{ textAlign: 'center', padding: '60px', color: 'rgba(158, 165, 196,0.4)' }}>
             Store coming soon
           </div>
         );
@@ -250,7 +250,7 @@ const AppContent = () => {
       case 'player':
         if (!selectedLeaguePlayer) {
           return (
-            <div style={{ textAlign: 'center', padding: '60px', color: 'rgba(192,208,255,0.4)' }}>
+            <div style={{ textAlign: 'center', padding: '60px', color: 'rgba(158, 165, 196,0.4)' }}>
               Loading player…
             </div>
           );

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import db from './services/db';
-import './RBMLLeague.css';
+import './ViztaLeague.css';
 
 const ViztaLeague = ({ onSelectPlayer }) => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -73,7 +73,7 @@ const OverviewTab = () => {
           <div className="data-row">
             <span className="data-label">Status</span>
             <span className="data-value" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#00ff00', boxShadow: '0 0 8px rgba(0,255,0,0.6)' }} />
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#5ee6a8', boxShadow: '0 0 8px rgba(94, 230, 168,0.6)' }} />
               ONGOING
             </span>
           </div>
@@ -86,13 +86,13 @@ const OverviewTab = () => {
       <div className="neon-card p-3">
         <h3 className="gradient-text-magenta">Recent Games</h3>
         {recentGames.length === 0 ? (
-          <p style={{ marginTop: '15px', color: 'rgba(192,208,255,0.7)' }}>No games played yet</p>
+          <p style={{ marginTop: '15px', color: 'rgba(158, 165, 196,0.7)' }}>No games played yet</p>
         ) : (
           <div className="mt-2">
             {recentGames.map(game => (
-              <div key={game.id} className="data-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px', padding: '10px 0', borderBottom: '1px solid rgba(0,255,255,0.08)' }}>
+              <div key={game.id} className="data-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px', padding: '10px 0', borderBottom: '1px solid rgba(94, 129, 244,0.08)' }}>
                 <span style={{ color: 'var(--color-cyan)', fontWeight: '600', fontSize: '0.9rem' }}>{game.game_name}</span>
-                <span style={{ color: 'rgba(192,208,255,0.8)' }}>
+                <span style={{ color: 'rgba(158, 165, 196,0.8)' }}>
                   {game.home_team} <strong>{game.home_score}</strong> - <strong>{game.away_score}</strong> {game.away_team}
                 </span>
               </div>
@@ -115,13 +115,13 @@ const RostersTab = ({ onSelectPlayer }) => {
       .then(([t, p]) => { setTeams(t); setPlayers(p); setLoading(false); });
   }, []);
 
-  if (loading) return <p style={{ color:'rgba(192,208,255,0.5)', padding:'40px', textAlign:'center' }}>Loading...</p>;
+  if (loading) return <p style={{ color:'rgba(158, 165, 196,0.5)', padding:'40px', textAlign:'center' }}>Loading...</p>;
 
   if (!selectedTeam) return (
     <div>
       <h2 className="gradient-text-cyan">Rosters</h2>
       <div className="card-container" style={{ marginTop:'20px' }}>
-        {teams.length === 0 && <p style={{ color:'rgba(192,208,255,0.5)' }}>No teams yet.</p>}
+        {teams.length === 0 && <p style={{ color:'rgba(158, 165, 196,0.5)' }}>No teams yet.</p>}
         {teams.map(team => (
           <div key={team.id} className="neon-card p-3" style={{ cursor:'pointer', display:'flex', alignItems:'center', gap:'16px' }} onClick={() => setSelectedTeam(team)}>
             {team.logo_url
@@ -129,7 +129,7 @@ const RostersTab = ({ onSelectPlayer }) => {
               : <div style={{ width:'44px', height:'44px', background:team.team_color, borderRadius:'6px', flexShrink:0 }} />}
             <div>
               <p style={{ margin:'0 0 3px', color:'var(--color-cyan)', fontWeight:700, fontSize:'1rem' }}>{team.team_name}</p>
-              <p style={{ margin:0, fontSize:'0.8rem', color:'rgba(192,208,255,0.5)' }}>{players.filter(p=>p.team===team.team_name).length} players</p>
+              <p style={{ margin:0, fontSize:'0.8rem', color:'rgba(158, 165, 196,0.5)' }}>{players.filter(p=>p.team===team.team_name).length} players</p>
             </div>
           </div>
         ))}
@@ -176,20 +176,20 @@ const RostersTab = ({ onSelectPlayer }) => {
         <div className="neon-card p-3">
           <h4 style={{ color:'var(--color-cyan)', marginBottom:'14px' }}>Roster ({teamPlayers.length})</h4>
           {teamPlayers.length === 0
-            ? <p style={{ color:'rgba(192,208,255,0.4)', fontSize:'0.85rem' }}>No players assigned</p>
+            ? <p style={{ color:'rgba(158, 165, 196,0.4)', fontSize:'0.85rem' }}>No players assigned</p>
             : teamPlayers.map(p => (
               <div key={p.id}
                 onClick={() => onSelectPlayer && onSelectPlayer(p)}
-                style={{ display:'flex', alignItems:'center', gap:'10px', padding:'10px', marginBottom:'6px', background:'rgba(0,255,255,0.04)', borderRadius:'6px', border:'1px solid rgba(0,255,255,0.08)', cursor:onSelectPlayer?'pointer':'default', transition:'all 0.15s' }}
-                onMouseEnter={e=>{if(onSelectPlayer) e.currentTarget.style.background='rgba(0,255,255,0.1)';}}
-                onMouseLeave={e=>{e.currentTarget.style.background='rgba(0,255,255,0.04)';}}
+                style={{ display:'flex', alignItems:'center', gap:'10px', padding:'10px', marginBottom:'6px', background:'rgba(94, 129, 244,0.04)', borderRadius:'6px', border:'1px solid rgba(94, 129, 244,0.08)', cursor:onSelectPlayer?'pointer':'default', transition:'all 0.15s' }}
+                onMouseEnter={e=>{if(onSelectPlayer) e.currentTarget.style.background='rgba(94, 129, 244,0.1)';}}
+                onMouseLeave={e=>{e.currentTarget.style.background='rgba(94, 129, 244,0.04)';}}
               >
                 {p.avatar_data
                   ? <img src={p.avatar_data} alt={p.player_name} style={{ width:'36px', height:'36px', borderRadius:'50%', objectFit:'cover', border:`1px solid ${teamColor}44` }} />
                   : <div style={{ width:'36px', height:'36px', borderRadius:'50%', background:`${teamColor}22`, border:`1px solid ${teamColor}33`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1rem', flexShrink:0 }}>G</div>}
                 <div style={{ flex:1, minWidth:0 }}>
                   <p style={{ margin:0, color:'var(--color-cyan)', fontWeight:600, fontSize:'0.88rem', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.player_name}</p>
-                  <p style={{ margin:0, fontSize:'0.72rem', color:'rgba(192,208,255,0.5)' }}>{p.position||'--'} - OVR {p.overall||'?'}</p>
+                  <p style={{ margin:0, fontSize:'0.72rem', color:'rgba(158, 165, 196,0.5)' }}>{p.position||'--'} - OVR {p.overall||'?'}</p>
                 </div>
                 {onSelectPlayer && <span style={{ color:`${teamColor}66`, fontSize:'0.75rem' }}>-&gt;</span>}
               </div>
@@ -198,9 +198,9 @@ const RostersTab = ({ onSelectPlayer }) => {
         <div className="neon-card p-3">
           <h4 style={{ color:teamColor, marginBottom:'14px' }}>Team Stats (Season)</h4>
           {teamStats.map(({label,value}) => (
-            <div key={label} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 0', borderBottom:'1px solid rgba(0,255,255,0.06)' }}>
-              <span style={{ fontSize:'0.78rem', color:'rgba(192,208,255,0.55)' }}>{label}</span>
-              <span style={{ fontWeight:700, color:value==='--'?'rgba(192,208,255,0.25)':teamColor, fontSize:'0.88rem' }}>{value}</span>
+            <div key={label} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 0', borderBottom:'1px solid rgba(94, 129, 244,0.06)' }}>
+              <span style={{ fontSize:'0.78rem', color:'rgba(158, 165, 196,0.55)' }}>{label}</span>
+              <span style={{ fontWeight:700, color:value==='--'?'rgba(158, 165, 196,0.25)':teamColor, fontSize:'0.88rem' }}>{value}</span>
             </div>
           ))}
         </div>
@@ -225,19 +225,19 @@ const PlayersTab = ({ onSelectPlayer }) => {
         <input type="text" placeholder="Search players or teams..." value={search} onChange={e=>setSearch(e.target.value)} style={{ width:'100%', maxWidth:'400px' }} />
       </div>
       {filtered.length === 0 ? (
-        <div className="neon-card p-3"><p style={{ color:'rgba(192,208,255,0.5)', textAlign:'center' }}>{players.length === 0 ? 'No players added yet' : 'No players match your search'}</p></div>
+        <div className="neon-card p-3"><p style={{ color:'rgba(158, 165, 196,0.5)', textAlign:'center' }}>{players.length === 0 ? 'No players added yet' : 'No players match your search'}</p></div>
       ) : (
         <div className="card-grid">
           {filtered.map(player => (
             <div key={player.id} className="neon-card p-3" style={{ cursor:'pointer' }} onClick={() => onSelectPlayer && onSelectPlayer(player)}>
               <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'10px' }}>
                 <h4 className="gradient-text-cyan" style={{ margin:0 }}>{player.player_name}</h4>
-                {player.number && <span style={{ color:'rgba(192,208,255,0.5)' }}>#{player.number}</span>}
+                {player.number && <span style={{ color:'rgba(158, 165, 196,0.5)' }}>#{player.number}</span>}
               </div>
               <div className="data-row"><span className="data-label">Team</span><span className="data-value">{player.team || 'Free Agent'}</span></div>
               <div className="data-row"><span className="data-label">Position</span><span className="data-value">{player.position || '--'}</span></div>
               <div className="data-row"><span className="data-label">Overall</span><span className="data-value">{player.overall || '--'}</span></div>
-              <p style={{ marginTop:'10px', fontSize:'0.8rem', color:'rgba(0,255,255,0.6)', textAlign:'center' }}>Click to view stat page</p>
+              <p style={{ marginTop:'10px', fontSize:'0.8rem', color:'rgba(94, 129, 244,0.6)', textAlign:'center' }}>Click to view stat page</p>
             </div>
           ))}
         </div>
@@ -258,7 +258,7 @@ const LeagueLeadersTab = ({ onSelectPlayer }) => {
       .then(([p, b]) => { setPlayers(p); setBoxScores(Array.isArray(b)?b:[]); setLoading(false); });
   }, []);
 
-  if (loading) return <p style={{ color:'rgba(192,208,255,0.5)', padding:'40px', textAlign:'center' }}>Loading...</p>;
+  if (loading) return <p style={{ color:'rgba(158, 165, 196,0.5)', padding:'40px', textAlign:'center' }}>Loading...</p>;
 
   const withStats = players.map(p => {
     const scores = boxScores.filter(b => String(b.player_id) === String(p.id));
@@ -307,9 +307,9 @@ const LeagueLeadersTab = ({ onSelectPlayer }) => {
   const CATS = statType === 'hitting' ? HITTING_CATS : PITCHING_CATS;
 
   const btnSty = (active) => ({
-    padding:'6px 16px', background:active?'rgba(0,255,255,0.12)':'rgba(10,10,30,0.6)',
-    border:active?'1px solid rgba(0,255,255,0.4)':'1px solid rgba(100,120,200,0.15)',
-    color:active?'var(--color-cyan)':'rgba(192,208,255,0.4)', borderRadius:'6px',
+    padding:'6px 16px', background:active?'rgba(94, 129, 244,0.12)':'rgba(10,10,30,0.6)',
+    border:active?'1px solid rgba(94, 129, 244,0.4)':'1px solid rgba(100,120,200,0.15)',
+    color:active?'var(--color-cyan)':'rgba(158, 165, 196,0.4)', borderRadius:'6px',
     cursor:'pointer', fontWeight:'700', fontSize:'0.78rem', textTransform:'uppercase', letterSpacing:'0.08em',
   });
 
@@ -320,7 +320,7 @@ const LeagueLeadersTab = ({ onSelectPlayer }) => {
       </div>
       <div style={{ display:'flex', gap:'8px', marginBottom:'24px', flexWrap:'wrap', justifyContent:'center' }}>
         {['hitting','pitching'].map(t => (
-          <button key={t} style={{...btnSty(statType===t), borderColor:statType===t?'rgba(255,0,255,0.4)':'rgba(100,120,200,0.15)', color:statType===t?'var(--color-magenta)':'rgba(192,208,255,0.4)', background:statType===t?'rgba(255,0,255,0.1)':'rgba(10,10,30,0.6)'}} onClick={()=>setStatType(t)}>{t}</button>
+          <button key={t} style={{...btnSty(statType===t), borderColor:statType===t?'rgba(255, 158, 87,0.4)':'rgba(100,120,200,0.15)', color:statType===t?'var(--color-magenta)':'rgba(158, 165, 196,0.4)', background:statType===t?'rgba(255, 158, 87,0.1)':'rgba(10,10,30,0.6)'}} onClick={()=>setStatType(t)}>{t}</button>
         ))}
       </div>
       {CATS.map(({ key, label, fmt, hi }) => {
@@ -330,22 +330,22 @@ const LeagueLeadersTab = ({ onSelectPlayer }) => {
           <div key={key} className="neon-card p-3" style={{ marginBottom:'20px' }}>
             <h4 className="gradient-text-magenta" style={{ marginBottom:'12px' }}>{label}</h4>
             {sorted.map((p,i) => (
-              <div key={p.id} onClick={()=>onSelectPlayer&&onSelectPlayer(p)} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'8px', borderRadius:'6px', marginBottom:'4px', background:i===0?'rgba(0,255,255,0.06)':'transparent', cursor:onSelectPlayer?'pointer':'default' }}>
-                <span style={{ width:'22px', textAlign:'center', color:i===0?'#ffd700':i===1?'#c0c0c0':i===2?'#cd7f32':'rgba(192,208,255,0.4)', fontWeight:'700', fontSize:'0.82rem' }}>
+              <div key={p.id} onClick={()=>onSelectPlayer&&onSelectPlayer(p)} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'8px', borderRadius:'6px', marginBottom:'4px', background:i===0?'rgba(94, 129, 244,0.06)':'transparent', cursor:onSelectPlayer?'pointer':'default' }}>
+                <span style={{ width:'22px', textAlign:'center', color:i===0?'#ffd700':i===1?'#c0c0c0':i===2?'#cd7f32':'rgba(158, 165, 196,0.4)', fontWeight:'700', fontSize:'0.82rem' }}>
                   {i===0?'#1':i===1?'#2':i===2?'#3':`#${i+1}`}
                 </span>
                 {p.avatar_data && <img src={p.avatar_data} alt="" style={{ width:'28px', height:'28px', borderRadius:'50%', objectFit:'cover' }} />}
                 <div style={{ flex:1 }}>
                   <p style={{ margin:0, color:'var(--color-cyan)', fontWeight:600, fontSize:'0.88rem' }}>{p.player_name}</p>
-                  <p style={{ margin:0, fontSize:'0.72rem', color:'rgba(192,208,255,0.4)' }}>{p.team||'FA'} - {p.position||'--'}</p>
+                  <p style={{ margin:0, fontSize:'0.72rem', color:'rgba(158, 165, 196,0.4)' }}>{p.team||'FA'} - {p.position||'--'}</p>
                 </div>
-                <span style={{ fontWeight:'800', color:i===0?'var(--color-cyan)':'rgba(192,208,255,0.7)', fontSize:'0.95rem' }}>{fmt(p[key])}</span>
+                <span style={{ fontWeight:'800', color:i===0?'var(--color-cyan)':'rgba(158, 165, 196,0.7)', fontSize:'0.95rem' }}>{fmt(p[key])}</span>
               </div>
             ))}
           </div>
         );
       })}
-      {withStats.length === 0 && <p style={{ color:'rgba(192,208,255,0.4)', textAlign:'center', padding:'40px 20px' }}>No players yet.</p>}
+      {withStats.length === 0 && <p style={{ color:'rgba(158, 165, 196,0.4)', textAlign:'center', padding:'40px 20px' }}>No players yet.</p>}
     </div>
   );
 };
@@ -359,16 +359,16 @@ const GameFeedTab = () => {
       <div className="neon-card p-3">
         <h3 className="gradient-text-cyan">Game Feed</h3>
         {sorted.length === 0 ? (
-          <p style={{ marginTop:'15px', color:'rgba(192,208,255,0.7)' }}>Game updates and news will appear here</p>
+          <p style={{ marginTop:'15px', color:'rgba(158, 165, 196,0.7)' }}>Game updates and news will appear here</p>
         ) : (
           <div style={{ marginTop:'15px', display:'flex', flexDirection:'column', gap:'10px' }}>
             {sorted.map((entry, i) => (
-              <div key={i} style={{ padding:'12px', background:'rgba(0,255,255,0.04)', border:'1px solid rgba(0,255,255,0.1)', borderRadius:'6px' }}>
+              <div key={i} style={{ padding:'12px', background:'rgba(94, 129, 244,0.04)', border:'1px solid rgba(94, 129, 244,0.1)', borderRadius:'6px' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'4px' }}>
                   <span style={{ color:'var(--color-cyan)', fontWeight:'600', fontSize:'0.85rem' }}>{entry.event_type || 'Event'}</span>
-                  {entry.timestamp && <span style={{ color:'rgba(192,208,255,0.4)', fontSize:'0.75rem' }}>{new Date(entry.timestamp).toLocaleString()}</span>}
+                  {entry.timestamp && <span style={{ color:'rgba(158, 165, 196,0.4)', fontSize:'0.75rem' }}>{new Date(entry.timestamp).toLocaleString()}</span>}
                 </div>
-                <p style={{ margin:0, color:'rgba(192,208,255,0.85)', fontSize:'0.9rem' }}>{entry.description}</p>
+                <p style={{ margin:0, color:'rgba(158, 165, 196,0.85)', fontSize:'0.9rem' }}>{entry.description}</p>
               </div>
             ))}
           </div>
@@ -396,8 +396,8 @@ const BoxScoresTab = () => {
   const getTeamLogo  = (name) => teams.find(t=>t.team_name===name)?.logo_url||null;
   const getPlayer    = (id)   => players.find(p=>p.id===id);
 
-  const thS = { padding:'7px 8px', color:'rgba(192,208,255,0.5)', fontSize:'0.72rem', fontWeight:'700', letterSpacing:'0.06em', textTransform:'uppercase', textAlign:'center', borderBottom:'1px solid rgba(0,255,255,0.08)' };
-  const tdS = { padding:'7px 8px', textAlign:'center', color:'rgba(192,208,255,0.85)', fontSize:'0.83rem', borderBottom:'1px solid rgba(0,255,255,0.04)' };
+  const thS = { padding:'7px 8px', color:'rgba(158, 165, 196,0.5)', fontSize:'0.72rem', fontWeight:'700', letterSpacing:'0.06em', textTransform:'uppercase', textAlign:'center', borderBottom:'1px solid rgba(94, 129, 244,0.08)' };
+  const tdS = { padding:'7px 8px', textAlign:'center', color:'rgba(158, 165, 196,0.85)', fontSize:'0.83rem', borderBottom:'1px solid rgba(94, 129, 244,0.04)' };
 
   const TeamTable = ({ teamName, scores, accent }) => {
     const color = getTeamColor(teamName)||accent;
@@ -455,26 +455,26 @@ const BoxScoresTab = () => {
             <div style={{ textAlign:'center' }}>
               {getTeamLogo(selectedGame.home_team) && <img src={getTeamLogo(selectedGame.home_team)} alt="" style={{ width:'40px', height:'40px', objectFit:'contain', display:'block', margin:'0 auto 8px' }} />}
               <p style={{ margin:'0 0 4px', color:getTeamColor(selectedGame.home_team)||'var(--color-cyan)', fontWeight:'700' }}>{selectedGame.home_team||'Home'}</p>
-              <p style={{ margin:0, fontSize:homeWin?'2rem':'1.6rem', fontWeight:'800', color:homeWin?'var(--color-cyan)':'rgba(192,208,255,0.6)' }}>{selectedGame.home_score}</p>
+              <p style={{ margin:0, fontSize:homeWin?'2rem':'1.6rem', fontWeight:'800', color:homeWin?'var(--color-cyan)':'rgba(158, 165, 196,0.6)' }}>{selectedGame.home_score}</p>
             </div>
             <div style={{ textAlign:'center' }}>
-              <span style={{ color:'rgba(192,208,255,0.3)', fontSize:'1.2rem' }}>-</span>
-              {selectedGame.game_date && <p style={{ margin:'6px 0 0', color:'rgba(192,208,255,0.4)', fontSize:'0.75rem' }}>{new Date(selectedGame.game_date).toLocaleDateString()}</p>}
+              <span style={{ color:'rgba(158, 165, 196,0.3)', fontSize:'1.2rem' }}>-</span>
+              {selectedGame.game_date && <p style={{ margin:'6px 0 0', color:'rgba(158, 165, 196,0.4)', fontSize:'0.75rem' }}>{new Date(selectedGame.game_date).toLocaleDateString()}</p>}
             </div>
             <div style={{ textAlign:'center' }}>
               {getTeamLogo(selectedGame.away_team) && <img src={getTeamLogo(selectedGame.away_team)} alt="" style={{ width:'40px', height:'40px', objectFit:'contain', display:'block', margin:'0 auto 8px' }} />}
               <p style={{ margin:'0 0 4px', color:getTeamColor(selectedGame.away_team)||'var(--color-magenta)', fontWeight:'700' }}>{selectedGame.away_team||'Away'}</p>
-              <p style={{ margin:0, fontSize:awayWin?'2rem':'1.6rem', fontWeight:'800', color:awayWin?'var(--color-magenta)':'rgba(192,208,255,0.6)' }}>{selectedGame.away_score}</p>
+              <p style={{ margin:0, fontSize:awayWin?'2rem':'1.6rem', fontWeight:'800', color:awayWin?'var(--color-magenta)':'rgba(158, 165, 196,0.6)' }}>{selectedGame.away_score}</p>
             </div>
           </div>
         </div>
         {gameScores.length===0 ? (
-          <div className="neon-card p-3"><p style={{ color:'rgba(192,208,255,0.5)', textAlign:'center' }}>No player stats logged for this game</p></div>
+          <div className="neon-card p-3"><p style={{ color:'rgba(158, 165, 196,0.5)', textAlign:'center' }}>No player stats logged for this game</p></div>
         ) : (
           <>
             <TeamTable teamName={selectedGame.home_team} scores={homeScores} accent="var(--color-cyan)" />
             <TeamTable teamName={selectedGame.away_team} scores={awayScores} accent="var(--color-magenta)" />
-            {otherScores.length>0&&<TeamTable teamName="Other" scores={otherScores} accent="rgba(192,208,255,0.6)" />}
+            {otherScores.length>0&&<TeamTable teamName="Other" scores={otherScores} accent="rgba(158, 165, 196,0.6)" />}
           </>
         )}
       </div>
@@ -486,14 +486,14 @@ const BoxScoresTab = () => {
       <div className="neon-card p-3">
         <h3 className="gradient-text-cyan">Box Scores</h3>
         {bsGames.length===0 ? (
-          <p style={{ marginTop:'15px', color:'rgba(192,208,255,0.7)' }}>No box scores logged yet</p>
+          <p style={{ marginTop:'15px', color:'rgba(158, 165, 196,0.7)' }}>No box scores logged yet</p>
         ) : (
           <div style={{ marginTop:'15px', display:'flex', flexDirection:'column', gap:'10px' }}>
             {[...bsGames].reverse().map(game => (
-              <div key={game.id} onClick={()=>setSelectedGame(game)} style={{ padding:'15px', background:'rgba(0,255,255,0.04)', border:'1px solid rgba(0,255,255,0.12)', borderRadius:'8px', cursor:'pointer', transition:'all 0.2s' }} onMouseEnter={e=>e.currentTarget.style.background='rgba(0,255,255,0.1)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(0,255,255,0.04)'}>
+              <div key={game.id} onClick={()=>setSelectedGame(game)} style={{ padding:'15px', background:'rgba(94, 129, 244,0.04)', border:'1px solid rgba(94, 129, 244,0.12)', borderRadius:'8px', cursor:'pointer', transition:'all 0.2s' }} onMouseEnter={e=>e.currentTarget.style.background='rgba(94, 129, 244,0.1)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(94, 129, 244,0.04)'}>
                 <p style={{ margin:'0 0 6px', fontWeight:'700', color:'var(--color-cyan)' }}>{game.game_name}</p>
-                <p style={{ margin:0, color:'rgba(192,208,255,0.8)' }}>{game.home_team} <strong>{game.home_score}</strong> - <strong>{game.away_score}</strong> {game.away_team}</p>
-                {game.game_date && <p style={{ margin:'4px 0 0', fontSize:'0.8rem', color:'rgba(192,208,255,0.4)' }}>{new Date(game.game_date).toLocaleDateString()}</p>}
+                <p style={{ margin:0, color:'rgba(158, 165, 196,0.8)' }}>{game.home_team} <strong>{game.home_score}</strong> - <strong>{game.away_score}</strong> {game.away_team}</p>
+                {game.game_date && <p style={{ margin:'4px 0 0', fontSize:'0.8rem', color:'rgba(158, 165, 196,0.4)' }}>{new Date(game.game_date).toLocaleDateString()}</p>}
               </div>
             ))}
           </div>
@@ -518,13 +518,13 @@ const CompareTab = ({ onSelectPlayer }) => {
       .then(([p, t]) => { setPlayers(p); setTeams(t); setLoading(false); });
   }, []);
 
-  if (loading) return <p style={{ color:'rgba(192,208,255,0.5)', padding:'40px', textAlign:'center' }}>Loading...</p>;
+  if (loading) return <p style={{ color:'rgba(158, 165, 196,0.5)', padding:'40px', textAlign:'center' }}>Loading...</p>;
 
   const getTeamColor = (name) => teams.find(t=>t.team_name===name)?.team_color||null;
   const pA = players.find(p=>String(p.id)===String(idA));
   const pB = players.find(p=>String(p.id)===String(idB));
-  const colorA = (pA&&getTeamColor(pA.team))||'#00ffff';
-  const colorB = (pB&&getTeamColor(pB.team))||'#ff00ff';
+  const colorA = (pA&&getTeamColor(pA.team))||'#5e81f4';
+  const colorB = (pB&&getTeamColor(pB.team))||'#ff9e57';
 
   const HIT_STATS = [['G','season_g','career_g'],['AB','season_ab','career_ab'],['AVG','season_avg','career_avg'],['OBP','season_obp','career_obp'],['SLG','season_slg','career_slg'],['OPS','season_ops','career_ops'],['H','season_hits','hits'],['R','season_runs','runs'],['2B','season_2b','career_2b'],['3B','season_3b','career_3b'],['HR','season_home_runs','home_runs'],['RBI','season_rbis','rbis'],['BB','season_bb','career_bb'],['K','season_strike_outs','strike_outs'],['SB','season_sb','career_sb']];
   const PIT_STATS = [['W','season_w','career_w'],['L','season_l','career_l'],['ERA','season_era','career_era'],['G','season_pg','career_pg'],['GS','season_gs','career_gs'],['IP','season_innings_pitched','innings_pitched'],['K','season_strikeouts_pitched','strikeouts_pitched'],['BB','season_pit_bb','career_pit_bb'],['H','season_hits_allowed','hits_allowed'],['ER','season_earned_runs','earned_runs'],['WHIP','season_whip','career_whip'],['SV','season_sv','career_sv'],['HLD','season_hld','career_hld']];
@@ -546,8 +546,8 @@ const CompareTab = ({ onSelectPlayer }) => {
 
   const teamA_obj = teams.find(t=>String(t.id)===String(idA));
   const teamB_obj = teams.find(t=>String(t.id)===String(idB));
-  const colorTA = teamA_obj?.team_color||'#00ffff';
-  const colorTB = teamB_obj?.team_color||'#ff00ff';
+  const colorTA = teamA_obj?.team_color||'#5e81f4';
+  const colorTB = teamB_obj?.team_color||'#ff9e57';
 
   const aggregateTeam = (teamName) => {
     const roster = players.filter(p=>p.team===teamName);
@@ -560,8 +560,8 @@ const CompareTab = ({ onSelectPlayer }) => {
   const tA = compareMode==='team'?aggregateTeam(teamA_obj?.team_name):null;
   const tB = compareMode==='team'?aggregateTeam(teamB_obj?.team_name):null;
 
-  const selSty = (col) => ({ padding:'10px 12px', background:'rgba(10,10,30,0.85)', border:`1px solid ${col}55`, color:'#c0d0ff', borderRadius:'8px', fontSize:'0.88rem', width:'100%', cursor:'pointer' });
-  const btnSty = (active) => ({ padding:'7px 18px', background:active?'rgba(0,255,255,0.12)':'rgba(10,10,30,0.7)', border:active?'1px solid rgba(0,255,255,0.45)':'1px solid rgba(100,120,200,0.18)', color:active?'var(--color-cyan)':'rgba(192,208,255,0.45)', borderRadius:'8px', cursor:'pointer', fontWeight:'700', fontSize:'0.8rem', textTransform:'uppercase', letterSpacing:'0.08em' });
+  const selSty = (col) => ({ padding:'10px 12px', background:'rgba(10,10,30,0.85)', border:`1px solid ${col}55`, color:'#e2e5f0', borderRadius:'8px', fontSize:'0.88rem', width:'100%', cursor:'pointer' });
+  const btnSty = (active) => ({ padding:'7px 18px', background:active?'rgba(94, 129, 244,0.12)':'rgba(10,10,30,0.7)', border:active?'1px solid rgba(94, 129, 244,0.45)':'1px solid rgba(100,120,200,0.18)', color:active?'var(--color-cyan)':'rgba(158, 165, 196,0.45)', borderRadius:'8px', cursor:'pointer', fontWeight:'700', fontSize:'0.8rem', textTransform:'uppercase', letterSpacing:'0.08em' });
 
   return (
     <div>
@@ -571,7 +571,7 @@ const CompareTab = ({ onSelectPlayer }) => {
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr auto 1fr', gap:'14px', alignItems:'center', marginBottom:'20px' }}>
         <div>
-          <label style={{ display:'block', fontSize:'0.72rem', color:'rgba(192,208,255,0.5)', marginBottom:'6px', textTransform:'uppercase' }}>{compareMode==='player'?'Player A':'Team A'}</label>
+          <label style={{ display:'block', fontSize:'0.72rem', color:'rgba(158, 165, 196,0.5)', marginBottom:'6px', textTransform:'uppercase' }}>{compareMode==='player'?'Player A':'Team A'}</label>
           {compareMode==='player' ? (
             <select value={idA} onChange={e=>setIdA(e.target.value)} style={selSty(colorA)}>
               <option value="">Select player...</option>
@@ -584,9 +584,9 @@ const CompareTab = ({ onSelectPlayer }) => {
             </select>
           )}
         </div>
-        <span style={{ color:'rgba(192,208,255,0.3)', fontWeight:'800', fontSize:'1rem' }}>VS</span>
+        <span style={{ color:'rgba(158, 165, 196,0.3)', fontWeight:'800', fontSize:'1rem' }}>VS</span>
         <div>
-          <label style={{ display:'block', fontSize:'0.72rem', color:'rgba(192,208,255,0.5)', marginBottom:'6px', textTransform:'uppercase' }}>{compareMode==='player'?'Player B':'Team B'}</label>
+          <label style={{ display:'block', fontSize:'0.72rem', color:'rgba(158, 165, 196,0.5)', marginBottom:'6px', textTransform:'uppercase' }}>{compareMode==='player'?'Player B':'Team B'}</label>
           {compareMode==='player' ? (
             <select value={idB} onChange={e=>setIdB(e.target.value)} style={selSty(colorB)}>
               <option value="">Select player...</option>
@@ -606,7 +606,7 @@ const CompareTab = ({ onSelectPlayer }) => {
       {compareMode==='player' && (
         <div style={{ display:'flex', justifyContent:'center', gap:'8px', marginBottom:'20px' }}>
           {['hitting','pitching'].map(f=>(
-            <button key={f} style={{...btnSty(statFilter===f), borderColor:statFilter===f?'rgba(255,0,255,0.5)':'rgba(100,120,200,0.18)', color:statFilter===f?'var(--color-magenta)':'rgba(192,208,255,0.45)', background:statFilter===f?'rgba(255,0,255,0.1)':'rgba(10,10,30,0.7)'}} onClick={()=>setStatFilter(f)}>{f}</button>
+            <button key={f} style={{...btnSty(statFilter===f), borderColor:statFilter===f?'rgba(255, 158, 87,0.5)':'rgba(100,120,200,0.18)', color:statFilter===f?'var(--color-magenta)':'rgba(158, 165, 196,0.45)', background:statFilter===f?'rgba(255, 158, 87,0.1)':'rgba(10,10,30,0.7)'}} onClick={()=>setStatFilter(f)}>{f}</button>
           ))}
         </div>
       )}
@@ -614,7 +614,7 @@ const CompareTab = ({ onSelectPlayer }) => {
         <div style={{ background:'rgba(10,10,30,0.8)', border:'1px solid rgba(100,120,200,0.13)', borderRadius:'10px', overflow:'hidden' }}>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 60px 1fr', background:'rgba(0,0,0,0.3)', padding:'10px 14px', borderBottom:'1px solid rgba(100,120,200,0.15)' }}>
             <span style={{ color:colorA, fontWeight:'800', fontSize:'0.88rem' }}>{pA.player_name}</span>
-            <span style={{ color:'rgba(192,208,255,0.35)', fontSize:'0.7rem', textAlign:'center', alignSelf:'center' }}>STAT</span>
+            <span style={{ color:'rgba(158, 165, 196,0.35)', fontSize:'0.7rem', textAlign:'center', alignSelf:'center' }}>STAT</span>
             <span style={{ color:colorB, fontWeight:'800', fontSize:'0.88rem', textAlign:'right' }}>{pB.player_name}</span>
           </div>
           {STAT_LIST.map(([label,sKey,cKey]) => {
@@ -622,10 +622,10 @@ const CompareTab = ({ onSelectPlayer }) => {
             const aBetter=isBetter(label,valA,valB), bBetter=isBetter(label,valB,valA);
             return (
               <div key={label} style={{ display:'grid', gridTemplateColumns:'1fr 60px 1fr', padding:'9px 14px', borderBottom:'1px solid rgba(100,120,200,0.06)', alignItems:'center' }}>
-                <span style={{ fontWeight:aBetter?'800':'400', color:aBetter?colorA:'rgba(192,208,255,0.55)', background:aBetter?`${colorA}22`:'transparent', padding:aBetter?'3px 8px':'0', borderRadius:'6px', display:'inline-block', fontSize:'0.93rem' }}>{valA}</span>
-                <span style={{ color:'rgba(192,208,255,0.3)', fontSize:'0.68rem', textTransform:'uppercase', letterSpacing:'0.07em', textAlign:'center' }}>{label}</span>
+                <span style={{ fontWeight:aBetter?'800':'400', color:aBetter?colorA:'rgba(158, 165, 196,0.55)', background:aBetter?`${colorA}22`:'transparent', padding:aBetter?'3px 8px':'0', borderRadius:'6px', display:'inline-block', fontSize:'0.93rem' }}>{valA}</span>
+                <span style={{ color:'rgba(158, 165, 196,0.3)', fontSize:'0.68rem', textTransform:'uppercase', letterSpacing:'0.07em', textAlign:'center' }}>{label}</span>
                 <div style={{ textAlign:'right' }}>
-                  <span style={{ fontWeight:bBetter?'800':'400', color:bBetter?colorB:'rgba(192,208,255,0.55)', background:bBetter?`${colorB}22`:'transparent', padding:bBetter?'3px 8px':'0', borderRadius:'6px', display:'inline-block', fontSize:'0.93rem' }}>{valB}</span>
+                  <span style={{ fontWeight:bBetter?'800':'400', color:bBetter?colorB:'rgba(158, 165, 196,0.55)', background:bBetter?`${colorB}22`:'transparent', padding:bBetter?'3px 8px':'0', borderRadius:'6px', display:'inline-block', fontSize:'0.93rem' }}>{valB}</span>
                 </div>
               </div>
             );
@@ -633,7 +633,7 @@ const CompareTab = ({ onSelectPlayer }) => {
         </div>
       )}
       {compareMode==='player' && (!pA||!pB) && (
-        <div style={{ textAlign:'center', color:'rgba(192,208,255,0.3)', padding:'40px 20px', background:'rgba(10,10,30,0.5)', borderRadius:'10px', border:'1px dashed rgba(100,120,200,0.15)' }}>
+        <div style={{ textAlign:'center', color:'rgba(158, 165, 196,0.3)', padding:'40px 20px', background:'rgba(10,10,30,0.5)', borderRadius:'10px', border:'1px dashed rgba(100,120,200,0.15)' }}>
           <p style={{ margin:0, fontSize:'0.9rem' }}>Select two players to compare</p>
         </div>
       )}
@@ -641,7 +641,7 @@ const CompareTab = ({ onSelectPlayer }) => {
         <div style={{ background:'rgba(10,10,30,0.8)', border:'1px solid rgba(100,120,200,0.13)', borderRadius:'10px', overflow:'hidden' }}>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 80px 1fr', background:'rgba(0,0,0,0.3)', padding:'10px 14px', borderBottom:'1px solid rgba(100,120,200,0.15)' }}>
             <span style={{ color:colorTA, fontWeight:'800', fontSize:'0.88rem' }}>{teamA_obj.team_name}</span>
-            <span style={{ color:'rgba(192,208,255,0.35)', fontSize:'0.7rem', textAlign:'center', alignSelf:'center' }}>STAT</span>
+            <span style={{ color:'rgba(158, 165, 196,0.35)', fontSize:'0.7rem', textAlign:'center', alignSelf:'center' }}>STAT</span>
             <span style={{ color:colorTB, fontWeight:'800', fontSize:'0.88rem', textAlign:'right' }}>{teamB_obj.team_name}</span>
           </div>
           {Object.entries(tA).map(([key,valA]) => {
@@ -651,10 +651,10 @@ const CompareTab = ({ onSelectPlayer }) => {
             const bBetter=!isNaN(na)&&!isNaN(nb)&&na!==nb?(lk.has(key)?nb<na:nb>na):null;
             return (
               <div key={key} style={{ display:'grid', gridTemplateColumns:'1fr 80px 1fr', padding:'9px 14px', borderBottom:'1px solid rgba(100,120,200,0.06)', alignItems:'center' }}>
-                <span style={{ fontWeight:aBetter?'800':'400', color:aBetter?colorTA:'rgba(192,208,255,0.55)', background:aBetter?`${colorTA}22`:'transparent', padding:aBetter?'3px 8px':'0', borderRadius:'6px', display:'inline-block', fontSize:'0.93rem' }}>{valA}</span>
-                <span style={{ color:'rgba(192,208,255,0.3)', fontSize:'0.68rem', textTransform:'uppercase', letterSpacing:'0.07em', textAlign:'center' }}>{key}</span>
+                <span style={{ fontWeight:aBetter?'800':'400', color:aBetter?colorTA:'rgba(158, 165, 196,0.55)', background:aBetter?`${colorTA}22`:'transparent', padding:aBetter?'3px 8px':'0', borderRadius:'6px', display:'inline-block', fontSize:'0.93rem' }}>{valA}</span>
+                <span style={{ color:'rgba(158, 165, 196,0.3)', fontSize:'0.68rem', textTransform:'uppercase', letterSpacing:'0.07em', textAlign:'center' }}>{key}</span>
                 <div style={{ textAlign:'right' }}>
-                  <span style={{ fontWeight:bBetter?'800':'400', color:bBetter?colorTB:'rgba(192,208,255,0.55)', background:bBetter?`${colorTB}22`:'transparent', padding:bBetter?'3px 8px':'0', borderRadius:'6px', display:'inline-block', fontSize:'0.93rem' }}>{valB}</span>
+                  <span style={{ fontWeight:bBetter?'800':'400', color:bBetter?colorTB:'rgba(158, 165, 196,0.55)', background:bBetter?`${colorTB}22`:'transparent', padding:bBetter?'3px 8px':'0', borderRadius:'6px', display:'inline-block', fontSize:'0.93rem' }}>{valB}</span>
                 </div>
               </div>
             );
@@ -662,7 +662,7 @@ const CompareTab = ({ onSelectPlayer }) => {
         </div>
       )}
       {compareMode==='team' && (!teamA_obj||!teamB_obj) && (
-        <div style={{ textAlign:'center', color:'rgba(192,208,255,0.3)', padding:'40px', background:'rgba(10,10,30,0.5)', borderRadius:'10px', border:'1px dashed rgba(100,120,200,0.15)' }}>Select two teams to compare</div>
+        <div style={{ textAlign:'center', color:'rgba(158, 165, 196,0.3)', padding:'40px', background:'rgba(10,10,30,0.5)', borderRadius:'10px', border:'1px dashed rgba(100,120,200,0.15)' }}>Select two teams to compare</div>
       )}
     </div>
   );
@@ -676,14 +676,14 @@ const HallOfFameTab = () => {
       <div className="neon-card p-3">
         <h3 className="gradient-text-magenta">Hall of Fame</h3>
         {hof.length===0 ? (
-          <p style={{ marginTop:'15px', color:'rgba(192,208,255,0.7)' }}>Hall of Fame players will appear here</p>
+          <p style={{ marginTop:'15px', color:'rgba(158, 165, 196,0.7)' }}>Hall of Fame players will appear here</p>
         ) : (
           <div style={{ marginTop:'15px', display:'flex', flexDirection:'column', gap:'10px' }}>
             {hof.map((entry,i) => (
               <div key={i} style={{ padding:'15px', background:'rgba(255,215,0,0.05)', border:'1px solid rgba(255,215,0,0.2)', borderRadius:'8px' }}>
                 <p style={{ margin:0, fontWeight:'700', color:'#ffd700' }}>{entry.player_name}</p>
-                {entry.team && <p style={{ margin:'4px 0 0', color:'rgba(192,208,255,0.7)', fontSize:'0.85rem' }}>{entry.team}</p>}
-                {entry.description && <p style={{ margin:'8px 0 0', color:'rgba(192,208,255,0.8)', fontSize:'0.9rem' }}>{entry.description}</p>}
+                {entry.team && <p style={{ margin:'4px 0 0', color:'rgba(158, 165, 196,0.7)', fontSize:'0.85rem' }}>{entry.team}</p>}
+                {entry.description && <p style={{ margin:'8px 0 0', color:'rgba(158, 165, 196,0.8)', fontSize:'0.9rem' }}>{entry.description}</p>}
               </div>
             ))}
           </div>
