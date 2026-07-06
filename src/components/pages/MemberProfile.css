@@ -12,9 +12,9 @@
 .tw-role-badge.cofounder { background:rgba(255,165,0,0.12); border-color:#ffa500; color:#ffa500; }
 .tw-role-badge.mod { background:rgba(94, 129, 244,0.12); border-color:#5e81f4; color:#5e81f4; }
 .tw-role-badge.nabb_helper { background:rgba(0,255,180,0.1); border-color:#00ffb4; color:#00ffb4; }
-.tw-role-badge.rbml_helper { background:rgba(180,94, 230, 168.1); border-color:#b400ff; color:#cc66ff; }
+.tw-role-badge.rbml_helper { background:rgba(180,0,255,0.1); border-color:#b400ff; color:#cc66ff; }
 .tw-role-badge.member { background:rgba(100,120,200,0.1); border-color:rgba(100,120,200,0.4); color:rgba(158, 165, 196,0.6); }
-.tw-bio { color:rgba(220,2394, 230, 168.85); font-size:0.95rem; line-height:1.5; margin:10px 0; }
+.tw-bio { color:rgba(220,230,255,0.85); font-size:0.95rem; line-height:1.5; margin:10px 0; }
 .tw-status-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:10px 0; }
 .tw-presence-btn { display:flex; align-items:center; gap:5px; padding:4px 10px; border-radius:20px; border:1px solid rgba(100,120,200,0.2); background:rgba(10,10,30,0.6); color:rgba(158, 165, 196,0.5); font-size:0.72rem; font-weight:600; cursor:pointer; transition:all 0.15s; }
 .tw-presence-btn.active-presence { border-color:currentColor; }

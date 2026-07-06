@@ -4,8 +4,8 @@
 
 .sh-sport-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
 .sh-sport-tab { display: flex; align-items: center; gap: 7px; padding: 10px 18px; background: rgba(15, 15, 40, 0.85); border: 1px solid rgba(100, 120, 200, 0.22); border-radius: 10px; color: rgba(158, 165, 196, 0.55); cursor: pointer; font-size: 0.88rem; font-weight: 700; transition: all 0.18s; letter-spacing: 0.02em; }
-.sh-sport-tab:hover { border-color: rgba(1094, 129, 244, 0.45); color: rgba(158, 165, 196, 0.88); background: rgba(20, 20, 55, 0.9); }
-.sh-sport-tab.active { background: linear-gradient(135deg, rgba(94, 129, 244, 0.12), rgba(120, 894, 230, 168.12)); border-color: rgba(94, 129, 244, 0.55); color: #5e81f4; box-shadow: 0 0 14px rgba(94, 129, 244, 0.15); }
+.sh-sport-tab:hover { border-color: rgba(100, 200, 255, 0.45); color: rgba(158, 165, 196, 0.88); background: rgba(20, 20, 55, 0.9); }
+.sh-sport-tab.active { background: linear-gradient(135deg, rgba(94, 129, 244, 0.12), rgba(120, 80, 255, 0.12)); border-color: rgba(94, 129, 244, 0.55); color: #5e81f4; box-shadow: 0 0 14px rgba(94, 129, 244, 0.15); }
 .sh-sport-icon { font-size: 1.05rem; }
 
 .sh-sub-tabs { display: flex; gap: 6px; margin-bottom: 22px; border-bottom: 1px solid rgba(100, 120, 200, 0.18); padding-bottom: 12px; }
@@ -19,7 +19,7 @@
 
 .sh-scores-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
 .sh-score-card { background: rgba(12, 12, 35, 0.9); border: 1px solid rgba(100, 120, 200, 0.22); border-radius: 12px; padding: 12px 14px; transition: border-color 0.2s, transform 0.15s; }
-.sh-score-card:hover { border-color: rgba(100, 1594, 230, 168.4); transform: translateY(-1px); }
+.sh-score-card:hover { border-color: rgba(100, 150, 255, 0.4); transform: translateY(-1px); }
 .sh-score-card.live { border-color: rgba(255, 107, 122, 0.55); box-shadow: 0 0 18px rgba(255, 107, 122, 0.1); }
 .sh-score-card.scheduled { opacity: 0.82; }
 
@@ -102,7 +102,7 @@
 
 .sh-roster-hint { font-size: 0.76rem; color: rgba(158, 165, 196, 0.3); margin: 0 0 14px; letter-spacing: 0.02em; }
 .sh-row-clickable { cursor: pointer; }
-.sh-row-clickable:hover { background: rgba(100, 1594, 230, 168.1) !important; }
+.sh-row-clickable:hover { background: rgba(100, 150, 255, 0.1) !important; }
 .sh-team-row.clickable { cursor: pointer; }
 .sh-team-row.clickable:hover .sh-team-abbr { color: #ffffff; }
 .sh-team-row.clickable:hover .sh-team-name { color: rgba(255,255,255,0.7); }
@@ -125,7 +125,7 @@
 
 .sh-player-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); gap: 10px; }
 .sh-player-card { border-radius: 10px; border: 1px solid rgba(100,120,200,0.15); padding: 12px 12px 10px; display: flex; gap: 11px; align-items: flex-start; transition: transform 0.12s, border-color 0.12s; }
-.sh-player-card:hover { transform: translateY(-2px); border-color: rgba(100,1594, 230, 168.35); }
+.sh-player-card:hover { transform: translateY(-2px); border-color: rgba(100,150,255,0.35); }
 
 .sh-player-photo-wrap { position: relative; flex-shrink: 0; }
 .sh-player-headshot { width: 52px; height: 52px; border-radius: 8px; object-fit: cover; object-position: top center; display: block; background: rgba(20,20,50,0.6); }

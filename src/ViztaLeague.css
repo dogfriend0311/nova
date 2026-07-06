@@ -95,3 +95,33 @@
 }
 
 .rbml-title { background: linear-gradient(90deg, #5e81f4, #ff9e57) !important; -webkit-background-clip: text !important; -webkit-text-fill-color: transparent !important; background-clip: text !important; }
+
+/* ── Responsive grid utilities ──────────────────────────────────
+   These replace hardcoded inline gridTemplateColumns in ViztaLeague.jsx
+   so side-by-side panels and VS-selector rows actually stack on mobile
+   instead of squeezing three columns into a 375px-wide phone screen. */
+.vz-2col-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.vz-vs-grid {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 14px;
+  align-items: center;
+}
+
+@media (max-width: 700px) {
+  .vz-2col-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .vz-vs-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    text-align: center;
+  }
+}
+

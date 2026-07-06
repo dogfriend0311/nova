@@ -19,7 +19,7 @@ const roleBadgeStyle = (role) => {
     owner:        { background: 'rgba(255,215,0,0.15)',  border: '1px solid rgba(255,215,0,0.4)',  color: '#ffd700' },
     cofounder:    { background: 'rgba(255,100,0,0.15)',  border: '1px solid rgba(255,100,0,0.4)',  color: '#ff6400' },
     mod:          { background: 'rgba(0,200,100,0.15)',  border: '1px solid rgba(0,200,100,0.4)',  color: '#00c864' },
-    vizta_helper: { background: 'rgba(180,94, 230, 168.15)',  border: '1px solid rgba(180,94, 230, 168.4)',  color: '#cc66ff' },
+    vizta_helper: { background: 'rgba(180,0,255,0.15)',  border: '1px solid rgba(180,0,255,0.4)',  color: '#cc66ff' },
   };
   return styles[role] || { background: 'rgba(94, 129, 244,0.1)', border: '1px solid rgba(94, 129, 244,0.3)', color: 'var(--color-cyan)' };
 };
@@ -351,7 +351,7 @@ const CommentsSection = ({ toUsername, currentUser }) => {
                   )}
                 </div>
               </div>
-              <p style={{ margin: 0, color: 'rgba(220,2394, 230, 168.85)', fontSize: '0.88rem', lineHeight: 1.5 }}>{c.content}</p>
+              <p style={{ margin: 0, color: 'rgba(220,230,255,0.85)', fontSize: '0.88rem', lineHeight: 1.5 }}>{c.content}</p>
             </div>
           ))}
         </div>
@@ -369,8 +369,11 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
   useEffect(() => {
     // Load from Supabase (includes fav_games column)
     import('../../services/db').then(({ default: db }) => {
-      db.getMemberProfiles().then((profiles) => {
-        const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
+      Promise.all([db.getMemberProfiles(), db.getUsers()]).then(([profiles, users]) => {
+        // db.getUsers() checks Supabase first (falling back to localStorage
+        // only if unreachable), so role lookups are consistent no matter
+        // which device/browser is viewing the Member Pages list - not just
+        // the one where someone last logged in.
         const enriched = profiles.map((p) => ({
           ...p,
           role: users.find((u) => u.username === p.username)?.role || p.role || 'member',
@@ -513,7 +516,9 @@ const MemberProfileView = ({ member, onBack }) => {
     { id: 'comments',    label: 'Comments'     },
   ];
 
-  const shareUrl = `${window.location.origin}${window.location.pathname}#members/${member.username}`;
+  // Path-based URL (not #hash) so link-preview bots can fetch it via
+  // /api/preview-member and show this specific member's info.
+  const shareUrl = `${window.location.origin}/members/${member.username}`;
 
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', paddingBottom: '60px' }}>
@@ -550,7 +555,7 @@ const MemberProfileView = ({ member, onBack }) => {
           <span style={{ color: 'rgba(158, 165, 196,0.5)', fontSize: '0.78rem' }}>{presenceTxt}</span>
         </div>
 
-        {member.bio && <p style={{ color: 'rgba(220,2394, 230, 168.85)', fontSize: '0.95rem', lineHeight: 1.5, margin: '8px 0' }}>{member.bio}</p>}
+        {member.bio && <p style={{ color: 'rgba(220,230,255,0.85)', fontSize: '0.95rem', lineHeight: 1.5, margin: '8px 0' }}>{member.bio}</p>}
 
         {socials.length > 0 && (
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', margin: '8px 0' }}>

@@ -260,9 +260,11 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
 
   const avatarSrc = player.avatar_data || null;
 
-  // Build a shareable link for this player page
+  // Build a shareable link for this player page — path-based (not #hash)
+  // so link-preview bots (Discord, iMessage, Slack, etc.) can see this
+  // specific player's name/team/stats via /api/preview-player.
   const sharePlayer = () => {
-    const url = `${window.location.origin}${window.location.pathname}#leagues/player/${player.id}`;
+    const url = `${window.location.origin}/players/${player.id}`;
     navigator.clipboard.writeText(url).then(() => alert('Player link copied!')).catch(() => alert(url));
   };
 

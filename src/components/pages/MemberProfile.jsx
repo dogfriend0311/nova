@@ -351,7 +351,11 @@ const MemberProfile = () => {
   };
 
   const shareProfile = () => {
-    const url = `${window.location.origin}${window.location.pathname}#members/${user?.username}`;
+    // Path-based URL (not #hash) so Discord/iMessage/Slack/etc bots can
+    // fetch it and see this specific person's name/team via the
+    // /api/preview-member serverless function. Real visitors get an
+    // instant redirect into the actual app.
+    const url = `${window.location.origin}/members/${user?.username}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);

@@ -172,7 +172,7 @@ const RostersTab = ({ onSelectPlayer }) => {
           : <div style={{ width:'52px', height:'52px', background:teamColor, borderRadius:'8px', flexShrink:0 }} />}
         <h2 style={{ margin:0, color:teamColor, fontWeight:900 }}>{selectedTeam.team_name}</h2>
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px' }}>
+      <div className="vz-2col-grid">
         <div className="neon-card p-3">
           <h4 style={{ color:'var(--color-cyan)', marginBottom:'14px' }}>Roster ({teamPlayers.length})</h4>
           {teamPlayers.length === 0
@@ -451,7 +451,7 @@ const BoxScoresTab = () => {
         <button className="neon-button" style={{ marginBottom:'20px', fontSize:'0.9rem' }} onClick={()=>setSelectedGame(null)}>Back to Box Scores</button>
         <div className="neon-card p-3" style={{ marginBottom:'20px' }}>
           <h3 className="gradient-text-cyan" style={{ marginBottom:'14px' }}>{selectedGame.game_name}</h3>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr auto 1fr', gap:'16px', alignItems:'center' }}>
+          <div className="vz-vs-grid">
             <div style={{ textAlign:'center' }}>
               {getTeamLogo(selectedGame.home_team) && <img src={getTeamLogo(selectedGame.home_team)} alt="" style={{ width:'40px', height:'40px', objectFit:'contain', display:'block', margin:'0 auto 8px' }} />}
               <p style={{ margin:'0 0 4px', color:getTeamColor(selectedGame.home_team)||'var(--color-cyan)', fontWeight:'700' }}>{selectedGame.home_team||'Home'}</p>
@@ -569,7 +569,7 @@ const CompareTab = ({ onSelectPlayer }) => {
         <button style={btnSty(compareMode==='player')} onClick={()=>{setCompareMode('player');setIdA('');setIdB('');}}>Players</button>
         <button style={btnSty(compareMode==='team')}   onClick={()=>{setCompareMode('team');setIdA('');setIdB('');}}>Teams</button>
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr auto 1fr', gap:'14px', alignItems:'center', marginBottom:'20px' }}>
+      <div className="vz-vs-grid" style={{ marginBottom:'20px' }}>
         <div>
           <label style={{ display:'block', fontSize:'0.72rem', color:'rgba(158, 165, 196,0.5)', marginBottom:'6px', textTransform:'uppercase' }}>{compareMode==='player'?'Player A':'Team A'}</label>
           {compareMode==='player' ? (

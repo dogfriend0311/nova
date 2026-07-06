@@ -52,13 +52,13 @@ const StrikeZone = ({ pitches = [] }) => {
   return (
     <svg viewBox={`0 0 ${S} ${S}`} className="pbp-zone">
       <rect x={0} y={0} width={S} height={S} fill="rgba(0,0,20,0.85)" rx={6}/>
-      <rect x={22} y={16} width={136} height={138} fill="none" stroke="rgba(80,1294, 230, 168.2)" strokeWidth={1} strokeDasharray="4 3" rx={3}/>
+      <rect x={22} y={16} width={136} height={138} fill="none" stroke="rgba(80,120,255,0.2)" strokeWidth={1} strokeDasharray="4 3" rx={3}/>
       <rect x={ZX} y={ZY} width={ZW} height={ZH} fill="rgba(94, 129, 244,0.04)" stroke="rgba(94, 129, 244,0.5)" strokeWidth={1.5}/>
       {[1,2].map(i=><line key={`v${i}`} x1={ZX+ZW*(i/3)} y1={ZY} x2={ZX+ZW*(i/3)} y2={ZY+ZH} stroke="rgba(94, 129, 244,0.15)" strokeWidth={0.7}/>)}
       {[1,2].map(i=><line key={`h${i}`} x1={ZX} y1={ZY+ZH*(i/3)} x2={ZX+ZW} y2={ZY+ZH*(i/3)} stroke="rgba(94, 129, 244,0.15)" strokeWidth={0.7}/>)}
       <polygon points={`${S/2-14},${S-12} ${S/2+14},${S-12} ${S/2+17},${S-6} ${S/2},${S-2} ${S/2-17},${S-6}`} fill="rgba(255,255,255,0.07)" stroke="rgba(255,255,255,0.3)" strokeWidth={1}/>
-      <text x={ZX-3} y={ZY+9} textAnchor="end" fill="rgba(100,1594, 230, 168.45)" fontSize={7}>HH</text>
-      <text x={ZX-3} y={ZY+ZH} textAnchor="end" fill="rgba(100,1594, 230, 168.45)" fontSize={7}>KN</text>
+      <text x={ZX-3} y={ZY+9} textAnchor="end" fill="rgba(100,150,255,0.45)" fontSize={7}>HH</text>
+      <text x={ZX-3} y={ZY+ZH} textAnchor="end" fill="rgba(100,150,255,0.45)" fontSize={7}>KN</text>
       {pitches.map((p,i)=>{
         if (p.px == null || p.pz == null) return null;
         const cx = ZX + ZW/2 + (p.px / 1.5) * (ZW/2);

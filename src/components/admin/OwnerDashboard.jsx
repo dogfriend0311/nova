@@ -236,7 +236,7 @@ const LeaguePlayersTab = ({ prefix }) => {
             </div>
           ))}
           {/* Nickname + Roblox username side-by-side */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
+          <div className="od-2col-grid">
             <div className="form-field">
               <label>Nickname</label>
               <input type="text" value={form.nickname||''} onChange={e=>setForm({...form,nickname:e.target.value})} placeholder='e.g. "The Machine"' style={SI} />
@@ -477,7 +477,7 @@ const LeagueRostersTab = ({ prefix }) => {
         {teamPlayers.length>0 && <button className="neon-button" style={{ borderColor:'#ff6b7a', color:'#ff6b7a' }} onClick={clearRoster}>Clear Roster</button>}
       </div>
       <h2 className="gradient-text-cyan">{selectedTeam.team_name} Roster</h2>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px', marginTop:'20px' }}>
+      <div className="od-2col-grid" style={{ marginTop:'20px' }}>
         <div className="neon-card p-3">
           <h4 className="gradient-text-cyan">On Roster ({teamPlayers.length})</h4>
           <div style={{ marginTop:'10px', display:'grid', gap:'8px' }}>
@@ -803,7 +803,7 @@ const LeagueGameFeedTab = ({ prefix }) => {
     <div className="tab-content">
       <button className="neon-button" onClick={()=>setSelectedGame(null)} style={{ marginBottom:'20px' }}>Back</button>
       <h2 className="gradient-text-cyan">{selectedGame.home_team} vs {selectedGame.away_team}</h2>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px', marginTop:'20px' }}>
+      <div className="od-2col-grid" style={{ marginTop:'20px' }}>
         {[{title:selectedGame.home_team,plist:homeTeamPlayers,color:'cyan'},{title:selectedGame.away_team,plist:awayTeamPlayers,color:'magenta'}].map(({title,plist,color})=>(
           <div key={title} className="neon-card p-3">
             <h4 className={`gradient-text-${color}`}>{title}</h4>
