@@ -380,10 +380,15 @@ export const db = {
       await supabase.from('nova_users').upsert([{ username: user.username, role: user.role || 'member' }], { onConflict: 'username' });
     } catch {}
     const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
-    if (!users.find(u => u.username === user.username)) {
+    const idx = users.findIndex(u => u.username === user.username);
+    if (idx >= 0) {
+      // Update role (and anything else passed) on the existing entry rather
+      // than silently keeping a stale role if one was already stored.
+      users[idx] = { ...users[idx], ...user };
+    } else {
       users.push(user);
-      localStorage.setItem('nova_users', JSON.stringify(users));
     }
+    localStorage.setItem('nova_users', JSON.stringify(users));
   },
 
   async updateUserRole(username, role) {

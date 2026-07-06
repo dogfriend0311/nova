@@ -41,6 +41,14 @@ export const AuthProvider = ({ children }) => {
         memberProfiles.push({ username, bio: 'Nova Owner', top_banner_url: '', left_banner_url: '', right_banner_url: '', spotify_url: '', twitter_url: '', twitch_url: '', youtube_url: '', instagram_url: '' });
         localStorage.setItem('member_profiles', JSON.stringify(memberProfiles));
       }
+      // Make sure the owner actually shows up as "Owner" wherever roles are
+      // looked up from nova_users (e.g. the public Member Pages list) - not
+      // just in their own private session. Without this, MemberPages.jsx's
+      // role lookup (which checks nova_users, not the auth session) finds
+      // nothing for the owner and silently defaults to "member".
+      import('../services/db').then(({ default: db }) => {
+        db.saveUser({ username, role: 'owner' }).catch(() => {});
+      }).catch(() => {});
       return { success: true };
     }
     const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
