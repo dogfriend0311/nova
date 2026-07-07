@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './LeaguePlayerPage.css';
+import PlayerTradingCard from './PlayerTradingCard';
 
 // Converts any Spotify link to an embed URL and appends autoplay=1
 // so the song starts automatically when a player's page opens.
@@ -116,6 +117,7 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
     pitchBasic: false,
     pitchAdv:   false,
   });
+  const [showTradingCard, setShowTradingCard] = useState(false);
 
   const toggle = (key) => setToggles(prev => ({ ...prev, [key]: !prev[key] }));
 
@@ -260,6 +262,23 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
 
   const avatarSrc = player.avatar_data || null;
 
+  // Featured stats for the trading card - four headline numbers, picked
+  // based on whether this player is a pitcher or a position player.
+  const isPitcherCard = ['SP', 'RP'].includes(player.position);
+  const cardStats = isPitcherCard
+    ? [
+        { label: 'ERA', value: player.adv_s_era || sAdv.era },
+        { label: 'W',   value: player.season_w || 0 },
+        { label: 'K',   value: sKP },
+        { label: 'IP',  value: sIP.toFixed(1) },
+      ]
+    : [
+        { label: 'AVG', value: sAVG },
+        { label: 'HR',  value: sHR },
+        { label: 'RBI', value: sRBI },
+        { label: 'OPS', value: sOPS },
+      ];
+
   // Build a shareable link for this player page — path-based (not #hash)
   // so link-preview bots (Discord, iMessage, Slack, etc.) can see this
   // specific player's name/team/stats via /api/preview-player.
@@ -281,8 +300,23 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
           >
             Share Link
           </button>
+          <button
+            onClick={() => setShowTradingCard(true)}
+            style={{ padding: '8px 16px', background: 'linear-gradient(135deg, rgba(94,129,244,0.15), rgba(255,158,87,0.15))', border: '1px solid rgba(255,158,87,0.35)', color: '#ff9e57', borderRadius: '8px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700 }}
+          >
+            View Trading Card
+          </button>
         </div>
       )}
+
+      {showTradingCard && (
+        <PlayerTradingCard
+          player={player}
+          displayStats={cardStats}
+          onClose={() => setShowTradingCard(false)}
+        />
+      )}
+
 
       <div className="player-container">
         {/* LEFT — Trading Card */}
