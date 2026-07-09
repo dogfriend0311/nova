@@ -262,22 +262,21 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
 
   const avatarSrc = player.avatar_data || null;
 
-  // Featured stats for the trading card - four headline numbers, picked
-  // based on whether this player is a pitcher or a position player.
-  const isPitcherCard = ['SP', 'RP'].includes(player.position);
-  const cardStats = isPitcherCard
-    ? [
-        { label: 'ERA', value: player.adv_s_era || sAdv.era },
-        { label: 'W',   value: player.season_w || 0 },
-        { label: 'K',   value: sKP },
-        { label: 'IP',  value: sIP.toFixed(1) },
-      ]
-    : [
-        { label: 'AVG', value: sAVG },
-        { label: 'HR',  value: sHR },
-        { label: 'RBI', value: sRBI },
-        { label: 'OPS', value: sOPS },
-      ];
+  // Featured stats for the trading card - both hitting and pitching are
+  // always shown (players in this league can have both, not just one
+  // or the other based on position).
+  const hittingCardStats = [
+    { label: 'AVG', value: sAVG },
+    { label: 'HR',  value: sHR },
+    { label: 'RBI', value: sRBI },
+    { label: 'OPS', value: sOPS },
+  ];
+  const pitchingCardStats = [
+    { label: 'ERA', value: player.adv_s_era || sAdv.era },
+    { label: 'W',   value: player.season_w || 0 },
+    { label: 'K',   value: sKP },
+    { label: 'IP',  value: sIP.toFixed(1) },
+  ];
 
   // Build a shareable link for this player page — path-based (not #hash)
   // so link-preview bots (Discord, iMessage, Slack, etc.) can see this
@@ -312,7 +311,8 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
       {showTradingCard && (
         <PlayerTradingCard
           player={player}
-          displayStats={cardStats}
+          hittingStats={hittingCardStats}
+          pitchingStats={pitchingCardStats}
           onClose={() => setShowTradingCard(false)}
         />
       )}
