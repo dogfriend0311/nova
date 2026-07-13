@@ -1,0 +1,1 @@
+- [Nova app Supabase schema convention](nova-supabase-convention.md) — new features needing shared/persistent data follow the existing nova_* table + localStorage-fallback + SQL migration file pattern.

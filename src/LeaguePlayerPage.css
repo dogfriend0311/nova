@@ -42,6 +42,70 @@
 .sv-bar-fill { height: 100%; border-radius: 99px; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
 .sv-bar-pct { font-size: 0.68rem; color: rgba(158, 165, 196, 0.35); text-align: right; }
 
+/* ── Accolade tags (season awards) ─────────────────────────── */
+.accolade-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.accolade-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px; font-size: 0.72rem; font-weight: 700;
+  border-radius: 999px; letter-spacing: 0.3px;
+  background: rgba(94, 129, 244, 0.12);
+  border: 1px solid rgba(94, 129, 244, 0.35);
+  color: #b7c6ff;
+}
+
+/* ── Player of the Month trophy case ───────────────────────── */
+.potm-trophy-case { margin-bottom: 4px; }
+.potm-trophy-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+.potm-trophy-title { font-size: 1.05rem; font-weight: 800; color: #ffd700; text-shadow: 0 0 12px rgba(255, 215, 0, 0.5); }
+.potm-trophy-count { font-size: 0.75rem; color: rgba(255, 215, 0, 0.6); text-transform: uppercase; letter-spacing: 1px; }
+.potm-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+
+.potm-card {
+  position: relative;
+  border-radius: 18px;
+  padding: 2px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #ffd700, #ff9e57, #ffd700, #fff3b0, #ffd700);
+  background-size: 300% 300%;
+  animation: gradientShift 4s ease infinite;
+  box-shadow: 0 0 24px rgba(255, 215, 0, 0.35), 0 0 60px rgba(255, 158, 87, 0.15);
+}
+
+.potm-card-inner {
+  position: relative;
+  z-index: 1;
+  background: radial-gradient(circle at 50% 0%, rgba(40, 30, 10, 0.96), rgba(10, 8, 4, 0.98));
+  border-radius: 16px;
+  padding: 20px 16px;
+  text-align: center;
+}
+
+.potm-shine {
+  position: absolute;
+  top: 0; left: -150%;
+  width: 60%; height: 100%;
+  background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  transform: skewX(-20deg);
+  animation: potmSweep 3s ease-in-out infinite;
+  z-index: 2;
+  pointer-events: none;
+}
+
+@keyframes potmSweep {
+  0%   { left: -150%; }
+  50%  { left: 150%; }
+  100% { left: 150%; }
+}
+
+.potm-medal { font-size: 2rem; filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.7)); margin-bottom: 4px; }
+.potm-card-name { font-size: 1.1rem; font-weight: 800; color: #fff3b0; margin-bottom: 2px; }
+.potm-card-label {
+  font-size: 0.68rem; font-weight: 800; letter-spacing: 2px; color: #ffd700;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.6); margin-bottom: 8px;
+}
+.potm-card-month { font-size: 0.85rem; color: #ffe9a8; font-weight: 600; }
+.potm-card-note { margin-top: 8px; font-size: 0.75rem; color: rgba(255, 233, 168, 0.6); font-style: italic; }
+
 @media (max-width: 900px) {
   .player-container { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: 1fr; }

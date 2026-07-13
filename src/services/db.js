@@ -433,6 +433,72 @@ export const db = {
     return Object.entries(online).filter(([, ts]) => ts > fiveMinAgo).map(([u]) => u);
   },
 
+  /* ── PLAYER OF THE MONTH AWARDS ───────────────────────────────
+     Permanent trophy-case entries for a player's stat page. Multiple
+     awards can stack over a career (e.g. one per month won).         */
+  async getPotmAwards(league, playerId) {
+    if (hasSupabase()) {
+      let q = supabase.from('nova_potm_awards').select('*').eq('league', league);
+      if (playerId) q = q.eq('player_id', playerId);
+      const { data, error } = await q.order('created_at', { ascending: false });
+      if (!error) return data;
+    }
+    const all = ls.get(`${league}_potm_awards`);
+    return playerId ? all.filter(a => a.player_id === playerId) : all;
+  },
+
+  async addPotmAward(league, award) {
+    const record = { ...award, league, created_at: new Date().toISOString() };
+    if (hasSupabase()) {
+      delete record.id;
+      const { data, error } = await supabase.from('nova_potm_awards').insert([record]).select();
+      if (!error) { _syncLs(league, 'potm_awards', data[0], 'add'); return data[0]; }
+    }
+    const list = ls.get(`${league}_potm_awards`);
+    const newItem = { ...record, id: Date.now().toString() };
+    ls.set(`${league}_potm_awards`, [...list, newItem]);
+    return newItem;
+  },
+
+  async deletePotmAward(league, id) {
+    if (hasSupabase()) {
+      await supabase.from('nova_potm_awards').delete().eq('id', id);
+    }
+    ls.set(`${league}_potm_awards`, ls.get(`${league}_potm_awards`).filter(a => a.id !== id));
+  },
+
+  /* ── ACCOLADES (season awards: Gold Glove, Silver Slugger, MVP, All-Star, etc.) ── */
+  async getAccolades(league, playerId) {
+    if (hasSupabase()) {
+      let q = supabase.from('nova_accolades').select('*').eq('league', league);
+      if (playerId) q = q.eq('player_id', playerId);
+      const { data, error } = await q.order('created_at', { ascending: false });
+      if (!error) return data;
+    }
+    const all = ls.get(`${league}_accolades`);
+    return playerId ? all.filter(a => a.player_id === playerId) : all;
+  },
+
+  async addAccolade(league, accolade) {
+    const record = { ...accolade, league, created_at: new Date().toISOString() };
+    if (hasSupabase()) {
+      delete record.id;
+      const { data, error } = await supabase.from('nova_accolades').insert([record]).select();
+      if (!error) { _syncLs(league, 'accolades', data[0], 'add'); return data[0]; }
+    }
+    const list = ls.get(`${league}_accolades`);
+    const newItem = { ...record, id: Date.now().toString() };
+    ls.set(`${league}_accolades`, [...list, newItem]);
+    return newItem;
+  },
+
+  async deleteAccolade(league, id) {
+    if (hasSupabase()) {
+      await supabase.from('nova_accolades').delete().eq('id', id);
+    }
+    ls.set(`${league}_accolades`, ls.get(`${league}_accolades`).filter(a => a.id !== id));
+  },
+
   /* ── COMMENTS (member profile comments) ──────────────────────── */
   async getComments(toUsername) {
     if (hasSupabase()) {
