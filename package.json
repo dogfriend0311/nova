@@ -18,7 +18,11 @@
   "devDependencies": {
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
+    "typescript": "^4.9.5",
     "web-vitals": "^2.1.0"
+  },
+  "overrides": {
+    "shell-quote": "1.8.4"
   },
   "scripts": {
     "start": "HOST=0.0.0.0 PORT=5000 DANGEROUSLY_DISABLE_HOST_CHECK=true react-scripts start",

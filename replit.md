@@ -76,4 +76,10 @@ owner > cofounder > mod > nabb_helper > member > guest
 ## Notes
 - `fast-uri` manually installed to fix workbox-build dependency issue with Node 20
 - Host check disabled via `DANGEROUSLY_DISABLE_HOST_CHECK=true` for Replit proxy
+- `package.json` pins `overrides.shell-quote` to `1.8.4` — the transitive version pulled in by `react-scripts` (1.8.3) is blocked by Replit's package security firewall
+- `package.json` pins `devDependencies.typescript` to `^4.9.5` — without an explicit pin, npm hoisted an unrelated `typescript@7.x` (outside `react-scripts`' supported `^3.2.1 || ^4` range), which crashed `eslint-plugin-jest`/`@typescript-eslint` and broke both `npm start` (overlay: `Environment key "jest/globals" is unknown`) and `npm run build` (hard failure). Pinning `typescript` fixes both.
+- **Deployment**: this app's real production home is Vercel + Supabase (see `homepage` field, `vercel.json`, `supabase/`) — Replit is used here for development/preview only, not as the production deployment target
+
+## User preferences
+- Do not treat Replit as the production deployment target for this project — production is Vercel (frontend) + Supabase (backend/db). Build/verify here, but don't suggest deploying via Replit unless asked.
 - NABB player stat fields: career (hits/runs/rbis/home_runs/strike_outs/innings_pitched/strikeouts_pitched/hits_allowed/earned_runs) + season_ prefix versions + adv_/sv_ for advanced/savant stats
