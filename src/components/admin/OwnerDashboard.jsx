@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import db from '../../services/db';
+import { ACCOLADE_TYPES, accoladeLabel, accoladeIcon } from '../../data/accolades';
 import './OwnerDashboard.css';
 
 const SI = { padding:'10px', background:'rgba(94, 129, 244,0.05)', border:'1px solid rgba(94, 129, 244,0.2)', color:'#e2e5f0', borderRadius:'4px', width:'100%' };
@@ -166,10 +167,14 @@ const GiveCoinsTab = () => {
 
 /* ── VIZTA LEAGUE TABS ─────────────────────────────────────── */
 
+const currentMonthLabel = () => new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
+
 const LeaguePlayersTab = ({ prefix }) => {
+  const { user } = useAuth();
   const label = prefix === 'vizta' ? 'Vizta' : prefix.toUpperCase();
   const [players, setPlayers] = useState([]);
   const [playerSearch, setPlayerSearch] = useState('');
+  const [potmMsg, setPotmMsg] = useState('');
   const [form, setForm]       = useState(emptyPlayer);
   const [editing, setEditing] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
@@ -221,6 +226,19 @@ const LeaguePlayersTab = ({ prefix }) => {
   const del = async (id) => { await db.deletePlayer(prefix, id); setPlayers(prev => prev.filter(p => p.id !== id)); };
   const startEdit = (p) => { setEditing(p.id); setForm({ ...emptyPlayer, ...p }); if (p.avatar_data) setAvatarPreview(p.avatar_data); setZoom(1); setOffsetX(0); setOffsetY(0); };
   const cancel = () => { setEditing(null); setForm(emptyPlayer); setAvatarPreview(null); };
+
+  const awardPotm = async (p) => {
+    const monthLabel = currentMonthLabel();
+    if (!window.confirm(`Award "Player of the Month — ${monthLabel}" to ${p.player_name}? This will be shown permanently on their stat page.`)) return;
+    await db.addPotmAward(prefix, {
+      player_id: p.id,
+      player_name: p.player_name,
+      month_label: monthLabel,
+      awarded_by: user?.username || 'admin',
+    });
+    setPotmMsg(`🏆 ${p.player_name} is now Player of the Month for ${monthLabel}!`);
+    setTimeout(() => setPotmMsg(''), 3500);
+  };
 
   return (
     <div className="tab-content">
@@ -300,6 +318,9 @@ const LeaguePlayersTab = ({ prefix }) => {
       </div>
       {loading ? <p style={{ color:'rgba(158, 165, 196,0.5)' }}>Loading...</p> : (
         <>
+          {potmMsg && (
+            <div className="neon-card p-3" style={{ marginBottom:'12px', borderColor:'#ffd700', color:'#ffd700', textAlign:'center', fontWeight:700 }}>{potmMsg}</div>
+          )}
           {/* Player search */}
           <div style={{ marginBottom:'12px' }}>
             <input
@@ -330,6 +351,7 @@ const LeaguePlayersTab = ({ prefix }) => {
                     </div>
                   </div>
                   <div style={{ display:'flex', gap:'8px' }}>
+                    <button className="neon-button" style={{ padding:'6px 14px', borderColor:'#ffd700', color:'#ffd700' }} onClick={() => awardPotm(p)} title="Award Player of the Month">🏆 Player of the Month</button>
                     <button className="neon-button" style={{ padding:'6px 14px' }} onClick={() => startEdit(p)}>Edit</button>
                     <button className="neon-button" style={{ padding:'6px 14px', borderColor:'#ff6b7a', color:'#ff6b7a' }} onClick={() => del(p.id)}>Delete</button>
                   </div>
@@ -917,6 +939,147 @@ const LeagueHofTab = ({ prefix }) => {
   );
 };
 
+const LeagueAwardsTab = ({ prefix }) => {
+  const { user } = useAuth();
+  const label = prefix === 'vizta' ? 'Vizta' : prefix.toUpperCase();
+  const [players, setPlayers] = useState([]);
+  const [selectedId, setSelectedId] = useState('');
+  const [potmAwards, setPotmAwards] = useState([]);
+  const [accolades, setAccolades] = useState([]);
+  const [monthLabel, setMonthLabel] = useState(currentMonthLabel());
+  const [potmNote, setPotmNote] = useState('');
+  const [accType, setAccType] = useState(ACCOLADE_TYPES[0].key);
+  const [accSeason, setAccSeason] = useState('S1');
+  const [accCustomLabel, setAccCustomLabel] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { db.getPlayers(prefix).then(d => { setPlayers(d); setLoading(false); }); }, [prefix]);
+
+  const selectedPlayer = players.find(p => p.id === selectedId);
+
+  useEffect(() => {
+    if (!selectedId) { setPotmAwards([]); setAccolades([]); return; }
+    db.getPotmAwards(prefix, selectedId).then(setPotmAwards);
+    db.getAccolades(prefix, selectedId).then(setAccolades);
+  }, [prefix, selectedId]);
+
+  const givePotm = async () => {
+    if (!selectedPlayer || !monthLabel.trim()) return;
+    const saved = await db.addPotmAward(prefix, {
+      player_id: selectedPlayer.id,
+      player_name: selectedPlayer.player_name,
+      month_label: monthLabel.trim(),
+      note: potmNote.trim(),
+      awarded_by: user?.username || 'admin',
+    });
+    setPotmAwards(prev => [saved, ...prev]);
+    setPotmNote('');
+  };
+  const removePotm = async (id) => { await db.deletePotmAward(prefix, id); setPotmAwards(prev => prev.filter(a => a.id !== id)); };
+
+  const giveAccolade = async () => {
+    if (!selectedPlayer || !accSeason.trim()) return;
+    if (accType === 'custom' && !accCustomLabel.trim()) return;
+    const saved = await db.addAccolade(prefix, {
+      player_id: selectedPlayer.id,
+      player_name: selectedPlayer.player_name,
+      type: accType,
+      season: accSeason.trim(),
+      custom_label: accType === 'custom' ? accCustomLabel.trim() : '',
+      awarded_by: user?.username || 'admin',
+    });
+    setAccolades(prev => [saved, ...prev]);
+    setAccCustomLabel('');
+  };
+  const removeAccolade = async (id) => { await db.deleteAccolade(prefix, id); setAccolades(prev => prev.filter(a => a.id !== id)); };
+
+  return (
+    <div className="tab-content">
+      <h2 className="gradient-text-cyan">{label} Awards & Accolades</h2>
+      <p style={{ color:'rgba(158, 165, 196,0.6)', marginTop:'6px', marginBottom:'20px', fontSize:'0.88rem' }}>
+        Award Player of the Month and season accolades (Gold Glove, Silver Slugger, MVP, All-Star, etc.) — these show up permanently as a trophy card and tags on the player's stat page.
+      </p>
+
+      <div className="neon-card p-3" style={{ marginBottom:'24px' }}>
+        <div className="form-field">
+          <label>Player</label>
+          <select value={selectedId} onChange={e => setSelectedId(e.target.value)} style={SS}>
+            <option value="">{loading ? 'Loading players...' : 'Select a player'}</option>
+            {players.map(p => <option key={p.id} value={p.id}>{p.player_name}{p.team ? ` — ${p.team}` : ''}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {selectedPlayer && (
+        <div style={{ display:'grid', gap:'24px', gridTemplateColumns:'1fr', maxWidth:'760px' }}>
+          {/* Player of the Month */}
+          <div className="neon-card p-3">
+            <h3 style={{ color:'#ffd700', marginBottom:'12px' }}>🏆 Player of the Month</h3>
+            <div className="od-2col-grid">
+              <div className="form-field">
+                <label>Month</label>
+                <input type="text" value={monthLabel} onChange={e => setMonthLabel(e.target.value)} placeholder="e.g. July 2026" style={SI} />
+              </div>
+              <div className="form-field">
+                <label>Note (optional)</label>
+                <input type="text" value={potmNote} onChange={e => setPotmNote(e.target.value)} placeholder="e.g. Led the league in home runs" style={SI} />
+              </div>
+            </div>
+            <button className="neon-button" style={{ marginTop:'12px', borderColor:'#ffd700', color:'#ffd700' }} onClick={givePotm}>Award Player of the Month</button>
+
+            <div style={{ marginTop:'18px', display:'grid', gap:'8px' }}>
+              {potmAwards.length === 0 && <p style={{ color:'rgba(158, 165, 196,0.4)', fontSize:'0.85rem' }}>No Player of the Month awards yet.</p>}
+              {potmAwards.map(a => (
+                <div key={a.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px', background:'rgba(255,215,0,0.06)', border:'1px solid rgba(255,215,0,0.25)', borderRadius:'6px' }}>
+                  <div>
+                    <span style={{ color:'#ffd700', fontWeight:700 }}>{a.month_label}</span>
+                    {a.note && <span style={{ marginLeft:'10px', fontSize:'0.8rem', color:'rgba(158, 165, 196,0.6)' }}>{a.note}</span>}
+                  </div>
+                  <button onClick={() => removePotm(a.id)} style={{ background:'none', border:'none', color:'#ff6b7a', cursor:'pointer' }}>Remove</button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Accolades */}
+          <div className="neon-card p-3">
+            <h3 className="gradient-text-magenta" style={{ marginBottom:'12px' }}>Season Accolades</h3>
+            <div className="od-2col-grid">
+              <div className="form-field">
+                <label>Award</label>
+                <select value={accType} onChange={e => setAccType(e.target.value)} style={SS}>
+                  {ACCOLADE_TYPES.map(t => <option key={t.key} value={t.key}>{t.icon} {t.label}</option>)}
+                </select>
+              </div>
+              <div className="form-field">
+                <label>Season</label>
+                <input type="text" value={accSeason} onChange={e => setAccSeason(e.target.value)} placeholder="e.g. S1" style={SI} />
+              </div>
+            </div>
+            {accType === 'custom' && (
+              <div className="form-field" style={{ marginTop:'8px' }}>
+                <label>Custom Award Name</label>
+                <input type="text" value={accCustomLabel} onChange={e => setAccCustomLabel(e.target.value)} placeholder="e.g. Defensive Player of the Year" style={SI} />
+              </div>
+            )}
+            <button className="neon-button" style={{ marginTop:'12px' }} onClick={giveAccolade}>Add Accolade</button>
+
+            <div style={{ marginTop:'18px', display:'grid', gap:'8px' }}>
+              {accolades.length === 0 && <p style={{ color:'rgba(158, 165, 196,0.4)', fontSize:'0.85rem' }}>No accolades yet.</p>}
+              {accolades.map(a => (
+                <div key={a.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px', background:'rgba(94, 129, 244,0.05)', border:'1px solid rgba(94, 129, 244,0.15)', borderRadius:'6px' }}>
+                  <span style={{ color:'var(--color-cyan)', fontWeight:700 }}>{accoladeIcon(a)} {accoladeLabel(a)}</span>
+                  <button onClick={() => removeAccolade(a.id)} style={{ background:'none', border:'none', color:'#ff6b7a', cursor:'pointer' }}>Remove</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ── MAIN DASHBOARD ────────────────────────────────────────── */
 
 const OwnerDashboard = ({ onExit }) => {
@@ -941,6 +1104,7 @@ const OwnerDashboard = ({ onExit }) => {
       case 'vizta-boxscores': return <LeagueBoxScoresTab prefix="vizta" />;
       case 'vizta-feed':      return <LeagueGameFeedTab prefix="vizta" />;
       case 'vizta-hof':       return <LeagueHofTab prefix="vizta" />;
+      case 'vizta-awards':    return <LeagueAwardsTab prefix="vizta" />;
       default: return null;
     }
   };
@@ -982,6 +1146,7 @@ const OwnerDashboard = ({ onExit }) => {
               <Btn id="vizta-boxscores" label="Box Scores" />
               <Btn id="vizta-feed"      label="Feed" />
               <Btn id="vizta-hof"       label="HoF" />
+              <Btn id="vizta-awards"    label="Awards" />
             </div>
           </div>
         )}

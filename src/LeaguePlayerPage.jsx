@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './LeaguePlayerPage.css';
 import PlayerTradingCard from './PlayerTradingCard';
+import db from './services/db';
+import { accoladeLabel, accoladeIcon } from './data/accolades';
 
 // Converts any Spotify link to an embed URL and appends autoplay=1
 // so the song starts automatically when a player's page opens.
@@ -118,8 +120,17 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
     pitchAdv:   false,
   });
   const [showTradingCard, setShowTradingCard] = useState(false);
+  const [potmAwards, setPotmAwards] = useState([]);
+  const [accolades, setAccolades] = useState([]);
 
   const toggle = (key) => setToggles(prev => ({ ...prev, [key]: !prev[key] }));
+
+  useEffect(() => {
+    if (!player?.id) { setPotmAwards([]); setAccolades([]); return; }
+    const league = leaguePrefix || 'vizta';
+    db.getPotmAwards(league, player.id).then(setPotmAwards);
+    db.getAccolades(league, player.id).then(setAccolades);
+  }, [player?.id, leaguePrefix]);
 
   if (!player) {
     return (
@@ -349,6 +360,14 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
             <div className="card-team">{player.team || 'Free Agent'}</div>
             <div className="card-position">{player.position || '—'}</div>
 
+            {accolades.length > 0 && (
+              <div className="accolade-tags">
+                {accolades.map(a => (
+                  <span key={a.id} className="accolade-tag">{accoladeIcon(a)} {accoladeLabel(a)}</span>
+                ))}
+              </div>
+            )}
+
             <div className="card-overall">
               <span className="label">Overall</span>
               <span className="value">{player.overall || '—'}</span>
@@ -383,6 +402,29 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
 
         {/* RIGHT — Stats */}
         <div className="player-stats">
+          {potmAwards.length > 0 && (
+            <div className="potm-trophy-case">
+              <div className="potm-trophy-header">
+                <span className="potm-trophy-title">🏆 Player of the Month</span>
+                <span className="potm-trophy-count">{potmAwards.length} time{potmAwards.length !== 1 ? 's' : ''}</span>
+              </div>
+              <div className="potm-cards">
+                {potmAwards.map(a => (
+                  <div key={a.id} className="potm-card">
+                    <div className="potm-shine" />
+                    <div className="potm-card-inner">
+                      <div className="potm-medal">🏆</div>
+                      <div className="potm-card-name">{player.nickname || player.player_name}</div>
+                      <div className="potm-card-label">PLAYER OF THE MONTH</div>
+                      <div className="potm-card-month">{a.month_label}</div>
+                      {a.note && <div className="potm-card-note">{a.note}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <SavantCard player={player} />
 
           <StatSection
