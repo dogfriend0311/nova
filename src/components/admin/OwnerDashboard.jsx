@@ -187,8 +187,19 @@ const LeaguePlayersTab = ({ prefix }) => {
   const canvasRef = useRef(null);
   const imgRef    = useRef(null);
   const [loading, setLoading] = useState(true);
+  const [potmByPlayer, setPotmByPlayer] = useState({});
 
   useEffect(() => { db.getPlayers(prefix).then(d => { setPlayers(d); setLoading(false); }); }, [prefix]);
+
+  const loadPotm = () => {
+    const month = currentMonthLabel();
+    db.getPotmAwards(prefix).then(all => {
+      const map = {};
+      all.filter(a => a.month_label === month).forEach(a => { map[String(a.player_id)] = a; });
+      setPotmByPlayer(map);
+    });
+  };
+  useEffect(loadPotm, [prefix]);
 
   const handleAvatarUpload = (e) => {
     const file = e.target.files[0]; if (!file) return;
@@ -238,6 +249,17 @@ const LeaguePlayersTab = ({ prefix }) => {
     });
     setPotmMsg(`🏆 ${p.player_name} is now Player of the Month for ${monthLabel}!`);
     setTimeout(() => setPotmMsg(''), 3500);
+    loadPotm();
+  };
+
+  const removePotm = async (p) => {
+    const award = potmByPlayer[String(p.id)];
+    if (!award) return;
+    if (!window.confirm(`Remove Player of the Month (${award.month_label}) from ${p.player_name}?`)) return;
+    await db.deletePotmAward(prefix, award.id);
+    setPotmMsg(`Removed Player of the Month from ${p.player_name}.`);
+    setTimeout(() => setPotmMsg(''), 3500);
+    loadPotm();
   };
 
   return (
@@ -351,7 +373,11 @@ const LeaguePlayersTab = ({ prefix }) => {
                     </div>
                   </div>
                   <div style={{ display:'flex', gap:'8px' }}>
-                    <button className="neon-button" style={{ padding:'6px 14px', borderColor:'#ffd700', color:'#ffd700' }} onClick={() => awardPotm(p)} title="Award Player of the Month">🏆 Player of the Month</button>
+                    {potmByPlayer[String(p.id)] ? (
+                      <button className="neon-button" style={{ padding:'6px 14px', borderColor:'#ff6b7a', color:'#ff6b7a' }} onClick={() => removePotm(p)} title="Remove Player of the Month">🗑 Remove POTM</button>
+                    ) : (
+                      <button className="neon-button" style={{ padding:'6px 14px', borderColor:'#ffd700', color:'#ffd700' }} onClick={() => awardPotm(p)} title="Award Player of the Month">🏆 Player of the Month</button>
+                    )}
                     <button className="neon-button" style={{ padding:'6px 14px' }} onClick={() => startEdit(p)}>Edit</button>
                     <button className="neon-button" style={{ padding:'6px 14px', borderColor:'#ff6b7a', color:'#ff6b7a' }} onClick={() => del(p.id)}>Delete</button>
                   </div>
@@ -955,7 +981,7 @@ const LeagueAwardsTab = ({ prefix }) => {
 
   useEffect(() => { db.getPlayers(prefix).then(d => { setPlayers(d); setLoading(false); }); }, [prefix]);
 
-  const selectedPlayer = players.find(p => p.id === selectedId);
+  const selectedPlayer = players.find(p => String(p.id) === String(selectedId));
 
   useEffect(() => {
     if (!selectedId) { setPotmAwards([]); setAccolades([]); return; }
