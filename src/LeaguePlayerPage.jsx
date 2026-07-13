@@ -3,6 +3,7 @@ import './LeaguePlayerPage.css';
 import PlayerTradingCard from './PlayerTradingCard';
 import db from './services/db';
 import { accoladeLabel, accoladeIcon } from './data/accolades';
+import PlayerComments from './components/PlayerComments';
 
 // Converts any Spotify link to an embed URL and appends autoplay=1
 // so the song starts automatically when a player's page opens.
@@ -484,6 +485,8 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
               </div>
             </div>
           )}
+
+          <PlayerComments league={leaguePrefix || 'vizta'} playerId={player.id} playerName={player.nickname || player.player_name} />
         </div>
       </div>
     </div>

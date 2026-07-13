@@ -18,6 +18,7 @@ Nova is a space-themed social gaming hub for Roblox sports community. Members ca
 - `src/NABBLeague.jsx` — Full NABB league with 8 tabs: Overview, Rosters, Players, Leaders, Feed, Box Scores, Compare, Hall of Fame
 - `src/LeaguePlayerPage.jsx` — Player stat card (trading card + aggregated stats); renders season accolade tags + a Player of the Month trophy case fed by `db.getAccolades`/`db.getPotmAwards`
 - `src/data/accolades.js` — shared accolade type list (MVP, All-Star, Gold Glove, Silver Slugger, Rookie of the Year, Custom) + label/icon helpers
+- `src/components/PlayerComments.jsx` — comments (+ pasted GIF links) section rendered at the bottom of `LeaguePlayerPage.jsx`; author or owner/cofounder/mod can delete a comment
 - `src/components/admin/OwnerDashboard.jsx` — Full admin dashboard
 - `src/components/pages/MemberProfile.jsx` — Discord-style own profile editor
 - `src/components/pages/MemberPages.jsx` — Browse member profiles (Discord cards)
@@ -64,6 +65,7 @@ owner > cofounder > mod > nabb_helper > member > guest
 - Member profiles: Discord-style cards with banner, avatar, bio, Spotify embed, social links
 - **Mobile layout**: Navbar stays single-row on all screen sizes (tabs scroll horizontally, no wrapping)
 - ESLint strict: warnings treated as errors — no unused vars
+- **Player comments & GIFs**: signed-in members can comment (optionally attaching a pasted GIF link) on any player's stat page (`LeaguePlayerPage.jsx`); deletion is restricted to the comment's author or owner/cofounder/mod. Data layer: `db.getPlayerComments/addPlayerComment/deletePlayerComment` backed by `nova_player_comments` (localStorage fallback), migration in `supabase/player_comments.sql`.
 - **Player of the Month & Season Accolades**: Vizta Players admin tab has a one-click "🏆 Player of the Month" button per player row; a dedicated "Awards" admin tab (owner/cofounder/mod/vizta_helper) grants POTM (with month + optional note) and season accolades (MVP, All-Star, Gold Glove, Silver Slugger, Rookie of the Year, or custom, tagged by season e.g. "S1"). Both render permanently on `LeaguePlayerPage.jsx` — POTM as an animated holographic trophy card, accolades as compact tags near the player name. Data layer: `db.getPotmAwards/addPotmAward/deletePotmAward` and `db.getAccolades/addAccolade/deleteAccolade` in `src/services/db.js`, backed by new Supabase tables (`nova_potm_awards`, `nova_accolades`) with localStorage fallback — run `supabase/player_awards.sql` once in the Supabase SQL editor to enable cross-device sync (works locally without it).
 
 ## ESPN API Endpoints Used
