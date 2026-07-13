@@ -106,6 +106,9 @@
 .potm-card-month { font-size: 0.85rem; color: #ffe9a8; font-weight: 600; }
 .potm-card-note { margin-top: 8px; font-size: 0.75rem; color: rgba(255, 233, 168, 0.6); font-style: italic; }
 
+/* ── Player comments ───────────────────────────────────────── */
+.player-comments { padding: 20px; }
+
 @media (max-width: 900px) {
   .player-container { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: 1fr; }

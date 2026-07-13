@@ -543,6 +543,46 @@ export const db = {
     }
     localStorage.setItem('nova_comments', JSON.stringify(all));
   },
+
+  /* ── PLAYER COMMENTS (comments + GIFs on a league player's stat page) ── */
+  async getPlayerComments(league, playerId) {
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase
+          .from('nova_player_comments')
+          .select('*')
+          .eq('league', league)
+          .eq('player_id', String(playerId))
+          .order('created_at', { ascending: false });
+        if (!error) return data;
+      } catch {}
+    }
+    const all = ls.get(`${league}_player_comments`);
+    return all.filter(c => String(c.player_id) === String(playerId));
+  },
+
+  async addPlayerComment(league, comment) {
+    const record = { ...comment, league, player_id: String(comment.player_id), created_at: new Date().toISOString() };
+    if (hasSupabase()) {
+      try {
+        const insertRecord = { ...record };
+        delete insertRecord.id;
+        const { data, error } = await supabase.from('nova_player_comments').insert([insertRecord]).select();
+        if (!error) { _syncLs(league, 'player_comments', data[0], 'add'); return data[0]; }
+      } catch {}
+    }
+    const list = ls.get(`${league}_player_comments`);
+    const newItem = { ...record, id: Date.now().toString() };
+    ls.set(`${league}_player_comments`, [...list, newItem]);
+    return newItem;
+  },
+
+  async deletePlayerComment(league, id) {
+    if (hasSupabase()) {
+      try { await supabase.from('nova_player_comments').delete().eq('id', id); } catch {}
+    }
+    ls.set(`${league}_player_comments`, ls.get(`${league}_player_comments`).filter(c => c.id !== id));
+  },
 };
 
 /* ── Internal: keep localStorage in sync with Supabase ─────────── */
