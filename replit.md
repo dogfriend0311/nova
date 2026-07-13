@@ -83,5 +83,6 @@ owner > cofounder > mod > nabb_helper > member > guest
 - **Deployment**: this app's real production home is Vercel + Supabase (see `homepage` field, `vercel.json`, `supabase/`) — Replit is used here for development/preview only, not as the production deployment target
 
 ## User preferences
+- After every change, list which files were edited or created so the user can download/sync them to their own computer.
 - Do not treat Replit as the production deployment target for this project — production is Vercel (frontend) + Supabase (backend/db). Build/verify here, but don't suggest deploying via Replit unless asked.
 - NABB player stat fields: career (hits/runs/rbis/home_runs/strike_outs/innings_pitched/strikeouts_pitched/hits_allowed/earned_runs) + season_ prefix versions + adv_/sv_ for advanced/savant stats
