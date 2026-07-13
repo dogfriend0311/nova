@@ -439,16 +439,16 @@ export const db = {
   async getPotmAwards(league, playerId) {
     if (hasSupabase()) {
       let q = supabase.from('nova_potm_awards').select('*').eq('league', league);
-      if (playerId) q = q.eq('player_id', playerId);
+      if (playerId) q = q.eq('player_id', String(playerId));
       const { data, error } = await q.order('created_at', { ascending: false });
       if (!error) return data;
     }
     const all = ls.get(`${league}_potm_awards`);
-    return playerId ? all.filter(a => a.player_id === playerId) : all;
+    return playerId ? all.filter(a => String(a.player_id) === String(playerId)) : all;
   },
 
   async addPotmAward(league, award) {
-    const record = { ...award, league, created_at: new Date().toISOString() };
+    const record = { ...award, league, player_id: String(award.player_id), created_at: new Date().toISOString() };
     if (hasSupabase()) {
       delete record.id;
       const { data, error } = await supabase.from('nova_potm_awards').insert([record]).select();
@@ -471,16 +471,16 @@ export const db = {
   async getAccolades(league, playerId) {
     if (hasSupabase()) {
       let q = supabase.from('nova_accolades').select('*').eq('league', league);
-      if (playerId) q = q.eq('player_id', playerId);
+      if (playerId) q = q.eq('player_id', String(playerId));
       const { data, error } = await q.order('created_at', { ascending: false });
       if (!error) return data;
     }
     const all = ls.get(`${league}_accolades`);
-    return playerId ? all.filter(a => a.player_id === playerId) : all;
+    return playerId ? all.filter(a => String(a.player_id) === String(playerId)) : all;
   },
 
   async addAccolade(league, accolade) {
-    const record = { ...accolade, league, created_at: new Date().toISOString() };
+    const record = { ...accolade, league, player_id: String(accolade.player_id), created_at: new Date().toISOString() };
     if (hasSupabase()) {
       delete record.id;
       const { data, error } = await supabase.from('nova_accolades').insert([record]).select();
