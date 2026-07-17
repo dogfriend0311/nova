@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl } from '../../data/teams';
-import { getWatchList } from '../../services/mediaService';
 import * as lfm from '../../services/lastfmService';
 
 const SPORT_KEYS   = ['mlb', 'nfl', 'nba', 'nhl', 'cfb', 'cbb'];
@@ -161,9 +160,10 @@ const NowPlayingPublic = ({ lastfmUsername }) => {
   );
 };
 
-// ── Watch List Preview ────────────────────────────────────────
+// ── Watch List Preview removed ─────────────────────────────────
+// eslint-disable-next-line no-unused-vars
 const WatchPreview = ({ username }) => {
-  const list = getWatchList(username);
+  const list = [];
   if (!list.length) return null;
 
   const pinned   = list.filter((i) => i.pinned);
@@ -527,7 +527,6 @@ const MemberProfileView = ({ member, onBack }) => {
     { id: 'favgames',    label: 'Fav Games'    },
     { id: 'robloxgames', label: 'Roblox Games' },
     { id: 'teams',       label: 'Teams'        },
-    { id: 'watchlist',   label: 'Watch List'   },
     { id: 'comments',    label: 'Comments'     },
   ];
 
@@ -639,12 +638,6 @@ const MemberProfileView = ({ member, onBack }) => {
         {viewTab === 'teams' && (
           <div style={{ padding: '20px 0' }}>
             <FavTeams favTeams={member.fav_teams} />
-          </div>
-        )}
-
-        {viewTab === 'watchlist' && (
-          <div style={{ padding: '20px 0' }}>
-            <WatchPreview username={member.username} />
           </div>
         )}
 

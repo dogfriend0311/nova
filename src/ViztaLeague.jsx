@@ -105,15 +105,26 @@ const OverviewTab = () => {
 };
 
 const RostersTab = ({ onSelectPlayer }) => {
-  const [teams, setTeams]     = useState([]);
-  const [players, setPlayers] = useState([]);
+  const [teams, setTeams]         = useState([]);
+  const [players, setPlayers]     = useState([]);
   const [selectedTeam, setSelectedTeam] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]     = useState(true);
+  const [rightPanel, setRightPanel] = useState('stats');
+  const [schedule, setSchedule]   = useState([]);
+  const [schedLoading, setSchedLoading] = useState(false);
 
   useEffect(() => {
     Promise.all([db.getTeams('vizta'), db.getPlayers('vizta')])
       .then(([t, p]) => { setTeams(t); setPlayers(p); setLoading(false); });
   }, []);
+
+  useEffect(() => {
+    if (!selectedTeam) return;
+    setSchedLoading(true);
+    db.getTeamSchedule(selectedTeam.id)
+      .then(entries => { setSchedule(entries || []); setSchedLoading(false); })
+      .catch(() => { setSchedule([]); setSchedLoading(false); });
+  }, [selectedTeam]);
 
   if (loading) return <p style={{ color:'rgba(158, 165, 196,0.5)', padding:'40px', textAlign:'center' }}>Loading...</p>;
 
@@ -163,16 +174,21 @@ const RostersTab = ({ onSelectPlayer }) => {
   ];
   const teamColor = selectedTeam.team_color || 'var(--color-cyan)';
 
+  const wins   = schedule.filter(e => e.result === 'W').length;
+  const losses = schedule.filter(e => e.result === 'L').length;
+  const ties   = schedule.filter(e => e.result === 'T').length;
+
   return (
     <div>
-      <button className="neon-button" onClick={() => setSelectedTeam(null)} style={{ marginBottom:'20px' }}>Back to Teams</button>
-      <div style={{ display:'flex', alignItems:'center', gap:'14px', marginBottom:'24px' }}>
+      <button className="neon-button" onClick={() => { setSelectedTeam(null); setRightPanel('stats'); }} style={{ marginBottom:'20px' }}>Back to Teams</button>
+      <div style={{ display:'flex', alignItems:'center', gap:'14px', marginBottom:'20px' }}>
         {selectedTeam.logo_url
           ? <img src={selectedTeam.logo_url} alt={selectedTeam.team_name} style={{ width:'52px', height:'52px', objectFit:'contain', borderRadius:'8px' }} />
           : <div style={{ width:'52px', height:'52px', background:teamColor, borderRadius:'8px', flexShrink:0 }} />}
         <h2 style={{ margin:0, color:teamColor, fontWeight:900 }}>{selectedTeam.team_name}</h2>
       </div>
       <div className="vz-2col-grid">
+        {/* Left: Roster */}
         <div className="neon-card p-3">
           <h4 style={{ color:'var(--color-cyan)', marginBottom:'14px' }}>Roster ({teamPlayers.length})</h4>
           {teamPlayers.length === 0
@@ -191,18 +207,83 @@ const RostersTab = ({ onSelectPlayer }) => {
                   <p style={{ margin:0, color:'var(--color-cyan)', fontWeight:600, fontSize:'0.88rem', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.player_name}</p>
                   <p style={{ margin:0, fontSize:'0.72rem', color:'rgba(158, 165, 196,0.5)' }}>{p.position||'--'} - OVR {p.overall||'?'}</p>
                 </div>
-                {onSelectPlayer && <span style={{ color:`${teamColor}66`, fontSize:'0.75rem' }}>-&gt;</span>}
+                {onSelectPlayer && <span style={{ color:`${teamColor}66`, fontSize:'0.75rem' }}>→</span>}
               </div>
             ))}
         </div>
+
+        {/* Right: Stats / Schedule toggle */}
         <div className="neon-card p-3">
-          <h4 style={{ color:teamColor, marginBottom:'14px' }}>Team Stats (Season)</h4>
-          {teamStats.map(({label,value}) => (
-            <div key={label} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 0', borderBottom:'1px solid rgba(94, 129, 244,0.06)' }}>
-              <span style={{ fontSize:'0.78rem', color:'rgba(158, 165, 196,0.55)' }}>{label}</span>
-              <span style={{ fontWeight:700, color:value==='--'?'rgba(158, 165, 196,0.25)':teamColor, fontSize:'0.88rem' }}>{value}</span>
-            </div>
-          ))}
+          {/* Toggle */}
+          <div style={{ display:'flex', gap:6, marginBottom:14 }}>
+            {['stats','schedule'].map(id => (
+              <button key={id} onClick={() => setRightPanel(id)} style={{
+                padding:'5px 14px', borderRadius:20, border:'none', cursor:'pointer', fontWeight:700, fontSize:'0.78rem',
+                background: rightPanel===id ? teamColor : 'rgba(94,129,244,0.08)',
+                color: rightPanel===id ? '#0a0d1a' : 'rgba(158,165,196,0.6)',
+              }}>
+                {id === 'stats' ? '📊 Team Stats' : '📅 Schedule'}
+              </button>
+            ))}
+          </div>
+
+          {rightPanel === 'stats' && (
+            <>
+              <h4 style={{ color:teamColor, marginBottom:'14px', marginTop:0 }}>Team Stats (Season)</h4>
+              {teamStats.map(({label,value}) => (
+                <div key={label} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 0', borderBottom:'1px solid rgba(94,129,244,0.06)' }}>
+                  <span style={{ fontSize:'0.78rem', color:'rgba(158,165,196,0.55)' }}>{label}</span>
+                  <span style={{ fontWeight:700, color:value==='--'?'rgba(158,165,196,0.25)':teamColor, fontSize:'0.88rem' }}>{value}</span>
+                </div>
+              ))}
+            </>
+          )}
+
+          {rightPanel === 'schedule' && (
+            <>
+              <h4 style={{ color:teamColor, marginBottom:'10px', marginTop:0 }}>Schedule</h4>
+              {/* Record pills */}
+              <div style={{ display:'flex', gap:12, marginBottom:14, flexWrap:'wrap' }}>
+                {[['W', wins,'#22c55e'],['L',losses,'#ef4444'],['T',ties,'#eab308']].filter(([,v])=>v>0||['W','L'].includes(''+v[0])).map(([l,v,c])=>(
+                  <span key={l} style={{ fontWeight:800, fontSize:'0.95rem', color:c }}>{v} {l}</span>
+                ))}
+                {schedule.filter(e=>!e.result).length > 0 && (
+                  <span style={{ color:'rgba(158,165,196,0.4)', fontSize:'0.85rem' }}>{schedule.filter(e=>!e.result).length} upcoming</span>
+                )}
+              </div>
+              {schedLoading ? (
+                <p style={{ color:'rgba(158,165,196,0.4)', textAlign:'center', padding:'20px 0', fontSize:'0.85rem' }}>Loading…</p>
+              ) : schedule.length === 0 ? (
+                <p style={{ color:'rgba(158,165,196,0.35)', textAlign:'center', padding:'20px 0', fontSize:'0.82rem' }}>
+                  No schedule yet.<br />An admin can add games via Admin → Fantasy Schedule.
+                </p>
+              ) : (
+                <div style={{ overflowX:'auto' }}>
+                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.8rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom:'1px solid rgba(94,129,244,0.15)' }}>
+                        {['Wk','Opponent','Loc','Date','Score','Result'].map(h=>(
+                          <th key={h} style={{ padding:'5px 6px', textAlign:'left', color:'rgba(158,165,196,0.4)', fontWeight:600, fontSize:'0.72rem', textTransform:'uppercase' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...schedule].sort((a,b)=>(a.week||999)-(b.week||999)).map(entry=>(
+                        <tr key={entry.id} style={{ borderBottom:'1px solid rgba(255,255,255,0.03)' }}>
+                          <td style={{ padding:'6px', fontWeight:700, color:'var(--color-cyan)' }}>{entry.week??'—'}</td>
+                          <td style={{ padding:'6px', color:'#e2e5f0' }}>{entry.opponent||'—'}</td>
+                          <td style={{ padding:'6px', fontSize:'0.7rem', fontWeight:700, color:entry.is_home?'var(--color-cyan)':'#d946ef' }}>{entry.is_home?'HOME':'AWAY'}</td>
+                          <td style={{ padding:'6px', color:'rgba(158,165,196,0.5)', fontSize:'0.75rem' }}>{entry.game_date||'—'}</td>
+                          <td style={{ padding:'6px' }}>{entry.score||'—'}</td>
+                          <td style={{ padding:'6px', fontWeight:700, color:entry.result==='W'?'#22c55e':entry.result==='L'?'#ef4444':'#eab308' }}>{entry.result||<span style={{color:'rgba(158,165,196,0.3)',fontSize:'0.75rem'}}>TBD</span>}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>

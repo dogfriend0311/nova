@@ -1107,6 +1107,112 @@ const LeagueAwardsTab = ({ prefix }) => {
   );
 };
 
+/* ── FANTASY MANAGE TAB ─────────────────────────────────────── */
+
+const FantasyManageTab = () => {
+  const [leagues,        setLeagues]        = useState([]);
+  const [selectedLeague, setSelectedLeague] = useState(null);
+  const [teams,          setTeams]          = useState([]);
+  const [deleting,       setDeleting]       = useState(null);
+  const [msg,            setMsg]            = useState('');
+
+  const loadLeagues = () => fantasyDb.getAllLeagues().then(setLeagues).catch(() => {});
+
+  useEffect(() => { loadLeagues(); }, []); // eslint-disable-line
+
+  const loadTeams = async (league) => {
+    setSelectedLeague(league);
+    const t = await fantasyDb.getTeams(league.id).catch(() => []);
+    setTeams(t);
+  };
+
+  const flash = (m) => { setMsg(m); setTimeout(() => setMsg(''), 2500); };
+
+  const handleDeleteLeague = async (league) => {
+    if (!window.confirm(`Delete league "${league.name}" and all its data? This cannot be undone.`)) return;
+    setDeleting(league.id);
+    await fantasyDb.deleteLeague(league.id);
+    if (selectedLeague?.id === league.id) { setSelectedLeague(null); setTeams([]); }
+    await loadLeagues();
+    setDeleting(null);
+    flash(`✓ League "${league.name}" deleted`);
+  };
+
+  const handleDeleteTeam = async (team) => {
+    if (!window.confirm(`Delete team "${team.team_name}"?`)) return;
+    setDeleting(team.id);
+    await fantasyDb.deleteTeam(team.id);
+    setTeams(prev => prev.filter(t => t.id !== team.id));
+    setDeleting(null);
+    flash(`✓ Team "${team.team_name}" deleted`);
+  };
+
+  return (
+    <div className="tab-content">
+      <h2 className="gradient-text-cyan">Manage Fantasy Leagues &amp; Teams</h2>
+      <p style={{ color:'rgba(158,165,196,0.5)', fontSize:'0.85rem', margin:'4px 0 20px' }}>
+        Delete leagues or individual teams. Deletions are permanent.
+      </p>
+      {msg && <p style={{ color:'#22c55e', fontSize:'0.85rem', marginBottom:12 }}>{msg}</p>}
+
+      {/* Leagues list */}
+      <div className="neon-card p-3" style={{ marginBottom:16 }}>
+        <h3 style={{ color:'var(--color-cyan)', margin:'0 0 14px', fontSize:'0.95rem' }}>All Leagues ({leagues.length})</h3>
+        {leagues.length === 0 && <p style={{ color:'rgba(158,165,196,0.35)', fontSize:'0.85rem' }}>No fantasy leagues found.</p>}
+        {leagues.map(l => (
+          <div key={l.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 0', borderBottom:'1px solid rgba(94,129,244,0.07)' }}>
+            <div style={{ flex:1 }}>
+              <span style={{ fontWeight:700, color:'#e2e5f0' }}>{l.name}</span>
+              <span style={{ marginLeft:8, fontSize:'0.75rem', color:'rgba(158,165,196,0.4)' }}>{(l.sport||'').toUpperCase()} · {l.format||'redraft'} · {l.scoring_type||'h2h'}</span>
+            </div>
+            <button
+              className="neon-button"
+              style={{ borderColor:'rgba(94,129,244,0.3)', color:'var(--color-cyan)', fontSize:'0.78rem', padding:'4px 12px' }}
+              onClick={() => selectedLeague?.id === l.id ? (setSelectedLeague(null), setTeams([])) : loadTeams(l)}
+            >
+              {selectedLeague?.id === l.id ? 'Collapse' : 'View Teams'}
+            </button>
+            <button
+              className="neon-button"
+              disabled={deleting === l.id}
+              style={{ borderColor:'#ff6b7a', color:'#ff6b7a', fontSize:'0.78rem', padding:'4px 12px' }}
+              onClick={() => handleDeleteLeague(l)}
+            >
+              {deleting === l.id ? '…' : 'Delete'}
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Teams for selected league */}
+      {selectedLeague && (
+        <div className="neon-card p-3">
+          <h3 style={{ color:'var(--color-cyan)', margin:'0 0 14px', fontSize:'0.95rem' }}>
+            Teams in "{selectedLeague.name}" ({teams.length})
+          </h3>
+          {teams.length === 0 && <p style={{ color:'rgba(158,165,196,0.35)', fontSize:'0.85rem' }}>No teams yet.</p>}
+          {teams.map(t => (
+            <div key={t.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 0', borderBottom:'1px solid rgba(94,129,244,0.07)' }}>
+              <div style={{ flex:1 }}>
+                <span style={{ fontWeight:700, color:'#e2e5f0' }}>{t.team_name}</span>
+                <span style={{ marginLeft:8, fontSize:'0.75rem', color:'rgba(158,165,196,0.4)' }}>owner: {t.owner_username}</span>
+              </div>
+              <button
+                className="neon-button"
+                disabled={deleting === t.id}
+                style={{ borderColor:'#ff6b7a', color:'#ff6b7a', fontSize:'0.78rem', padding:'4px 12px' }}
+                onClick={() => handleDeleteTeam(t)}
+              >
+                {deleting === t.id ? '…' : 'Delete'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ── FANTASY SCHEDULE TAB ──────────────────────────────────── */
 
 const FantasyScheduleTab = () => {
@@ -1121,14 +1227,23 @@ const FantasyScheduleTab = () => {
   const [msg,            setMsg]            = useState('');
 
   useEffect(() => {
-    fantasyDb.getAllLeagues().then(setLeagues).catch(() => {});
+    // Build league list: all fantasy leagues + a synthetic Vizta entry
+    fantasyDb.getAllLeagues()
+      .then(fl => setLeagues([
+        { id: '__vizta__', name: 'Vizta Baseball League 🔵', sport: 'baseball' },
+        ...fl,
+      ]))
+      .catch(() => setLeagues([{ id: '__vizta__', name: 'Vizta Baseball League 🔵', sport: 'baseball' }]));
   }, []);
 
   const pickLeague = async (league) => {
     setSelectedLeague(league);
     setSelectedTeam(null);
     setSchedule([]);
-    const t = await fantasyDb.getTeams(league.id);
+    // Vizta teams live in the generic db under prefix 'vizta', not in fantasyDb
+    const t = league.id === '__vizta__'
+      ? await db.getTeams('vizta').catch(() => [])
+      : await fantasyDb.getTeams(league.id).catch(() => []);
     setTeams(t);
   };
 
@@ -1304,6 +1419,7 @@ const OwnerDashboard = ({ onExit }) => {
       case 'member-pages':      return <MemberPagesTab />;
       case 'user-roles':        return <UserRolesTab />;
       case 'give-coins':        return <GiveCoinsTab />;
+      case 'fantasy-manage':    return <FantasyManageTab />;
       case 'fantasy-schedule':  return <FantasyScheduleTab />;
       case 'vizta-players':   return <LeaguePlayersTab prefix="vizta" />;
       case 'vizta-teams':     return <LeagueTeamsTab prefix="vizta" />;
@@ -1340,6 +1456,7 @@ const OwnerDashboard = ({ onExit }) => {
               <Btn id="member-pages"     label="Member Pages" />
               <Btn id="user-roles"       label="User Roles" />
               <Btn id="give-coins"       label="Give Coins" />
+              <Btn id="fantasy-manage"   label="Fantasy Manage" />
               <Btn id="fantasy-schedule" label="Fantasy Schedule" />
             </div>
           </div>

@@ -71,6 +71,20 @@ const fantasyDb = {
   uid,
 
   /* ── LEAGUES ─────────────────────────────────────────────────── */
+  async deleteLeague(leagueId) {
+    if (hasSupabase()) {
+      try { await supabase.from('fantasy_leagues').delete().eq('id', leagueId); } catch {}
+    }
+    ls.set('fantasy_leagues', ls.get('fantasy_leagues').filter(l => l.id !== leagueId));
+  },
+
+  async deleteTeam(teamId) {
+    if (hasSupabase()) {
+      try { await supabase.from('fantasy_teams').delete().eq('id', teamId); } catch {}
+    }
+    ls.set('fantasy_teams', ls.get('fantasy_teams').filter(t => t.id !== teamId));
+  },
+
   async getAllLeagues() {
     if (hasSupabase()) {
       try {

@@ -3,7 +3,6 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/layout/Layout';
 import Home from './components/pages/Home';
 import SportsHub from './components/pages/SportsHub';
-import WatchList from './components/pages/WatchList';
 import MemberPages from './components/pages/MemberPages';
 import MemberProfile from './components/pages/MemberProfile';
 import LeaguesPage from './components/pages/LeaguesPage';
@@ -53,32 +52,30 @@ function pushHash(page, sub1, sub2) {
   }
 }
 
-// ── Games sub-page ───────────────────────────────────────────
-const GamesPage = () => {
-  const [subTab, setSubTab] = React.useState('rtts');
+// ── Games tab — houses Fantasy, Pick'ems, and RTTS ──────────
+const GamesPage = ({ onSignIn, initialTab = 'fantasy' }) => {
+  const [subTab, setSubTab] = React.useState(initialTab);
+  const tb = (id, label) => (
+    <button
+      onClick={() => setSubTab(id)}
+      style={{
+        padding: '10px 20px', background: subTab === id ? 'rgba(94,129,244,0.12)' : 'none',
+        border: 'none', borderBottom: subTab === id ? '2px solid var(--color-cyan)' : '2px solid transparent',
+        color: subTab === id ? 'var(--color-cyan)' : 'rgba(158,165,196,0.5)',
+        fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.88rem',
+      }}
+    >{label}</button>
+  );
   return (
-    <div style={{ maxWidth: '860px', margin: '0 auto', padding: '0 16px' }}>
-      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid rgba(94, 129, 244,0.1)', overflowX: 'auto' }}>
-        <button
-          onClick={() => setSubTab('rtts')}
-          style={{ padding: '10px 20px', background: subTab === 'rtts' ? 'rgba(94, 129, 244,0.12)' : 'none', border: 'none', borderBottom: subTab === 'rtts' ? '2px solid var(--color-cyan)' : '2px solid transparent', color: subTab === 'rtts' ? 'var(--color-cyan)' : 'rgba(158, 165, 196,0.5)', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.88rem' }}
-        >
-          Road to the Show SIM
-        </button>
-        <button
-          onClick={() => setSubTab('more')}
-          style={{ padding: '10px 20px', background: 'none', border: 'none', borderBottom: '2px solid transparent', color: 'rgba(158, 165, 196,0.35)', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.88rem' }}
-        >
-          More Games (Coming Soon)
-        </button>
+    <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 16px' }}>
+      <div style={{ display: 'flex', gap: '4px', borderBottom: '1px solid rgba(94,129,244,0.1)', overflowX: 'auto', marginBottom: '20px' }}>
+        {tb('fantasy', '🏈 Fantasy')}
+        {tb('pickems', "✅ Pick'ems")}
+        {tb('rtts',    '⚾ Road to the Show SIM')}
       </div>
-      {subTab === 'rtts' && <RoadToTheShow />}
-      {subTab === 'more' && (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'rgba(158, 165, 196,0.35)' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '12px' }}>🎮</div>
-          <p>More games coming soon!</p>
-        </div>
-      )}
+      {subTab === 'fantasy' && <FantasyHub onSignIn={onSignIn} />}
+      {subTab === 'pickems' && <PickemsHub onSignIn={onSignIn} />}
+      {subTab === 'rtts'    && <RoadToTheShow />}
     </div>
   );
 };
@@ -213,15 +210,12 @@ const AppContent = () => {
         // routeSub can be a sport id like 'mlb', 'nfl', etc.
         return <SportsHub initialSport={routeSub} />;
 
-      case 'watchlist':
-        return <WatchList onSignIn={() => setShowLoginModal(true)} />;
-
+      // fantasy / pickems / watchlist all fold into the Games tab now
       case 'fantasy':
-        // routeSub can be a sport id like 'nfl', 'nba', etc.
-        return <FantasyHub initialSport={routeSub} onSignIn={() => setShowLoginModal(true)} />;
+        return <GamesPage key="games-fantasy" onSignIn={() => setShowLoginModal(true)} initialTab="fantasy" />;
 
       case 'pickems':
-        return <PickemsHub onSignIn={() => setShowLoginModal(true)} />;
+        return <GamesPage key="games-pickems" onSignIn={() => setShowLoginModal(true)} initialTab="pickems" />;
 
       case 'leagues':
         return <LeaguesPage onSelectPlayer={handleSelectPlayer} />;
@@ -247,7 +241,7 @@ const AppContent = () => {
         );
 
       case 'games':
-        return <GamesPage />;
+        return <GamesPage key="games-default" onSignIn={() => setShowLoginModal(true)} initialTab="fantasy" />;
 
       case 'store':
         return (

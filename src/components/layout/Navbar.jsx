@@ -5,16 +5,13 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, on
   const [menuOpen, setMenuOpen] = useState(false);
 
   const tabs = [
-    { id: 'home',      label: 'Home',      icon: 'Home' },
-    { id: 'sports',    label: 'Sports',    icon: 'Trophy' },
-    { id: 'watchlist', label: 'Watch List',icon: 'Film' },
-    { id: 'leagues',   label: 'Leagues',   icon: 'Baseball' },
-    { id: 'fantasy',   label: 'Fantasy',   icon: 'Football' },
-    { id: 'pickems',   label: "Pick'ems",  icon: 'Check' },
-    { id: 'members',   label: 'Members',   icon: 'Users' },
-    { id: 'lastfm',    label: 'Last.fm',   icon: 'Music' },
-    { id: 'games',     label: 'Games',     icon: 'Gamepad' },
-    { id: 'store',     label: 'Store',     icon: 'Store' },
+    { id: 'home',    label: 'Home',    icon: 'Home' },
+    { id: 'sports',  label: 'Sports',  icon: 'Trophy' },
+    { id: 'leagues', label: 'Leagues', icon: 'Baseball' },
+    { id: 'games',   label: 'Games',   icon: 'Gamepad' },
+    { id: 'members', label: 'Members', icon: 'Users' },
+    { id: 'lastfm',  label: 'Last.fm', icon: 'Music' },
+    { id: 'store',   label: 'Store',   icon: 'Store' },
   ];
 
   const staffRoles = ['owner', 'cofounder', 'mod', 'vizta_helper'];
@@ -25,7 +22,6 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, on
       <div className="navbar-container">
         {/* Logo */}
         <div className="navbar-logo" onClick={() => onPageChange('home')}>
-          <div className="logo-icon">rocket</div>
           <h1>NOVA</h1>
         </div>
 
