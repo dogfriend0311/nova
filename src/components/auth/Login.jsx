@@ -11,18 +11,15 @@ const Login = () => {
   const [showSignup, setShowSignup] = useState(false);
   const { login, loginAsGuest } = useAuth();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-
-    setTimeout(() => {
-      const result = login(username, password);
-      if (!result.success) {
-        setError(result.error || 'Login failed');
-      }
-      setLoading(false);
-    }, 500);
+    const result = await login(username, password);
+    if (!result.success) {
+      setError(result.error || 'Login failed');
+    }
+    setLoading(false);
   };
 
   if (showSignup) {

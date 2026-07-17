@@ -364,6 +364,7 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
   const [members,        setMembers]        = useState([]);
   const [selectedMember, setSelectedMember] = useState(null);
   const [search,         setSearch]         = useState('');
+  const [roleFilter,     setRoleFilter]     = useState('all');
   const [loading,        setLoading]        = useState(true);
 
   useEffect(() => {
@@ -415,9 +416,11 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
     return <MemberProfileView member={selectedMember} onBack={handleBack} />;
   }
 
-  const filtered = members.filter((m) =>
-    m.username?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = members.filter((m) => {
+    const matchSearch = m.username?.toLowerCase().includes(search.toLowerCase());
+    const matchRole   = roleFilter === 'all' || (m.role || 'member') === roleFilter;
+    return matchSearch && matchRole;
+  });
 
   return (
     <div className="page members-page">
@@ -426,14 +429,26 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
         <p className="subtitle">Explore member profiles across Nova</p>
       </div>
 
-      <div style={{ marginBottom: '20px' }}>
+      <div style={{ marginBottom: '20px', display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
         <input
           type="text"
           placeholder="Search members…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ width: '100%', maxWidth: '400px' }}
+          style={{ flex: '1 1 220px', maxWidth: '320px' }}
         />
+        <select
+          value={roleFilter}
+          onChange={(e) => setRoleFilter(e.target.value)}
+          style={{ padding: '8px 12px', background: 'rgba(10,14,33,0.8)', border: '1px solid rgba(94,129,244,0.3)', color: '#e2e5f0', borderRadius: '6px', fontSize: '0.88rem', cursor: 'pointer' }}
+        >
+          <option value="all">All Roles</option>
+          <option value="owner">Owner</option>
+          <option value="cofounder">Co-Founder</option>
+          <option value="mod">Moderator</option>
+          <option value="vizta_helper">Vizta Helper</option>
+          <option value="member">Member</option>
+        </select>
       </div>
 
       {loading ? (

@@ -30,6 +30,8 @@ const Sidebar = ({ currentPage, onNavigate }) => {
 
   const quickLinks = [
     { id: 'leagues',   label: 'Leagues',      icon: '' },
+    { id: 'fantasy',   label: 'Fantasy',      icon: '🏈' },
+    { id: 'pickems',   label: "Pick'ems",     icon: '✅' },
     { id: 'sports',    label: 'Sports',       icon: '🏆' },
     { id: 'watchlist', label: 'Watch List',   icon: '🎬' },
     { id: 'members',   label: 'Member Pages', icon: '👥' },

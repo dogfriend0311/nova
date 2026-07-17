@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import db from '../../services/db';
+import fantasyDb from '../../services/fantasyDb';
 import { ACCOLADE_TYPES, accoladeLabel, accoladeIcon } from '../../data/accolades';
 import './OwnerDashboard.css';
 
@@ -1106,6 +1107,186 @@ const LeagueAwardsTab = ({ prefix }) => {
   );
 };
 
+/* ── FANTASY SCHEDULE TAB ──────────────────────────────────── */
+
+const FantasyScheduleTab = () => {
+  const [leagues,        setLeagues]        = useState([]);
+  const [selectedLeague, setSelectedLeague] = useState(null);
+  const [teams,          setTeams]          = useState([]);
+  const [selectedTeam,   setSelectedTeam]   = useState(null);
+  const [schedule,       setSchedule]       = useState([]);
+  const [schedLoading,   setSchedLoading]   = useState(false);
+  const [form,           setForm]           = useState({ week: '', opponent: '', is_home: 'true', game_date: '', result: '', score: '', notes: '' });
+  const [saving,         setSaving]         = useState(false);
+  const [msg,            setMsg]            = useState('');
+
+  useEffect(() => {
+    fantasyDb.getAllLeagues().then(setLeagues).catch(() => {});
+  }, []);
+
+  const pickLeague = async (league) => {
+    setSelectedLeague(league);
+    setSelectedTeam(null);
+    setSchedule([]);
+    const t = await fantasyDb.getTeams(league.id);
+    setTeams(t);
+  };
+
+  const pickTeam = async (team) => {
+    setSelectedTeam(team);
+    setSchedLoading(true);
+    const entries = await db.getTeamSchedule(team.id);
+    setSchedule(entries);
+    setSchedLoading(false);
+  };
+
+  const handleAdd = async (e) => {
+    e.preventDefault();
+    if (!selectedTeam) return;
+    setSaving(true);
+    const entry = {
+      ...form,
+      team_id: selectedTeam.id,
+      week:    form.week ? Number(form.week) : null,
+      is_home: form.is_home === 'true' || form.is_home === true,
+    };
+    const saved = await db.saveScheduleEntry(entry);
+    setSchedule(prev => [...prev, saved]);
+    setForm({ week: '', opponent: '', is_home: 'true', game_date: '', result: '', score: '', notes: '' });
+    setMsg('✓ Entry added');
+    setTimeout(() => setMsg(''), 2500);
+    setSaving(false);
+  };
+
+  const handleDelete = async (id) => {
+    await db.deleteScheduleEntry(id);
+    setSchedule(prev => prev.filter(e => e.id !== id));
+  };
+
+  return (
+    <div className="tab-content">
+      <h2 className="gradient-text-cyan">Fantasy Schedule Manager</h2>
+      <p style={{ color:'rgba(158,165,196,0.5)', fontSize:'0.85rem', margin:'4px 0 20px' }}>
+        Insert schedule entries for any fantasy team. Players see their schedule on the Roster tab.
+      </p>
+
+      {/* Step 1: League */}
+      <div className="neon-card p-3" style={{ marginBottom:14 }}>
+        <label style={{ fontWeight:700, color:'var(--color-cyan)', fontSize:'0.8rem', textTransform:'uppercase', letterSpacing:'0.5px' }}>1. Select League</label>
+        <select style={{ ...SI, marginTop:8 }} value={selectedLeague?.id || ''} onChange={e => { const l = leagues.find(x=>x.id===e.target.value); if(l) pickLeague(l); }}>
+          <option value="">— pick a league —</option>
+          {leagues.map(l => <option key={l.id} value={l.id}>{l.name} ({(l.sport||'').toUpperCase()})</option>)}
+        </select>
+        {leagues.length === 0 && <p style={{ color:'rgba(158,165,196,0.4)', fontSize:'0.8rem', margin:'6px 0 0' }}>No fantasy leagues found yet.</p>}
+      </div>
+
+      {/* Step 2: Team */}
+      {selectedLeague && (
+        <div className="neon-card p-3" style={{ marginBottom:14 }}>
+          <label style={{ fontWeight:700, color:'var(--color-cyan)', fontSize:'0.8rem', textTransform:'uppercase', letterSpacing:'0.5px' }}>2. Select Team</label>
+          <select style={{ ...SI, marginTop:8 }} value={selectedTeam?.id || ''} onChange={e => { const t = teams.find(x=>x.id===e.target.value); if(t) pickTeam(t); }}>
+            <option value="">— pick a team —</option>
+            {teams.map(t => <option key={t.id} value={t.id}>{t.team_name} ({t.owner_username})</option>)}
+          </select>
+        </div>
+      )}
+
+      {/* Step 3: Add entry */}
+      {selectedTeam && (
+        <div className="neon-card p-3" style={{ marginBottom:14 }}>
+          <label style={{ fontWeight:700, color:'var(--color-cyan)', fontSize:'0.8rem', textTransform:'uppercase', letterSpacing:'0.5px' }}>
+            3. Add Entry — {selectedTeam.team_name}
+          </label>
+          <form onSubmit={handleAdd} style={{ marginTop:12, display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(170px,1fr))', gap:10 }}>
+            <div>
+              <label style={{ fontSize:'0.75rem', color:'rgba(158,165,196,0.55)' }}>Week #</label>
+              <input type="number" style={SI} value={form.week} min={1} placeholder="1" onChange={e=>setForm({...form,week:e.target.value})} />
+            </div>
+            <div>
+              <label style={{ fontSize:'0.75rem', color:'rgba(158,165,196,0.55)' }}>Opponent</label>
+              <input type="text" style={SI} value={form.opponent} placeholder="Team name" onChange={e=>setForm({...form,opponent:e.target.value})} />
+            </div>
+            <div>
+              <label style={{ fontSize:'0.75rem', color:'rgba(158,165,196,0.55)' }}>Location</label>
+              <select style={SI} value={form.is_home} onChange={e=>setForm({...form,is_home:e.target.value})}>
+                <option value="true">Home</option>
+                <option value="false">Away</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize:'0.75rem', color:'rgba(158,165,196,0.55)' }}>Date</label>
+              <input type="date" style={SI} value={form.game_date} onChange={e=>setForm({...form,game_date:e.target.value})} />
+            </div>
+            <div>
+              <label style={{ fontSize:'0.75rem', color:'rgba(158,165,196,0.55)' }}>Result</label>
+              <select style={SI} value={form.result} onChange={e=>setForm({...form,result:e.target.value})}>
+                <option value="">TBD</option>
+                <option value="W">Win</option>
+                <option value="L">Loss</option>
+                <option value="T">Tie</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize:'0.75rem', color:'rgba(158,165,196,0.55)' }}>Score</label>
+              <input type="text" style={SI} value={form.score} placeholder="120.5–98.2" onChange={e=>setForm({...form,score:e.target.value})} />
+            </div>
+            <div style={{ gridColumn:'1/-1', display:'flex', gap:10, alignItems:'flex-end' }}>
+              <div style={{ flex:1 }}>
+                <label style={{ fontSize:'0.75rem', color:'rgba(158,165,196,0.55)' }}>Notes (optional)</label>
+                <input type="text" style={SI} value={form.notes} placeholder="Playoff game, bye week…" onChange={e=>setForm({...form,notes:e.target.value})} />
+              </div>
+              <button type="submit" className="neon-button" disabled={saving} style={{ flexShrink:0 }}>
+                {saving ? 'Saving…' : '+ Add'}
+              </button>
+            </div>
+          </form>
+          {msg && <p style={{ color:'#22c55e', marginTop:8, fontSize:'0.85rem' }}>{msg}</p>}
+        </div>
+      )}
+
+      {/* Existing entries */}
+      {selectedTeam && (
+        <div className="neon-card p-3">
+          <h3 style={{ color:'var(--color-cyan)', margin:'0 0 12px', fontSize:'0.95rem' }}>
+            {selectedTeam.team_name} — {schedule.length} entries
+          </h3>
+          {schedLoading ? (
+            <p style={{ color:'rgba(158,165,196,0.4)', textAlign:'center', padding:'20px 0' }}>Loading…</p>
+          ) : schedule.length === 0 ? (
+            <p style={{ color:'rgba(158,165,196,0.4)', textAlign:'center', padding:'20px 0' }}>No entries yet.</p>
+          ) : (
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.82rem' }}>
+              <thead>
+                <tr style={{ borderBottom:'1px solid rgba(94,129,244,0.2)' }}>
+                  {['Wk','Opponent','Loc','Date','Score','Result','Notes',''].map(h => (
+                    <th key={h} style={{ padding:'5px 8px', textAlign:'left', color:'rgba(158,165,196,0.45)', fontWeight:600, fontSize:'0.72rem', textTransform:'uppercase' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[...schedule].sort((a,b)=>(a.week||999)-(b.week||999)).map(entry => (
+                  <tr key={entry.id} style={{ borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
+                    <td style={{ padding:'7px 8px', fontWeight:700, color:'var(--color-cyan)' }}>{entry.week??'—'}</td>
+                    <td style={{ padding:'7px 8px', color:'#e2e5f0' }}>{entry.opponent||'—'}</td>
+                    <td style={{ padding:'7px 8px', color: entry.is_home?'var(--color-cyan)':'var(--color-magenta)', fontSize:'0.72rem', fontWeight:700 }}>{entry.is_home?'HOME':'AWAY'}</td>
+                    <td style={{ padding:'7px 8px', color:'rgba(158,165,196,0.55)', fontSize:'0.78rem' }}>{entry.game_date||'—'}</td>
+                    <td style={{ padding:'7px 8px' }}>{entry.score||'—'}</td>
+                    <td style={{ padding:'7px 8px', fontWeight:700, color: entry.result==='W'?'#22c55e':entry.result==='L'?'#ef4444':'#eab308' }}>{entry.result||'TBD'}</td>
+                    <td style={{ padding:'7px 8px', color:'rgba(158,165,196,0.45)', fontSize:'0.75rem', maxWidth:110, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{entry.notes||'—'}</td>
+                    <td style={{ padding:'7px 8px' }}>
+                      <button className="neon-button" style={{ borderColor:'#ff6b7a', color:'#ff6b7a', fontSize:'0.72rem', padding:'3px 9px' }} onClick={()=>handleDelete(entry.id)}>Del</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ── MAIN DASHBOARD ────────────────────────────────────────── */
 
 const OwnerDashboard = ({ onExit }) => {
@@ -1120,9 +1301,10 @@ const OwnerDashboard = ({ onExit }) => {
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'member-pages':    return <MemberPagesTab />;
-      case 'user-roles':      return <UserRolesTab />;
-      case 'give-coins':      return <GiveCoinsTab />;
+      case 'member-pages':      return <MemberPagesTab />;
+      case 'user-roles':        return <UserRolesTab />;
+      case 'give-coins':        return <GiveCoinsTab />;
+      case 'fantasy-schedule':  return <FantasyScheduleTab />;
       case 'vizta-players':   return <LeaguePlayersTab prefix="vizta" />;
       case 'vizta-teams':     return <LeagueTeamsTab prefix="vizta" />;
       case 'vizta-rosters':   return <LeagueRostersTab prefix="vizta" />;
@@ -1155,9 +1337,10 @@ const OwnerDashboard = ({ onExit }) => {
           <div className="dashboard-section">
             <div className="section-label">NOVA</div>
             <div className="dashboard-tabs">
-              <Btn id="member-pages" label="Member Pages" />
-              <Btn id="user-roles"   label="User Roles" />
-              <Btn id="give-coins"   label="Give Coins" />
+              <Btn id="member-pages"     label="Member Pages" />
+              <Btn id="user-roles"       label="User Roles" />
+              <Btn id="give-coins"       label="Give Coins" />
+              <Btn id="fantasy-schedule" label="Fantasy Schedule" />
             </div>
           </div>
         )}

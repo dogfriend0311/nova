@@ -9,19 +9,15 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-
-    // Simulate delay
-    setTimeout(() => {
-      const result = login(username, password);
-      if (!result.success) {
-        setError(result.error || 'Login failed');
-      }
-      setLoading(false);
-    }, 500);
+    const result = await login(username, password);
+    if (!result.success) {
+      setError(result.error || 'Login failed');
+    }
+    setLoading(false);
   };
 
   return (

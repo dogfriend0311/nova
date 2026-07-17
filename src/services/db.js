@@ -375,9 +375,32 @@ export const db = {
     return JSON.parse(localStorage.getItem('nova_users') || '[]');
   },
 
+  /**
+   * Verify a username/password pair against Supabase nova_users.
+   * Returns { username, role } on match, null otherwise.
+   * Used as a cross-device fallback in AuthContext when the account was
+   * created on a different device and isn't in local localStorage.
+   */
+  async checkCredential(username, password) {
+    try {
+      const { data, error } = await supabase
+        .from('nova_users')
+        .select('username,role')
+        .eq('username', username)
+        .eq('password', password)
+        .maybeSingle();
+      if (!error && data) return data;
+    } catch {}
+    return null;
+  },
+
   async saveUser(user) {
     try {
-      await supabase.from('nova_users').upsert([{ username: user.username, role: user.role || 'member' }], { onConflict: 'username' });
+      // Include password when provided so cross-device login works.
+      // Requires: ALTER TABLE nova_users ADD COLUMN IF NOT EXISTS password TEXT;
+      const record = { username: user.username, role: user.role || 'member' };
+      if (user.password) record.password = user.password;
+      await supabase.from('nova_users').upsert([record], { onConflict: 'username' });
     } catch {}
     const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
     const idx = users.findIndex(u => u.username === user.username);
@@ -582,6 +605,69 @@ export const db = {
       try { await supabase.from('nova_player_comments').delete().eq('id', id); } catch {}
     }
     ls.set(`${league}_player_comments`, ls.get(`${league}_player_comments`).filter(c => c.id !== id));
+  },
+
+  /* ── FANTASY TEAM SCHEDULES ───────────────────────────────────────
+     Stores schedule entries for fantasy teams (week, opponent, result).
+     Requires: supabase/team_schedule_schema.sql to be run once.        */
+
+  async getTeamSchedule(teamId) {
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase
+          .from('nova_fantasy_schedules')
+          .select('*')
+          .eq('team_id', teamId)
+          .order('week', { ascending: true });
+        if (!error) return data;
+      } catch {}
+    }
+    const all = ls.get('nova_fantasy_schedules');
+    return all.filter(e => e.team_id === teamId);
+  },
+
+  async saveScheduleEntry(entry) {
+    const isNew = !entry.id;
+    const record = { ...entry, updated_at: new Date().toISOString() };
+    if (isNew) record.created_at = new Date().toISOString();
+    if (hasSupabase()) {
+      try {
+        if (isNew) {
+          const ins = { ...record }; delete ins.id;
+          const { data, error } = await supabase.from('nova_fantasy_schedules').insert([ins]).select();
+          if (!error) {
+            const all = ls.get('nova_fantasy_schedules');
+            ls.set('nova_fantasy_schedules', [...all, data[0]]);
+            return data[0];
+          }
+        } else {
+          const upd = { ...record }; delete upd.id;
+          const { data, error } = await supabase.from('nova_fantasy_schedules')
+            .update(upd).eq('id', entry.id).select();
+          if (!error) {
+            const all = ls.get('nova_fantasy_schedules');
+            ls.set('nova_fantasy_schedules', all.map(e => e.id === entry.id ? data[0] : e));
+            return data[0];
+          }
+        }
+      } catch {}
+    }
+    const all = ls.get('nova_fantasy_schedules');
+    if (isNew) {
+      const newItem = { ...record, id: Date.now().toString() };
+      ls.set('nova_fantasy_schedules', [...all, newItem]);
+      return newItem;
+    }
+    const updated = all.map(e => e.id === entry.id ? { ...e, ...record } : e);
+    ls.set('nova_fantasy_schedules', updated);
+    return record;
+  },
+
+  async deleteScheduleEntry(id) {
+    if (hasSupabase()) {
+      try { await supabase.from('nova_fantasy_schedules').delete().eq('id', id); } catch {}
+    }
+    ls.set('nova_fantasy_schedules', ls.get('nova_fantasy_schedules').filter(e => e.id !== id));
   },
 };
 

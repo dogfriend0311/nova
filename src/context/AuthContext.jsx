@@ -29,9 +29,11 @@ export const AuthProvider = ({ children }) => {
     return () => clearInterval(interval);
   }, [user]);
 
-  const login = (rawUsername, rawPassword) => {
+  const login = async (rawUsername, rawPassword) => {
     const username = (rawUsername || '').trim();
     const password = (rawPassword || '').trim();
+
+    // ── Hardcoded owner account ──
     if (username === 'x0afterhoursx0' && password === 'Chiefsfan87') {
       const userData = { username, role: 'owner' };
       setUser(userData);
@@ -41,24 +43,20 @@ export const AuthProvider = ({ children }) => {
         memberProfiles.push({ username, bio: 'Nova Owner', top_banner_url: '', left_banner_url: '', right_banner_url: '', spotify_url: '', twitter_url: '', twitch_url: '', youtube_url: '', instagram_url: '' });
         localStorage.setItem('member_profiles', JSON.stringify(memberProfiles));
       }
-      // Make sure the owner actually shows up as "Owner" wherever roles are
-      // looked up from nova_users (e.g. the public Member Pages list) - not
-      // just in their own private session. Without this, MemberPages.jsx's
-      // role lookup (which checks nova_users, not the auth session) finds
-      // nothing for the owner and silently defaults to "member".
       import('../services/db').then(({ default: db }) => {
         db.saveUser({ username, role: 'owner' }).catch(() => {});
       }).catch(() => {});
       return { success: true };
     }
+
+    // ── Fast path: check this device's localStorage ──
     const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
     const foundUser = users.find(u => u.username === username && u.password === password);
     if (foundUser) {
       const userData = { username: foundUser.username, role: foundUser.role || 'member' };
       setUser(userData);
       localStorage.setItem('nova_user', JSON.stringify(userData));
-      // Async: pull the latest role from Supabase so cross-device role assignments
-      // (e.g. owner sets vizta_helper on their computer) take effect immediately.
+      // Async: sync latest role from Supabase (cross-device role changes)
       import('../services/db').then(({ default: db }) => {
         db.getUsers().then(supaUsers => {
           const supaUser = supaUsers.find(u => u.username === username);
@@ -66,19 +64,36 @@ export const AuthProvider = ({ children }) => {
             const updated = { ...userData, role: supaUser.role };
             setUser(updated);
             localStorage.setItem('nova_user', JSON.stringify(updated));
-            // Also update the local users list so future logins are correct
             const localUsers = JSON.parse(localStorage.getItem('nova_users') || '[]');
             const idx = localUsers.findIndex(u => u.username === username);
-            if (idx >= 0) {
-              localUsers[idx].role = supaUser.role;
-              localStorage.setItem('nova_users', JSON.stringify(localUsers));
-            }
+            if (idx >= 0) { localUsers[idx].role = supaUser.role; localStorage.setItem('nova_users', JSON.stringify(localUsers)); }
           }
         }).catch(() => {});
       }).catch(() => {});
       return { success: true };
     }
-    return { success: false, error: 'Invalid credentials' };
+
+    // ── Cross-device fallback: verify against Supabase ──
+    // Accounts created on a different device won't be in this browser's
+    // localStorage, so we check the shared nova_users table in Supabase.
+    try {
+      const { default: db } = await import('../services/db');
+      const sbUser = await db.checkCredential(username, password);
+      if (sbUser) {
+        const userData = { username: sbUser.username, role: sbUser.role || 'member' };
+        setUser(userData);
+        localStorage.setItem('nova_user', JSON.stringify(userData));
+        // Cache on this device so the next login doesn't need the round-trip
+        const localUsers = JSON.parse(localStorage.getItem('nova_users') || '[]');
+        if (!localUsers.find(u => u.username === username)) {
+          localUsers.push({ username, password, role: sbUser.role || 'member' });
+          localStorage.setItem('nova_users', JSON.stringify(localUsers));
+        }
+        return { success: true };
+      }
+    } catch { /* Supabase unavailable — fall through */ }
+
+    return { success: false, error: 'Invalid username or password' };
   };
 
   const loginAsGuest = () => {
@@ -93,8 +108,10 @@ export const AuthProvider = ({ children }) => {
     const newUser = { username, password, role: 'member' };
     users.push(newUser);
     localStorage.setItem('nova_users', JSON.stringify(users));
+    // Persist to Supabase WITH the password so this account can log in
+    // from any device — not just the one where it was created.
     import('../services/db').then(({ default: db }) => {
-      db.saveUser({ username, role: 'member' }).catch(() => {});
+      db.saveUser({ username, password, role: 'member' }).catch(() => {});
     }).catch(() => {});
     const memberProfiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
     memberProfiles.push({ username, bio: '', top_banner_url: '', left_banner_url: '', right_banner_url: '', spotify_url: '', twitter_url: '', twitch_url: '', youtube_url: '', instagram_url: '' });

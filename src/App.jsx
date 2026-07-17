@@ -12,6 +12,8 @@ import LoginModal from './components/auth/LoginModal';
 import OwnerDashboard from './components/admin/OwnerDashboard';
 import LastFmPage from './components/pages/LastFmPage';
 import RoadToTheShow from './components/pages/RoadToTheShow';
+import FantasyHub from './components/pages/FantasyHub';
+import PickemsHub from './components/pages/PickemsHub';
 import './styles/globals.css';
 import './styles/theme.css';
 import './styles/animations.css';
@@ -213,6 +215,13 @@ const AppContent = () => {
 
       case 'watchlist':
         return <WatchList onSignIn={() => setShowLoginModal(true)} />;
+
+      case 'fantasy':
+        // routeSub can be a sport id like 'nfl', 'nba', etc.
+        return <FantasyHub initialSport={routeSub} onSignIn={() => setShowLoginModal(true)} />;
+
+      case 'pickems':
+        return <PickemsHub onSignIn={() => setShowLoginModal(true)} />;
 
       case 'leagues':
         return <LeaguesPage onSelectPlayer={handleSelectPlayer} />;

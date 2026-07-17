@@ -13,11 +13,11 @@ const LoginModal = ({ onClose, initialTab }) => {
 
   const switchTab = (t) => { setTab(t); setError(""); setUsername(""); setPassword(""); setConfirm(""); };
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const result = login(username, password);
+    const result = await login(username, password);
     if (result.success) { onClose(); }
     else { setError(result.error || "Invalid username or password"); setLoading(false); }
   };
