@@ -220,7 +220,21 @@
 }
 
 @media (max-width: 768px) {
-  .home-hero h1 { font-size: 2rem; }
-  .home-tile-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-  .home-tile { padding: 16px 14px; }
+  .home-hero { padding: 12px 0 20px; }
+  .home-hero h1 { font-size: 1.6rem; }
+  .home-hero .subtitle { font-size: 0.88rem; }
+  .home-stat-row { margin-top: 14px; gap: 8px; }
+  .home-stat-pill { padding: 6px 14px; font-size: 0.78rem; }
+  .home-section-label { margin: 24px 0 12px; font-size: 0.68rem; }
+  .home-tile-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .home-tile { padding: 16px 14px; gap: 10px; }
+  .home-tile-title { font-size: 0.92rem; }
+  .home-tile-desc { font-size: 0.75rem; }
+  .home-tile-icon { width: 36px; height: 36px; }
+  .home-tile-icon svg { width: 18px; height: 18px; }
+}
+
+@media (max-width: 380px) {
+  .home-tile-grid { grid-template-columns: 1fr; }
+  .home-hero h1 { font-size: 1.4rem; }
 }

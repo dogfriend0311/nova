@@ -182,4 +182,11 @@
   .navbar-container { padding: 0 12px; flex-wrap: nowrap; justify-content: space-between; }
   .navbar-user { gap: 6px; }
   .navbar-coins { font-size: 0.72rem; padding: 3px 7px; }
+  .navbar-logo-img { height: 36px; }
+}
+
+@media (max-width: 480px) {
+  .navbar-logo-img { height: 28px; }
+  .user-button { padding: 7px 10px; font-size: 0.78rem; }
+  .navbar-coins { display: none; }
 }
