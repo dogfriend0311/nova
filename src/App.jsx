@@ -204,7 +204,7 @@ const AppContent = () => {
   const renderPage = () => {
     switch (currentPage) {
       case 'home':
-        return <Home />;
+        return <Home onNavigate={handlePageChange} user={user} />;
 
       case 'sports':
         // routeSub can be a sport id like 'mlb', 'nfl', etc.

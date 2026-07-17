@@ -22,7 +22,7 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, on
       <div className="navbar-container">
         {/* Logo */}
         <div className="navbar-logo" onClick={() => onPageChange('home')}>
-          <h1>NOVA</h1>
+          <img src="/nova-logo.png" alt="NOVA" className="navbar-logo-img" />
         </div>
 
         {/* Desktop tabs */}

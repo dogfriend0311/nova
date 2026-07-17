@@ -70,7 +70,6 @@ const TILES = [
   { id: 'leagues',   icon: 'league',  title: 'Vizta League',  desc: 'Rosters, box scores, and player stat pages',        accent: 'blue'   },
   { id: 'sports',    icon: 'sports',  title: 'Sports Hub',    desc: 'Live scores across MLB, NFL, NBA, and NHL',         accent: 'amber'  },
   { id: 'members',   icon: 'members', title: 'Members',       desc: 'Browse profiles and leave a comment',               accent: 'blue'   },
-  { id: 'watchlist', icon: 'watch',   title: 'Watch List',    desc: 'Track anime, movies, and TV - rate & review',       accent: 'violet' },
   { id: 'lastfm',    icon: 'music',   title: 'Last.fm',       desc: 'Your scrobbles, top artists, and now playing',      accent: 'amber'  },
   { id: 'games',     icon: 'games',   title: 'Games',         desc: 'Road to the Show - build your baseball career',    accent: 'blue'   },
   { id: 'store',     icon: 'store',   title: 'Store',         desc: 'Spend your coins - coming soon',                    accent: 'violet' },

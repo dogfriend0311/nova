@@ -33,6 +33,13 @@
   text-shadow: 0 0 20px rgba(94, 129, 244, 0.3);
 }
 
+.navbar-logo-img {
+  height: 44px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+}
+
 @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-8px); } }
 
 .navbar-tabs {
