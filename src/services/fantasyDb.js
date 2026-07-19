@@ -168,34 +168,70 @@ const fantasyDb = {
 
   async updateTeam(id, patch) { return genericUpdate('fantasy_teams', id, patch); },
 
-  /* ── PLAYERS (cached pool) ───────────────────────────────────── */
-  async getPlayers(sport) { return genericGet('fantasy_players', { sport }); },
+  /* ── PLAYERS (local-first cache, 7-day TTL) ─────────────────── */
+  // Player pools are large (1500+ rows per sport) — we never write them to
+  // Supabase. Instead we keep a stamped localStorage blob per sport and only
+  // re-fetch from ESPN once a week.  This keeps Supabase quota usage near zero
+  // for this feature while still surviving a browser refresh instantly.
+
+  _playerCacheKey: (sport) => `nova_player_pool_${sport}`,
+  _PLAYER_TTL: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
+
+  _readPlayerCache(sport) {
+    try {
+      const raw = localStorage.getItem(this._playerCacheKey(sport));
+      if (!raw) return null;
+      const { players, ts } = JSON.parse(raw);
+      if (Date.now() - ts > this._PLAYER_TTL) return null; // expired
+      return players;
+    } catch { return null; }
+  },
+
+  _writePlayerCache(sport, players) {
+    try {
+      localStorage.setItem(
+        this._playerCacheKey(sport),
+        JSON.stringify({ players, ts: Date.now() })
+      );
+    } catch {}
+  },
+
+  async getPlayers(sport) {
+    // 1. Local cache (instant, no network)
+    const cached = this._readPlayerCache(sport);
+    if (cached && cached.length > 0) return cached;
+    // 2. Supabase (cross-device, may fail if over quota or table missing)
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('fantasy_players').select('*').eq('sport', sport);
+        if (!error && data && data.length > 0) {
+          this._writePlayerCache(sport, data);
+          return data;
+        }
+      } catch {}
+    }
+    return [];
+  },
 
   async cachePlayer(sport, p) {
-    const existing = (await this.getPlayers(sport)).find(x => x.external_id === p.external_id);
-    if (existing) return existing;
-    return genericInsert('fantasy_players', { sport, ...p });
+    const pool = this._readPlayerCache(sport) || [];
+    const found = pool.find(x => x.external_id === p.external_id);
+    if (found) return found;
+    const record = { ...p, sport, id: p.id || uid() };
+    this._writePlayerCache(sport, [...pool, record]);
+    return record;
   },
 
-  async cachePlayers(sport, players) {
-    const existing = await this.getPlayers(sport);
-    const existingIds = new Set(existing.map(x => x.external_id));
-    const toAdd = players.filter(p => !existingIds.has(p.external_id));
-    const results = [...existing];
-    for (const p of toAdd) {
-      results.push(await genericInsert('fantasy_players', { sport, ...p }));
-    }
-    return results;
-  },
-
-  /** Pulls the full ESPN player pool for a sport and caches any new players.
-   * Cheap to call repeatedly — only inserts players not already cached.
-   * Returns the full cached pool for the sport. */
+  /** Pulls the full ESPN player pool for a sport, stores in localStorage, returns it.
+   * Only hits ESPN when the local cache is missing or older than 7 days. */
   async syncPlayerPoolFromEspn(sport) {
-    const existing = await this.getPlayers(sport);
-    if (existing.length > 0) return existing; // already seeded; avoid refetching hundreds of rosters
+    const cached = this._readPlayerCache(sport);
+    if (cached && cached.length > 0) return cached;
     const pool = await sportsApi.getFullPlayerPool(sport);
-    return this.cachePlayers(sport, pool);
+    if (pool.length === 0) return [];
+    const stamped = pool.map(p => ({ ...p, sport, id: p.id || uid() }));
+    this._writePlayerCache(sport, stamped);
+    return stamped;
   },
 
   /* ── ROSTERS ─────────────────────────────────────────────────── */
