@@ -1684,7 +1684,6 @@ const PlayoffPoolsAdminTab = () => {
   const loadPools = () => { try { return JSON.parse(localStorage.getItem('nova_playoff_pools') || '[]'); } catch { return []; } };
   const [pools, setPools]   = useState(loadPools);
   const [view, setView]     = useState('list'); // 'list' | 'create' | 'edit'
-  const [selected, setSelected] = useState(null);
   const [form, setForm]     = useState({ name: '', sport: 'nfl', rounds: [] });
   const [msg, setMsg]       = useState(null);
 
