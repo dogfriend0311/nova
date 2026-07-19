@@ -1713,7 +1713,6 @@ const PlayoffPoolsAdminTab = () => {
 
   function startNew() {
     setForm({ name: '', sport: 'nfl', rounds: [{ matchups: [{ teamA: '', teamB: '', result: '' }] }] });
-    setSelected(null);
     setView('create');
   }
 
