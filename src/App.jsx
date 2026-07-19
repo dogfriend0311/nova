@@ -13,6 +13,13 @@ import LastFmPage from './components/pages/LastFmPage';
 import RoadToTheShow from './components/pages/RoadToTheShow';
 import FantasyHub from './components/pages/FantasyHub';
 import PickemsHub from './components/pages/PickemsHub';
+import NovaRadio from './components/pages/NovaRadio';
+import BeatBattle from './components/pages/BeatBattle';
+import PropBets from './components/pages/PropBets';
+import PlayoffPools from './components/pages/PlayoffPools';
+import CoinShop from './components/pages/CoinShop';
+import NovaWrapped from './components/pages/NovaWrapped';
+import RobloxTracker from './components/pages/RobloxTracker';
 import './styles/globals.css';
 import './styles/theme.css';
 import './styles/animations.css';
@@ -53,7 +60,7 @@ function pushHash(page, sub1, sub2) {
 }
 
 // ── Games tab — houses Fantasy, Pick'ems, and RTTS ──────────
-const GamesPage = ({ onSignIn, initialTab = 'fantasy' }) => {
+const GamesPage = ({ onSignIn, initialTab = 'fantasy', user: gamesUser }) => {
   const [subTab, setSubTab] = React.useState(initialTab);
   const tb = (id, label) => (
     <button
@@ -69,13 +76,19 @@ const GamesPage = ({ onSignIn, initialTab = 'fantasy' }) => {
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 16px' }}>
       <div style={{ display: 'flex', gap: '4px', borderBottom: '1px solid rgba(94,129,244,0.1)', overflowX: 'auto', marginBottom: '20px' }}>
-        {tb('fantasy', '🏈 Fantasy')}
-        {tb('pickems', "✅ Pick'ems")}
-        {tb('rtts',    '⚾ Road to the Show SIM')}
+        {tb('fantasy',    '🏈 Fantasy')}
+        {tb('pickems',    "✅ Pick'ems")}
+        {tb('rtts',       '⚾ Road to the Show SIM')}
+        {tb('beatbattle', '🎵 Beat Battle')}
+        {tb('propbets',   '🎯 Prop Bets')}
+        {tb('playoffs',   '🏆 Playoff Pools')}
       </div>
-      {subTab === 'fantasy' && <FantasyHub onSignIn={onSignIn} />}
-      {subTab === 'pickems' && <PickemsHub onSignIn={onSignIn} />}
-      {subTab === 'rtts'    && <RoadToTheShow />}
+      {subTab === 'fantasy'    && <FantasyHub onSignIn={onSignIn} />}
+      {subTab === 'pickems'    && <PickemsHub onSignIn={onSignIn} />}
+      {subTab === 'rtts'       && <RoadToTheShow />}
+      {subTab === 'beatbattle' && <BeatBattle user={gamesUser} />}
+      {subTab === 'propbets'   && <PropBets user={gamesUser} />}
+      {subTab === 'playoffs'   && <PlayoffPools user={gamesUser} />}
     </div>
   );
 };
@@ -212,10 +225,10 @@ const AppContent = () => {
 
       // fantasy / pickems / watchlist all fold into the Games tab now
       case 'fantasy':
-        return <GamesPage key="games-fantasy" onSignIn={() => setShowLoginModal(true)} initialTab="fantasy" />;
+        return <GamesPage key="games-fantasy" onSignIn={() => setShowLoginModal(true)} initialTab="fantasy" user={user} />;
 
       case 'pickems':
-        return <GamesPage key="games-pickems" onSignIn={() => setShowLoginModal(true)} initialTab="pickems" />;
+        return <GamesPage key="games-pickems" onSignIn={() => setShowLoginModal(true)} initialTab="pickems" user={user} />;
 
       case 'leagues':
         return <LeaguesPage onSelectPlayer={handleSelectPlayer} />;
@@ -241,7 +254,19 @@ const AppContent = () => {
         );
 
       case 'games':
-        return <GamesPage key="games-default" onSignIn={() => setShowLoginModal(true)} initialTab="fantasy" />;
+        return <GamesPage key="games-default" onSignIn={() => setShowLoginModal(true)} initialTab="fantasy" user={user} />;
+
+      case 'radio':
+        return <NovaRadio user={user} />;
+
+      case 'coinshop':
+        return <CoinShop user={user} />;
+
+      case 'wrapped':
+        return <NovaWrapped user={user} />;
+
+      case 'roblox':
+        return <RobloxTracker user={user} />;
 
       case 'store':
         return (

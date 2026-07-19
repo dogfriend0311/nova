@@ -1402,6 +1402,449 @@ const FantasyScheduleTab = () => {
   );
 };
 
+/* ── RADIO ADMIN TAB ────────────────────────────────────────── */
+
+const RadioAdminTab = () => {
+  const { user } = useAuth();
+  const load = () => { try { return JSON.parse(localStorage.getItem('nova_radio_config') || '{}'); } catch { return {}; } };
+  const [form, setForm] = useState(load);
+  const [saved, setSaved] = useState(false);
+
+  function save() {
+    localStorage.setItem('nova_radio_config', JSON.stringify({ ...form, addedBy: user?.username }));
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+  function clear() {
+    localStorage.removeItem('nova_radio_config');
+    setForm({});
+  }
+
+  const F = (label, key, placeholder) => (
+    <div style={{ marginBottom: 12 }}>
+      <label style={{ display: 'block', fontSize: '0.78rem', color: 'rgba(158,165,196,0.5)', marginBottom: 4 }}>{label}</label>
+      <input value={form[key] || ''} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+        placeholder={placeholder}
+        style={{ width: '100%', padding: '9px 12px', background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 7, fontSize: '0.88rem', boxSizing: 'border-box' }} />
+    </div>
+  );
+
+  return (
+    <div>
+      <h3 style={{ color: '#e2e5f0', marginBottom: 6 }}>📻 Nova Radio Config</h3>
+      <p style={{ color: 'rgba(158,165,196,0.5)', fontSize: '0.85rem', marginBottom: 20 }}>
+        Paste a Spotify playlist URL, Apple Music URL, or YouTube URL. Users will see it embedded on the Radio page.
+      </p>
+      {F('Playlist Name', 'name', 'e.g. Nova Vibes')}
+      {F('Embed / Music URL', 'embedUrl', 'https://open.spotify.com/playlist/... or YouTube URL')}
+      {F('Description (optional)', 'description', 'e.g. 24/7 community playlist')}
+      <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+        <button className="neon-button" onClick={save} style={{ borderColor: saved ? '#43b581' : undefined, color: saved ? '#43b581' : undefined }}>
+          {saved ? '✓ Saved!' : 'Save Config'}
+        </button>
+        <button className="neon-button" onClick={clear} style={{ borderColor: '#ff6b7a', color: '#ff6b7a' }}>Clear Radio</button>
+      </div>
+      {form.embedUrl && (
+        <div style={{ marginTop: 20, padding: 14, background: 'rgba(94,129,244,0.05)', borderRadius: 8, border: '1px solid rgba(94,129,244,0.15)' }}>
+          <div style={{ fontSize: '0.75rem', color: 'rgba(158,165,196,0.4)', marginBottom: 6 }}>Preview URL:</div>
+          <div style={{ fontSize: '0.82rem', color: 'var(--color-cyan)', wordBreak: 'break-all' }}>{form.embedUrl}</div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ── SONG OF DAY ADMIN TAB ──────────────────────────────────── */
+
+const SongOfDayTab = () => {
+  const { user } = useAuth();
+  const [form, setForm]   = useState({ title: '', artist: '', url: '', description: '' });
+  const [history, setHistory] = useState(() => { try { return JSON.parse(localStorage.getItem('nova_song_history') || '[]'); } catch { return []; } });
+  const [msg, setMsg]     = useState(null);
+
+  function post() {
+    if (!form.title && !form.url) { setMsg({ ok: false, text: 'Title or URL required.' }); return; }
+    const today = new Date().toISOString().slice(0, 10);
+    const entry = { ...form, date: today, submittedBy: user?.username, id: Date.now().toString() };
+    const updated = [entry, ...history];
+    localStorage.setItem('nova_song_history', JSON.stringify(updated));
+    localStorage.setItem('nova_song_of_day', JSON.stringify(entry));
+    setHistory(updated);
+    setForm({ title: '', artist: '', url: '', description: '' });
+    setMsg({ ok: true, text: 'Song of the Day set! It will appear on the home page.' });
+    setTimeout(() => setMsg(null), 3000);
+  }
+
+  function removeSotd() {
+    localStorage.removeItem('nova_song_of_day');
+    setMsg({ ok: true, text: 'Song of the Day removed from home page.' });
+    setTimeout(() => setMsg(null), 2000);
+  }
+
+  const F = (label, key, placeholder) => (
+    <div style={{ marginBottom: 10 }}>
+      <label style={{ display: 'block', fontSize: '0.78rem', color: 'rgba(158,165,196,0.5)', marginBottom: 4 }}>{label}</label>
+      <input value={form[key] || ''} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+        placeholder={placeholder}
+        style={{ width: '100%', padding: '9px 12px', background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 7, fontSize: '0.88rem', boxSizing: 'border-box' }} />
+    </div>
+  );
+
+  return (
+    <div>
+      <h3 style={{ color: '#e2e5f0', marginBottom: 6 }}>🎶 Song of the Day</h3>
+      <p style={{ color: 'rgba(158,165,196,0.5)', fontSize: '0.85rem', marginBottom: 18 }}>
+        Pick a song — it shows as a featured card on the home page until you change it.
+      </p>
+      {F('Song Title', 'title', 'e.g. HUMBLE.')}
+      {F('Artist', 'artist', 'e.g. Kendrick Lamar')}
+      {F('Spotify / YouTube / Apple Music URL', 'url', 'https://open.spotify.com/track/... or YouTube link')}
+      {F('Description (optional)', 'description', 'Why this song?')}
+      {msg && <div style={{ marginBottom: 10, padding: '8px 14px', borderRadius: 7, background: msg.ok ? 'rgba(67,181,129,0.12)' : 'rgba(255,107,122,0.12)', color: msg.ok ? '#43b581' : '#ff6b7a', fontSize: '0.85rem' }}>{msg.text}</div>}
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button className="neon-button" onClick={post}>Set as Song of the Day</button>
+        <button className="neon-button" onClick={removeSotd} style={{ borderColor: '#ff6b7a', color: '#ff6b7a' }}>Remove</button>
+      </div>
+      {history.length > 0 && (
+        <div style={{ marginTop: 24 }}>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(158,165,196,0.4)', marginBottom: 10 }}>History</div>
+          {history.slice(0, 10).map(s => (
+            <div key={s.id} style={{ padding: '10px 14px', background: 'rgba(94,129,244,0.04)', border: '1px solid rgba(94,129,244,0.1)', borderRadius: 8, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+              <div>
+                <div style={{ fontWeight: 700, color: '#e2e5f0', fontSize: '0.9rem' }}>{s.title} {s.artist ? `— ${s.artist}` : ''}</div>
+                <div style={{ fontSize: '0.75rem', color: 'rgba(158,165,196,0.4)', marginTop: 2 }}>{s.date} · by @{s.submittedBy}</div>
+              </div>
+              <button className="neon-button" style={{ fontSize: '0.72rem', padding: '4px 10px' }}
+                onClick={() => { localStorage.setItem('nova_song_of_day', JSON.stringify(s)); setMsg({ ok: true, text: 'Restored!' }); setTimeout(() => setMsg(null), 2000); }}>
+                Restore
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ── BEAT BATTLE ADMIN TAB ──────────────────────────────────── */
+
+const BeatBattleAdminTab = () => {
+  const { user } = useAuth();
+  const load = () => { try { return JSON.parse(localStorage.getItem('nova_beat_battle') || 'null'); } catch { return null; } };
+  const [current, setCurrent] = useState(load);
+  const [songs, setSongs] = useState([
+    { title: '', artist: '', url: '' },
+    { title: '', artist: '', url: '' },
+  ]);
+  const [endsAt, setEndsAt] = useState('');
+  const [msg, setMsg] = useState(null);
+
+  function launch() {
+    if (!songs[0].title || !songs[1].title) { setMsg({ ok: false, text: 'Both songs need a title.' }); return; }
+    const battle = { songs, endsAt, createdBy: user?.username, createdAt: new Date().toISOString() };
+    localStorage.setItem('nova_beat_battle', JSON.stringify(battle));
+    localStorage.setItem('nova_beat_votes', '{}');
+    setCurrent(battle);
+    setSongs([{ title: '', artist: '', url: '' }, { title: '', artist: '', url: '' }]);
+    setEndsAt('');
+    setMsg({ ok: true, text: 'Beat Battle launched! Votes cleared.' });
+    setTimeout(() => setMsg(null), 2500);
+  }
+
+  function end() {
+    localStorage.removeItem('nova_beat_battle');
+    localStorage.removeItem('nova_beat_votes');
+    setCurrent(null);
+    setMsg({ ok: true, text: 'Battle ended and cleared.' });
+    setTimeout(() => setMsg(null), 2000);
+  }
+
+  const SongForm = ({ idx }) => (
+    <div style={{ background: 'rgba(94,129,244,0.04)', border: '1px solid rgba(94,129,244,0.12)', borderRadius: 8, padding: 14, marginBottom: 10 }}>
+      <div style={{ fontSize: '0.78rem', color: 'rgba(158,165,196,0.4)', marginBottom: 8, fontWeight: 700 }}>Song {idx + 1}</div>
+      {['title', 'artist', 'url'].map(k => (
+        <input key={k} value={songs[idx][k]} placeholder={k === 'url' ? 'Spotify/YouTube URL (optional)' : k.charAt(0).toUpperCase() + k.slice(1)}
+          onChange={e => setSongs(prev => { const n = [...prev]; n[idx] = { ...n[idx], [k]: e.target.value }; return n; })}
+          style={{ width: '100%', padding: '8px 10px', background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.15)', color: '#e2e5f0', borderRadius: 6, fontSize: '0.85rem', marginBottom: 7, boxSizing: 'border-box' }} />
+      ))}
+    </div>
+  );
+
+  return (
+    <div>
+      <h3 style={{ color: '#e2e5f0', marginBottom: 6 }}>🎵 Beat Battle Manager</h3>
+      {current && (
+        <div style={{ marginBottom: 20, padding: 14, background: 'rgba(255,215,0,0.05)', border: '1px solid rgba(255,215,0,0.2)', borderRadius: 8 }}>
+          <div style={{ fontSize: '0.75rem', color: '#ffd700', fontWeight: 700, marginBottom: 6 }}>ACTIVE BATTLE</div>
+          {current.songs?.map((s, i) => <div key={i} style={{ color: '#e2e5f0', fontSize: '0.9rem' }}>{i + 1}. {s.title} – {s.artist}</div>)}
+          {current.endsAt && <div style={{ fontSize: '0.78rem', color: 'rgba(158,165,196,0.45)', marginTop: 4 }}>Ends: {current.endsAt}</div>}
+          <button className="neon-button" style={{ marginTop: 10, borderColor: '#ff6b7a', color: '#ff6b7a', fontSize: '0.8rem' }} onClick={end}>End &amp; Clear Battle</button>
+        </div>
+      )}
+      {msg && <div style={{ marginBottom: 12, padding: '8px 14px', borderRadius: 7, background: msg.ok ? 'rgba(67,181,129,0.12)' : 'rgba(255,107,122,0.12)', color: msg.ok ? '#43b581' : '#ff6b7a', fontSize: '0.85rem' }}>{msg.text}</div>}
+      <SongForm idx={0} />
+      <SongForm idx={1} />
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ fontSize: '0.78rem', color: 'rgba(158,165,196,0.5)', display: 'block', marginBottom: 4 }}>Voting Ends (optional)</label>
+        <input type="date" value={endsAt} onChange={e => setEndsAt(e.target.value)}
+          style={{ padding: '8px 12px', background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 7, fontSize: '0.88rem' }} />
+      </div>
+      <button className="neon-button" onClick={launch}>🚀 Launch Beat Battle</button>
+    </div>
+  );
+};
+
+/* ── PROP BETS ADMIN TAB ────────────────────────────────────── */
+
+const PropBetsAdminTab = () => {
+  const { user } = useAuth();
+  const loadProps = () => { try { return JSON.parse(localStorage.getItem('nova_prop_bets') || '[]'); } catch { return []; } };
+  const [props, setProps] = useState(loadProps);
+  const [form, setForm] = useState({ question: '', sport: 'nfl', options: 'Yes,No', multiplier: '2', deadline: '' });
+  const [msg, setMsg] = useState(null);
+
+  function addProp() {
+    if (!form.question) { setMsg({ ok: false, text: 'Question required.' }); return; }
+    const options = form.options.split(',').map(s => s.trim()).filter(Boolean);
+    if (options.length < 2) { setMsg({ ok: false, text: 'Need at least 2 options.' }); return; }
+    const p = { id: Date.now().toString(), question: form.question, sport: form.sport, options, multiplier: parseFloat(form.multiplier) || 2, deadline: form.deadline, status: 'open', createdBy: user?.username };
+    const updated = [...props, p];
+    localStorage.setItem('nova_prop_bets', JSON.stringify(updated));
+    setProps(updated);
+    setForm({ question: '', sport: 'nfl', options: 'Yes,No', multiplier: '2', deadline: '' });
+    setMsg({ ok: true, text: 'Prop created!' });
+    setTimeout(() => setMsg(null), 2000);
+  }
+
+  function resolve(id, winnerIdx) {
+    const updated = props.map(p => p.id === id ? { ...p, status: 'resolved', winnerIdx } : p);
+    localStorage.setItem('nova_prop_bets', JSON.stringify(updated));
+    setProps(updated);
+  }
+
+  function deleteProp(id) {
+    const updated = props.filter(p => p.id !== id);
+    localStorage.setItem('nova_prop_bets', JSON.stringify(updated));
+    setProps(updated);
+  }
+
+  const F = (label, key, el, props2) => (
+    <div style={{ marginBottom: 10, flex: 1 }}>
+      <label style={{ display: 'block', fontSize: '0.75rem', color: 'rgba(158,165,196,0.45)', marginBottom: 3 }}>{label}</label>
+      {React.createElement(el || 'input', { value: form[key] || '', onChange: e => setForm(f => ({ ...f, [key]: e.target.value })), style: { width: '100%', padding: '8px 10px', background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.18)', color: '#e2e5f0', borderRadius: 7, fontSize: '0.85rem', boxSizing: 'border-box' }, ...props2 })}
+    </div>
+  );
+
+  return (
+    <div>
+      <h3 style={{ color: '#e2e5f0', marginBottom: 6 }}>🎯 Prop Bets Manager</h3>
+      <div style={{ background: 'rgba(94,129,244,0.04)', border: '1px solid rgba(94,129,244,0.12)', borderRadius: 10, padding: 16, marginBottom: 20 }}>
+        {F('Question', 'question', 'input', { placeholder: 'Will the Chiefs win the Super Bowl?' })}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {F('Sport', 'sport', 'select', { children: ['nfl','nba','mlb','nhl'].map(s => <option key={s} value={s}>{s.toUpperCase()}</option>) })}
+          {F('Options (comma-separated)', 'options', 'input', { placeholder: 'Yes,No or Team A,Team B' })}
+          {F('Payout Multiplier', 'multiplier', 'input', { type: 'number', placeholder: '2' })}
+          {F('Deadline (optional)', 'deadline', 'input', { type: 'date' })}
+        </div>
+        {msg && <div style={{ marginBottom: 10, padding: '7px 12px', borderRadius: 7, background: msg.ok ? 'rgba(67,181,129,0.12)' : 'rgba(255,107,122,0.12)', color: msg.ok ? '#43b581' : '#ff6b7a', fontSize: '0.85rem' }}>{msg.text}</div>}
+        <button className="neon-button" onClick={addProp}>Add Prop</button>
+      </div>
+      {props.length === 0
+        ? <div style={{ color: 'rgba(158,165,196,0.4)', fontSize: '0.85rem' }}>No props yet.</div>
+        : props.map(p => (
+          <div key={p.id} style={{ padding: 14, background: 'rgba(94,129,244,0.04)', border: '1px solid rgba(94,129,244,0.12)', borderRadius: 8, marginBottom: 10 }}>
+            <div style={{ fontWeight: 700, color: '#e2e5f0', marginBottom: 4 }}>{p.question}</div>
+            <div style={{ fontSize: '0.78rem', color: 'rgba(158,165,196,0.45)', marginBottom: 8 }}>
+              {p.sport?.toUpperCase()} · {p.multiplier}× · Status: <span style={{ color: p.status === 'open' ? '#43b581' : '#ffd700' }}>{p.status}</span>
+              {p.deadline ? ` · Deadline: ${p.deadline}` : ''}
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {p.status === 'open' && (p.options || []).map((opt, oi) => (
+                <button key={oi} className="neon-button" style={{ fontSize: '0.78rem', padding: '4px 10px', borderColor: '#43b581', color: '#43b581' }}
+                  onClick={() => resolve(p.id, oi)}>
+                  ✓ Win: {opt}
+                </button>
+              ))}
+              {p.status === 'resolved' && <span style={{ color: '#ffd700', fontSize: '0.82rem' }}>Winner: {p.options?.[p.winnerIdx]}</span>}
+              <button className="neon-button" style={{ fontSize: '0.78rem', padding: '4px 10px', borderColor: '#ff6b7a', color: '#ff6b7a', marginLeft: 'auto' }}
+                onClick={() => deleteProp(p.id)}>
+                Delete
+              </button>
+            </div>
+          </div>
+        ))
+      }
+    </div>
+  );
+};
+
+/* ── PLAYOFF POOLS ADMIN TAB ────────────────────────────────── */
+
+const PlayoffPoolsAdminTab = () => {
+  const loadPools = () => { try { return JSON.parse(localStorage.getItem('nova_playoff_pools') || '[]'); } catch { return []; } };
+  const [pools, setPools]   = useState(loadPools);
+  const [view, setView]     = useState('list'); // 'list' | 'create' | 'edit'
+  const [selected, setSelected] = useState(null);
+  const [form, setForm]     = useState({ name: '', sport: 'nfl', rounds: [] });
+  const [msg, setMsg]       = useState(null);
+
+  function save(target) {
+    let updated;
+    if (target.id && pools.find(p => p.id === target.id)) {
+      updated = pools.map(p => p.id === target.id ? target : p);
+    } else {
+      updated = [...pools, { ...target, id: Date.now().toString() }];
+    }
+    localStorage.setItem('nova_playoff_pools', JSON.stringify(updated));
+    setPools(updated);
+    setMsg({ ok: true, text: 'Saved!' });
+    setTimeout(() => setMsg(null), 2000);
+    setView('list');
+  }
+
+  function deletePool(id) {
+    const updated = pools.filter(p => p.id !== id);
+    localStorage.setItem('nova_playoff_pools', JSON.stringify(updated));
+    setPools(updated);
+  }
+
+  function toggleLock(pool) {
+    save({ ...pool, status: pool.status === 'locked' ? 'open' : 'locked' });
+  }
+
+  function startNew() {
+    setForm({ name: '', sport: 'nfl', rounds: [{ matchups: [{ teamA: '', teamB: '', result: '' }] }] });
+    setSelected(null);
+    setView('create');
+  }
+
+  function addRound() {
+    setForm(f => ({ ...f, rounds: [...f.rounds, { matchups: [{ teamA: '', teamB: '', result: '' }] }] }));
+  }
+
+  function addMatchup(ri) {
+    setForm(f => {
+      const rounds = f.rounds.map((r, i) => i === ri ? { ...r, matchups: [...r.matchups, { teamA: '', teamB: '', result: '' }] } : r);
+      return { ...f, rounds };
+    });
+  }
+
+  function setMatchupField(ri, mi, field, val) {
+    setForm(f => {
+      const rounds = f.rounds.map((r, i) => i !== ri ? r : {
+        ...r,
+        matchups: r.matchups.map((m, j) => j !== mi ? m : { ...m, [field]: val })
+      });
+      return { ...f, rounds };
+    });
+  }
+
+  // For updating results in existing pool
+  const [editPool, setEditPool] = useState(null);
+
+  function setResult(pool, ri, mi, result) {
+    const updated = {
+      ...pool,
+      rounds: pool.rounds.map((r, i) => i !== ri ? r : { ...r, matchups: r.matchups.map((m, j) => j !== mi ? m : { ...m, result }) })
+    };
+    save(updated);
+    setEditPool(updated);
+  }
+
+  if (view === 'create') {
+    return (
+      <div>
+        <button style={{ background: 'none', border: 'none', color: 'var(--color-cyan)', cursor: 'pointer', marginBottom: 16 }} onClick={() => setView('list')}>← Back</button>
+        <h3 style={{ color: '#e2e5f0', marginBottom: 12 }}>New Playoff Pool</h3>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+          <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Pool name (e.g. 2025 NFL Playoffs)"
+            style={{ flex: 2, padding: '8px 12px', background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 7 }} />
+          <select value={form.sport} onChange={e => setForm(f => ({ ...f, sport: e.target.value }))}
+            style={{ flex: 1, padding: '8px 12px', background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 7 }}>
+            {['nfl','nba','mlb','nhl'].map(s => <option key={s} value={s}>{s.toUpperCase()}</option>)}
+          </select>
+        </div>
+        {form.rounds.map((round, ri) => (
+          <div key={ri} style={{ background: 'rgba(94,129,244,0.04)', border: '1px solid rgba(94,129,244,0.1)', borderRadius: 8, padding: 12, marginBottom: 10 }}>
+            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'rgba(158,165,196,0.5)', marginBottom: 8 }}>ROUND {ri + 1}</div>
+            {round.matchups.map((mu, mi) => (
+              <div key={mi} style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                {['teamA', 'teamB'].map(f => (
+                  <input key={f} value={mu[f]} onChange={e => setMatchupField(ri, mi, f, e.target.value)} placeholder={f === 'teamA' ? 'Team A' : 'Team B'}
+                    style={{ flex: 1, minWidth: 100, padding: '6px 10px', background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.15)', color: '#e2e5f0', borderRadius: 6, fontSize: '0.85rem' }} />
+                ))}
+              </div>
+            ))}
+            <button className="neon-button" style={{ fontSize: '0.75rem', padding: '4px 10px' }} onClick={() => addMatchup(ri)}>+ Add Matchup</button>
+          </div>
+        ))}
+        <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+          <button className="neon-button" onClick={addRound}>+ Add Round</button>
+          <button className="neon-button" style={{ borderColor: '#43b581', color: '#43b581' }} onClick={() => save(form)}>Create Pool</button>
+        </div>
+        {msg && <div style={{ marginTop: 10, color: msg.ok ? '#43b581' : '#ff6b7a' }}>{msg.text}</div>}
+      </div>
+    );
+  }
+
+  if (editPool) {
+    return (
+      <div>
+        <button style={{ background: 'none', border: 'none', color: 'var(--color-cyan)', cursor: 'pointer', marginBottom: 16 }} onClick={() => setEditPool(null)}>← Back</button>
+        <h3 style={{ color: '#e2e5f0', marginBottom: 4 }}>{editPool.name}</h3>
+        <p style={{ color: 'rgba(158,165,196,0.5)', fontSize: '0.85rem', marginBottom: 16 }}>Set results for each matchup. Saves immediately.</p>
+        {editPool.rounds?.map((round, ri) => (
+          <div key={ri} style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(158,165,196,0.4)', textTransform: 'uppercase', marginBottom: 8 }}>Round {ri + 1}</div>
+            {round.matchups?.map((mu, mi) => (
+              <div key={mi} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8, padding: '8px 12px', background: 'rgba(94,129,244,0.04)', borderRadius: 7, border: '1px solid rgba(94,129,244,0.1)' }}>
+                <span style={{ color: '#e2e5f0', fontSize: '0.88rem', flex: 1 }}>{mu.teamA} vs {mu.teamB}</span>
+                {[mu.teamA, mu.teamB].map(team => (
+                  <button key={team} className="neon-button"
+                    style={{ fontSize: '0.78rem', padding: '4px 10px', borderColor: mu.result === team ? '#43b581' : undefined, color: mu.result === team ? '#43b581' : undefined }}
+                    onClick={() => setResult(editPool, ri, mi, team)}>
+                    {mu.result === team ? '✓ ' : ''}{team} wins
+                  </button>
+                ))}
+                {mu.result && <button className="neon-button" style={{ fontSize: '0.72rem', padding: '3px 8px', borderColor: '#ff6b7a', color: '#ff6b7a' }} onClick={() => setResult(editPool, ri, mi, '')}>Clear</button>}
+              </div>
+            ))}
+          </div>
+        ))}
+        {msg && <div style={{ marginTop: 6, color: msg.ok ? '#43b581' : '#ff6b7a', fontSize: '0.85rem' }}>{msg.text}</div>}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h3 style={{ color: '#e2e5f0', marginBottom: 12 }}>🏆 Playoff Pools Manager</h3>
+      <button className="neon-button" style={{ marginBottom: 18 }} onClick={startNew}>+ Create New Pool</button>
+      {msg && <div style={{ marginBottom: 10, color: msg.ok ? '#43b581' : '#ff6b7a', fontSize: '0.85rem' }}>{msg.text}</div>}
+      {pools.length === 0
+        ? <div style={{ color: 'rgba(158,165,196,0.4)', fontSize: '0.85rem' }}>No pools yet.</div>
+        : pools.map(p => (
+          <div key={p.id} style={{ padding: 14, background: 'rgba(94,129,244,0.04)', border: '1px solid rgba(94,129,244,0.12)', borderRadius: 8, marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <div style={{ fontWeight: 700, color: '#e2e5f0' }}>{p.name}</div>
+              <div style={{ fontSize: '0.78rem', color: 'rgba(158,165,196,0.45)', marginTop: 2 }}>
+                {p.sport?.toUpperCase()} · {p.rounds?.length || 0} rounds · {p.status === 'locked' ? '🔒 Locked' : '🟢 Open'}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="neon-button" style={{ fontSize: '0.78rem', padding: '5px 12px' }} onClick={() => setEditPool(p)}>Set Results</button>
+              <button className="neon-button" style={{ fontSize: '0.78rem', padding: '5px 12px', borderColor: p.status === 'locked' ? '#43b581' : '#ffd700', color: p.status === 'locked' ? '#43b581' : '#ffd700' }} onClick={() => toggleLock(p)}>
+                {p.status === 'locked' ? 'Unlock' : 'Lock Picks'}
+              </button>
+              <button className="neon-button" style={{ fontSize: '0.78rem', padding: '5px 12px', borderColor: '#ff6b7a', color: '#ff6b7a' }} onClick={() => deletePool(p.id)}>Del</button>
+            </div>
+          </div>
+        ))
+      }
+    </div>
+  );
+};
+
 /* ── MAIN DASHBOARD ────────────────────────────────────────── */
 
 const OwnerDashboard = ({ onExit }) => {
@@ -1421,6 +1864,11 @@ const OwnerDashboard = ({ onExit }) => {
       case 'give-coins':        return <GiveCoinsTab />;
       case 'fantasy-manage':    return <FantasyManageTab />;
       case 'fantasy-schedule':  return <FantasyScheduleTab />;
+      case 'admin-radio':      return <RadioAdminTab />;
+      case 'admin-sotd':       return <SongOfDayTab />;
+      case 'admin-beatbattle': return <BeatBattleAdminTab />;
+      case 'admin-propbets':   return <PropBetsAdminTab />;
+      case 'admin-playoffs':   return <PlayoffPoolsAdminTab />;
       case 'vizta-players':   return <LeaguePlayersTab prefix="vizta" />;
       case 'vizta-teams':     return <LeagueTeamsTab prefix="vizta" />;
       case 'vizta-rosters':   return <LeagueRostersTab prefix="vizta" />;
@@ -1458,6 +1906,11 @@ const OwnerDashboard = ({ onExit }) => {
               <Btn id="give-coins"       label="Give Coins" />
               <Btn id="fantasy-manage"   label="Fantasy Manage" />
               <Btn id="fantasy-schedule" label="Fantasy Schedule" />
+              <Btn id="admin-radio"      label="📻 Radio" />
+              <Btn id="admin-sotd"       label="🎶 Song of Day" />
+              <Btn id="admin-beatbattle" label="🎵 Beat Battle" />
+              <Btn id="admin-propbets"   label="🎯 Prop Bets" />
+              <Btn id="admin-playoffs"   label="🏆 Playoff Pools" />
             </div>
           </div>
         )}

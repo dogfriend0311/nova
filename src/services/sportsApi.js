@@ -1,12 +1,7 @@
 /**
  * sportsApi.js — Free, key-free client for ESPN's public JSON endpoints.
- * Used to populate the fantasy player pool, game schedules/scores, and
- * Pick'ems matchups for NFL, NBA, MLB, and NHL. No signup or API key
- * needed; ESPN serves these with permissive CORS for browser use.
- *
- * NOTE: this is an unofficial/undocumented API. It's free and reliable
- * enough for a hobby league, but ESPN could change or rate-limit it
- * without notice — there's no paid fallback wired in.
+ * Uses corsproxy.io on non-dev domains (Vercel/production) because ESPN
+ * blocks cross-origin requests from non-ESPN domains.
  */
 
 const ESPN_SPORT_PATH = {
@@ -18,8 +13,20 @@ const ESPN_SPORT_PATH = {
 
 const BASE = 'https://site.api.espn.com/apis/site/v2/sports';
 
+// On localhost / *.replit.dev / *.repl.co ESPN allows the request directly.
+// On Vercel or any other domain it's CORS-blocked, so we proxy through corsproxy.io.
+function buildUrl(url) {
+  const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+  const isDev = host === 'localhost' ||
+                host.endsWith('.replit.dev') ||
+                host.endsWith('.repl.co') ||
+                host.endsWith('.replit.app');
+  if (isDev) return url;
+  return `https://corsproxy.io/?${encodeURIComponent(url)}`;
+}
+
 async function getJson(url) {
-  const res = await fetch(url);
+  const res = await fetch(buildUrl(url));
   if (!res.ok) throw new Error(`ESPN API ${res.status}: ${url}`);
   return res.json();
 }
@@ -27,7 +34,7 @@ async function getJson(url) {
 const sportsApi = {
   sports: Object.keys(ESPN_SPORT_PATH),
 
-  /** All teams for a sport, e.g. [{ id, abbreviation, name, logo }] */
+  /** All teams for a sport */
   async getTeams(sport) {
     const path = ESPN_SPORT_PATH[sport];
     if (!path) return [];
@@ -41,7 +48,7 @@ const sportsApi = {
     }));
   },
 
-  /** Full roster (players) for one team. */
+  /** Full roster for one team */
   async getTeamRoster(sport, teamId) {
     const path = ESPN_SPORT_PATH[sport];
     if (!path) return [];
@@ -62,7 +69,7 @@ const sportsApi = {
     }));
   },
 
-  /** Builds the full player pool for a sport by combining every team's roster. */
+  /** Full player pool — all teams' rosters combined */
   async getFullPlayerPool(sport) {
     const teams = await this.getTeams(sport);
     const rosters = await Promise.all(
@@ -71,7 +78,7 @@ const sportsApi = {
     return rosters.flat();
   },
 
-  /** Scoreboard (schedule + live/final scores) for a sport, optionally on a given YYYYMMDD date. */
+  /** Scoreboard */
   async getScoreboard(sport, dateYYYYMMDD) {
     const path = ESPN_SPORT_PATH[sport];
     if (!path) return [];

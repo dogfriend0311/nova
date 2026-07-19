@@ -67,18 +67,41 @@ const ACCENTS = {
 };
 
 const TILES = [
-  { id: 'leagues',   icon: 'league',  title: 'Vizta League',  desc: 'Rosters, box scores, and player stat pages',        accent: 'blue'   },
-  { id: 'sports',    icon: 'sports',  title: 'Sports Hub',    desc: 'Live scores across MLB, NFL, NBA, and NHL',         accent: 'amber'  },
-  { id: 'members',   icon: 'members', title: 'Members',       desc: 'Browse profiles and leave a comment',               accent: 'blue'   },
-  { id: 'lastfm',    icon: 'music',   title: 'Last.fm',       desc: 'Your scrobbles, top artists, and now playing',      accent: 'amber'  },
-  { id: 'games',     icon: 'games',   title: 'Games',         desc: 'Road to the Show - build your baseball career',    accent: 'blue'   },
-  { id: 'store',     icon: 'store',   title: 'Store',         desc: 'Spend your coins - coming soon',                    accent: 'violet' },
-  { id: 'profile',   icon: 'profile', title: 'My Profile',    desc: 'Edit your bio, teams, and favorites',               accent: 'amber'  },
+  { id: 'leagues',   icon: 'league',  title: 'Vizta League',  desc: 'Rosters, box scores, and player stat pages',              accent: 'blue'   },
+  { id: 'sports',    icon: 'sports',  title: 'Sports Hub',    desc: 'Live scores across MLB, NFL, NBA, and NHL',               accent: 'amber'  },
+  { id: 'members',   icon: 'members', title: 'Members',       desc: 'Browse profiles and leave a comment',                     accent: 'blue'   },
+  { id: 'games',     icon: 'games',   title: 'Games',         desc: 'Fantasy, Pick\'ems, Beat Battle, Prop Bets & more',       accent: 'amber'  },
+  { id: 'radio',     icon: 'music',   title: 'Nova Radio',    desc: '📻 24/7 community playlist — always playing',             accent: 'violet' },
+  { id: 'coinshop',  icon: 'store',   title: 'Coin Shop',     desc: '🛍️ Buy name glows, avatar borders & badges',             accent: 'amber'  },
+  { id: 'wrapped',   icon: 'profile', title: 'Nova Wrapped',  desc: '✨ Your monthly stats recap card',                        accent: 'violet' },
+  { id: 'roblox',    icon: 'games',   title: 'Roblox Tracker','desc': '🎮 Link your Roblox account to your profile',           accent: 'blue'   },
+  { id: 'lastfm',    icon: 'music',   title: 'Last.fm',       desc: 'Your scrobbles, top artists, and now playing',            accent: 'amber'  },
+  { id: 'profile',   icon: 'profile', title: 'My Profile',    desc: 'Edit your bio, teams, faves & cosmetics',                 accent: 'blue'   },
 ];
+
+function getSongOfDay() {
+  try { return JSON.parse(localStorage.getItem('nova_song_of_day') || 'null'); }
+  catch { return null; }
+}
+
+function toSongEmbed(url) {
+  if (!url) return null;
+  if (url.includes('open.spotify.com') || url.includes('/embed/')) {
+    const src = url.includes('/embed/') ? url : url.replace('open.spotify.com/', 'open.spotify.com/embed/');
+    return { type: 'spotify', src };
+  }
+  const yt = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/))([A-Za-z0-9_-]{11})/);
+  if (yt) return { type: 'youtube', src: `https://www.youtube.com/embed/${yt[1]}` };
+  if (url.includes('music.apple.com')) {
+    return { type: 'apple', src: url.replace('music.apple.com', 'embed.music.apple.com') };
+  }
+  return null;
+}
 
 const Home = ({ onNavigate, user }) => {
   const [stats, setStats] = useState({ members: 0, online: 0 });
   const [onlineList, setOnlineList] = useState([]);
+  const [songOfDay, setSongOfDay] = useState(getSongOfDay);
 
   useEffect(() => {
     let active = true;
@@ -112,6 +135,13 @@ const Home = ({ onNavigate, user }) => {
     load();
     const interval = setInterval(load, 30000);
     return () => { active = false; clearInterval(interval); };
+  }, []);
+
+  useEffect(() => {
+    const check = () => setSongOfDay(getSongOfDay());
+    check();
+    const id = setInterval(check, 60000);
+    return () => clearInterval(id);
   }, []);
 
   const go = (pageId) => {
@@ -154,6 +184,45 @@ const Home = ({ onNavigate, user }) => {
           </div>
         </>
       )}
+
+      {songOfDay && (() => {
+        const embed = toSongEmbed(songOfDay.url);
+        return (
+          <div style={{ marginBottom: 8 }}>
+            <div className="home-section-label">Song of the Day</div>
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(108,60,231,0.1), rgba(94,129,244,0.06))',
+              border: '1px solid rgba(108,60,231,0.25)', borderRadius: 14,
+              padding: '18px 20px', display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap'
+            }}>
+              <div style={{ flex: 1, minWidth: 160 }}>
+                <div style={{ fontSize: '0.65rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(158,165,196,0.4)', marginBottom: 4 }}>🎶 Admin Pick</div>
+                <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#e2e5f0' }}>{songOfDay.title || 'Song of the Day'}</div>
+                {songOfDay.artist && <div style={{ fontSize: '0.82rem', color: 'rgba(158,165,196,0.6)', marginTop: 2 }}>{songOfDay.artist}</div>}
+                {songOfDay.description && <div style={{ fontSize: '0.8rem', color: 'rgba(158,165,196,0.5)', marginTop: 6, lineHeight: 1.4 }}>{songOfDay.description}</div>}
+                {songOfDay.url && !embed && (
+                  <a href={songOfDay.url} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 10, fontSize: '0.8rem', color: 'var(--color-cyan)', textDecoration: 'none' }}>
+                    Listen ↗
+                  </a>
+                )}
+              </div>
+              {embed && (
+                <div style={{ borderRadius: 10, overflow: 'hidden', flexShrink: 0, width: '100%', maxWidth: 340 }}>
+                  <iframe
+                    src={embed.src}
+                    width="100%"
+                    height={embed.type === 'spotify' ? 80 : 160}
+                    frameBorder="0"
+                    allow="autoplay; clipboard-write; encrypted-media; fullscreen"
+                    title="Song of the Day"
+                    style={{ display: 'block' }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="home-section-label">Explore</div>
       <div className="home-tile-grid">

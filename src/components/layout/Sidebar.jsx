@@ -29,11 +29,13 @@ const Sidebar = ({ currentPage, onNavigate }) => {
   }, []);
 
   const quickLinks = [
-    { id: 'leagues', label: 'Leagues',      icon: '' },
-    { id: 'games',   label: 'Games',        icon: '🎮' },
-    { id: 'sports',  label: 'Sports',       icon: '🏆' },
-    { id: 'members', label: 'Member Pages', icon: '👥' },
-    { id: 'lastfm',  label: 'Last.fm',      icon: '🎵' },
+    { id: 'leagues',  label: 'Leagues',      icon: '' },
+    { id: 'games',    label: 'Games',        icon: '🎮' },
+    { id: 'sports',   label: 'Sports',       icon: '🏆' },
+    { id: 'members',  label: 'Member Pages', icon: '👥' },
+    { id: 'lastfm',   label: 'Last.fm',      icon: '🎵' },
+    { id: 'radio',    label: 'Nova Radio',   icon: '📻' },
+    { id: 'coinshop', label: 'Coin Shop',    icon: '🛍️' },
   ];
 
   return (

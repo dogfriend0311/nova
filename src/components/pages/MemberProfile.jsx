@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { TEAMS, SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl } from '../../data/teams';
 import { getWatchList } from '../../services/mediaService';
 import * as lfm from '../../services/lastfmService';
+import { BADGES, getEarnedBadges, syncBadges } from '../../services/achievementsService';
 import './MemberProfile.css';
 
 const roleLabel = (role) => {
@@ -443,6 +444,7 @@ const MemberProfile = () => {
 
   const TABS = [
     { id: 'about',       label: 'About'        },
+    { id: 'badges',      label: '🏅 Badges'    },
     { id: 'music',       label: 'Music'        },
     { id: 'favgames',    label: 'Fav Games'    },
     { id: 'robloxgames', label: 'Roblox Games' },
@@ -541,6 +543,57 @@ const MemberProfile = () => {
             )}
           </>
         )}
+
+        {/* BADGES */}
+        {activeTab === 'badges' && (() => {
+          const earnedIds = new Set(getEarnedBadges(user?.username));
+          syncBadges(user?.username, { profile, coins });
+          const earned   = BADGES.filter(b => earnedIds.has(b.id));
+          const locked   = BADGES.filter(b => !earnedIds.has(b.id));
+          return (
+            <div className="tw-section">
+              <div className="tw-section-title">Earned Badges ({earned.length}/{BADGES.length})</div>
+              {earned.length === 0
+                ? <div className="tw-empty">No badges yet — keep playing!</div>
+                : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
+                    {earned.map(b => (
+                      <div key={b.id} title={b.desc} style={{
+                        display: 'flex', alignItems: 'center', gap: 8,
+                        padding: '8px 14px', borderRadius: 999,
+                        border: `1px solid ${b.color}55`, background: `${b.color}12`,
+                        color: b.color, fontSize: '0.85rem', fontWeight: 700,
+                        transition: 'transform 0.15s', cursor: 'default',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                      onMouseLeave={e => e.currentTarget.style.transform = ''}>
+                        <span style={{ fontSize: '1.1rem' }}>{b.emoji}</span>
+                        {b.name}
+                      </div>
+                    ))}
+                  </div>
+              }
+              {locked.length > 0 && (
+                <>
+                  <div className="tw-section-title" style={{ marginTop: 20 }}>Locked ({locked.length})</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
+                    {locked.map(b => (
+                      <div key={b.id} title={b.desc} style={{
+                        display: 'flex', alignItems: 'center', gap: 8,
+                        padding: '8px 14px', borderRadius: 999,
+                        border: '1px solid rgba(94,129,244,0.12)', background: 'rgba(94,129,244,0.04)',
+                        color: 'rgba(158,165,196,0.3)', fontSize: '0.85rem', fontWeight: 600,
+                        filter: 'grayscale(1)', opacity: 0.5, cursor: 'default',
+                      }}>
+                        <span style={{ fontSize: '1.1rem' }}>🔒</span>
+                        {b.name}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })()}
 
         {/* MUSIC */}
         {activeTab === 'music' && (
