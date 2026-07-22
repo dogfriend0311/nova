@@ -1,202 +1,170 @@
 import axios from 'axios';
 
-// Roblox API client
-const robloxClient = axios.create({
-  baseURL: 'https://api.roblox.com',
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+/**
+ * Roblox service — rewritten to use the CURRENT Roblox public API.
+ *
+ * Background: the old code used `https://api.roblox.com/users/get-by-username`,
+ * which Roblox deprecated and shut down. That is why every lookup returned
+ * "unable to find username". The modern endpoint is
+ * `POST https://users.roblox.com/v1/usernames/users`.
+ *
+ * Roblox's APIs do not send CORS headers, so every browser request must be
+ * routed through a CORS proxy. We try several in order for reliability.
+ */
 
-// Custom endpoint for league stats (if using a custom backend service)
-const leagueClient = axios.create({
-  baseURL: `https://api.roblox.com`, // Changed from localhost
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-    'X-API-Key': process.env.REACT_APP_ROBLOX_API_KEY,
-  },
-});
+const CORS_PROXIES = [
+  (url) => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+  (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  (url) => `https://thingproxy.freeboard.io/fetch/${url}`,
+];
+
+async function proxiedGet(targetUrl) {
+  let lastErr;
+  for (const wrap of CORS_PROXIES) {
+    try {
+      const res = await axios.get(wrap(targetUrl), {
+        timeout: 12000,
+        headers: { Accept: 'application/json' },
+      });
+      return res.data;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error('All CORS proxies failed');
+}
+
+async function proxiedPost(targetUrl, body) {
+  let lastErr;
+  for (const wrap of CORS_PROXIES) {
+    try {
+      const res = await axios.post(wrap(targetUrl), body, {
+        timeout: 12000,
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+      });
+      return res.data;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error('All CORS proxies failed');
+}
+
+/** Roblox presence enum: 0 = offline, 1 = online, 2 = in game, 3 = in studio */
+export const PRESENCE = {
+  OFFLINE: 0,
+  ONLINE: 1,
+  IN_GAME: 2,
+  IN_STUDIO: 3,
+};
 
 export const robloxService = {
-  // Get user info
-  async getUserInfo(userId) {
-    try {
-      const response = await robloxClient.get(`/users/${userId}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching Roblox user info:', error);
-      return { error: error.message };
-    }
+  /**
+   * Resolve a username → { id, name, displayName, description, created, isBanned }.
+   * Uses the modern users.roblox.com endpoint.
+   */
+  async resolveByUsername(username) {
+    const data = await proxiedPost(
+      'https://users.roblox.com/v1/usernames/users',
+      { usernames: [username], excludeBannedUsers: false }
+    );
+    const match = Array.isArray(data?.data) ? data.data[0] : null;
+    if (!match) return null;
+    // fetch full profile for description / created date / ban flag
+    const full = await proxiedGet(`https://users.roblox.com/v1/users/${match.id}`);
+    return {
+      id: full.id,
+      name: full.name,
+      displayName: full.displayName,
+      description: full.description || '',
+      created: full.created,
+      isBanned: !!full.isBanned,
+    };
   },
 
+  /** Backwards-compatible alias used elsewhere in the app. */
   async getUserByUsername(username) {
     try {
-      const response = await robloxClient.post('/users/search', {
-        keyword: username,
-        limit: 1,
-      });
-      return response.data;
+      const user = await this.resolveByUsername(username);
+      return user ? { data: user } : { error: 'User not found' };
     } catch (error) {
       console.error('Error searching for Roblox user:', error);
       return { error: error.message };
     }
   },
 
-  // Get user avatar
+  async getUserInfo(userId) {
+    try {
+      return await proxiedGet(`https://users.roblox.com/v1/users/${userId}`);
+    } catch (error) {
+      console.error('Error fetching Roblox user info:', error);
+      return { error: error.message };
+    }
+  },
+
+  /** Circular headshot avatar URL. */
   async getUserAvatar(userId) {
     try {
-      const response = await robloxClient.get(`/users/${userId}/avatar`);
-      return response.data;
+      const data = await proxiedGet(
+        `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=420x420&format=Png&isCircular=true`
+      );
+      return data?.data?.[0]?.imageUrl || null;
     } catch (error) {
       console.error('Error fetching user avatar:', error);
-      return { error: error.message };
+      return null;
     }
   },
 
-  // Get user presence
+  /** Full-body avatar thumbnail. */
+  async getUserAvatarFull(userId) {
+    try {
+      const data = await proxiedGet(
+        `https://thumbnails.roblox.com/v1/users/avatar?userIds=${userId}&size=420x420&format=Png&isCircular=false`
+      );
+      return data?.data?.[0]?.imageUrl || null;
+    } catch (error) {
+      console.error('Error fetching user full avatar:', error);
+      return null;
+    }
+  },
+
+  /** Presence: online/in-game/offline + last location. */
   async getUserPresence(userId) {
     try {
-      const response = await robloxClient.get(`/users/${userId}/presence`);
-      return response.data;
+      const data = await proxiedPost(
+        'https://presence.roblox.com/v1/presence/users',
+        { userIds: [userId] }
+      );
+      return data?.userPresences?.[0] || null;
     } catch (error) {
       console.error('Error fetching user presence:', error);
-      return { error: error.message };
+      return null;
     }
   },
 
-  // League-specific methods
-  async getLeagueStats(userId) {
+  /** Count of badges the user has earned. */
+  async getBadgeCount(userId) {
     try {
-      const response = await leagueClient.get(`/roblox/league-stats/${userId}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching league stats:', error);
-      return { error: error.message };
-    }
-  },
-
-  async getLeagueRanking(userId) {
-    try {
-      const response = await leagueClient.get(
-        `/roblox/league-ranking/${userId}`
+      const data = await proxiedGet(
+        `https://badges.roblox.com/v1/users/${userId}/badges?limit=100&sortOrder=Desc`
       );
-      return response.data;
+      return Array.isArray(data?.data) ? data.data.length : 0;
     } catch (error) {
-      console.error('Error fetching league ranking:', error);
-      return { error: error.message };
-    }
-  },
-
-  async getLeaderboard(limit = 100, offset = 0) {
-    try {
-      const response = await leagueClient.get(
-        `/roblox/leaderboard?limit=${limit}&offset=${offset}`
-      );
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching leaderboard:', error);
-      return { error: error.message };
-    }
-  },
-
-  async getLeagueSeasonStats(userId, seasonId) {
-    try {
-      const response = await leagueClient.get(
-        `/roblox/league-stats/${userId}/season/${seasonId}`
-      );
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching season stats:', error);
-      return { error: error.message };
-    }
-  },
-
-  async getTeamStats(teamId) {
-    try {
-      const response = await leagueClient.get(`/roblox/teams/${teamId}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching team stats:', error);
-      return { error: error.message };
-    }
-  },
-
-  async getTeamMembers(teamId) {
-    try {
-      const response = await leagueClient.get(
-        `/roblox/teams/${teamId}/members`
-      );
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching team members:', error);
-      return { error: error.message };
-    }
-  },
-
-  async getSchedule(teamId) {
-    try {
-      const response = await leagueClient.get(
-        `/roblox/teams/${teamId}/schedule`
-      );
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching schedule:', error);
-      return { error: error.message };
-    }
-  },
-
-  async getMatchHistory(userId, limit = 10) {
-    try {
-      const response = await leagueClient.get(
-        `/roblox/match-history/${userId}?limit=${limit}`
-      );
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching match history:', error);
-      return { error: error.message };
-    }
-  },
-
-  async getMatchDetails(matchId) {
-    try {
-      const response = await leagueClient.get(`/roblox/matches/${matchId}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching match details:', error);
-      return { error: error.message };
-    }
-  },
-
-  async getAchievements(userId) {
-    try {
-      const response = await leagueClient.get(
-        `/roblox/achievements/${userId}`
-      );
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching achievements:', error);
-      return { error: error.message };
-    }
-  },
-
-  async getPlayerStats(userId) {
-    try {
-      const response = await leagueClient.get(`/roblox/player-stats/${userId}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching player stats:', error);
-      return { error: error.message };
+      console.error('Error fetching badge count:', error);
+      return 0;
     }
   },
 
   async getMultipleUsers(userIds) {
     try {
-      const response = await robloxClient.post('/users', {
-        userIds: userIds,
+      const data = await proxiedPost('https://users.roblox.com/v1/users', {
+        userIds,
+        excludeBannedUsers: false,
       });
-      return response.data;
+      return { data: data?.data || [] };
     } catch (error) {
       console.error('Error fetching multiple users:', error);
       return { error: error.message };
@@ -205,59 +173,9 @@ export const robloxService = {
 
   async getGroupInfo(groupId) {
     try {
-      const response = await robloxClient.get(`/groups/${groupId}`);
-      return response.data;
+      return await proxiedGet(`https://groups.roblox.com/v1/groups/${groupId}`);
     } catch (error) {
       console.error('Error fetching group info:', error);
-      return { error: error.message };
-    }
-  },
-
-  async getGroupMembers(groupId, limit = 50) {
-    try {
-      const response = await robloxClient.get(
-        `/groups/${groupId}/users?limit=${limit}`
-      );
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching group members:', error);
-      return { error: error.message };
-    }
-  },
-
-  // Watch list operations
-  async addToWatchlist(userId) {
-    try {
-      const response = await leagueClient.post(`/roblox/watchlist`, {
-        userId: userId,
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error adding to watchlist:', error);
-      return { error: error.message };
-    }
-  },
-
-  async removeFromWatchlist(userId) {
-    try {
-      const response = await leagueClient.delete(
-        `/roblox/watchlist/${userId}`
-      );
-      return response.data;
-    } catch (error) {
-      console.error('Error removing from watchlist:', error);
-      return { error: error.message };
-    }
-  },
-
-  async getWatchlist(limit = 20) {
-    try {
-      const response = await leagueClient.get(
-        `/roblox/watchlist?limit=${limit}`
-      );
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching watchlist:', error);
       return { error: error.message };
     }
   },
