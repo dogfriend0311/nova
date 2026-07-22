@@ -9,17 +9,15 @@ import LeaguesPage from './components/pages/LeaguesPage';
 import LeaguePlayerPage from './LeaguePlayerPage';
 import LoginModal from './components/auth/LoginModal';
 import OwnerDashboard from './components/admin/OwnerDashboard';
-import LastFmPage from './components/pages/LastFmPage';
 import RoadToTheShow from './components/pages/RoadToTheShow';
 import FantasyHub from './components/pages/FantasyHub';
 import PickemsHub from './components/pages/PickemsHub';
-import NovaRadio from './components/pages/NovaRadio';
-import BeatBattle from './components/pages/BeatBattle';
 import PropBets from './components/pages/PropBets';
 import PlayoffPools from './components/pages/PlayoffPools';
 import CoinShop from './components/pages/CoinShop';
 import NovaWrapped from './components/pages/NovaWrapped';
 import RobloxTracker from './components/pages/RobloxTracker';
+import MusicHub from './components/pages/MusicHub';
 import './styles/globals.css';
 import './styles/theme.css';
 import './styles/animations.css';
@@ -27,20 +25,6 @@ import './styles/space.css';
 import './styles/responsive.css';
 
 // ── Hash router helpers ──────────────────────────────────────
-// URL scheme:
-//   #home
-//   #sports            → Sports Hub (defaults to MLB)
-//   #sports/nfl        → Sports Hub with NFL active
-//   #sports/mlb        → Sports Hub with MLB active
-//   #leagues           → Vizta League
-//   #members           → Member list
-//   #members/username  → That user's profile directly
-//   #watchlist
-//   #lastfm
-//   #games
-//   #store
-//   #profile           → Own profile
-
 function parseHash() {
   const raw = window.location.hash.replace(/^#\/?/, '') || 'home';
   const parts = raw.split('/');
@@ -59,38 +43,48 @@ function pushHash(page, sub1, sub2) {
   }
 }
 
-// ── Games tab — houses Fantasy, Pick'ems, and RTTS ──────────
+// ── Games tab — Fantasy, Pick'ems, RTTS, Prop Bets, Playoff Pools ──
+// NOTE: Beat Battle moved to Music tab
 const GamesPage = ({ onSignIn, initialTab = 'fantasy', user: gamesUser }) => {
   const [subTab, setSubTab] = React.useState(initialTab);
   const tb = (id, label) => (
     <button
       onClick={() => setSubTab(id)}
       style={{
-        padding: '10px 20px', background: subTab === id ? 'rgba(94,129,244,0.12)' : 'none',
-        border: 'none', borderBottom: subTab === id ? '2px solid var(--color-cyan)' : '2px solid transparent',
+        padding: '10px 16px',
+        background: subTab === id ? 'rgba(94,129,244,0.12)' : 'none',
+        border: 'none',
+        borderBottom: subTab === id ? '2px solid var(--color-cyan)' : '2px solid transparent',
         color: subTab === id ? 'var(--color-cyan)' : 'rgba(158,165,196,0.5)',
-        fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.88rem',
+        fontWeight: 700,
+        cursor: 'pointer',
+        whiteSpace: 'nowrap',
+        fontSize: '0.88rem',
+        minHeight: '44px',
       }}
     >{label}</button>
   );
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 16px' }}>
-      <div style={{ display: 'flex', gap: '4px', borderBottom: '1px solid rgba(94,129,244,0.1)', overflowX: 'auto', marginBottom: '20px' }}>
-        {tb('fantasy',    '🏈 Fantasy')}
-        {tb('pickems',    "✅ Pick'ems")}
-        {tb('rtts',       '⚾ Road to the Show SIM')}
-        {tb('beatbattle', '🎵 Beat Battle')}
-        {tb('propbets',   '🎯 Prop Bets')}
-        {tb('playoffs',   '🏆 Playoff Pools')}
+      <div style={{ display: 'flex', gap: '4px', borderBottom: '1px solid rgba(94,129,244,0.1)', overflowX: 'auto', marginBottom: '20px', scrollbarWidth: 'none' }}>
+        {tb('fantasy',  '🏈 Fantasy')}
+        {tb('pickems',  "✅ Pick'ems")}
+        {tb('rtts',     '⚾ Road to the Show')}
+        {tb('propbets', '🎯 Prop Bets')}
+        {tb('playoffs', '🏆 Playoff Pools')}
       </div>
-      {subTab === 'fantasy'    && <FantasyHub onSignIn={onSignIn} />}
-      {subTab === 'pickems'    && <PickemsHub onSignIn={onSignIn} />}
-      {subTab === 'rtts'       && <RoadToTheShow />}
-      {subTab === 'beatbattle' && <BeatBattle user={gamesUser} />}
-      {subTab === 'propbets'   && <PropBets user={gamesUser} />}
-      {subTab === 'playoffs'   && <PlayoffPools user={gamesUser} />}
+      {subTab === 'fantasy'  && <FantasyHub onSignIn={onSignIn} />}
+      {subTab === 'pickems'  && <PickemsHub onSignIn={onSignIn} />}
+      {subTab === 'rtts'     && <RoadToTheShow />}
+      {subTab === 'propbets' && <PropBets user={gamesUser} />}
+      {subTab === 'playoffs' && <PlayoffPools user={gamesUser} />}
     </div>
   );
+};
+
+// ── Store tab — Coin Shop + future store items ──────────────
+const StorePage = ({ user }) => {
+  return <CoinShop user={user} />;
 };
 
 // ── Main app content ─────────────────────────────────────────
@@ -109,20 +103,21 @@ const AppContent = () => {
   }, [user]);
 
   // ── Route state — driven by URL hash ──────────────────────
-  // #leagues/player/ID → start on player view (data loaded by effect below)
   const [currentPage, setCurrentPage] = useState(() => {
     const { page, sub1 } = parseHash();
     if (page === 'leagues' && sub1 === 'player') return 'player';
+    // Redirect legacy routes
+    if (page === 'radio' || page === 'lastfm') return 'music';
+    if (page === 'coinshop') return 'store';
     return page;
   });
-  const [routeSub,    setRouteSub]    = useState(() => parseHash().sub1);
+  const [routeSub, setRouteSub] = useState(() => parseHash().sub1);
 
   // Handle browser back / forward
   useEffect(() => {
     const handler = () => {
       const { page, sub1, sub2 } = parseHash();
       if (page === 'leagues' && sub1 === 'player' && sub2) {
-        // Player deep-link via browser history navigation
         setCurrentPage('player');
         setRouteSub(sub1);
         import('./services/db').then(({ default: db }) => {
@@ -133,17 +128,20 @@ const AppContent = () => {
           }).catch(() => { setCurrentPage('leagues'); pushHash('leagues'); });
         });
       } else {
-        setCurrentPage(page);
+        // Redirect legacy routes
+        const resolved = (page === 'radio' || page === 'lastfm') ? 'music'
+          : page === 'coinshop' ? 'store'
+          : page;
+        setCurrentPage(resolved);
         setRouteSub(sub1 || null);
-        if (page !== 'player') setSelectedLeaguePlayer(null);
+        if (resolved !== 'player') setSelectedLeaguePlayer(null);
       }
     };
     window.addEventListener('hashchange', handler);
     return () => window.removeEventListener('hashchange', handler);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // On initial mount: load player if URL is a player deep-link
-  // e.g. someone opens a shared link like #leagues/player/abc123
   useEffect(() => {
     const { page, sub1, sub2 } = parseHash();
     if (page === 'leagues' && sub1 === 'player' && sub2) {
@@ -158,30 +156,39 @@ const AppContent = () => {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Other state ───────────────────────────────────────────
-  const [lfmToken,             setLfmToken]             = useState(null);
   const [showDashboard,        setShowDashboard]        = useState(false);
   const [showLoginModal,       setShowLoginModal]       = useState(false);
   const [signUpMode,           setSignUpMode]           = useState(false);
   const [selectedLeaguePlayer, setSelectedLeaguePlayer] = useState(null);
   const [selectedLeague,       setSelectedLeague]       = useState('vizta');
-
-  // Handle Last.fm OAuth token in query string
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
-    if (token) {
-      window.history.replaceState({}, '', window.location.pathname);
-      setLfmToken(token);
-      handlePageChange('lastfm');
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // musicInitialTab — lets external nav links open a specific music sub-tab
+  const [musicInitialTab,      setMusicInitialTab]      = useState(null);
 
   // ── Navigation ────────────────────────────────────────────
   const handlePageChange = (page, sub1) => {
     if (page === 'profile' && !user) { setShowLoginModal(true); return; }
+    // Handle legacy deep links
+    if (page === 'radio') {
+      setCurrentPage('music');
+      setMusicInitialTab('radio');
+      pushHash('music');
+      return;
+    }
+    if (page === 'lastfm') {
+      setCurrentPage('music');
+      setMusicInitialTab('lastfm');
+      pushHash('music');
+      return;
+    }
+    if (page === 'coinshop') {
+      setCurrentPage('store');
+      pushHash('store');
+      return;
+    }
     setCurrentPage(page);
     setRouteSub(sub1 || null);
     setSelectedLeaguePlayer(null);
+    setMusicInitialTab(null);
     pushHash(page, sub1);
   };
 
@@ -189,11 +196,9 @@ const AppContent = () => {
     setSelectedLeaguePlayer(player);
     setSelectedLeague(league);
     setCurrentPage('player');
-    // Push a shareable URL: #leagues/player/PLAYER_ID
     pushHash('leagues', 'player', String(player.id));
   };
 
-  // Called by MemberPages when a profile is opened or closed
   const handleMemberSelect = (username) => {
     if (username) {
       setRouteSub(username);
@@ -220,10 +225,8 @@ const AppContent = () => {
         return <Home onNavigate={handlePageChange} user={user} />;
 
       case 'sports':
-        // routeSub can be a sport id like 'mlb', 'nfl', etc.
         return <SportsHub initialSport={routeSub} />;
 
-      // fantasy / pickems / watchlist all fold into the Games tab now
       case 'fantasy':
         return <GamesPage key="games-fantasy" onSignIn={() => setShowLoginModal(true)} initialTab="fantasy" user={user} />;
 
@@ -234,7 +237,6 @@ const AppContent = () => {
         return <LeaguesPage onSelectPlayer={handleSelectPlayer} />;
 
       case 'members':
-        // routeSub can be a username to auto-open that profile
         return (
           <MemberPages
             targetUsername={routeSub}
@@ -245,35 +247,23 @@ const AppContent = () => {
       case 'profile':
         return user ? <MemberProfile /> : <Home />;
 
-      case 'lastfm':
-        return (
-          <LastFmPage
-            pendingToken={lfmToken}
-            onTokenConsumed={() => setLfmToken(null)}
-          />
-        );
+      // ── Unified music tab (Radio + Last.fm + Beat Battle + Visualizer) ──
+      case 'music':
+        return <MusicHub user={user} initialTab={musicInitialTab} onSignIn={() => setShowLoginModal(true)} />;
 
       case 'games':
         return <GamesPage key="games-default" onSignIn={() => setShowLoginModal(true)} initialTab="fantasy" user={user} />;
 
-      case 'radio':
-        return <NovaRadio user={user} />;
-
-      case 'coinshop':
-        return <CoinShop user={user} />;
+      // ── Store tab now includes Coin Shop ──
+      case 'store':
+      case 'coinshop': // backward compat
+        return <StorePage user={user} />;
 
       case 'wrapped':
         return <NovaWrapped user={user} />;
 
       case 'roblox':
         return <RobloxTracker user={user} />;
-
-      case 'store':
-        return (
-          <div style={{ textAlign: 'center', padding: '60px', color: 'rgba(158, 165, 196,0.4)' }}>
-            Store coming soon
-          </div>
-        );
 
       case 'player':
         if (!selectedLeaguePlayer) {
