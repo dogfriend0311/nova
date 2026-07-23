@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import '../styles/NovaFeatures.css';
+import './NovaFeatures.css';
 import { awardBadge } from '../../services/achievementsService';
 
 const STORAGE_KEY = (username) => `nova_roblox_${username}`;

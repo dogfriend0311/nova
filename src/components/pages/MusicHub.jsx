@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import NovaRadio from './NovaRadio';
 import BeatBattle from './BeatBattle';
-import '../styles/NovaFeatures.css';
+import './NovaFeatures.css';
 
 // ── Last.fm inline panel ─────────────────────────────────────
 const LastFmPanel = ({ user }) => {
