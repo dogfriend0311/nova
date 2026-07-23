@@ -131,7 +131,7 @@ const NovaRadio = ({ user }) => {
     if (!ytId) return;
 
     loadYouTubeAPI().then(() => {
-      setYtReady(true);
+
       // Destroy previous player if it exists
       if (ytPlayerRef.current) {
         try { ytPlayerRef.current.destroy(); } catch {}
