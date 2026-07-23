@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 
 // ─────────────────────────────────────────────────────────────
 //  Constants
@@ -70,7 +70,7 @@ const NovaRadio = ({ user }) => {
   const seekOnLoad  = useRef(0);   // where to seek after audio loads
   const pollRef     = useRef(null);
 
-  const playlist = config?.playlist || [];
+  const playlist = useMemo(() => config?.playlist || [], [config]);
   const track    = playlist[trackIdx] || null;
 
   // ── Load config + set initial live position ───────────────
