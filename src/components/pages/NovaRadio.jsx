@@ -1,22 +1,47 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 // ─────────────────────────────────────────────────────────────
-//  Storage helpers
+//  Constants
 // ─────────────────────────────────────────────────────────────
 const CONFIG_KEY    = 'nova_radio_config';
 const LISTENERS_KEY = 'nova_radio_listeners';
+// Fixed epoch — all users share the same "live" position in the playlist
+const RADIO_EPOCH   = 1700000000; // Nov 14 2023 (arbitrary fixed start)
 
+// ─────────────────────────────────────────────────────────────
+//  Helpers
+// ─────────────────────────────────────────────────────────────
 function readConfig() {
   try { return JSON.parse(localStorage.getItem(CONFIG_KEY) || 'null'); }
   catch { return null; }
 }
-function trackListenerActive(username) {
-  if (!username) return;
-  const d = JSON.parse(localStorage.getItem(LISTENERS_KEY) || '{}');
-  d[username] = Date.now();
-  localStorage.setItem(LISTENERS_KEY, JSON.stringify(d));
+function fmtTime(s) {
+  if (!s || isNaN(s)) return '0:00';
+  const m = Math.floor(s / 60), sec = Math.floor(s % 60);
+  return `${m}:${sec.toString().padStart(2, '0')}`;
 }
-function getActiveListeners() {
+// Returns { idx, seek } for the current moment in the live radio feed
+function getLivePosition(playlist) {
+  const totalDur = playlist.reduce((sum, t) => sum + (t.duration || 180), 0);
+  if (!totalDur) return { idx: 0, seek: 0 };
+  const elapsed = (Date.now() / 1000 - RADIO_EPOCH) % totalDur;
+  let acc = 0;
+  for (let i = 0; i < playlist.length; i++) {
+    const d = playlist[i].duration || 180;
+    if (elapsed < acc + d) return { idx: i, seek: elapsed - acc };
+    acc += d;
+  }
+  return { idx: 0, seek: 0 };
+}
+function heartbeat(username) {
+  if (!username) return;
+  try {
+    const d = JSON.parse(localStorage.getItem(LISTENERS_KEY) || '{}');
+    d[username] = Date.now();
+    localStorage.setItem(LISTENERS_KEY, JSON.stringify(d));
+  } catch {}
+}
+function getListeners() {
   try {
     const d   = JSON.parse(localStorage.getItem(LISTENERS_KEY) || '{}');
     const cut = Date.now() - 5 * 60 * 1000;
@@ -25,538 +50,603 @@ function getActiveListeners() {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  YouTube IFrame API — Promise-based loader
-// ─────────────────────────────────────────────────────────────
-let _ytReady = false;
-const _ytCallbacks = [];
-
-function loadYouTubeAPI() {
-  if (_ytReady) return Promise.resolve();
-  return new Promise((resolve) => {
-    _ytCallbacks.push(resolve);
-    if (!document.getElementById('yt-api-script')) {
-      const s = document.createElement('script');
-      s.id  = 'yt-api-script';
-      s.src = 'https://www.youtube.com/iframe_api';
-      document.head.appendChild(s);
-    }
-  });
-}
-// Must be global
-window.onYouTubeIframeAPIReady = () => {
-  _ytReady = true;
-  _ytCallbacks.forEach(cb => cb());
-  _ytCallbacks.length = 0;
-};
-
-function getYouTubeId(url) {
-  if (!url) return null;
-  const m = url.match(
-    /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|live\/|embed\/|v\/))([A-Za-z0-9_-]{11})/
-  );
-  return m ? m[1] : null;
-}
-
-function isDirectAudio(url) {
-  if (!url) return false;
-  if (getYouTubeId(url)) return false;
-  if (url.includes('spotify.com') || url.includes('soundcloud.com')) return false;
-  return true;
-}
-
-function fmtTime(sec) {
-  if (!sec || isNaN(sec)) return '0:00';
-  const m = Math.floor(sec / 60);
-  const s = Math.floor(sec % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
-// ─────────────────────────────────────────────────────────────
-//  NovaRadio — iPod-style player
+//  NovaRadio — iPod Classic + 24/7 live radio
 // ─────────────────────────────────────────────────────────────
 const NovaRadio = ({ user }) => {
-  const [config,      setConfig]      = useState(readConfig);
-  const [trackIdx,    setTrackIdx]    = useState(0);
-  const [isPlaying,   setIsPlaying]   = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration,    setDuration]    = useState(0);
-  const [listeners,   setListeners]   = useState([]);
-  const [showList,    setShowList]    = useState(false);
-  // ytReady tracked via _ytReady module-level flag
+  const [config,       setConfig]       = useState(readConfig);
+  const [trackIdx,     setTrackIdx]     = useState(0);
+  const [isPlaying,    setIsPlaying]    = useState(false);
+  const [isLive,       setIsLive]       = useState(true);
+  const [interacted,   setInteracted]   = useState(false);
+  const [currentTime,  setCurrentTime]  = useState(0);
+  const [duration,     setDuration]     = useState(0);
+  const [view,         setView]         = useState('nowplaying'); // 'nowplaying' | 'songs'
+  const [listCursor,   setListCursor]   = useState(0);
+  const [btnFx,        setBtnFx]        = useState(null);      // button visual feedback
+  const [listeners,    setListeners]    = useState([]);
+  const [tuneMsg,      setTuneMsg]      = useState('');        // "Tuning in…" flash message
 
-  // Refs
   const audioRef    = useRef(null);
-  const ytPlayerRef = useRef(null);
-  const ytDivId     = 'nova-yt-player';
+  const seekOnLoad  = useRef(0);   // where to seek after audio loads
   const pollRef     = useRef(null);
-  const rotRef      = useRef(0);      // album art rotation degrees
-  const rafRef      = useRef(null);
 
   const playlist = config?.playlist || [];
   const track    = playlist[trackIdx] || null;
-  const ytId     = getYouTubeId(track?.url);
-  const isDirect = isDirectAudio(track?.url);
 
-  // ── Listener heartbeat ─────────────────────────────────────
+  // ── Load config + set initial live position ───────────────
   useEffect(() => {
-    if (user?.username) trackListenerActive(user.username);
-    setListeners(getActiveListeners());
-    const id = setInterval(() => {
-      if (user?.username) trackListenerActive(user.username);
-      setListeners(getActiveListeners());
-      // Re-read config in case admin changed it
-      const fresh = readConfig();
-      setConfig(fresh);
-    }, 30_000);
-    return () => clearInterval(id);
-  }, [user]);
-
-  // ── Album art rotation animation ───────────────────────────
-  const animateArt = useCallback(() => {
-    if (isPlaying) {
-      rotRef.current += 0.15;
-      const el = document.getElementById('nova-art-img');
-      if (el) el.style.transform = `rotate(${rotRef.current}deg)`;
-    }
-    rafRef.current = requestAnimationFrame(animateArt);
-  }, [isPlaying]);
-
-  useEffect(() => {
-    rafRef.current = requestAnimationFrame(animateArt);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [animateArt]);
-
-  // ── YouTube player setup ───────────────────────────────────
-  useEffect(() => {
-    if (!ytId) return;
-
-    loadYouTubeAPI().then(() => {
-
-      // Destroy previous player if it exists
-      if (ytPlayerRef.current) {
-        try { ytPlayerRef.current.destroy(); } catch {}
-        ytPlayerRef.current = null;
-      }
-
-      // Ensure the div exists
-      const container = document.getElementById(ytDivId);
-      if (!container) return;
-
-      ytPlayerRef.current = new window.YT.Player(ytDivId, {
-        videoId: ytId,
-        playerVars: {
-          autoplay: 1,
-          controls: 0,
-          disablekb: 1,
-          fs: 0,
-          iv_load_policy: 3,
-          modestbranding: 1,
-          rel: 0,
-          playsinline: 1,
-        },
-        events: {
-          onStateChange: (e) => {
-            const S = window.YT.PlayerState;
-            if (e.data === S.PLAYING) {
-              setIsPlaying(true);
-              startYTPoll();
-            } else if (e.data === S.PAUSED) {
-              setIsPlaying(false);
-              stopYTPoll();
-            } else if (e.data === S.ENDED) {
-              setIsPlaying(false);
-              stopYTPoll();
-              handleNext();
-            }
-          },
-        },
-      });
-    });
-
-    return () => {
-      stopYTPoll();
-      if (ytPlayerRef.current) {
-        try { ytPlayerRef.current.destroy(); } catch {}
-        ytPlayerRef.current = null;
+    const loadConfig = async () => {
+      let cfg = null;
+      try {
+        const { db } = await import('../../services/db');
+        if (db?.getRadioConfig) cfg = await db.getRadioConfig();
+      } catch {}
+      if (!cfg) cfg = readConfig();
+      if (cfg) {
+        setConfig(cfg);
+        if (cfg.playlist?.length) {
+          const { idx, seek } = getLivePosition(cfg.playlist);
+          setTrackIdx(idx);
+          setListCursor(idx);
+          seekOnLoad.current = seek;
+        }
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ytId, trackIdx]);
+    loadConfig();
 
-  function startYTPoll() {
-    stopYTPoll();
+    // Periodic refresh + listener heartbeat
     pollRef.current = setInterval(() => {
-      try {
-        const p = ytPlayerRef.current;
-        if (!p) return;
-        const cur = p.getCurrentTime?.() ?? 0;
-        const dur = p.getDuration?.()    ?? 0;
-        setCurrentTime(cur);
-        setDuration(dur);
-      } catch {}
-    }, 500);
-  }
-  function stopYTPoll() {
-    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-  }
+      const fresh = readConfig();
+      if (fresh) setConfig(fresh);
+      if (user?.username) heartbeat(user.username);
+      setListeners(getListeners());
+    }, 30_000);
+    if (user?.username) heartbeat(user.username);
+    setListeners(getListeners());
 
-  // ── Playback controls ──────────────────────────────────────
-  function handlePlayPause() {
-    if (ytId && ytPlayerRef.current) {
-      try {
-        const state = ytPlayerRef.current.getPlayerState();
-        if (state === 1 /* PLAYING */) {
-          ytPlayerRef.current.pauseVideo();
-        } else {
-          ytPlayerRef.current.playVideo();
+    return () => clearInterval(pollRef.current);
+  }, [user]);
+
+  // ── When track changes: load audio ───────────────────────
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !track?.url) return;
+    audio.src = track.url;
+    audio.load();
+  }, [trackIdx, track?.url]);
+
+  // ── Play / pause audio ────────────────────────────────────
+  const doPlay = useCallback(async () => {
+    const audio = audioRef.current;
+    if (!audio || !track?.url) return;
+    if (!interacted) {
+      // First interaction — tune in to live position
+      setInteracted(true);
+      setTuneMsg('Tuning in…');
+      setTimeout(() => setTuneMsg(''), 1800);
+      if (isLive) {
+        const { idx, seek } = getLivePosition(playlist);
+        seekOnLoad.current = seek;
+        if (idx !== trackIdx) {
+          setTrackIdx(idx);
+          setListCursor(idx);
+          return; // useEffect above will reload audio; play triggered below
         }
-      } catch {}
-    } else if (isDirect && audioRef.current) {
-      if (isPlaying) audioRef.current.pause();
-      else           audioRef.current.play();
+        if (audio.readyState >= 1) audio.currentTime = seek;
+        else seekOnLoad.current = seek;
+      }
+    }
+    try { await audio.play(); } catch {}
+  }, [interacted, isLive, playlist, trackIdx, track]);
+
+  const doPause = useCallback(() => {
+    audioRef.current?.pause();
+  }, []);
+
+  // ── After loading metadata — apply queued seek ────────────
+  function handleLoadedMetadata() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    setDuration(audio.duration || 0);
+    if (seekOnLoad.current > 0) {
+      audio.currentTime = seekOnLoad.current;
+      seekOnLoad.current = 0;
+    }
+    if (interacted) {
+      audio.play().catch(() => {});
     }
   }
 
-  const handleNext = useCallback(() => {
+  // ── Track ended → advance ─────────────────────────────────
+  function handleEnded() {
     if (!playlist.length) return;
-    setTrackIdx(i => (i + 1) % playlist.length);
-    setCurrentTime(0);
-    setDuration(0);
-    setIsPlaying(false);
-  }, [playlist.length]);
+    const next = (trackIdx + 1) % playlist.length;
+    setTrackIdx(next);
+    setListCursor(next);
+    seekOnLoad.current = 0;
+    // If live, re-sync (in case we drifted)
+    if (isLive) {
+      const { idx, seek } = getLivePosition(playlist);
+      setTrackIdx(idx);
+      setListCursor(idx);
+      seekOnLoad.current = seek;
+    }
+  }
 
-  function handlePrev() {
-    if (!playlist.length) return;
-    // If more than 3 seconds in, restart current track
-    if (currentTime > 3) {
-      if (ytId && ytPlayerRef.current) {
-        try { ytPlayerRef.current.seekTo(0, true); } catch {}
-      } else if (audioRef.current) {
-        audioRef.current.currentTime = 0;
-      }
+  // ── Click wheel zone handlers ─────────────────────────────
+  function flashBtn(zone) {
+    setBtnFx(zone);
+    setTimeout(() => setBtnFx(null), 180);
+  }
+
+  function handleMenuPress() {
+    flashBtn('menu');
+    if (view === 'songs') {
+      setView('nowplaying');
+    } else {
+      setView('songs');
+      setListCursor(trackIdx);
+    }
+  }
+
+  function handlePrevPress() {
+    flashBtn('left');
+    if (view === 'songs') {
+      setListCursor(c => Math.max(0, c - 1));
+      return;
+    }
+    if (currentTime > 3 && audioRef.current) {
+      audioRef.current.currentTime = 0;
       setCurrentTime(0);
       return;
     }
-    setTrackIdx(i => (i - 1 + playlist.length) % playlist.length);
-    setCurrentTime(0);
-    setDuration(0);
-    setIsPlaying(false);
+    const prev = (trackIdx - 1 + playlist.length) % playlist.length;
+    setIsLive(false);
+    setTrackIdx(prev);
+    setListCursor(prev);
+    seekOnLoad.current = 0;
+  }
+
+  function handleNextPress() {
+    flashBtn('right');
+    if (view === 'songs') {
+      setListCursor(c => Math.min(playlist.length - 1, c + 1));
+      return;
+    }
+    const next = (trackIdx + 1) % playlist.length;
+    setIsLive(false);
+    setTrackIdx(next);
+    setListCursor(next);
+    seekOnLoad.current = 0;
+  }
+
+  function handlePlayPausePress() {
+    flashBtn('bottom');
+    if (isPlaying) doPause(); else doPlay();
+  }
+
+  function handleCenterPress() {
+    flashBtn('center');
+    if (view === 'songs') {
+      // Play the selected track
+      setIsLive(false);
+      setTrackIdx(listCursor);
+      seekOnLoad.current = 0;
+      setView('nowplaying');
+      // play will trigger via useEffect + interacted flag
+      if (!interacted) setInteracted(true);
+      setTimeout(() => { audioRef.current?.play().catch(() => {}); }, 100);
+    } else {
+      if (isPlaying) doPause(); else doPlay();
+    }
+  }
+
+  function handleReturnLive() {
+    const { idx, seek } = getLivePosition(playlist);
+    setIsLive(true);
+    setTrackIdx(idx);
+    setListCursor(idx);
+    seekOnLoad.current = seek;
+    setView('nowplaying');
+    setTuneMsg('Tuning in…');
+    setTimeout(() => setTuneMsg(''), 1800);
+    if (!interacted) setInteracted(true);
   }
 
   function handleSeek(e) {
     const t = parseFloat(e.target.value);
+    if (audioRef.current) audioRef.current.currentTime = t;
     setCurrentTime(t);
-    if (ytId && ytPlayerRef.current) {
-      try { ytPlayerRef.current.seekTo(t, true); } catch {}
-    } else if (audioRef.current) {
-      audioRef.current.currentTime = t;
-    }
+    setIsLive(false);
   }
 
-  function selectTrack(i) {
-    if (i === trackIdx) {
-      handlePlayPause();
-    } else {
-      setTrackIdx(i);
-      setCurrentTime(0);
-      setDuration(0);
-      setIsPlaying(false);
-    }
-    setShowList(false);
-  }
-
-  // ── No config — placeholder ────────────────────────────────
-  if (!config || playlist.length === 0) {
+  // ── "No playlist" state ───────────────────────────────────
+  if (!playlist.length) {
     return (
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: '40px 16px', textAlign: 'center' }}>
-        <div style={{ width: 120, height: 120, borderRadius: 24, background: 'linear-gradient(135deg,rgba(94,129,244,0.15),rgba(200,100,220,0.1))', border: '1px solid rgba(94,129,244,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3.5rem', margin: '0 auto 24px' }}>
-          📻
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <div style={STYLES.ipodBody}>
+          <div style={STYLES.screen}>
+            <div style={{ ...STYLES.screenHeader }}>NOVA RADIO</div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <div style={{ fontSize: '2rem' }}>📻</div>
+              <div style={{ color: '#7a8aaa', fontSize: '0.72rem', textAlign: 'center', lineHeight: 1.5, padding: '0 8px' }}>
+                No playlist yet.<br />Admin sets it up in<br />the Owner Dashboard.
+              </div>
+            </div>
+          </div>
+          <WheelDead />
         </div>
-        <h2 style={{ fontFamily: 'var(--font-display)', color: '#e2e5f0', marginBottom: 10 }}>No Playlist Yet</h2>
-        <p style={{ color: 'rgba(158,165,196,0.5)', fontSize: '0.9rem', lineHeight: 1.6 }}>
-          An admin can set up the playlist in the<br />
-          <strong style={{ color: 'rgba(94,129,244,0.8)' }}>Owner Dashboard → 📻 Radio</strong> tab.
-        </p>
       </div>
     );
   }
 
-  // ── Derived UI values ──────────────────────────────────────
-  const coverFallback = `linear-gradient(135deg, rgba(94,129,244,0.3) 0%, rgba(200,100,220,0.2) 100%)`;
-  const progress      = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const pct = duration > 0 ? (currentTime / duration) * 100 : 0;
 
-  // ── Render ─────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 12px 40px' }}>
-
-      {/* Header */}
-      <div style={{ textAlign: 'center', padding: '24px 0 20px' }}>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.6rem', fontWeight: 800, color: '#e2e5f0', margin: 0, letterSpacing: '-0.01em' }}>
-          📻 {config.name || 'Nova Radio'}
-        </h1>
-        {config.description && (
-          <p style={{ color: 'rgba(158,165,196,0.45)', fontSize: '0.82rem', marginTop: 4 }}>
-            {config.description}
-          </p>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 12px 40px', gap: 16 }}>
+      {/* Listeners pill */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+        <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#43b581', boxShadow: '0 0 6px #43b581', animation: 'pulseDot 1.8s ease-in-out infinite' }} />
+        <span style={{ fontSize: '0.75rem', color: 'rgba(158,165,196,0.5)', fontFamily: 'var(--font-mono)' }}>
+          {listeners.length || 1} listening
+        </span>
+        {config?.addedBy && (
+          <span style={{ fontSize: '0.72rem', color: 'rgba(158,165,196,0.25)' }}>
+            · curated by @{config.addedBy}
+          </span>
         )}
       </div>
 
-      {/* Main layout: player + playlist */}
-      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+      {/* ── iPod body ─────────────────────────────────────── */}
+      <div style={STYLES.ipodBody}>
 
-        {/* ── iPod player card ───────────────────────────── */}
-        <div style={{
-          flex: '1 1 300px', minWidth: 280,
-          background: 'linear-gradient(160deg, rgba(19,23,41,0.97) 0%, rgba(10,13,26,0.97) 100%)',
-          border: '1px solid rgba(94,129,244,0.18)',
-          borderRadius: 24,
-          padding: '28px 24px 24px',
-          display: 'flex', flexDirection: 'column', alignItems: 'center',
-          gap: 0,
-          boxShadow: isPlaying ? '0 0 40px rgba(94,129,244,0.12)' : 'none',
-          transition: 'box-shadow 0.6s ease',
-        }}>
-
-          {/* Album art */}
-          <div style={{
-            width: 200, height: 200,
-            borderRadius: 20,
-            background: track?.coverUrl ? 'transparent' : coverFallback,
-            overflow: 'hidden',
-            position: 'relative',
-            boxShadow: isPlaying
-              ? '0 12px 48px rgba(94,129,244,0.35), 0 0 0 1px rgba(94,129,244,0.2)'
-              : '0 8px 24px rgba(0,0,0,0.5)',
-            transition: 'box-shadow 0.4s ease',
-            flexShrink: 0,
-            marginBottom: 24,
-          }}>
-            {track?.coverUrl ? (
-              <img
-                id="nova-art-img"
-                src={track.coverUrl}
-                alt={track.title}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transformOrigin: 'center', transition: 'transform 0.05s linear' }}
-                onError={e => { e.target.style.display = 'none'; }}
-              />
-            ) : (
-              <div id="nova-art-img" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '5rem' }}>
-                🎵
-              </div>
-            )}
-            {/* Playing overlay pulse */}
-            {isPlaying && (
-              <div style={{ position: 'absolute', inset: 0, borderRadius: 20, border: '2px solid rgba(94,129,244,0.4)', animation: 'glowPulse 2s ease-in-out infinite', pointerEvents: 'none' }} />
-            )}
-          </div>
-
-          {/* Track info */}
-          <div style={{ width: '100%', textAlign: 'center', marginBottom: 18, minHeight: 50 }}>
-            <div style={{
-              fontFamily: 'var(--font-display)', fontWeight: 800,
-              fontSize: '1.05rem', color: '#ffffff',
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              marginBottom: 4,
-            }}>
-              {track?.title || 'Unknown Track'}
-            </div>
-            <div style={{ color: 'rgba(158,165,196,0.55)', fontSize: '0.82rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {track?.artist || '—'}
-            </div>
-            <div style={{ fontSize: '0.7rem', color: 'rgba(158,165,196,0.3)', marginTop: 4 }}>
-              {trackIdx + 1} / {playlist.length}
-            </div>
-          </div>
-
-          {/* Progress bar */}
-          <div style={{ width: '100%', marginBottom: 8 }}>
-            <div style={{ position: 'relative', height: 4, borderRadius: 2, background: 'rgba(94,129,244,0.12)', cursor: 'pointer', marginBottom: 6 }}>
-              {/* Filled */}
-              <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${progress}%`, borderRadius: 2, background: 'linear-gradient(90deg, #5e81f4, #c864dc)', transition: 'width 0.5s linear' }} />
-              {/* Thumb */}
-              <div style={{ position: 'absolute', top: '50%', left: `${progress}%`, width: 12, height: 12, borderRadius: '50%', background: '#ffffff', transform: 'translate(-50%,-50%)', boxShadow: '0 0 6px rgba(94,129,244,0.6)', opacity: duration > 0 ? 1 : 0, transition: 'left 0.5s linear' }} />
-              {/* Invisible range input for drag-to-seek */}
-              <input
-                type="range"
-                min={0}
-                max={duration || 100}
-                step={0.5}
-                value={currentTime}
-                onChange={handleSeek}
-                style={{ position: 'absolute', inset: '-8px 0', width: '100%', height: '20px', opacity: 0, cursor: 'pointer', margin: 0 }}
-              />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'rgba(158,165,196,0.4)', fontFamily: 'var(--font-mono)' }}>
-              <span>{fmtTime(currentTime)}</span>
-              <span>{duration > 0 ? fmtTime(duration) : ytId ? '—' : '—'}</span>
-            </div>
-          </div>
-
-          {/* Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginTop: 8 }}>
-            {/* Prev */}
-            <button onClick={handlePrev} disabled={playlist.length < 2}
-              style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(94,129,244,0.08)', border: '1px solid rgba(94,129,244,0.2)', color: 'rgba(158,165,196,0.8)', fontSize: '1.1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', opacity: playlist.length < 2 ? 0.3 : 1 }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(94,129,244,0.18)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'rgba(94,129,244,0.08)'}
-            >
-              ⏮
-            </button>
-
-            {/* Play / Pause */}
-            <button onClick={handlePlayPause}
-              style={{ width: 60, height: 60, borderRadius: '50%', background: isPlaying ? 'rgba(94,129,244,0.2)' : 'linear-gradient(135deg,#5e81f4,#c864dc)', border: isPlaying ? '2px solid rgba(94,129,244,0.5)' : 'none', color: '#ffffff', fontSize: '1.4rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: isPlaying ? '0 0 20px rgba(94,129,244,0.4)' : '0 4px 16px rgba(94,129,244,0.3)', transition: 'all 0.2s' }}
-            >
-              {isPlaying ? '⏸' : '▶'}
-            </button>
-
-            {/* Next */}
-            <button onClick={handleNext} disabled={playlist.length < 2}
-              style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(94,129,244,0.08)', border: '1px solid rgba(94,129,244,0.2)', color: 'rgba(158,165,196,0.8)', fontSize: '1.1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', opacity: playlist.length < 2 ? 0.3 : 1 }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(94,129,244,0.18)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'rgba(94,129,244,0.08)'}
-            >
-              ⏭
-            </button>
-          </div>
-
-          {/* Listener count */}
-          <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#43b581', boxShadow: '0 0 6px #43b581', animation: 'pulse-dot 1.8s ease-in-out infinite' }} />
-              <span style={{ fontSize: '0.75rem', color: 'rgba(158,165,196,0.5)' }}>
-                {listeners.length || 0} listening
-              </span>
-            </div>
-            {config.addedBy && (
-              <span style={{ fontSize: '0.72rem', color: 'rgba(158,165,196,0.3)' }}>
-                · curated by @{config.addedBy}
+        {/* Screen */}
+        <div style={STYLES.screen}>
+          {/* Screen header bar */}
+          <div style={STYLES.screenHeader}>
+            <span style={{ opacity: 0.5 }}>{view === 'songs' ? '🎵 Songs' : config?.name || 'NOVA RADIO'}</span>
+            {view === 'nowplaying' && isLive && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.6rem', color: '#ff4d4d', fontWeight: 700 }}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#ff4d4d', animation: 'pulseDot 1s ease-in-out infinite', display: 'inline-block' }} />
+                LIVE
               </span>
             )}
+            {view === 'nowplaying' && !isLive && interacted && (
+              <button onClick={handleReturnLive} style={{ fontSize: '0.55rem', padding: '1px 5px', background: 'rgba(94,129,244,0.2)', border: '1px solid rgba(94,129,244,0.4)', color: '#8aa4ff', borderRadius: 3, cursor: 'pointer', fontFamily: 'inherit' }}>
+                ↩ Live
+              </button>
+            )}
           </div>
 
-          {/* Mobile: show playlist toggle */}
-          <button
-            onClick={() => setShowList(p => !p)}
-            style={{ marginTop: 16, padding: '8px 20px', background: 'rgba(94,129,244,0.07)', border: '1px solid rgba(94,129,244,0.18)', color: 'rgba(158,165,196,0.6)', borderRadius: 8, cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'none' }}
-            className="radio-playlist-toggle"
-          >
-            {showList ? 'Hide Playlist ▲' : 'Playlist ▼'}
-          </button>
+          {/* Screen content */}
+          {view === 'nowplaying' ? (
+            <NowPlayingView
+              track={track}
+              isPlaying={isPlaying}
+              currentTime={currentTime}
+              duration={duration}
+              pct={pct}
+              onSeek={handleSeek}
+              interacted={interacted}
+              tuneMsg={tuneMsg}
+              trackIdx={trackIdx}
+              total={playlist.length}
+            />
+          ) : (
+            <SongListView
+              playlist={playlist}
+              cursor={listCursor}
+              currentIdx={trackIdx}
+              isPlaying={isPlaying}
+            />
+          )}
         </div>
 
-        {/* ── Playlist sidebar ───────────────────────────── */}
-        <div style={{
-          flex: '1 1 240px', minWidth: 220,
-          background: 'linear-gradient(160deg, rgba(19,23,41,0.97) 0%, rgba(10,13,26,0.97) 100%)',
-          border: '1px solid rgba(94,129,244,0.18)',
-          borderRadius: 20,
-          overflow: 'hidden',
-        }}>
-          {/* Sidebar header */}
-          <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid rgba(94,129,244,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgba(158,165,196,0.4)' }}>
-              📋 Playlist · {playlist.length} tracks
-            </div>
-          </div>
-
-          {/* Track list */}
-          <div style={{ maxHeight: 440, overflowY: 'auto', scrollbarWidth: 'thin' }}>
-            {playlist.map((t, i) => {
-              const isActive = i === trackIdx;
-              return (
-                <div
-                  key={t.id || i}
-                  onClick={() => selectTrack(i)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '10px 16px',
-                    cursor: 'pointer',
-                    background: isActive ? 'rgba(94,129,244,0.1)' : 'transparent',
-                    borderLeft: isActive ? '3px solid var(--color-cyan)' : '3px solid transparent',
-                    transition: 'all 0.15s',
-                  }}
-                  onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(94,129,244,0.05)'; }}
-                  onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
-                >
-                  {/* Cover thumb */}
-                  <div style={{ width: 38, height: 38, borderRadius: 6, overflow: 'hidden', flexShrink: 0, background: 'rgba(94,129,244,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>
-                    {t.coverUrl
-                      ? <img src={t.coverUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display='none'; }} />
-                      : '🎵'
-                    }
-                  </div>
-
-                  {/* Info */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: '0.83rem', color: isActive ? '#ffffff' : 'rgba(220,230,255,0.75)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {t.title || 'Untitled'}
-                    </div>
-                    <div style={{ fontSize: '0.72rem', color: 'rgba(158,165,196,0.45)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {t.artist || '—'}
-                    </div>
-                  </div>
-
-                  {/* Playing indicator */}
-                  {isActive && isPlaying && (
-                    <div style={{ display: 'flex', gap: 2, alignItems: 'flex-end', flexShrink: 0, height: 14 }}>
-                      {[1, 2, 3].map(b => (
-                        <div key={b} style={{
-                          width: 3, borderRadius: 2,
-                          background: 'var(--color-cyan)',
-                          animation: `equalizerBar${b} 0.6s ease-in-out infinite alternate`,
-                          height: `${[8, 14, 10][b - 1]}px`,
-                          animationDelay: `${(b - 1) * 0.15}s`,
-                        }} />
-                      ))}
-                    </div>
-                  )}
-                  {isActive && !isPlaying && (
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgba(94,129,244,0.5)', flexShrink: 0 }} />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Hidden YouTube player div — must stay in DOM */}
-      <div style={{ position: 'absolute', left: -9999, width: 1, height: 1, overflow: 'hidden', pointerEvents: 'none' }}>
-        <div id={ytDivId} />
-      </div>
-
-      {/* Hidden HTML5 audio for direct files */}
-      {isDirect && track?.url && (
-        <audio
-          ref={audioRef}
-          src={track.url}
-          autoPlay
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
-          onEnded={handleNext}
-          onTimeUpdate={e => {
-            setCurrentTime(e.target.currentTime);
-            setDuration(e.target.duration || 0);
-          }}
-          onLoadedMetadata={e => setDuration(e.target.duration || 0)}
-          style={{ display: 'none' }}
+        {/* Click wheel */}
+        <ClickWheel
+          onMenu={handleMenuPress}
+          onPrev={handlePrevPress}
+          onNext={handleNextPress}
+          onPlayPause={handlePlayPausePress}
+          onCenter={handleCenterPress}
+          btnFx={btnFx}
+          isPlaying={isPlaying}
+          disabled={!playlist.length}
         />
-      )}
 
-      {/* Equalizer bar keyframes */}
+        {/* Nova wordmark */}
+        <div style={{ textAlign: 'center', marginTop: 8, fontSize: '0.65rem', color: '#c0c0c0', letterSpacing: '0.25em', fontWeight: 700 }}>
+          NOVA
+        </div>
+      </div>
+
+      {/* Hidden audio */}
+      <audio
+        ref={audioRef}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onEnded={handleEnded}
+        onLoadedMetadata={handleLoadedMetadata}
+        onTimeUpdate={() => {
+          const a = audioRef.current;
+          if (a) { setCurrentTime(a.currentTime); setDuration(a.duration || 0); }
+        }}
+        style={{ display: 'none' }}
+        crossOrigin="anonymous"
+      />
+
       <style>{`
-        @keyframes equalizerBar1 { from { height: 4px; } to { height: 14px; } }
-        @keyframes equalizerBar2 { from { height: 10px; } to { height: 4px; } }
-        @keyframes equalizerBar3 { from { height: 6px; } to { height: 12px; } }
-        @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
-        .radio-playlist-toggle { display: none !important; }
-        @media (max-width: 620px) {
-          .radio-playlist-toggle { display: flex !important; }
-        }
+        @keyframes pulseDot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(1.4)} }
+        @keyframes waveBar1 { 0%{height:4px} 100%{height:20px} }
+        @keyframes waveBar2 { 0%{height:10px} 100%{height:6px} }
+        @keyframes waveBar3 { 0%{height:6px} 100%{height:18px} }
+        @keyframes waveBar4 { 0%{height:14px} 100%{height:4px} }
+        @keyframes waveBar5 { 0%{height:8px} 100%{height:16px} }
+        @keyframes scroll { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
       `}</style>
     </div>
   );
+};
+
+// ─────────────────────────────────────────────────────────────
+//  Now Playing screen content
+// ─────────────────────────────────────────────────────────────
+const NowPlayingView = ({ track, isPlaying, currentTime, duration, pct, onSeek, interacted, tuneMsg, trackIdx, total }) => {
+  const titleLen = (track?.title || '').length;
+  const scroll   = isPlaying && titleLen > 16;
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '6px 10px 4px', overflow: 'hidden' }}>
+      {/* Cover art / waveform */}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+        <div style={{ width: 44, height: 44, borderRadius: 4, overflow: 'hidden', flexShrink: 0, background: 'rgba(94,129,244,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {track?.coverUrl
+            ? <img src={track.coverUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }} />
+            : (
+              <div style={{ display: 'flex', gap: 2, alignItems: 'flex-end', height: 22, paddingBottom: 2 }}>
+                {[1,2,3,4,5].map(i => (
+                  <div key={i} style={{
+                    width: 3, borderRadius: 2, background: '#5e81f4',
+                    animation: isPlaying ? `waveBar${i} ${0.6 + i * 0.1}s ease-in-out infinite alternate` : 'none',
+                    height: isPlaying ? undefined : 4,
+                    animationDelay: `${(i-1)*0.1}s`,
+                  }} />
+                ))}
+              </div>
+            )
+          }
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Scrolling title */}
+          <div style={{ overflow: 'hidden', whiteSpace: 'nowrap', position: 'relative' }}>
+            <span style={{
+              fontSize: '0.82rem', fontWeight: 700, color: '#e8eeff',
+              display: 'inline-block',
+              animation: scroll ? 'scroll 8s linear infinite' : 'none',
+              paddingRight: scroll ? '3rem' : 0,
+            }}>
+              {track?.title || 'No Track'}
+              {scroll && <span style={{ paddingLeft: '3rem' }}>{track?.title}</span>}
+            </span>
+          </div>
+          <div style={{ fontSize: '0.68rem', color: '#6a7a9a', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {track?.artist || '—'}
+          </div>
+          <div style={{ fontSize: '0.6rem', color: '#3a4a6a', marginTop: 1 }}>
+            {trackIdx + 1} of {total}
+          </div>
+        </div>
+      </div>
+
+      {/* Tune-in message or progress */}
+      {!interacted ? (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 4 }}>
+          <div style={{ fontSize: '0.65rem', color: '#3a5a8a', textAlign: 'center' }}>Press ● to tune in</div>
+          <div style={{ fontSize: '0.55rem', color: '#2a3a5a' }}>Live 24/7</div>
+        </div>
+      ) : (
+        <>
+          {tuneMsg && (
+            <div style={{ fontSize: '0.65rem', color: '#5e81f4', textAlign: 'center', marginBottom: 4 }}>{tuneMsg}</div>
+          )}
+          {/* Progress bar */}
+          <div style={{ marginTop: 'auto', paddingTop: 4 }}>
+            <div style={{ position: 'relative', height: 3, borderRadius: 2, background: 'rgba(94,129,244,0.15)', marginBottom: 4 }}>
+              <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${pct}%`, borderRadius: 2, background: 'linear-gradient(90deg,#5e81f4,#a78bfa)', transition: 'width 0.5s linear' }} />
+              <input type="range" min={0} max={duration || 100} step={0.5} value={currentTime}
+                onChange={onSeek}
+                style={{ position: 'absolute', inset: '-6px 0', width: '100%', height: '15px', opacity: 0, cursor: 'pointer', margin: 0 }}
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.58rem', color: '#3a5a8a', fontFamily: 'monospace' }}>
+              <span>{fmtTime(currentTime)}</span>
+              <span>-{fmtTime(Math.max(0, duration - currentTime))}</span>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────
+//  Song List screen
+// ─────────────────────────────────────────────────────────────
+const SongListView = ({ playlist, cursor, currentIdx, isPlaying }) => {
+  // Show 5 items centered around cursor
+  const visible = 5;
+  const start   = Math.max(0, Math.min(cursor - 2, playlist.length - visible));
+  const items   = playlist.slice(start, start + visible);
+
+  return (
+    <div style={{ flex: 1, overflow: 'hidden', paddingTop: 2 }}>
+      {items.map((t, i) => {
+        const realIdx   = start + i;
+        const isCursor  = realIdx === cursor;
+        const isPlaying_ = realIdx === currentIdx && isPlaying;
+        return (
+          <div key={t.id || realIdx} style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: '3px 8px',
+            background: isCursor ? '#2a4adc' : 'transparent',
+            borderRadius: 2,
+          }}>
+            <span style={{ width: 14, textAlign: 'center', fontSize: '0.55rem', color: isCursor ? '#fff' : '#2a4a8a', flexShrink: 0 }}>
+              {isPlaying_ ? '♫' : realIdx + 1}
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: isCursor ? 700 : 400, color: isCursor ? '#fff' : '#8a9abb', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {t.title || 'Untitled'}
+              </div>
+              <div style={{ fontSize: '0.58rem', color: isCursor ? 'rgba(255,255,255,0.6)' : '#3a4a6a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {t.artist || '—'}
+              </div>
+            </div>
+            <span style={{ fontSize: '0.55rem', color: isCursor ? 'rgba(255,255,255,0.5)' : '#2a3a5a', flexShrink: 0, fontFamily: 'monospace' }}>
+              {t.duration ? fmtTime(t.duration) : ''}
+            </span>
+          </div>
+        );
+      })}
+      {/* Scroll hint */}
+      {playlist.length > visible && (
+        <div style={{ textAlign: 'center', fontSize: '0.55rem', color: '#1a2a4a', marginTop: 2 }}>
+          ⏮ ⏭ to scroll · ● to play
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────
+//  Click Wheel component
+// ─────────────────────────────────────────────────────────────
+const ClickWheel = ({ onMenu, onPrev, onNext, onPlayPause, onCenter, btnFx, isPlaying, disabled }) => {
+  const pressed = (zone) => btnFx === zone;
+
+  const zoneStyle = (zone) => ({
+    position: 'absolute',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    cursor: disabled ? 'default' : 'pointer',
+    userSelect: 'none',
+    transition: 'all 0.1s',
+    borderRadius: 4,
+    background: pressed(zone) ? 'rgba(0,0,0,0.08)' : 'transparent',
+  });
+
+  const labelStyle = {
+    fontSize: '0.6rem', fontWeight: 700, color: pressed('menu') ? '#444' : '#888',
+    textTransform: 'uppercase', letterSpacing: '0.05em',
+  };
+
+  return (
+    <div style={STYLES.wheelOuter}>
+      {/* Top — MENU */}
+      <div onClick={disabled ? null : onMenu}
+        style={{ ...zoneStyle('menu'), top: '8%', left: '25%', right: '25%', height: '22%' }}>
+        <span style={labelStyle}>menu</span>
+      </div>
+
+      {/* Left — ⏮ / Scroll Up */}
+      <div onClick={disabled ? null : onPrev}
+        style={{ ...zoneStyle('left'), top: '28%', left: '5%', width: '22%', height: '44%' }}>
+        <span style={{ fontSize: '1rem', color: pressed('left') ? '#444' : '#888', lineHeight: 1 }}>⏮</span>
+      </div>
+
+      {/* Right — ⏭ / Scroll Down */}
+      <div onClick={disabled ? null : onNext}
+        style={{ ...zoneStyle('right'), top: '28%', right: '5%', width: '22%', height: '44%' }}>
+        <span style={{ fontSize: '1rem', color: pressed('right') ? '#444' : '#888', lineHeight: 1 }}>⏭</span>
+      </div>
+
+      {/* Bottom — ⏯ */}
+      <div onClick={disabled ? null : onPlayPause}
+        style={{ ...zoneStyle('bottom'), bottom: '8%', left: '25%', right: '25%', height: '22%' }}>
+        <span style={{ fontSize: '1rem', color: pressed('bottom') ? '#444' : '#888', lineHeight: 1 }}>
+          {isPlaying ? '⏸' : '▶'}
+        </span>
+      </div>
+
+      {/* Center button */}
+      <div onClick={disabled ? null : onCenter}
+        style={{
+          position: 'absolute', top: '50%', left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: 68, height: 68, borderRadius: '50%',
+          background: pressed('center')
+            ? 'radial-gradient(circle at 40% 35%, #d0d0d0, #b8b8b8)'
+            : 'radial-gradient(circle at 40% 35%, #f0f0f0, #d8d8d8)',
+          boxShadow: pressed('center')
+            ? 'inset 0 2px 6px rgba(0,0,0,0.25)'
+            : '0 2px 4px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.8)',
+          cursor: disabled ? 'default' : 'pointer',
+          transition: 'all 0.1s',
+          border: '1px solid rgba(0,0,0,0.1)',
+        }}
+      />
+    </div>
+  );
+};
+
+// Dead wheel (no playlist)
+const WheelDead = () => (
+  <div style={STYLES.wheelOuter}>
+    <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 68, height: 68, borderRadius: '50%', background: 'radial-gradient(circle at 40% 35%, #f0f0f0, #d8d8d8)', boxShadow: '0 2px 4px rgba(0,0,0,0.15)' }} />
+  </div>
+);
+
+// ─────────────────────────────────────────────────────────────
+//  Shared styles
+// ─────────────────────────────────────────────────────────────
+const STYLES = {
+  ipodBody: {
+    width: 280,
+    background: 'linear-gradient(160deg, #f8f8f8 0%, #e8e8e8 100%)',
+    borderRadius: 28,
+    padding: '14px 14px 18px',
+    boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 4px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.9)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 14,
+    border: '1px solid rgba(0,0,0,0.12)',
+  },
+  screen: {
+    width: '100%',
+    height: 160,
+    background: 'linear-gradient(160deg, #0a1020 0%, #060d1a 100%)',
+    borderRadius: 6,
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+    boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.6)',
+    border: '1px solid rgba(0,0,0,0.4)',
+  },
+  screenHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '4px 8px',
+    background: 'rgba(94,129,244,0.12)',
+    borderBottom: '1px solid rgba(94,129,244,0.1)',
+    fontSize: '0.62rem',
+    color: '#4a6a9a',
+    fontWeight: 700,
+    letterSpacing: '0.08em',
+    fontFamily: 'var(--font-mono)',
+    flexShrink: 0,
+  },
+  wheelOuter: {
+    width: 220,
+    height: 220,
+    borderRadius: '50%',
+    position: 'relative',
+    background: 'radial-gradient(circle at 40% 35%, #f4f4f4 0%, #d8d8d8 100%)',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.8), inset 0 -1px 0 rgba(0,0,0,0.08)',
+    border: '1px solid rgba(0,0,0,0.12)',
+    flexShrink: 0,
+  },
 };
 
 export default NovaRadio;
