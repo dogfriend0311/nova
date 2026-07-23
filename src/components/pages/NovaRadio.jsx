@@ -82,7 +82,7 @@ const NovaRadio = ({ user }) => {
   const [duration,    setDuration]    = useState(0);
   const [listeners,   setListeners]   = useState([]);
   const [showList,    setShowList]    = useState(false);
-  const [ytReady,     setYtReady]     = useState(false);
+  // ytReady tracked via _ytReady module-level flag
 
   // Refs
   const audioRef    = useRef(null);

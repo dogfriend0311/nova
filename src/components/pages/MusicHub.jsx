@@ -163,7 +163,6 @@ const MusicVisualizer = () => {
   const analyserRef  = useRef(null);
   const sourceRef    = useRef(null);
   const animRef      = useRef(null);
-  const wfDataRef    = useRef(null);    // waterfall image data
   const timeRef      = useRef(0);
 
   const [isPlaying,  setIsPlaying]  = useState(false);
