@@ -10,7 +10,7 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, on
     { id: 'leagues', label: 'Leagues', icon: 'Baseball' },
     { id: 'games',   label: 'Games',   icon: 'Gamepad' },
     { id: 'members', label: 'Members', icon: 'Users' },
-    { id: 'lastfm',  label: 'Last.fm', icon: 'Music' },
+    { id: 'music',   label: 'Music',   icon: 'Music' },
     { id: 'store',   label: 'Store',   icon: 'Store' },
   ];
 

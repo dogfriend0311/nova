@@ -4,37 +4,19 @@ import { awardBadge } from '../../services/achievementsService';
 
 const STORAGE_KEY = (username) => `nova_roblox_${username}`;
 
-// ── CORS proxy list — tried in order until one works ─────────
-const PROXIES = [
-  (url) => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
-  (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-];
-
-async function proxyFetch(url, opts = {}) {
-  let lastErr;
-  for (const makeProxy of PROXIES) {
-    try {
-      const res = await fetch(makeProxy(url), opts);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res;
-    } catch (e) {
-      lastErr = e;
-    }
+// Roblox lookups now go through our own /api/roblox-lookup serverless
+// function (server-to-server, no CORS issue) instead of public CORS
+// proxies like corsproxy.io / allorigins, which were unreliable and had
+// no timeout — that's what caused "unable to find username" + an
+// infinite loading spinner. This fetch always resolves within ~10s.
+async function fetchWithTimeout(url, ms = 10000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
   }
-  throw lastErr || new Error('All proxies failed');
-}
-
-// ── POST via corsproxy.io (supports body forwarding) ─────────
-async function proxyPost(url, body) {
-  const proxied = `https://corsproxy.io/?url=${encodeURIComponent(url)}`;
-  const res = await fetch(proxied, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`POST failed: HTTP ${res.status}`);
-  return res;
 }
 
 const RobloxTracker = ({ user }) => {
@@ -66,84 +48,11 @@ const RobloxTracker = ({ user }) => {
     setProfile(null);
 
     try {
-      // ── Step 1: Resolve username → user ID ──────────────
-      // Primary: new Roblox POST endpoint (v1/usernames/users)
-      let userId, username, displayName;
-
-      try {
-        const postRes = await proxyPost(
-          'https://users.roblox.com/v1/usernames/users',
-          { usernames: [uname], excludeBannedUsers: false }
-        );
-        const postData = await postRes.json();
-        const user0 = postData?.data?.[0];
-        if (!user0 || !user0.id) throw new Error('User not found via new API');
-        userId      = user0.id;
-        username    = user0.name;
-        displayName = user0.displayName || user0.name;
-      } catch (newApiErr) {
-        // Fallback: old endpoint (deprecated but sometimes still works)
-        try {
-          const oldRes  = await proxyFetch(`https://api.roblox.com/users/get-by-username?username=${encodeURIComponent(uname)}`);
-          const oldData = await oldRes.json();
-          if (oldData.errorMessage || !oldData.Id) throw new Error(oldData.errorMessage || 'User not found');
-          userId      = oldData.Id;
-          username    = oldData.Username;
-          displayName = oldData.Username;
-        } catch {
-          throw new Error(`User "${uname}" not found. Check spelling and try again.`);
-        }
+      const res = await fetchWithTimeout(`/api/roblox-lookup?username=${encodeURIComponent(uname)}`, 10000);
+      const result = await res.json().catch(() => null);
+      if (!res.ok || !result) {
+        throw new Error(result?.error || `User "${uname}" not found. Check spelling and try again.`);
       }
-
-      // ── Step 2: Get full user info ───────────────────────
-      let description = '', created = null, isBanned = false;
-      try {
-        const infoRes  = await proxyFetch(`https://users.roblox.com/v1/users/${userId}`);
-        const info     = await infoRes.json();
-        description = info.description || '';
-        created     = info.created || null;
-        isBanned    = info.isBanned || false;
-        // The v1/users/:id endpoint also returns name/displayName — use them as the source of truth
-        if (info.name)        username    = info.name;
-        if (info.displayName) displayName = info.displayName;
-      } catch {}
-
-      // ── Step 3: Avatar thumbnail ─────────────────────────
-      let avatar = null;
-      try {
-        const thumbRes  = await proxyFetch(`https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=150x150&format=Png&isCircular=true`);
-        const thumbData = await thumbRes.json();
-        avatar = thumbData?.data?.[0]?.imageUrl || null;
-      } catch {}
-
-      // ── Step 4: Badge count ──────────────────────────────
-      let badgeCount = null;
-      try {
-        const badgeRes  = await proxyFetch(`https://badges.roblox.com/v1/users/${userId}/badges?limit=10&sortOrder=Desc`);
-        const badgeData = await badgeRes.json();
-        badgeCount = badgeData?.data?.length ?? null;
-      } catch {}
-
-      // ── Step 5: Friend count ─────────────────────────────
-      let friendCount = null;
-      try {
-        const friendRes  = await proxyFetch(`https://friends.roblox.com/v1/users/${userId}/friends/count`);
-        const friendData = await friendRes.json();
-        friendCount = friendData?.count ?? null;
-      } catch {}
-
-      const result = {
-        id: userId,
-        username,
-        displayName,
-        description,
-        created,
-        isBanned,
-        avatar,
-        badgeCount,
-        friendCount,
-        fetchedAt: new Date().toISOString(),
-      };
 
       setProfile(result);
 
@@ -154,7 +63,7 @@ const RobloxTracker = ({ user }) => {
         awardBadge(user.username, 'roblox_linked');
       }
     } catch (e) {
-      setError(e.message || 'Failed to fetch Roblox profile');
+      setError(e.name === 'AbortError' ? 'Roblox took too long to respond. Please try again.' : (e.message || 'Failed to fetch Roblox profile'));
     } finally {
       setLoading(false);
     }

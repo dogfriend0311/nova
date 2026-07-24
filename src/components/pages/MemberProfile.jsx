@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../services/supabaseClient';
 import { TEAMS, SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl } from '../../data/teams';
 import { getWatchList } from '../../services/mediaService';
 import * as lfm from '../../services/lastfmService';
@@ -20,7 +21,12 @@ const DEFAULT_PROFILE = {
   twitter_url: '', twitch_url: '', youtube_url: '', instagram_url: '',
   discord_tag: '', fav_teams: DEFAULT_FAV_TEAMS,
   fav_games: [],
+  // guns.lol-style page customization
+  bg_media_url: '', bg_media_type: '', // 'video' | 'image'
+  audio_url: '', audio_title: '',
 };
+
+function _uid() { return Math.random().toString(36).slice(2, 10); }
 
 // ── Roblox URL helpers ────────────────────────────────────────
 function parseRobloxPlaceId(input) {
@@ -74,7 +80,78 @@ const ImageField = ({ label, fieldKey, value, onChange }) => {
   );
 };
 
-// ── Team Selector ─────────────────────────────────────────────
+// ── Background / Audio upload field (guns.lol-style) ──────────
+// Unlike ImageField (which stores small images as base64), these files can
+// be large, so they upload to Supabase Storage bucket "member-media" and
+// only the resulting URL is saved on the profile.
+const MediaUploadField = ({ label, accept, kind, username, urlValue, extraValue, onChange, onExtraChange, hint }) => {
+  const inputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  const [error,     setError]     = useState('');
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const maxMb = kind === 'video' ? 40 : 15;
+    if (file.size > maxMb * 1024 * 1024) {
+      setError(`File must be under ${maxMb} MB`);
+      return;
+    }
+    setUploading(true);
+    setError('');
+    try {
+      const ext  = file.name.split('.').pop();
+      const path = `${kind}/${username || 'user'}-${Date.now()}-${_uid()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('member-media')
+        .upload(path, file, { cacheControl: '3600', upsert: false });
+      if (upErr) {
+        if (upErr.message?.toLowerCase().includes('bucket')) {
+          setError('Storage bucket "member-media" not found. Ask an admin to create a public bucket named exactly "member-media" in Supabase.');
+        } else {
+          setError(upErr.message || 'Upload failed');
+        }
+        setUploading(false);
+        return;
+      }
+      const { data: { publicUrl } } = supabase.storage.from('member-media').getPublicUrl(path);
+      onChange(publicUrl, kind === 'bg' ? (file.type.startsWith('video') ? 'video' : 'image') : undefined);
+      if (kind === 'audio' && onExtraChange) {
+        const base = file.name.replace(/\.[^/.]+$/, '');
+        onExtraChange(base);
+      }
+    } catch (err) {
+      setError(err.message || 'Upload failed');
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  };
+
+  return (
+    <div className="form-group mp-image-field">
+      <label>{label}</label>
+      {hint && <small style={{ color: 'rgba(158,165,196,0.4)', fontSize: '0.75rem', display: 'block', marginBottom: 6 }}>{hint}</small>}
+      <div className="mp-image-upload-row">
+        <label className="mp-upload-btn" title="Upload from device" style={{ opacity: uploading ? 0.6 : 1 }}>
+          {uploading ? 'Uploading…' : '📁 Upload'}
+          <input ref={inputRef} type="file" accept={accept} onChange={handleFile} style={{ display: 'none' }} disabled={uploading} />
+        </label>
+        {urlValue && !uploading && (
+          <button className="mp-upload-clear" onClick={() => { onChange('', ''); if (onExtraChange) onExtraChange(''); }} title="Remove">✕ Remove</button>
+        )}
+      </div>
+      {error && <div style={{ color: '#ff6b7a', fontSize: '0.75rem', marginTop: 4 }}>⚠ {error}</div>}
+      {urlValue && (
+        <div style={{ marginTop: 6, fontSize: '0.75rem', color: 'rgba(158,165,196,0.5)' }}>
+          {kind === 'audio' ? `🎵 ${extraValue || 'Uploaded track'}` : `✓ ${kind === 'bg' ? 'Background' : 'File'} uploaded`}
+        </div>
+      )}
+    </div>
+  );
+};
+
+
 const TeamSelector = ({ favTeams, onChange }) => {
   const [activeSport, setActiveSport] = useState('mlb');
   const hasLogos = ['mlb', 'nfl', 'nba', 'nhl'].includes(activeSport);
@@ -230,6 +307,83 @@ const LastFmWidget = ({ lastfmUsername }) => {
   );
 };
 
+// ── Full-page background media (guns.lol style) ───────────────
+const ProfileBackground = ({ url, type }) => {
+  if (!url) return null;
+  const overlayStyle = {
+    position: 'fixed', inset: 0, zIndex: -1,
+    background: 'linear-gradient(180deg, rgba(10,13,26,0.55) 0%, rgba(10,13,26,0.75) 60%, rgba(10,13,26,0.92) 100%)',
+  };
+  const mediaWrapStyle = { position: 'fixed', inset: 0, zIndex: -2, overflow: 'hidden' };
+  return (
+    <div aria-hidden="true">
+      <div style={mediaWrapStyle}>
+        {type === 'video' ? (
+          <video
+            src={url} autoPlay muted loop playsInline
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        ) : (
+          <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
+        )}
+      </div>
+      <div style={overlayStyle} />
+    </div>
+  );
+};
+
+// ── Autoplaying profile audio — with a click-to-enable fallback since ──
+// browsers block unmuted autoplay until the visitor interacts with the page.
+const ProfileAudioPlayer = ({ url, title }) => {
+  const audioRef = useRef(null);
+  const [blocked, setBlocked] = useState(false);
+  const [playing, setPlaying] = useState(false);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.volume = 0.5;
+    audio.play().then(() => setPlaying(true)).catch(() => setBlocked(true));
+  }, [url]);
+
+  const enable = () => {
+    audioRef.current?.play().then(() => { setPlaying(true); setBlocked(false); }).catch(() => {});
+  };
+  const toggle = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (playing) { audio.pause(); setPlaying(false); }
+    else { audio.play().then(() => setPlaying(true)).catch(() => {}); }
+  };
+
+  return (
+    <>
+      <audio ref={audioRef} src={url} loop onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} />
+      {blocked ? (
+        <button onClick={enable} style={{
+          position: 'fixed', bottom: 18, right: 18, zIndex: 50,
+          display: 'flex', alignItems: 'center', gap: 6,
+          padding: '10px 16px', borderRadius: 999, minHeight: 44,
+          background: 'rgba(94,129,244,0.9)', color: '#fff', border: 'none',
+          fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+        }}>
+          🔊 Click for sound{title ? ` — ${title}` : ''}
+        </button>
+      ) : (
+        <button onClick={toggle} title={playing ? 'Pause profile audio' : 'Play profile audio'} style={{
+          position: 'fixed', bottom: 18, right: 18, zIndex: 50,
+          width: 44, height: 44, borderRadius: '50%',
+          background: 'rgba(20,24,40,0.75)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)',
+          fontSize: '1.1rem', cursor: 'pointer', backdropFilter: 'blur(6px)',
+        }}>
+          {playing ? '🔊' : '🔇'}
+        </button>
+      )}
+    </>
+  );
+};
+
 // ══════════════════════════════════════════════════════════════
 //  Main MemberProfile
 // ══════════════════════════════════════════════════════════════
@@ -381,6 +535,29 @@ const MemberProfile = () => {
           <div className="neon-card p-3">
             <ImageField label="Banner Image"          fieldKey="top_banner_url" value={formData.top_banner_url || ''} onChange={handleField} />
             <ImageField label="Avatar / Profile Pic"  fieldKey="avatar_url"     value={formData.avatar_url || ''}     onChange={handleField} />
+
+            <h4 className="gradient-text-cyan" style={{ margin: '20px 0 10px' }}>Page Customization</h4>
+            <MediaUploadField
+              label="Page Background (video or image)"
+              accept="video/*,image/*"
+              kind="bg"
+              username={user?.username}
+              urlValue={formData.bg_media_url}
+              extraValue={formData.bg_media_type}
+              onChange={(url, type) => setFormData({ ...formData, bg_media_url: url, bg_media_type: type })}
+              hint="Shows behind your whole profile, like a guns.lol page. Video loops muted; under 40MB."
+            />
+            <MediaUploadField
+              label="Profile Audio"
+              accept="audio/*"
+              kind="audio"
+              username={user?.username}
+              urlValue={formData.audio_url}
+              extraValue={formData.audio_title}
+              onChange={(url) => setFormData({ ...formData, audio_url: url })}
+              onExtraChange={(title) => setFormData({ ...formData, audio_title: title })}
+              hint="Plays for visitors to your page. Under 15MB. Admins can remove this from the Owner Dashboard if it's inappropriate."
+            />
             <div className="form-group">
               <label>About Me</label>
               <textarea rows="4" value={formData.bio || ''} onChange={(e) => setFormData({ ...formData, bio: e.target.value })} placeholder="Tell us about yourself…" />
@@ -456,6 +633,14 @@ const MemberProfile = () => {
 
   return (
     <div className="tw-page">
+      {/* Custom page background — guns.lol style */}
+      {profile.bg_media_url && (
+        <ProfileBackground url={profile.bg_media_url} type={profile.bg_media_type} />
+      )}
+      {profile.audio_url && (
+        <ProfileAudioPlayer url={profile.audio_url} title={profile.audio_title} />
+      )}
+
       {/* Banner */}
       <div className="tw-banner" style={{ backgroundImage: profile.top_banner_url ? `url(${profile.top_banner_url})` : undefined }}>
         <div className="tw-avatar-wrap">

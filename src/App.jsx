@@ -8,7 +8,7 @@ import MemberProfile from './components/pages/MemberProfile';
 import LeaguesPage from './components/pages/LeaguesPage';
 import LeaguePlayerPage from './LeaguePlayerPage';
 import LoginModal from './components/auth/LoginModal';
-import OwnerDashboard from './components/admin/OwnerDashboard';
+import OwnerDashboard from './components/pages/OwnerDashboard';
 import RoadToTheShow from './components/pages/RoadToTheShow';
 import FantasyHub from './components/pages/FantasyHub';
 import PickemsHub from './components/pages/PickemsHub';

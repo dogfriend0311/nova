@@ -37,6 +37,15 @@ const MemberPagesTab = () => {
     setEditing(null);
   };
 
+  const removeMedia = async (p, fields) => {
+    const label = fields.includes('audio_url') ? 'audio' : 'background media';
+    if (!window.confirm(`Remove ${p.username}'s ${label}?`)) return;
+    const cleared = { ...p };
+    fields.forEach(f => { cleared[f] = ''; });
+    await db.saveMemberProfile(cleared);
+    setProfiles(prev => prev.map(x => x.username === p.username ? cleared : x));
+  };
+
   if (editing) return (
     <div className="tab-content">
       <button className="neon-button" style={{ marginBottom:'20px' }} onClick={() => setEditing(null)}>Back</button>
@@ -68,9 +77,24 @@ const MemberPagesTab = () => {
             <div>
               <p style={{ margin:0, color:'var(--color-cyan)', fontWeight:700 }}>{p.username}</p>
               <p style={{ margin:'4px 0 0', fontSize:'0.8rem', color:'rgba(158, 165, 196,0.5)' }}>{p.bio||'No bio'}</p>
+              <p style={{ margin:'4px 0 0', fontSize:'0.72rem', color:'rgba(158, 165, 196,0.35)' }}>
+                {p.bg_media_url ? `🖼 ${p.bg_media_type === 'video' ? 'Video' : 'Image'} background` : 'No background'}
+                {' · '}
+                {p.audio_url ? `🎵 ${p.audio_title || 'Audio uploaded'}` : 'No audio'}
+              </p>
             </div>
-            <div style={{ display:'flex', gap:'8px' }}>
+            <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
               <button className="neon-button" onClick={() => startEdit(p)}>Edit</button>
+              {p.audio_url && (
+                <button className="neon-button" style={{ borderColor:'#ff8800', color:'#ff8800' }} onClick={() => removeMedia(p, ['audio_url','audio_title'])}>
+                  🗑 Remove Audio
+                </button>
+              )}
+              {p.bg_media_url && (
+                <button className="neon-button" style={{ borderColor:'#ff8800', color:'#ff8800' }} onClick={() => removeMedia(p, ['bg_media_url','bg_media_type'])}>
+                  🗑 Remove Background
+                </button>
+              )}
               <button className="neon-button" style={{ borderColor:'#ff8800', color:'#ff8800' }} onClick={() => {
                 if (!window.confirm(`Delete profile for ${p.username}?`)) return;
                 const updated = profiles.filter(x => x.username !== p.username);
@@ -1402,296 +1426,6 @@ const FantasyScheduleTab = () => {
     </div>
   );
 };
-
-/* ── RADIO ADMIN TAB ────────────────────────────────────────── */
-
-/* ── Radio admin helpers ── */
-function _radioUid() { return Math.random().toString(36).slice(2, 10); }
-function _readRadioConfig() {
-  try { return JSON.parse(localStorage.getItem('nova_radio_config') || 'null'); } catch { return null; }
-}
-function _parseFilename(name) {
-  const base = name.replace(/\.[^/.]+$/, '');
-  const m    = base.match(/^(.+?)\s*[-–—]\s*(.+)$/);
-  return m ? { artist: m[1].trim(), title: m[2].trim() }
-           : { artist: 'Nova Radio', title: base };
-}
-function _getAudioDuration(url) {
-  return new Promise(resolve => {
-    const a = new Audio();
-    const done = (v) => { a.src = ''; resolve(v); };
-    a.onloadedmetadata = () => done(Math.round(a.duration) || 180);
-    a.onerror = () => done(180);
-    setTimeout(() => done(180), 10000);
-    a.src = url;
-  });
-}
-
-const RadioAdminTab = () => {
-  const { user } = useAuth();
-  const fileInputRef = useRef(null);
-
-  const [stationName, setStationName] = useState('Nova Radio');
-  const [description, setDescription] = useState('');
-  const [playlist,    setPlaylist]    = useState([]);
-  const [saved,       setSaved]       = useState(false);
-
-  /* Upload state */
-  const [uploading,    setUploading]    = useState(false);
-  const [uploadStatus, setUploadStatus] = useState('');
-  const [uploadError,  setUploadError]  = useState('');
-
-  /* Editing a track inline */
-  const [editId,     setEditId]     = useState(null);
-  const [editTitle,  setEditTitle]  = useState('');
-  const [editArtist, setEditArtist] = useState('');
-
-  /* Load on mount */
-  useEffect(() => {
-    const tryLoad = async () => {
-      let cfg = null;
-      try { if (db?.getRadioConfig) cfg = await db.getRadioConfig(); } catch {}
-      if (!cfg) cfg = _readRadioConfig();
-      if (cfg) {
-        setStationName(cfg.name        || 'Nova Radio');
-        setDescription(cfg.description || '');
-        setPlaylist(cfg.playlist       || []);
-      }
-    };
-    tryLoad();
-  }, []);
-
-  /* ── File upload ─────────────────────────────────────────── */
-  async function handleFiles(e) {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
-    setUploading(true);
-    setUploadError('');
-    const added = [];
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      setUploadStatus(`Uploading ${i + 1}/${files.length}: ${file.name}`);
-      try {
-        const ext  = file.name.split('.').pop();
-        const path = `tracks/${Date.now()}-${_radioUid()}.${ext}`;
-
-        const { error: upErr } = await supabase.storage
-          .from('radio-tracks')
-          .upload(path, file, { cacheControl: '3600', upsert: false });
-
-        if (upErr) {
-          if (upErr.message?.includes('Bucket not found') || upErr.message?.includes('bucket')) {
-            setUploadError('Bucket "radio-tracks" not found. In Supabase → Storage, create a public bucket named exactly "radio-tracks", then try again.');
-            setUploading(false);
-            setUploadStatus('');
-            if (fileInputRef.current) fileInputRef.current.value = '';
-            return;
-          }
-          throw upErr;
-        }
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('radio-tracks').getPublicUrl(path);
-
-        setUploadStatus(`Detecting duration: ${file.name}`);
-        const duration = await _getAudioDuration(publicUrl);
-        const { title, artist } = _parseFilename(file.name);
-
-        added.push({ id: _radioUid(), title, artist, coverUrl: '', url: publicUrl, duration });
-      } catch (err) {
-        setUploadError(`Failed: ${file.name} — ${err.message}`);
-      }
-    }
-
-    setPlaylist(p => [...p, ...added]);
-    setUploading(false);
-    setUploadStatus('');
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  }
-
-  /* ── Inline edit ─────────────────────────────────────────── */
-  function startEdit(t) { setEditId(t.id); setEditTitle(t.title); setEditArtist(t.artist); }
-  function saveEdit() {
-    setPlaylist(p => p.map(t => t.id === editId ? { ...t, title: editTitle, artist: editArtist } : t));
-    setEditId(null);
-  }
-
-  /* ── Reorder / delete ────────────────────────────────────── */
-  function moveTrack(i, dir) {
-    const a = [...playlist], j = i + dir;
-    if (j < 0 || j >= a.length) return;
-    [a[i], a[j]] = [a[j], a[i]];
-    setPlaylist(a);
-  }
-
-  /* ── Save ────────────────────────────────────────────────── */
-  async function handleSave() {
-    const config = {
-      name:        stationName.trim() || 'Nova Radio',
-      description: description.trim(),
-      addedBy:     user?.username || 'admin',
-      playlist,
-      updatedAt:   new Date().toISOString(),
-    };
-    localStorage.setItem('nova_radio_config', JSON.stringify(config));
-    try { await db.setRadioConfig(config); } catch {}
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
-  }
-
-  function handleClear() {
-    if (!window.confirm('Remove the entire playlist? Users will see "No Playlist".')) return;
-    localStorage.removeItem('nova_radio_config');
-    setPlaylist([]); setStationName('Nova Radio'); setDescription('');
-  }
-
-  const IS = { width: '100%', padding: '8px 10px', background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 6, fontSize: '0.85rem', boxSizing: 'border-box', fontFamily: 'inherit' };
-
-  /* ── Total playlist duration ─────────────────────────────── */
-  const totalSec = playlist.reduce((s, t) => s + (t.duration || 0), 0);
-  const fmtDur   = (s) => s >= 3600
-    ? `${Math.floor(s/3600)}h ${Math.floor((s%3600)/60)}m`
-    : `${Math.floor(s/60)}m ${s%60}s`;
-
-  return (
-    <div style={{ maxWidth: 760 }}>
-      <h3 style={{ color: '#e2e5f0', marginBottom: 4 }}>📻 Nova Radio — Playlist Manager</h3>
-      <p style={{ color: 'rgba(158,165,196,0.45)', fontSize: '0.82rem', marginBottom: 20 }}>
-        Upload MP3/WAV files directly. The iPod player uses time-based positioning so every user hears
-        the same song at the same moment — like a real radio station.
-      </p>
-
-      {/* Station info */}
-      <div style={{ background: 'rgba(94,129,244,0.04)', border: '1px solid rgba(94,129,244,0.15)', borderRadius: 10, padding: 16, marginBottom: 14 }}>
-        <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(158,165,196,0.35)', marginBottom: 10 }}>Station Info</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div><label style={{ display: 'block', fontSize: '0.75rem', color: 'rgba(158,165,196,0.5)', marginBottom: 3 }}>Station Name</label>
-            <input value={stationName} onChange={e => setStationName(e.target.value)} placeholder="Nova Radio" style={IS} /></div>
-          <div><label style={{ display: 'block', fontSize: '0.75rem', color: 'rgba(158,165,196,0.5)', marginBottom: 3 }}>Tagline</label>
-            <input value={description} onChange={e => setDescription(e.target.value)} placeholder="Community vibes 24/7" style={IS} /></div>
-        </div>
-      </div>
-
-      {/* Upload zone */}
-      <div style={{ background: 'rgba(94,129,244,0.04)', border: '2px dashed rgba(94,129,244,0.25)', borderRadius: 10, padding: '20px 16px', marginBottom: 14, textAlign: 'center' }}>
-        <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(158,165,196,0.35)', marginBottom: 10 }}>
-          ☁ Upload Audio Files
-        </div>
-
-        {uploading ? (
-          <div style={{ padding: '12px 0' }}>
-            <div style={{ width: 32, height: 32, borderRadius: '50%', border: '3px solid rgba(94,129,244,0.2)', borderTopColor: '#5e81f4', animation: 'spin 0.8s linear infinite', margin: '0 auto 10px' }} />
-            <div style={{ fontSize: '0.82rem', color: 'rgba(158,165,196,0.6)' }}>{uploadStatus}</div>
-          </div>
-        ) : (
-          <>
-            <div style={{ fontSize: '2rem', marginBottom: 8 }}>🎵</div>
-            <div style={{ fontSize: '0.82rem', color: 'rgba(158,165,196,0.5)', marginBottom: 12 }}>
-              Drop MP3, WAV, OGG, FLAC files here, or click to browse.<br />
-              <span style={{ fontSize: '0.72rem', color: 'rgba(158,165,196,0.3)' }}>
-                Title &amp; artist are auto-parsed from filename (<code style={{ fontFamily: 'monospace' }}>Artist - Title.mp3</code>)
-              </span>
-            </div>
-            <button onClick={() => fileInputRef.current?.click()}
-              style={{ padding: '10px 28px', background: 'linear-gradient(135deg,rgba(94,129,244,0.2),rgba(167,139,250,0.15))', border: '1px solid rgba(94,129,244,0.4)', color: 'var(--color-cyan)', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem' }}>
-              Choose Files
-            </button>
-            <input ref={fileInputRef} type="file" accept="audio/*" multiple onChange={handleFiles} style={{ display: 'none' }} />
-          </>
-        )}
-
-        {uploadError && (
-          <div style={{ marginTop: 12, padding: '8px 12px', background: 'rgba(255,107,122,0.07)', border: '1px solid rgba(255,107,122,0.25)', borderRadius: 7, color: 'rgba(255,107,122,0.85)', fontSize: '0.8rem', textAlign: 'left' }}>
-            ⚠ {uploadError}
-          </div>
-        )}
-
-        <div style={{ marginTop: 14, padding: '10px 12px', background: 'rgba(94,129,244,0.05)', borderRadius: 7, textAlign: 'left' }}>
-          <div style={{ fontSize: '0.7rem', color: 'rgba(158,165,196,0.4)', lineHeight: 1.7 }}>
-            <strong style={{ color: 'rgba(158,165,196,0.6)' }}>One-time Supabase setup:</strong> In your Supabase project → Storage, create a bucket named{' '}
-            <code style={{ background: 'rgba(94,129,244,0.15)', padding: '1px 4px', borderRadius: 3, fontFamily: 'monospace' }}>radio-tracks</code>{' '}
-            and set it to <strong>Public</strong>. That's it — uploads will work automatically.
-          </div>
-        </div>
-      </div>
-
-      {/* Current playlist */}
-      <div style={{ background: 'rgba(94,129,244,0.04)', border: '1px solid rgba(94,129,244,0.15)', borderRadius: 10, padding: 16, marginBottom: 14 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(158,165,196,0.35)' }}>
-            Playlist · {playlist.length} track{playlist.length !== 1 ? 's' : ''}
-            {totalSec > 0 && <span style={{ fontWeight: 400, marginLeft: 8, color: 'rgba(158,165,196,0.25)' }}>· {fmtDur(totalSec)}</span>}
-          </div>
-          {playlist.length > 0 && (
-            <button onClick={handleClear} style={{ fontSize: '0.72rem', padding: '3px 10px', background: 'rgba(255,107,122,0.06)', border: '1px solid rgba(255,107,122,0.2)', color: 'rgba(255,107,122,0.55)', borderRadius: 5, cursor: 'pointer' }}>Clear All</button>
-          )}
-        </div>
-
-        {playlist.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '20px', color: 'rgba(158,165,196,0.25)', fontSize: '0.85rem' }}>
-            No tracks yet — upload files above
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {playlist.map((t, i) => (
-              <div key={t.id || i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'rgba(94,129,244,0.03)', border: '1px solid rgba(94,129,244,0.1)', borderRadius: 7 }}>
-                <div style={{ color: 'rgba(158,165,196,0.25)', fontFamily: 'monospace', fontSize: '0.7rem', width: 18, textAlign: 'center', flexShrink: 0 }}>{i + 1}</div>
-
-                {/* Thumbnail or icon */}
-                <div style={{ width: 34, height: 34, borderRadius: 5, overflow: 'hidden', background: 'rgba(94,129,244,0.1)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.95rem' }}>
-                  {t.coverUrl ? <img src={t.coverUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.style.display = 'none'; }} /> : '🎵'}
-                </div>
-
-                {/* Inline edit or display */}
-                {editId === t.id ? (
-                  <div style={{ flex: 1, display: 'flex', gap: 6 }}>
-                    <input value={editTitle} onChange={e => setEditTitle(e.target.value)} placeholder="Title" style={{ ...IS, flex: 1, padding: '4px 8px', fontSize: '0.8rem' }} />
-                    <input value={editArtist} onChange={e => setEditArtist(e.target.value)} placeholder="Artist" style={{ ...IS, flex: 1, padding: '4px 8px', fontSize: '0.8rem' }} />
-                    <button onClick={saveEdit} style={{ padding: '4px 10px', background: 'rgba(67,181,129,0.15)', border: '1px solid rgba(67,181,129,0.4)', color: '#43b581', borderRadius: 5, cursor: 'pointer', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>✓ Save</button>
-                    <button onClick={() => setEditId(null)} style={{ padding: '4px 8px', background: 'transparent', border: '1px solid rgba(158,165,196,0.2)', color: 'rgba(158,165,196,0.5)', borderRadius: 5, cursor: 'pointer', fontSize: '0.75rem' }}>✕</button>
-                  </div>
-                ) : (
-                  <div style={{ flex: 1, minWidth: 0, cursor: 'pointer' }} onDoubleClick={() => startEdit(t)}>
-                    <div style={{ fontWeight: 600, fontSize: '0.83rem', color: '#e2e5f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title || 'Untitled'}</div>
-                    <div style={{ fontSize: '0.7rem', color: 'rgba(158,165,196,0.4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {t.artist || '—'}
-                      {t.duration > 0 && <span style={{ marginLeft: 6, color: 'rgba(158,165,196,0.25)' }}>· {Math.floor(t.duration/60)}:{String(t.duration%60).padStart(2,'0')}</span>}
-                    </div>
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
-                  {editId !== t.id && (
-                    <button onClick={() => startEdit(t)} title="Edit title/artist" style={{ width: 24, height: 24, borderRadius: 4, border: '1px solid rgba(94,129,244,0.2)', background: 'rgba(94,129,244,0.05)', color: 'rgba(158,165,196,0.5)', cursor: 'pointer', fontSize: '0.65rem' }}>✏</button>
-                  )}
-                  <button onClick={() => moveTrack(i, -1)} disabled={i === 0} style={{ width: 24, height: 24, borderRadius: 4, border: '1px solid rgba(94,129,244,0.2)', background: 'rgba(94,129,244,0.05)', color: 'rgba(158,165,196,0.5)', cursor: 'pointer', fontSize: '0.65rem', opacity: i === 0 ? 0.25 : 1 }}>▲</button>
-                  <button onClick={() => moveTrack(i, 1)} disabled={i === playlist.length - 1} style={{ width: 24, height: 24, borderRadius: 4, border: '1px solid rgba(94,129,244,0.2)', background: 'rgba(94,129,244,0.05)', color: 'rgba(158,165,196,0.5)', cursor: 'pointer', fontSize: '0.65rem', opacity: i === playlist.length - 1 ? 0.25 : 1 }}>▼</button>
-                  <button onClick={() => setPlaylist(p => p.filter((_, x) => x !== i))} style={{ width: 24, height: 24, borderRadius: 4, border: '1px solid rgba(255,107,122,0.2)', background: 'rgba(255,107,122,0.04)', color: 'rgba(255,107,122,0.55)', cursor: 'pointer', fontSize: '0.7rem' }}>✕</button>
-                </div>
-              </div>
-            ))}
-            <div style={{ fontSize: '0.68rem', color: 'rgba(158,165,196,0.25)', paddingTop: 4 }}>Double-click a track to edit its title or artist name</div>
-          </div>
-        )}
-      </div>
-
-      {/* Save */}
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-        <button className="neon-button" onClick={handleSave}
-          style={{ borderColor: saved ? '#43b581' : undefined, color: saved ? '#43b581' : undefined }}>
-          {saved ? '✓ Saved & Live!' : '💾 Save & Publish Playlist'}
-        </button>
-        <span style={{ fontSize: '0.72rem', color: 'rgba(158,165,196,0.3)' }}>
-          Publishes to all users immediately
-        </span>
-      </div>
-
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
-  );
-};
-
 /* ── SONG OF DAY ADMIN TAB ──────────────────────────────────── */
 
 const SongOfDayTab = () => {
@@ -2100,7 +1834,6 @@ const OwnerDashboard = ({ onExit }) => {
       case 'give-coins':        return <GiveCoinsTab />;
       case 'fantasy-manage':    return <FantasyManageTab />;
       case 'fantasy-schedule':  return <FantasyScheduleTab />;
-      case 'admin-radio':      return <RadioAdminTab />;
       case 'admin-sotd':       return <SongOfDayTab />;
       case 'admin-beatbattle': return <BeatBattleAdminTab />;
       case 'admin-propbets':   return <PropBetsAdminTab />;
@@ -2142,7 +1875,6 @@ const OwnerDashboard = ({ onExit }) => {
               <Btn id="give-coins"       label="Give Coins" />
               <Btn id="fantasy-manage"   label="Fantasy Manage" />
               <Btn id="fantasy-schedule" label="Fantasy Schedule" />
-              <Btn id="admin-radio"      label="📻 Radio" />
               <Btn id="admin-sotd"       label="🎶 Song of Day" />
               <Btn id="admin-beatbattle" label="🎵 Beat Battle" />
               <Btn id="admin-propbets"   label="🎯 Prop Bets" />

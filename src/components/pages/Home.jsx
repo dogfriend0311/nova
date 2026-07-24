@@ -71,11 +71,10 @@ const TILES = [
   { id: 'sports',    icon: 'sports',  title: 'Sports Hub',    desc: 'Live scores across MLB, NFL, NBA, and NHL',               accent: 'amber'  },
   { id: 'members',   icon: 'members', title: 'Members',       desc: 'Browse profiles and leave a comment',                     accent: 'blue'   },
   { id: 'games',     icon: 'games',   title: 'Games',         desc: 'Fantasy, Pick\'ems, Beat Battle, Prop Bets & more',       accent: 'amber'  },
-  { id: 'radio',     icon: 'music',   title: 'Nova Radio',    desc: '📻 24/7 community playlist — always playing',             accent: 'violet' },
+  { id: 'music',     icon: 'music',   title: 'Music',         desc: '🎧 Last.fm scrobbles & Beat Battle',                       accent: 'violet' },
   { id: 'coinshop',  icon: 'store',   title: 'Coin Shop',     desc: '🛍️ Buy name glows, avatar borders & badges',             accent: 'amber'  },
   { id: 'wrapped',   icon: 'profile', title: 'Nova Wrapped',  desc: '✨ Your monthly stats recap card',                        accent: 'violet' },
   { id: 'roblox',    icon: 'games',   title: 'Roblox Tracker','desc': '🎮 Link your Roblox account to your profile',           accent: 'blue'   },
-  { id: 'lastfm',    icon: 'music',   title: 'Last.fm',       desc: 'Your scrobbles, top artists, and now playing',            accent: 'amber'  },
   { id: 'profile',   icon: 'profile', title: 'My Profile',    desc: 'Edit your bio, teams, faves & cosmetics',                 accent: 'blue'   },
 ];
 

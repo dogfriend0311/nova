@@ -20,13 +20,20 @@ const RocketAnimation = () => {
       }, 6000);
     };
 
-    // Launch a rocket every 10 seconds
-    const interval = setInterval(launchRocket, 10000);
+    // Launch a rocket every ~70-110 seconds (randomized so it never reads
+    // as a periodic "refresh"). Previously this fired every 10 seconds,
+    // which is what made the whole site feel like it was reloading.
+    let timeoutId;
+    const scheduleNext = () => {
+      const delay = 70000 + Math.random() * 40000; // 70s - 110s
+      timeoutId = setTimeout(() => {
+        launchRocket();
+        scheduleNext();
+      }, delay);
+    };
+    scheduleNext();
 
-    // Launch first rocket immediately
-    launchRocket();
-
-    return () => clearInterval(interval);
+    return () => clearTimeout(timeoutId);
   }, []);
 
   return (

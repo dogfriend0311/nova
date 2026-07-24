@@ -670,49 +670,6 @@ export const db = {
     ls.set('nova_fantasy_schedules', ls.get('nova_fantasy_schedules').filter(e => e.id !== id));
   },
 
-  /* ── RADIO CONFIG ─────────────────────────────────────────────
-     Singleton row in nova_radio_config. Admin writes the playlist;
-     all users read it so everyone sees the same iPod player.
-     Run this SQL once in Supabase:
-
-       CREATE TABLE IF NOT EXISTS nova_radio_config (
-         id         TEXT PRIMARY KEY DEFAULT 'singleton',
-         config     JSONB NOT NULL DEFAULT '{}',
-         updated_at TIMESTAMPTZ DEFAULT now()
-       );
-       ALTER TABLE nova_radio_config ENABLE ROW LEVEL SECURITY;
-       CREATE POLICY "Public read" ON nova_radio_config FOR SELECT USING (true);
-       CREATE POLICY "Auth write"  ON nova_radio_config FOR ALL
-         USING (auth.role() = 'authenticated');                    */
-
-  async getRadioConfig() {
-    if (hasSupabase()) {
-      try {
-        const { data, error } = await supabase
-          .from('nova_radio_config')
-          .select('config')
-          .eq('id', 'singleton')
-          .single();
-        if (!error && data) return data.config;
-      } catch {}
-    }
-    try { return JSON.parse(localStorage.getItem('nova_radio_config') || 'null'); } catch { return null; }
-  },
-
-  async setRadioConfig(config) {
-    if (hasSupabase()) {
-      try {
-        const { error } = await supabase
-          .from('nova_radio_config')
-          .upsert({ id: 'singleton', config, updated_at: new Date().toISOString() });
-        if (error) throw error;
-        // Mirror to localStorage for instant local reads
-        localStorage.setItem('nova_radio_config', JSON.stringify(config));
-        return;
-      } catch {}
-    }
-    localStorage.setItem('nova_radio_config', JSON.stringify(config));
-  },
 };
 
 /* ── Internal: keep localStorage in sync with Supabase ─────────── */

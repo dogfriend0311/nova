@@ -760,3 +760,58 @@
     letter-spacing: 1px;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   GLOBAL MOBILE SAFETY NET
+   Most buttons/tabs across the app are inline-styled per-component
+   (not classed), so they don't get sized for mobile individually.
+   These rules apply everywhere, on small screens only, to make
+   sure nothing is too small to read or tap — without changing
+   how anything looks on desktop.
+   ───────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Minimum comfortable touch target (Apple/Google guidance: ~44px) */
+  button,
+  a[role="button"],
+  input[type="button"],
+  input[type="submit"],
+  .neon-button {
+    min-height: 40px;
+    min-width: 40px;
+  }
+
+  /* Keep text inside buttons/tabs from shrinking below a readable size */
+  button,
+  .neon-button,
+  .tab,
+  .league-tab,
+  .sh-sub-tab {
+    font-size: max(0.78rem, 13px) !important;
+  }
+
+  /* Row/tab-bar wrappers: allow wrapping instead of clipping off-screen
+     content that can't be tapped */
+  .tw-action-row,
+  .form-actions,
+  .mp-edit-tabs {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  /* Prevent any element from forcing horizontal page scroll */
+  body, #root, .page, .tw-page {
+    overflow-x: hidden;
+  }
+
+  /* Inputs/selects large enough to tap and read */
+  input, select, textarea {
+    font-size: max(0.85rem, 14px) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Cards/grids that assume desktop width should stack on phones */
+  .neon-card, .nf-card {
+    padding: 14px !important;
+  }
+}
