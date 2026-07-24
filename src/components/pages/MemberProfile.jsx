@@ -483,13 +483,22 @@ const MemberProfile = () => {
   // ── Save helpers ──────────────────────────────────────────
   const handleField = (key, val) => setFormData((prev) => ({ ...prev, [key]: val }));
 
+  const [saveError, setSaveError] = useState('');
+
   const handleSave = () => {
     const profiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
     const idx = profiles.findIndex((p) => p.username === user?.username);
     if (idx !== -1) profiles[idx] = formData; else profiles.push(formData);
     localStorage.setItem('member_profiles', JSON.stringify(profiles));
+    setSaveError('');
     import('../../services/db').then(({ default: db }) => {
-      db.saveMemberProfile(formData).catch(() => {});
+      db.saveMemberProfile(formData).catch((err) => {
+        console.error('Profile save failed:', err);
+        setSaveError(
+          "Couldn't save to the server (saved on this device only — other visitors won't see your changes). " +
+          "This usually means a database column is missing. Check the browser console for details, or ask an admin to run the setup SQL."
+        );
+      });
     });
     setProfile(formData);
     setEditing(false);
@@ -656,6 +665,19 @@ const MemberProfile = () => {
 
   return (
     <div className="tw-page">
+      {saveError && (
+        <div style={{
+          position: 'relative', zIndex: 10, margin: '12px', padding: '10px 14px',
+          background: 'rgba(255,107,122,0.1)', border: '1px solid rgba(255,107,122,0.35)',
+          borderRadius: 8, color: '#ff8a96', fontSize: '0.82rem', lineHeight: 1.5,
+        }}>
+          ⚠ {saveError}
+          <button onClick={() => setSaveError('')} style={{ marginLeft: 10, background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', textDecoration: 'underline' }}>
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Custom page background — guns.lol style */}
       {profile.bg_media_url && (
         <ProfileBackground url={profile.bg_media_url} type={profile.bg_media_type} />

@@ -357,6 +357,19 @@ export const db = {
         ls.set('member_profiles', list);
         return data[0];
       }
+      // Supabase save failed — log it and still cache locally so the editor
+      // doesn't lose their edits, but tell the caller it didn't really save
+      // (this used to fail silently, which is why background/audio uploads
+      // could appear to work in the editor but never show up for visitors).
+      console.error('saveMemberProfile: Supabase upsert failed —', error.message, error);
+      const list = ls.get('member_profiles');
+      const exists = list.findIndex(p => p.username === profile.username);
+      if (exists >= 0) list[exists] = { ...list[exists], ...profile };
+      else list.push(profile);
+      ls.set('member_profiles', list);
+      const err = new Error(error.message || 'Failed to save profile to Supabase');
+      err.supabaseError = error;
+      throw err;
     }
     const list = ls.get('member_profiles');
     const exists = list.findIndex(p => p.username === profile.username);
