@@ -6,7 +6,7 @@ import * as lfm from '../../services/lastfmService';
 const SPORT_KEYS = ['mlb', 'nfl', 'nba', 'nhl', 'cfb', 'cbb'];
 
 const roleLabel = (role) => {
-  const m = { owner: 'Owner', cofounder: 'Co-Founder', mod: 'Moderator', vizta_helper: 'Vizta Helper', member: 'Member' };
+  const m = { owner: 'Owner', cofounder: 'Co-Founder', mod: 'Moderator', vizta_helper: 'Roblox Baseball Helper', member: 'Member' };
   return m[role] || 'Member';
 };
 const roleColor = (role) => {

@@ -126,7 +126,7 @@ const UserRolesTab = () => {
     });
   }, []);
   const roles = ['member','vizta_helper','mod','cofounder','owner'];
-  const roleLabel = (r) => ({ member:'Member', vizta_helper:'Vizta Helper', mod:'Moderator', cofounder:'Co-Founder', owner:'Owner' }[r] || r);
+  const roleLabel = (r) => ({ member:'Member', vizta_helper:'Roblox Baseball Helper', mod:'Moderator', cofounder:'Co-Founder', owner:'Owner' }[r] || r);
   const changeRole = (username, role) => {
     updateUserRole(username, role);
     setUsers(prev => prev.map(u => u.username === username ? { ...u, role } : u));
@@ -191,13 +191,13 @@ const GiveCoinsTab = () => {
   );
 };
 
-/* ── VIZTA LEAGUE TABS ─────────────────────────────────────── */
+/* ── ROBLOX BASEBALL TABS ──────────────────────────────────── */
 
 const currentMonthLabel = () => new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
 
 const LeaguePlayersTab = ({ prefix }) => {
   const { user } = useAuth();
-  const label = prefix === 'vizta' ? 'Vizta' : prefix.toUpperCase();
+  const label = prefix === 'vizta' ? 'Roblox Baseball' : prefix.toUpperCase();
   const [players, setPlayers] = useState([]);
   const [playerSearch, setPlayerSearch] = useState('');
   const [potmMsg, setPotmMsg] = useState('');
@@ -426,7 +426,7 @@ const LeaguePlayersTab = ({ prefix }) => {
 };
 
 const LeagueTeamsTab = ({ prefix }) => {
-  const label = prefix === 'vizta' ? 'Vizta' : prefix.toUpperCase();
+  const label = prefix === 'vizta' ? 'Roblox Baseball' : prefix.toUpperCase();
   const [teams, setTeams]   = useState([]);
   const [form, setForm]     = useState({ team_name:'', team_color:'#5e81f4', logo_url:'' });
   const [editing, setEditing] = useState(null);
@@ -499,7 +499,7 @@ const LeagueTeamsTab = ({ prefix }) => {
 };
 
 const LeagueRostersTab = ({ prefix }) => {
-  const label = prefix === 'vizta' ? 'Vizta' : prefix.toUpperCase();
+  const label = prefix === 'vizta' ? 'Roblox Baseball' : prefix.toUpperCase();
   const [teams, setTeams]     = useState([]);
   const [players, setPlayers] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState(null);
@@ -585,7 +585,7 @@ const LeagueRostersTab = ({ prefix }) => {
 };
 
 const LeagueGamesTab = ({ prefix }) => {
-  const label = prefix === 'vizta' ? 'Vizta' : prefix.toUpperCase();
+  const label = prefix === 'vizta' ? 'Roblox Baseball' : prefix.toUpperCase();
   const [games, setGames]   = useState([]);
   const [teams, setTeams]   = useState([]);
   const [newGame, setNewGame] = useState({ home_team:'', away_team:'', game_date:'', home_score:0, away_score:0 });
@@ -665,7 +665,7 @@ const LeagueGamesTab = ({ prefix }) => {
 };
 
 const LeagueBoxScoresTab = ({ prefix }) => {
-  const label = prefix === 'vizta' ? 'Vizta' : prefix.toUpperCase();
+  const label = prefix === 'vizta' ? 'Roblox Baseball' : prefix.toUpperCase();
   const [bsGames, setBsGames]     = useState([]);
   const [boxScores, setBoxScores] = useState([]);
   const [players, setPlayers]     = useState([]);
@@ -823,7 +823,7 @@ const LeagueBoxScoresTab = ({ prefix }) => {
 };
 
 const LeagueGameFeedTab = ({ prefix }) => {
-  const label = prefix === 'vizta' ? 'Vizta' : prefix.toUpperCase();
+  const label = prefix === 'vizta' ? 'Roblox Baseball' : prefix.toUpperCase();
   const [games, setGames]   = useState([]);
   const [players, setPlayers] = useState([]);
   const [feed, setFeed]     = useState([]);
@@ -945,7 +945,7 @@ const LeagueGameFeedTab = ({ prefix }) => {
 };
 
 const LeagueHofTab = ({ prefix }) => {
-  const label = prefix === 'vizta' ? 'Vizta' : prefix.toUpperCase();
+  const label = prefix === 'vizta' ? 'Roblox Baseball' : prefix.toUpperCase();
   const [hofMembers, setHofMembers] = useState([]);
   const [players, setPlayers]       = useState([]);
   const [form, setForm] = useState({ player_name:'', year:new Date().getFullYear() });
@@ -993,7 +993,7 @@ const LeagueHofTab = ({ prefix }) => {
 
 const LeagueAwardsTab = ({ prefix }) => {
   const { user } = useAuth();
-  const label = prefix === 'vizta' ? 'Vizta' : prefix.toUpperCase();
+  const label = prefix === 'vizta' ? 'Roblox Baseball' : prefix.toUpperCase();
   const [players, setPlayers] = useState([]);
   const [selectedId, setSelectedId] = useState('');
   const [potmAwards, setPotmAwards] = useState([]);
@@ -1252,20 +1252,20 @@ const FantasyScheduleTab = () => {
   const [msg,            setMsg]            = useState('');
 
   useEffect(() => {
-    // Build league list: all fantasy leagues + a synthetic Vizta entry
+    // Build league list: all fantasy leagues + a synthetic Roblox Baseball entry
     fantasyDb.getAllLeagues()
       .then(fl => setLeagues([
-        { id: '__vizta__', name: 'Vizta Baseball League 🔵', sport: 'baseball' },
+        { id: '__vizta__', name: 'Roblox Baseball League ⚾', sport: 'baseball' },
         ...fl,
       ]))
-      .catch(() => setLeagues([{ id: '__vizta__', name: 'Vizta Baseball League 🔵', sport: 'baseball' }]));
+      .catch(() => setLeagues([{ id: '__vizta__', name: 'Roblox Baseball League ⚾', sport: 'baseball' }]));
   }, []);
 
   const pickLeague = async (league) => {
     setSelectedLeague(league);
     setSelectedTeam(null);
     setSchedule([]);
-    // Vizta teams live in the generic db under prefix 'vizta', not in fantasyDb
+    // Roblox Baseball teams live in the generic db under prefix 'vizta', not in fantasyDb
     const t = league.id === '__vizta__'
       ? await db.getTeams('vizta').catch(() => [])
       : await fantasyDb.getTeams(league.id).catch(() => []);
@@ -1884,7 +1884,7 @@ const OwnerDashboard = ({ onExit }) => {
         )}
         {(isOwnerLevel || isViztaHelper) && (
           <div className="dashboard-section">
-            <div className="section-label">VIZTA</div>
+            <div className="section-label">ROBLOX BASEBALL</div>
             <div className="dashboard-tabs">
               <Btn id="vizta-players"   label="Players" />
               <Btn id="vizta-teams"     label="Teams" />

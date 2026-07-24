@@ -22,8 +22,8 @@ const ViztaLeague = ({ onSelectPlayer }) => {
   return (
     <div className="page nabb-league">
       <div className="page-header">
-        <h1 className="gradient-text">Vizta</h1>
-        <p className="subtitle">Roblox Baseball League</p>
+        <h1 className="gradient-text">Roblox Baseball</h1>
+        <p className="subtitle">League Central</p>
       </div>
 
       <div className="league-tabs">
@@ -66,9 +66,9 @@ const OverviewTab = () => {
   return (
     <div className="card-container">
       <div className="neon-card p-3">
-        <h3 className="gradient-text-cyan">Vizta Overview</h3>
+        <h3 className="gradient-text-cyan">League Overview</h3>
         <div className="mt-2">
-          <div className="data-row"><span className="data-label">League</span><span className="data-value">Vizta</span></div>
+          <div className="data-row"><span className="data-label">League</span><span className="data-value">Roblox Baseball</span></div>
           <div className="data-row"><span className="data-label">Sport</span><span className="data-value">Roblox Baseball</span></div>
           <div className="data-row">
             <span className="data-label">Status</span>

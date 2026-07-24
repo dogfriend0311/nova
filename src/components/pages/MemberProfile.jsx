@@ -8,7 +8,7 @@ import { BADGES, getEarnedBadges, syncBadges } from '../../services/achievements
 import './MemberProfile.css';
 
 const roleLabel = (role) => {
-  const map = { owner: 'Owner', cofounder: 'Co-Founder', mod: 'Moderator', vizta_helper: 'Vizta Helper', member: 'Member', guest: 'Guest' };
+  const map = { owner: 'Owner', cofounder: 'Co-Founder', mod: 'Moderator', vizta_helper: 'Roblox Baseball Helper', member: 'Member', guest: 'Guest' };
   return map[role] || role || 'Member';
 };
 

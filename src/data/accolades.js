@@ -1,4 +1,4 @@
-// Shared accolade type definitions used by the Vizta awards admin panel
+// Shared accolade type definitions used by the Roblox Baseball awards admin panel
 // and by the player stat page tag display.
 
 export const ACCOLADE_TYPES = [

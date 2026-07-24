@@ -67,7 +67,7 @@ const ACCENTS = {
 };
 
 const TILES = [
-  { id: 'leagues',   icon: 'league',  title: 'Vizta League',  desc: 'Rosters, box scores, and player stat pages',              accent: 'blue'   },
+  { id: 'leagues',   icon: 'league',  title: 'Roblox Baseball', desc: 'Rosters, box scores, and player stat pages',              accent: 'blue'   },
   { id: 'sports',    icon: 'sports',  title: 'Sports Hub',    desc: 'Live scores across MLB, NFL, NBA, and NHL',               accent: 'amber'  },
   { id: 'members',   icon: 'members', title: 'Members',       desc: 'Browse profiles and leave a comment',                     accent: 'blue'   },
   { id: 'games',     icon: 'games',   title: 'Games',         desc: 'Fantasy, Pick\'ems, Beat Battle, Prop Bets & more',       accent: 'amber'  },
@@ -153,7 +153,7 @@ const Home = ({ onNavigate, user }) => {
         <h1 className="gradient-text">
           {user?.username ? `Welcome back, ${user.username}` : 'Welcome to Nova'}
         </h1>
-        <p className="subtitle">Your hub for Vizta League stats, live sports, and the community.</p>
+        <p className="subtitle">Your hub for Roblox Baseball stats, live sports, and the community.</p>
 
         <div className="home-stat-row">
           <span className="home-stat-pill">

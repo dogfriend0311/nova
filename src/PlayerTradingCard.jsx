@@ -364,7 +364,7 @@ const PlayerTradingCard = ({ player, hittingStats, pitchingStats, onClose }) => 
 
       ctx.fillStyle = 'rgba(255,255,255,0.3)';
       ctx.font = `400 8px ${displayFont}`;
-      ctx.fillText('NOVA \u00b7 VIZTA LEAGUE', CARD_W / 2, CARD_H - inset - 14);
+      ctx.fillText('NOVA \u00b7 ROBLOX BASEBALL', CARD_W / 2, CARD_H - inset - 14);
 
       ctx.restore(); // undo the inner-face clip
 
@@ -531,7 +531,7 @@ const PlayerTradingCard = ({ player, hittingStats, pitchingStats, onClose }) => 
                 {tier.label}
               </div>
               <div style={{ textAlign: 'center', fontSize: '8px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-                Nova &middot; Vizta League
+                Nova &middot; Roblox Baseball
               </div>
             </div>
           </div>

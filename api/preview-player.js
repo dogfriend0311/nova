@@ -1,6 +1,6 @@
 // api/preview-player.js
 //
-// Same pattern as preview-member.js, but for individual Vizta player
+// Same pattern as preview-member.js, but for individual Roblox Baseball player
 // stat pages. Wired up via vercel.json so links to /players/:id show
 // that player's name, nickname, team, and position in the preview
 // instead of the generic site card.
@@ -45,7 +45,7 @@ export default async function handler(req, res) {
   }
 
   const player = await fetchPlayer(id);
-  const name = player?.nickname || player?.player_name || 'Vizta Player';
+  const name = player?.nickname || player?.player_name || 'Roblox Baseball Player';
   const realName = player?.nickname && player?.player_name ? player.player_name : null;
   const team = player?.team || 'Free Agent';
   const position = player?.position || '';
@@ -64,7 +64,7 @@ export default async function handler(req, res) {
     ? rawAvatar
     : `${SITE_URL}/og-image.png`;
 
-  const title = `${name} - Vizta League`;
+  const title = `${name} - Roblox Baseball`;
   const pageUrl = `${SITE_URL}/players/${encodeURIComponent(id)}`;
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
