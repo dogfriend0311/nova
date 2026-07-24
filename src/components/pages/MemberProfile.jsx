@@ -92,9 +92,10 @@ const MediaUploadField = ({ label, accept, kind, username, urlValue, extraValue,
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const maxMb = kind === 'video' ? 40 : 15;
+    const isVideo = file.type?.startsWith('video');
+    const maxMb = isVideo ? 40 : 15;
     if (file.size > maxMb * 1024 * 1024) {
-      setError(`File must be under ${maxMb} MB`);
+      setError(`File must be under ${maxMb} MB (this file is ${(file.size / 1024 / 1024).toFixed(1)} MB)`);
       return;
     }
     setUploading(true);
@@ -102,26 +103,48 @@ const MediaUploadField = ({ label, accept, kind, username, urlValue, extraValue,
     try {
       const ext  = file.name.split('.').pop();
       const path = `${kind}/${username || 'user'}-${Date.now()}-${_uid()}.${ext}`;
-      const { error: upErr } = await supabase.storage
+
+      // Supabase's client has no built-in timeout — on a stalled connection
+      // the upload can hang indefinitely with no error. Race it against a
+      // timeout so the user always gets feedback instead of a silent stall.
+      const uploadPromise = supabase.storage
         .from('member-media')
-        .upload(path, file, { cacheControl: '3600', upsert: false });
+        .upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type || undefined });
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('TIMEOUT')), 60000)
+      );
+
+      const { error: upErr } = await Promise.race([uploadPromise, timeoutPromise]);
+
       if (upErr) {
-        if (upErr.message?.toLowerCase().includes('bucket')) {
+        console.error('member-media upload error:', upErr);
+        const msg = (upErr.message || '').toLowerCase();
+        if (msg.includes('bucket')) {
           setError('Storage bucket "member-media" not found. Ask an admin to create a public bucket named exactly "member-media" in Supabase.');
+        } else if (msg.includes('row-level security') || msg.includes('policy') || upErr.statusCode === '403' || upErr.statusCode === 403) {
+          setError('Upload blocked by Supabase permissions (RLS policy). An admin needs to allow uploads to the "audio/" and "bg/" folders in the member-media bucket policies.');
+        } else if (msg.includes('exceeded') || msg.includes('too large') || upErr.statusCode === '413' || upErr.statusCode === 413) {
+          setError('Supabase rejected this file for being too large. Check the bucket\'s file size limit in Storage settings.');
         } else {
-          setError(upErr.message || 'Upload failed');
+          setError(upErr.message || 'Upload failed — check the browser console for details.');
         }
         setUploading(false);
         return;
       }
+
       const { data: { publicUrl } } = supabase.storage.from('member-media').getPublicUrl(path);
-      onChange(publicUrl, kind === 'bg' ? (file.type.startsWith('video') ? 'video' : 'image') : undefined);
+      onChange(publicUrl, kind === 'bg' ? (isVideo ? 'video' : 'image') : undefined);
       if (kind === 'audio' && onExtraChange) {
         const base = file.name.replace(/\.[^/.]+$/, '');
         onExtraChange(base);
       }
     } catch (err) {
-      setError(err.message || 'Upload failed');
+      console.error('member-media upload exception:', err);
+      if (err.message === 'TIMEOUT') {
+        setError('Upload timed out after 60 seconds. Check your connection and try a smaller file.');
+      } else {
+        setError(err.message || 'Upload failed — check the browser console for details.');
+      }
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = '';
