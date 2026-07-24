@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import db from '../../services/db';
-import { supabase } from '../../services/supabaseClient';
 import fantasyDb from '../../services/fantasyDb';
 import { ACCOLADE_TYPES, accoladeLabel, accoladeIcon } from '../../data/accolades';
 import './OwnerDashboard.css';
