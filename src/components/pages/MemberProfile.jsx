@@ -603,7 +603,7 @@ const MemberProfile = () => {
   const { user } = useAuth();
   const [profile,      setProfile]     = useState(null);
   const [editing,      setEditing]     = useState(false);
-  const [activeTab,    setActiveTab]   = useState('about');
+  const [activeTab,    setActiveTab]   = useState('badges');
   const [formData,     setFormData]    = useState({});
   const [favTab,       setFavTab]      = useState(false);
   const [presence,     setPresence]    = useState(() => localStorage.getItem(`nova_presence_${user?.username}`) || 'online');
@@ -835,7 +835,6 @@ const MemberProfile = () => {
   ].filter((s) => profile[s.key]);
 
   const TABS = [
-    { id: 'about',       label: 'About'        },
     { id: 'badges',      label: '🏅 Badges'    },
     { id: 'music',       label: 'Music'        },
     { id: 'favgames',    label: 'Fav Games'    },
@@ -894,8 +893,6 @@ const MemberProfile = () => {
         </div>
         <p className="tw-handle">@{profile.username}</p>
 
-        {profile.bio && <p className="tw-bio">{profile.bio}</p>}
-
         {/* Presence toggle */}
         <div className="tw-status-row">
           {[
@@ -915,6 +912,8 @@ const MemberProfile = () => {
             <span>{coins.toLocaleString()}</span>
           </div>
         </div>
+
+        {profile.bio && <p className="tw-bio">{profile.bio}</p>}
 
         {socials.length > 0 && (
           <div className="tw-socials">
@@ -938,20 +937,6 @@ const MemberProfile = () => {
 
       {/* Tab content */}
       <div className="tw-feed">
-
-        {/* ABOUT */}
-        {activeTab === 'about' && (
-          <>
-            {profile.bio ? (
-              <div className="tw-section">
-                <div className="tw-section-title">Bio</div>
-                <p style={{ color: 'rgba(158, 165, 196,0.85)', lineHeight: 1.6, margin: 0 }}>{profile.bio}</p>
-              </div>
-            ) : (
-              <div className="tw-empty">No bio yet. Click Edit Profile to add one.</div>
-            )}
-          </>
-        )}
 
         {/* BADGES */}
         {activeTab === 'badges' && (() => {

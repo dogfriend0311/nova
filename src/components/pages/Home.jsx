@@ -57,6 +57,12 @@ const Icon = {
       <path d="M4.5 20c0-4.1 3.4-7 7.5-7s7.5 2.9 7.5 7" />
     </svg>
   ),
+  articles: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3.5" y="4" width="17" height="16" rx="1.5" />
+      <path d="M7.5 8.5h9M7.5 12h9M7.5 15.5h5.5" />
+    </svg>
+  ),
 };
 
 /* Accent RGB triples matched to theme.css palette */
@@ -72,6 +78,7 @@ const TILES = [
   { id: 'members',   icon: 'members', title: 'Members',       desc: 'Browse profiles and leave a comment',                     accent: 'blue'   },
   { id: 'games',     icon: 'games',   title: 'Games',         desc: 'Fantasy, Pick\'ems, Beat Battle, Prop Bets & more',       accent: 'amber'  },
   { id: 'music',     icon: 'music',   title: 'Music',         desc: '🎧 Last.fm scrobbles & Beat Battle',                       accent: 'violet' },
+  { id: 'articles',  icon: 'articles',title: 'Articles',      desc: '📰 Sports & music writeups from the staff',                accent: 'blue'   },
   { id: 'coinshop',  icon: 'store',   title: 'Coin Shop',     desc: '🛍️ Buy name glows, avatar borders & badges',             accent: 'amber'  },
   { id: 'wrapped',   icon: 'profile', title: 'Nova Wrapped',  desc: '✨ Your monthly stats recap card',                        accent: 'violet' },
   { id: 'roblox',    icon: 'games',   title: 'Roblox Tracker','desc': '🎮 Link your Roblox account to your profile',           accent: 'blue'   },

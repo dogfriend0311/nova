@@ -735,6 +735,71 @@ export const db = {
     ls.set('nova_announcements', ls.get('nova_announcements').filter(a => a.id !== id));
   },
 
+  /* ── ARTICLES ─────────────────────────────────────────────────
+     Owner/cofounders write these (photo + title + body); everyone can
+     read them on the Articles tab. Enforced client-side like the rest
+     of the admin dashboard. Run this SQL once in Supabase:
+
+       CREATE TABLE IF NOT EXISTS nova_articles (
+         id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+         title      TEXT NOT NULL,
+         body       TEXT NOT NULL,
+         photo_url  TEXT,
+         category   TEXT DEFAULT 'sports',
+         author     TEXT,
+         created_at TIMESTAMPTZ DEFAULT now()
+       );
+       ALTER TABLE nova_articles ENABLE ROW LEVEL SECURITY;
+       CREATE POLICY "Public read"   ON nova_articles FOR SELECT USING (true);
+       CREATE POLICY "Public write"  ON nova_articles FOR INSERT WITH CHECK (true);
+       CREATE POLICY "Public update" ON nova_articles FOR UPDATE USING (true);
+       CREATE POLICY "Public delete" ON nova_articles FOR DELETE USING (true);
+
+     Article photos reuse the existing "member-media" Storage bucket
+     under an "articles/" folder — no new bucket needed. */
+
+  async getArticles() {
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase
+          .from('nova_articles')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (!error) return data || [];
+      } catch {}
+    }
+    return ls.get('nova_articles').sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  },
+
+  async saveArticle(article) {
+    if (hasSupabase()) {
+      try {
+        if (article.id) {
+          const { data, error } = await supabase.from('nova_articles').update(article).eq('id', article.id).select();
+          if (!error && data?.[0]) return data[0];
+        } else {
+          const { data, error } = await supabase.from('nova_articles').insert([article]).select();
+          if (!error && data?.[0]) return data[0];
+        }
+      } catch {}
+    }
+    const list = ls.get('nova_articles');
+    if (article.id) {
+      ls.set('nova_articles', list.map(a => a.id === article.id ? { ...a, ...article } : a));
+      return article;
+    }
+    const local = { ...article, id: Date.now().toString() };
+    ls.set('nova_articles', [...list, local]);
+    return local;
+  },
+
+  async deleteArticle(id) {
+    if (hasSupabase()) {
+      try { await supabase.from('nova_articles').delete().eq('id', id); } catch {}
+    }
+    ls.set('nova_articles', ls.get('nova_articles').filter(a => a.id !== id));
+  },
+
 };
 
 /* ── Internal: keep localStorage in sync with Supabase ─────────── */

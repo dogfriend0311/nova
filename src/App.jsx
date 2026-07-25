@@ -14,6 +14,7 @@ import PickemsHub from './components/pages/PickemsHub';
 import PropBets from './components/pages/PropBets';
 import PlayoffPools from './components/pages/PlayoffPools';
 import CoinShop from './components/pages/CoinShop';
+import ArticlesPage from './components/pages/ArticlesPage';
 import NovaWrapped from './components/pages/NovaWrapped';
 import RobloxTracker from './components/pages/RobloxTracker';
 import MusicHub from './components/pages/MusicHub';
@@ -250,6 +251,9 @@ const AppContent = () => {
 
       case 'games':
         return <GamesPage key="games-default" onSignIn={() => setShowLoginModal(true)} initialTab="fantasy" user={user} />;
+
+      case 'articles':
+        return <ArticlesPage />;
 
       // ── Store tab now includes Coin Shop ──
       case 'store':

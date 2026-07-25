@@ -474,7 +474,7 @@ const MemberProfileView = ({ member, onBack }) => {
   const onlineData = JSON.parse(localStorage.getItem('nova_online') || '{}');
   const isOnline   = onlineData[member.username] > Date.now() - 5 * 60 * 1000;
 
-  const [viewTab, setViewTab] = useState('about');
+  const [viewTab, setViewTab] = useState('music');
   const [copied,  setCopied]  = useState(false);
   const [bannerLoaded, setBannerLoaded] = useState(false);
 
@@ -493,7 +493,6 @@ const MemberProfileView = ({ member, onBack }) => {
   ].filter(s => member[s.key]);
 
   const VTABS = [
-    { id: 'about',       label: 'About'        },
     { id: 'music',       label: '🎵 Music'     },
     { id: 'favgames',    label: 'Fav Games'    },
     { id: 'robloxgames', label: 'Roblox'       },
@@ -610,15 +609,6 @@ const MemberProfileView = ({ member, onBack }) => {
 
       {/* Tab content */}
       <div style={{ padding: '0 20px' }}>
-        {viewTab === 'about' && (
-          <div style={{ padding: '20px 0' }}>
-            {member.bio
-              ? <p style={{ color: 'rgba(158,165,196,0.85)', lineHeight: 1.7, margin: 0 }}>{member.bio}</p>
-              : <p style={{ color: 'rgba(158,165,196,0.25)', textAlign: 'center', padding: '30px 0', fontStyle: 'italic' }}>No bio set yet.</p>
-            }
-          </div>
-        )}
-
         {viewTab === 'music' && (
           <div style={{ padding: '20px 0' }}>
             {member.lastfm_username && <NowPlayingPublic lastfmUsername={member.lastfm_username} />}

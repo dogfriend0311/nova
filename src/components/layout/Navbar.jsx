@@ -9,6 +9,7 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, on
     { id: 'sports',  label: 'Sports',  icon: 'Trophy' },
     { id: 'leagues', label: 'Leagues', icon: 'Baseball' },
     { id: 'games',   label: 'Games',   icon: 'Gamepad' },
+    { id: 'articles',label: 'Articles',icon: 'FileText' },
     { id: 'members', label: 'Members', icon: 'Users' },
     { id: 'music',   label: 'Music',   icon: 'Music' },
     { id: 'store',   label: 'Store',   icon: 'Store' },
