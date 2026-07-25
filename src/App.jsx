@@ -9,7 +9,6 @@ import LeaguesPage from './components/pages/LeaguesPage';
 import LeaguePlayerPage from './LeaguePlayerPage';
 import LoginModal from './components/auth/LoginModal';
 import OwnerDashboard from './components/pages/OwnerDashboard';
-import RoadToTheShow from './components/pages/RoadToTheShow';
 import FantasyHub from './components/pages/FantasyHub';
 import PickemsHub from './components/pages/PickemsHub';
 import PropBets from './components/pages/PropBets';
@@ -69,13 +68,11 @@ const GamesPage = ({ onSignIn, initialTab = 'fantasy', user: gamesUser }) => {
       <div style={{ display: 'flex', gap: '4px', borderBottom: '1px solid rgba(94,129,244,0.1)', overflowX: 'auto', marginBottom: '20px', scrollbarWidth: 'none' }}>
         {tb('fantasy',  '🏈 Fantasy')}
         {tb('pickems',  "✅ Pick'ems")}
-        {tb('rtts',     '⚾ Road to the Show')}
         {tb('propbets', '🎯 Prop Bets')}
         {tb('playoffs', '🏆 Playoff Pools')}
       </div>
       {subTab === 'fantasy'  && <FantasyHub onSignIn={onSignIn} />}
       {subTab === 'pickems'  && <PickemsHub onSignIn={onSignIn} />}
-      {subTab === 'rtts'     && <RoadToTheShow />}
       {subTab === 'propbets' && <PropBets user={gamesUser} />}
       {subTab === 'playoffs' && <PlayoffPools user={gamesUser} />}
     </div>
