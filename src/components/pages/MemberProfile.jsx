@@ -617,7 +617,7 @@ const MemberProfile = () => {
               username={user?.username}
               urlValue={formData.bg_media_url}
               extraValue={formData.bg_media_type}
-              onChange={(url, type) => setFormData({ ...formData, bg_media_url: url, bg_media_type: type })}
+              onChange={(url, type) => setFormData(prev => ({ ...prev, bg_media_url: url, bg_media_type: type }))}
               hint="Shows behind your whole profile, like a guns.lol page. Video loops muted; under 40MB."
             />
             <MediaUploadField
@@ -627,8 +627,8 @@ const MemberProfile = () => {
               username={user?.username}
               urlValue={formData.audio_url}
               extraValue={formData.audio_title}
-              onChange={(url) => setFormData({ ...formData, audio_url: url })}
-              onExtraChange={(title) => setFormData({ ...formData, audio_title: title })}
+              onChange={(url) => setFormData(prev => ({ ...prev, audio_url: url }))}
+              onExtraChange={(title) => setFormData(prev => ({ ...prev, audio_title: title }))}
               hint="Plays for visitors to your page. Under 15MB. Admins can remove this from the Owner Dashboard if it's inappropriate."
             />
             <div className="form-group">
