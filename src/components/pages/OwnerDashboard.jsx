@@ -36,11 +36,22 @@ const MemberPagesTab = () => {
     setEditing(null);
   };
 
-  const removeMedia = async (p, fields) => {
-    const label = fields.includes('audio_url') ? 'audio' : 'background media';
-    if (!window.confirm(`Remove ${p.username}'s ${label}?`)) return;
+  const removeAllMedia = async (p, kind) => {
+    const label = kind === 'audio' ? 'all audio tracks' : 'all backgrounds';
+    if (!window.confirm(`Remove ${label} for ${p.username}?`)) return;
     const cleared = { ...p };
-    fields.forEach(f => { cleared[f] = ''; });
+    if (kind === 'audio') { cleared.audio_tracks = []; cleared.audio_url = ''; cleared.audio_title = ''; }
+    else { cleared.bg_media = []; cleared.bg_media_url = ''; cleared.bg_media_type = ''; }
+    await db.saveMemberProfile(cleared);
+    setProfiles(prev => prev.map(x => x.username === p.username ? cleared : x));
+  };
+
+  const removeOneMedia = async (p, kind, id) => {
+    const label = kind === 'audio' ? 'this track' : 'this background';
+    if (!window.confirm(`Remove ${label} for ${p.username}?`)) return;
+    const cleared = { ...p };
+    if (kind === 'audio') cleared.audio_tracks = (p.audio_tracks || []).filter(t => t.id !== id);
+    else cleared.bg_media = (p.bg_media || []).filter(b => b.id !== id);
     await db.saveMemberProfile(cleared);
     setProfiles(prev => prev.map(x => x.username === p.username ? cleared : x));
   };
@@ -71,33 +82,27 @@ const MemberPagesTab = () => {
       <h2 className="gradient-text-cyan">Member Pages</h2>
       <div style={{ marginTop:'20px', display:'grid', gap:'12px' }}>
         {profiles.length === 0 && <div className="neon-card p-3"><p style={{ color:'rgba(158, 165, 196,0.5)', textAlign:'center' }}>No profiles yet.</p></div>}
-        {profiles.map(p => (
-          <div key={p.username} className="neon-card p-3" style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <div>
-              <p style={{ margin:0, color:'var(--color-cyan)', fontWeight:700 }}>{p.username}</p>
-              <p style={{ margin:'4px 0 0', fontSize:'0.8rem', color:'rgba(158, 165, 196,0.5)' }}>{p.bio||'No bio'}</p>
-              <p style={{ margin:'4px 0 0', fontSize:'0.72rem', color:'rgba(158, 165, 196,0.35)' }}>
-                {p.bg_media_url ? `🖼 ${p.bg_media_type === 'video' ? 'Video' : 'Image'} background` : 'No background'}
-                {' · '}
-                {p.audio_url ? `🎵 ${p.audio_title || 'Audio uploaded'}` : 'No audio'}
-              </p>
-            </div>
-            <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
-              <button className="neon-button" onClick={() => startEdit(p)}>Edit</button>
-              {p.audio_url && (
-                <button className="neon-button" style={{ borderColor:'#ff8800', color:'#ff8800' }} onClick={() => removeMedia(p, ['audio_url','audio_title'])}>
-                  🗑 Remove Audio
-                </button>
-              )}
-              {p.bg_media_url && (
-                <button className="neon-button" style={{ borderColor:'#ff8800', color:'#ff8800' }} onClick={() => removeMedia(p, ['bg_media_url','bg_media_type'])}>
-                  🗑 Remove Background
-                </button>
-              )}
-              <button className="neon-button" style={{ borderColor:'#ff8800', color:'#ff8800' }} onClick={() => {
-                if (!window.confirm(`Delete profile for ${p.username}?`)) return;
-                const updated = profiles.filter(x => x.username !== p.username);
-                setProfiles(updated);
+        {profiles.map(p => {
+          const bgList    = (p.bg_media && p.bg_media.length) ? p.bg_media : (p.bg_media_url ? [{ id: 'legacy', url: p.bg_media_url, type: p.bg_media_type }] : []);
+          const audioList = (p.audio_tracks && p.audio_tracks.length) ? p.audio_tracks : (p.audio_url ? [{ id: 'legacy', url: p.audio_url, title: p.audio_title, artist: '' }] : []);
+          return (
+          <div key={p.username} className="neon-card p-3">
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap: 'wrap', gap: 10 }}>
+              <div>
+                <p style={{ margin:0, color:'var(--color-cyan)', fontWeight:700 }}>{p.username}</p>
+                <p style={{ margin:'4px 0 0', fontSize:'0.8rem', color:'rgba(158, 165, 196,0.5)' }}>{p.bio||'No bio'}</p>
+                <p style={{ margin:'4px 0 0', fontSize:'0.72rem', color:'rgba(158, 165, 196,0.35)' }}>
+                  {bgList.length ? `🖼 ${bgList.length} background${bgList.length > 1 ? 's' : ''}` : 'No background'}
+                  {' · '}
+                  {audioList.length ? `🎵 ${audioList.length} track${audioList.length > 1 ? 's' : ''}` : 'No audio'}
+                </p>
+              </div>
+              <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
+                <button className="neon-button" onClick={() => startEdit(p)}>Edit</button>
+                <button className="neon-button" style={{ borderColor:'#ff8800', color:'#ff8800' }} onClick={() => {
+                  if (!window.confirm(`Delete profile for ${p.username}?`)) return;
+                  const updated = profiles.filter(x => x.username !== p.username);
+                  setProfiles(updated);
                 localStorage.setItem('member_profiles', JSON.stringify(updated));
               }}>Del Profile</button>
               <button className="neon-button" style={{ borderColor:'#ff6b7a', color:'#ff6b7a' }} onClick={() => {
@@ -109,8 +114,44 @@ const MemberPagesTab = () => {
                 localStorage.setItem('member_profiles', JSON.stringify(updated));
               }}>Del Account</button>
             </div>
+            {(bgList.length > 0 || audioList.length > 0) && (
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(94,129,244,0.12)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {bgList.length > 0 && (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'rgba(158,165,196,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Backgrounds</span>
+                      {bgList.length > 1 && (
+                        <button className="neon-button" style={{ fontSize: '0.68rem', padding: '2px 8px', borderColor:'#ff8800', color:'#ff8800' }} onClick={() => removeAllMedia(p, 'bg')}>Remove All</button>
+                      )}
+                    </div>
+                    {bgList.map((b, i) => (
+                      <div key={b.id || i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.76rem', color: 'rgba(158,165,196,0.55)', padding: '3px 0' }}>
+                        <span>{b.type === 'video' ? '🎬' : '🖼️'} Background {i + 1}</span>
+                        <button onClick={() => removeOneMedia(p, 'bg', b.id)} style={{ background: 'none', border: 'none', color: '#ff6b7a', cursor: 'pointer', fontSize: '0.72rem' }}>✕ remove</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {audioList.length > 0 && (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'rgba(158,165,196,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Audio Tracks</span>
+                      {audioList.length > 1 && (
+                        <button className="neon-button" style={{ fontSize: '0.68rem', padding: '2px 8px', borderColor:'#ff8800', color:'#ff8800' }} onClick={() => removeAllMedia(p, 'audio')}>Remove All</button>
+                      )}
+                    </div>
+                    {audioList.map((t, i) => (
+                      <div key={t.id || i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.76rem', color: 'rgba(158,165,196,0.55)', padding: '3px 0' }}>
+                        <span>🎵 {t.title || 'Untitled'}{t.artist ? ` — ${t.artist}` : ''}</span>
+                        <button onClick={() => removeOneMedia(p, 'audio', t.id)} style={{ background: 'none', border: 'none', color: '#ff6b7a', cursor: 'pointer', fontSize: '0.72rem' }}>✕ remove</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        ))}
+        );})}
       </div>
     </div>
   );
@@ -1425,6 +1466,93 @@ const FantasyScheduleTab = () => {
     </div>
   );
 };
+/* ── ANNOUNCEMENTS / UPDATE LOG ADMIN TAB ───────────────────── */
+
+const AnnouncementsAdminTab = () => {
+  const { user } = useAuth();
+  const [items,   setItems]   = useState([]);
+  const [message, setMessage] = useState('');
+  const [posting, setPosting] = useState(false);
+  const [loaded,  setLoaded]  = useState(false);
+
+  const load = () => {
+    import('../../services/db').then(({ default: dbMod }) => {
+      dbMod.getAnnouncements().then(list => { setItems(list); setLoaded(true); });
+    });
+  };
+  useEffect(load, []);
+
+  const post = async () => {
+    if (!message.trim()) return;
+    setPosting(true);
+    const dbMod = (await import('../../services/db')).default;
+    await dbMod.postAnnouncement(message.trim(), user?.username);
+    setMessage('');
+    setPosting(false);
+    load();
+  };
+
+  const remove = async (id) => {
+    if (!window.confirm('Delete this announcement?')) return;
+    const dbMod = (await import('../../services/db')).default;
+    await dbMod.deleteAnnouncement(id);
+    load();
+  };
+
+  const fmt = (iso) => {
+    try {
+      return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+    } catch { return ''; }
+  };
+
+  return (
+    <div style={{ maxWidth: 640 }}>
+      <h3 style={{ color: '#e2e5f0', marginBottom: 4 }}>📢 Announcements &amp; Update Log</h3>
+      <p style={{ color: 'rgba(158,165,196,0.45)', fontSize: '0.82rem', marginBottom: 20 }}>
+        Posts here show on the Home page for everyone and get added to the scrollable update log with the date and time.
+      </p>
+
+      <div className="neon-card p-3" style={{ marginBottom: 16 }}>
+        <textarea
+          value={message}
+          onChange={e => setMessage(e.target.value)}
+          placeholder="What's new? e.g. 'Fixed the Roblox tracker, added a mini radio to profile pages...'"
+          rows={4}
+          style={{ width: '100%', padding: '10px 12px', background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 8, fontFamily: 'inherit', fontSize: '0.88rem', resize: 'vertical', boxSizing: 'border-box' }}
+        />
+        <button className="neon-button" onClick={post} disabled={posting || !message.trim()} style={{ marginTop: 10, opacity: posting || !message.trim() ? 0.5 : 1 }}>
+          {posting ? 'Posting…' : '📢 Post Announcement'}
+        </button>
+      </div>
+
+      <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(158,165,196,0.35)', marginBottom: 10 }}>
+        Update Log · {items.length} post{items.length !== 1 ? 's' : ''}
+      </div>
+      {!loaded ? (
+        <div style={{ color: 'rgba(158,165,196,0.35)', fontSize: '0.85rem' }}>Loading…</div>
+      ) : items.length === 0 ? (
+        <div style={{ color: 'rgba(158,165,196,0.35)', fontSize: '0.85rem' }}>No announcements yet.</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 420, overflowY: 'auto' }}>
+          {items.map(a => (
+            <div key={a.id} className="neon-card p-3" style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: '0.88rem', color: '#e2e5f0', whiteSpace: 'pre-wrap' }}>{a.message}</div>
+                <div style={{ fontSize: '0.7rem', color: 'rgba(158,165,196,0.4)', marginTop: 6 }}>
+                  {fmt(a.created_at)}{a.posted_by ? ` · ${a.posted_by}` : ''}
+                </div>
+              </div>
+              <button onClick={() => remove(a.id)} style={{ flexShrink: 0, background: 'none', border: '1px solid rgba(255,107,122,0.3)', color: '#ff6b7a', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: '0.75rem', height: 'fit-content' }}>
+                🗑 Delete
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ── SONG OF DAY ADMIN TAB ──────────────────────────────────── */
 
 const SongOfDayTab = () => {
@@ -1819,6 +1947,7 @@ const PlayoffPoolsAdminTab = () => {
 const OwnerDashboard = ({ onExit }) => {
   const { logout, user } = useAuth();
   const role = user?.role;
+  const isOwner       = role === 'owner';
   const isOwnerLevel  = ['owner','cofounder','mod'].includes(role);
   const isViztaHelper = role === 'vizta_helper';
 
@@ -1833,6 +1962,7 @@ const OwnerDashboard = ({ onExit }) => {
       case 'give-coins':        return <GiveCoinsTab />;
       case 'fantasy-manage':    return <FantasyManageTab />;
       case 'fantasy-schedule':  return <FantasyScheduleTab />;
+      case 'admin-announcements': return isOwner ? <AnnouncementsAdminTab /> : null;
       case 'admin-sotd':       return <SongOfDayTab />;
       case 'admin-beatbattle': return <BeatBattleAdminTab />;
       case 'admin-propbets':   return <PropBetsAdminTab />;
@@ -1874,6 +2004,7 @@ const OwnerDashboard = ({ onExit }) => {
               <Btn id="give-coins"       label="Give Coins" />
               <Btn id="fantasy-manage"   label="Fantasy Manage" />
               <Btn id="fantasy-schedule" label="Fantasy Schedule" />
+              {isOwner && <Btn id="admin-announcements" label="📢 Announcements" />}
               <Btn id="admin-sotd"       label="🎶 Song of Day" />
               <Btn id="admin-beatbattle" label="🎵 Beat Battle" />
               <Btn id="admin-propbets"   label="🎯 Prop Bets" />

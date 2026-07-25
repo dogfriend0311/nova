@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl } from '../../data/teams';
 import * as lfm from '../../services/lastfmService';
-import { ProfileBackground, ProfileAudioPlayer } from './MemberProfile';
+import { ProfileBackground, ProfileAudioPlayer, effectiveBgList, effectiveAudioList } from './MemberProfile';
 
 // ── role helpers ──────────────────────────────────────────────
 const SPORT_KEYS = ['mlb', 'nfl', 'nba', 'nhl', 'cfb', 'cbb'];
@@ -508,12 +508,8 @@ const MemberProfileView = ({ member, onBack }) => {
 
   return (
     <div style={{ maxWidth: 680, margin: '0 auto', paddingBottom: 60 }}>
-      {member.bg_media_url && (
-        <ProfileBackground url={member.bg_media_url} type={member.bg_media_type} />
-      )}
-      {member.audio_url && (
-        <ProfileAudioPlayer url={member.audio_url} title={member.audio_title} />
-      )}
+      <ProfileBackground list={effectiveBgList(member)} />
+      <ProfileAudioPlayer list={effectiveAudioList(member)} />
 
       {/* Back + share row */}
       <div style={{ display: 'flex', gap: 10, padding: '0 12px 16px', flexWrap: 'wrap', alignItems: 'center' }}>

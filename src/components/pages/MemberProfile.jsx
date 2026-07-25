@@ -22,9 +22,26 @@ const DEFAULT_PROFILE = {
   discord_tag: '', fav_teams: DEFAULT_FAV_TEAMS,
   fav_games: [],
   // guns.lol-style page customization
-  bg_media_url: '', bg_media_type: '', // 'video' | 'image'
+  bg_media_url: '', bg_media_type: '', // legacy single-item fields (kept so old profiles still work)
   audio_url: '', audio_title: '',
+  bg_media: [],     // [{ id, url, type: 'video'|'image' }] — cycles through, each video loops
+  audio_tracks: [], // [{ id, url, title, artist }] — mini radio playlist, loops
 };
+
+// Old profiles only have the single bg_media_url/audio_url fields. New profiles
+// use the arrays. These merge both so nothing old breaks.
+export function effectiveBgList(profile) {
+  const list = Array.isArray(profile?.bg_media) ? profile.bg_media.filter(b => b?.url) : [];
+  if (list.length) return list;
+  if (profile?.bg_media_url) return [{ id: 'legacy', url: profile.bg_media_url, type: profile.bg_media_type || 'image' }];
+  return [];
+}
+export function effectiveAudioList(profile) {
+  const list = Array.isArray(profile?.audio_tracks) ? profile.audio_tracks.filter(t => t?.url) : [];
+  if (list.length) return list;
+  if (profile?.audio_url) return [{ id: 'legacy', url: profile.audio_url, title: profile.audio_title || 'Untitled', artist: '' }];
+  return [];
+}
 
 function _uid() { return Math.random().toString(36).slice(2, 10); }
 
@@ -121,100 +138,160 @@ const ImageField = ({ label, fieldKey, value, onChange, username }) => {
   );
 };
 
-// ── Background / Audio upload field (guns.lol-style) ──────────
-// Unlike ImageField (which stores small images as base64), these files can
-// be large, so they upload to Supabase Storage bucket "member-media" and
-// only the resulting URL is saved on the profile.
-const MediaUploadField = ({ label, accept, kind, username, urlValue, extraValue, onChange, onExtraChange, hint }) => {
+// ── Shared upload helper (guns.lol-style backgrounds/audio) ───
+// These files can be large, so they upload to Supabase Storage bucket
+// "member-media" and only the resulting URL is saved on the profile.
+async function uploadMemberMedia(file, kind, username) {
+  const isVideo = file.type?.startsWith('video');
+  const maxMb = isVideo ? 40 : 15;
+  if (file.size > maxMb * 1024 * 1024) {
+    throw new Error(`File must be under ${maxMb} MB (this file is ${(file.size / 1024 / 1024).toFixed(1)} MB)`);
+  }
+  const ext  = file.name.split('.').pop();
+  const path = `${kind}/${username || 'user'}-${Date.now()}-${_uid()}.${ext}`;
+
+  // Supabase's client has no built-in timeout — on a stalled connection the
+  // upload can hang indefinitely with no error. Race it against a timeout
+  // so the user always gets feedback instead of a silent stall.
+  const uploadPromise = supabase.storage
+    .from('member-media')
+    .upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type || undefined });
+  const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 60000));
+
+  const { error: upErr } = await Promise.race([uploadPromise, timeoutPromise]);
+  if (upErr) {
+    console.error('member-media upload error:', upErr);
+    const msg = (upErr.message || '').toLowerCase();
+    if (msg.includes('bucket')) {
+      throw new Error('Storage bucket "member-media" not found. Ask an admin to create a public bucket named exactly "member-media" in Supabase.');
+    }
+    if (msg.includes('row-level security') || msg.includes('policy') || upErr.statusCode === '403' || upErr.statusCode === 403) {
+      throw new Error('Upload blocked by Supabase permissions (RLS policy). An admin needs to allow uploads to this bucket.');
+    }
+    if (msg.includes('exceeded') || msg.includes('too large') || upErr.statusCode === '413' || upErr.statusCode === 413) {
+      throw new Error("Supabase rejected this file for being too large. Check the bucket's file size limit in Storage settings.");
+    }
+    throw new Error(upErr.message || 'Upload failed — check the browser console for details.');
+  }
+
+  const { data: { publicUrl } } = supabase.storage.from('member-media').getPublicUrl(path);
+  return { publicUrl, isVideo };
+}
+
+// ── Multiple background uploads (video/image) — cycles through them ──
+const MultiBgUploadField = ({ username, list, onChange, hint }) => {
   const inputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
-  const [error,     setError]     = useState('');
+  const [error, setError] = useState('');
 
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const isVideo = file.type?.startsWith('video');
-    const maxMb = isVideo ? 40 : 15;
-    if (file.size > maxMb * 1024 * 1024) {
-      setError(`File must be under ${maxMb} MB (this file is ${(file.size / 1024 / 1024).toFixed(1)} MB)`);
-      return;
-    }
     setUploading(true);
     setError('');
     try {
-      const ext  = file.name.split('.').pop();
-      const path = `${kind}/${username || 'user'}-${Date.now()}-${_uid()}.${ext}`;
-
-      // Supabase's client has no built-in timeout — on a stalled connection
-      // the upload can hang indefinitely with no error. Race it against a
-      // timeout so the user always gets feedback instead of a silent stall.
-      const uploadPromise = supabase.storage
-        .from('member-media')
-        .upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type || undefined });
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('TIMEOUT')), 60000)
-      );
-
-      const { error: upErr } = await Promise.race([uploadPromise, timeoutPromise]);
-
-      if (upErr) {
-        console.error('member-media upload error:', upErr);
-        const msg = (upErr.message || '').toLowerCase();
-        if (msg.includes('bucket')) {
-          setError('Storage bucket "member-media" not found. Ask an admin to create a public bucket named exactly "member-media" in Supabase.');
-        } else if (msg.includes('row-level security') || msg.includes('policy') || upErr.statusCode === '403' || upErr.statusCode === 403) {
-          setError('Upload blocked by Supabase permissions (RLS policy). An admin needs to allow uploads to the "audio/" and "bg/" folders in the member-media bucket policies.');
-        } else if (msg.includes('exceeded') || msg.includes('too large') || upErr.statusCode === '413' || upErr.statusCode === 413) {
-          setError('Supabase rejected this file for being too large. Check the bucket\'s file size limit in Storage settings.');
-        } else {
-          setError(upErr.message || 'Upload failed — check the browser console for details.');
-        }
-        setUploading(false);
-        return;
-      }
-
-      const { data: { publicUrl } } = supabase.storage.from('member-media').getPublicUrl(path);
-      onChange(publicUrl, kind === 'bg' ? (isVideo ? 'video' : 'image') : undefined);
-      if (kind === 'audio' && onExtraChange) {
-        const base = file.name.replace(/\.[^/.]+$/, '');
-        onExtraChange(base);
-      }
+      const { publicUrl, isVideo } = await uploadMemberMedia(file, 'bg', username);
+      onChange([...list, { id: _uid(), url: publicUrl, type: isVideo ? 'video' : 'image' }]);
     } catch (err) {
-      console.error('member-media upload exception:', err);
-      if (err.message === 'TIMEOUT') {
-        setError('Upload timed out after 60 seconds. Check your connection and try a smaller file.');
-      } else {
-        setError(err.message || 'Upload failed — check the browser console for details.');
-      }
+      setError(err.message === 'TIMEOUT' ? 'Upload timed out after 60 seconds. Try a smaller file.' : err.message);
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = '';
     }
   };
 
+  const remove = (id) => onChange(list.filter(b => b.id !== id));
+
   return (
     <div className="form-group mp-image-field">
-      <label>{label}</label>
+      <label>Page Backgrounds (video or image — add as many as you want)</label>
       {hint && <small style={{ color: 'rgba(158,165,196,0.4)', fontSize: '0.75rem', display: 'block', marginBottom: 6 }}>{hint}</small>}
       <div className="mp-image-upload-row">
-        <label className="mp-upload-btn" title="Upload from device" style={{ opacity: uploading ? 0.6 : 1 }}>
-          {uploading ? 'Uploading…' : '📁 Upload'}
-          <input ref={inputRef} type="file" accept={accept} onChange={handleFile} style={{ display: 'none' }} disabled={uploading} />
+        <label className="mp-upload-btn" title="Add a background" style={{ opacity: uploading ? 0.6 : 1 }}>
+          {uploading ? 'Uploading…' : '📁 Add Background'}
+          <input ref={inputRef} type="file" accept="video/*,image/*" onChange={handleFile} style={{ display: 'none' }} disabled={uploading} />
         </label>
-        {urlValue && !uploading && (
-          <button className="mp-upload-clear" onClick={() => { onChange('', ''); if (onExtraChange) onExtraChange(''); }} title="Remove">✕ Remove</button>
-        )}
       </div>
       {error && <div style={{ color: '#ff6b7a', fontSize: '0.75rem', marginTop: 4 }}>⚠ {error}</div>}
-      {urlValue && (
-        <div style={{ marginTop: 6, fontSize: '0.75rem', color: 'rgba(158,165,196,0.5)' }}>
-          {kind === 'audio' ? `🎵 ${extraValue || 'Uploaded track'}` : `✓ ${kind === 'bg' ? 'Background' : 'File'} uploaded`}
+      {list.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+          {list.map((b, i) => (
+            <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.15)', borderRadius: 6 }}>
+              <span style={{ fontSize: '0.9rem' }}>{b.type === 'video' ? '🎬' : '🖼️'}</span>
+              <span style={{ flex: 1, fontSize: '0.78rem', color: 'rgba(158,165,196,0.6)' }}>
+                Background {i + 1} ({b.type})
+              </span>
+              <button onClick={() => remove(b.id)} style={{ background: 'none', border: 'none', color: '#ff6b7a', cursor: 'pointer', fontSize: '0.85rem' }}>✕ Remove</button>
+            </div>
+          ))}
+          {list.length > 1 && (
+            <div style={{ fontSize: '0.72rem', color: 'rgba(158,165,196,0.4)' }}>
+              These will cycle on your page, looping through each one.
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 };
 
+// ── Multiple audio uploads — mini radio playlist with title/artist ──
+const MultiAudioUploadField = ({ username, list, onChange, hint }) => {
+  const inputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setError('');
+    try {
+      const { publicUrl } = await uploadMemberMedia(file, 'audio', username);
+      const base = file.name.replace(/\.[^/.]+$/, '');
+      onChange([...list, { id: _uid(), url: publicUrl, title: base, artist: '' }]);
+    } catch (err) {
+      setError(err.message === 'TIMEOUT' ? 'Upload timed out after 60 seconds. Try a smaller file.' : err.message);
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  };
+
+  const remove = (id) => onChange(list.filter(t => t.id !== id));
+  const updateField = (id, key, val) => onChange(list.map(t => t.id === id ? { ...t, [key]: val } : t));
+
+  return (
+    <div className="form-group mp-image-field">
+      <label>Profile Audio (add as many tracks as you want — they'll loop like a mini radio)</label>
+      {hint && <small style={{ color: 'rgba(158,165,196,0.4)', fontSize: '0.75rem', display: 'block', marginBottom: 6 }}>{hint}</small>}
+      <div className="mp-image-upload-row">
+        <label className="mp-upload-btn" title="Add a track" style={{ opacity: uploading ? 0.6 : 1 }}>
+          {uploading ? 'Uploading…' : '📁 Add Track'}
+          <input ref={inputRef} type="file" accept="audio/*" onChange={handleFile} style={{ display: 'none' }} disabled={uploading} />
+        </label>
+      </div>
+      {error && <div style={{ color: '#ff6b7a', fontSize: '0.75rem', marginTop: 4 }}>⚠ {error}</div>}
+      {list.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+          {list.map((t, i) => (
+            <div key={t.id} style={{ padding: '8px 10px', background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.15)', borderRadius: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <span style={{ fontSize: '0.72rem', color: 'rgba(158,165,196,0.35)', width: 16 }}>{i + 1}.</span>
+                <span style={{ flex: 1, fontSize: '0.78rem', color: 'rgba(158,165,196,0.5)' }}>🎵 Uploaded</span>
+                <button onClick={() => remove(t.id)} style={{ background: 'none', border: 'none', color: '#ff6b7a', cursor: 'pointer', fontSize: '0.85rem' }}>✕ Remove</button>
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input value={t.title} onChange={(e) => updateField(t.id, 'title', e.target.value)} placeholder="Song title" style={{ flex: 1, padding: '5px 8px', fontSize: '0.78rem', background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 5 }} />
+                <input value={t.artist} onChange={(e) => updateField(t.id, 'artist', e.target.value)} placeholder="Artist" style={{ flex: 1, padding: '5px 8px', fontSize: '0.78rem', background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 5 }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const TeamSelector = ({ favTeams, onChange }) => {
   const [activeSport, setActiveSport] = useState('mlb');
@@ -371,9 +448,20 @@ const LastFmWidget = ({ lastfmUsername }) => {
   );
 };
 
-// ── Full-page background media (guns.lol style) ───────────────
-export const ProfileBackground = ({ url, type }) => {
-  if (!url) return null;
+// ── Full-page background media (guns.lol style) — cycles through
+// multiple backgrounds if more than one was uploaded. Each video loops
+// while it's showing; every ~20s it crossfades to the next one.
+export const ProfileBackground = ({ list }) => {
+  const [idx, setIdx] = useState(0);
+  useEffect(() => { setIdx(0); }, [list?.length]);
+  useEffect(() => {
+    if (!list || list.length < 2) return;
+    const id = setInterval(() => setIdx(i => (i + 1) % list.length), 20000);
+    return () => clearInterval(id);
+  }, [list]);
+
+  if (!list || list.length === 0) return null;
+  const current = list[idx];
   const overlayStyle = {
     position: 'fixed', inset: 0, zIndex: -1,
     background: 'linear-gradient(180deg, rgba(10,13,26,0.55) 0%, rgba(10,13,26,0.75) 60%, rgba(10,13,26,0.92) 100%)',
@@ -382,48 +470,62 @@ export const ProfileBackground = ({ url, type }) => {
   return (
     <div aria-hidden="true">
       <div style={mediaWrapStyle}>
-        {type === 'video' ? (
-          <video
-            src={url} autoPlay muted loop playsInline
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          />
-        ) : (
-          <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
-        )}
+        <div key={current.id} style={{ width: '100%', height: '100%', animation: 'novaBgFade 1s ease' }}>
+          {current.type === 'video' ? (
+            <video
+              src={current.url} autoPlay muted loop playsInline
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            <img src={current.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
+          )}
+        </div>
       </div>
       <div style={overlayStyle} />
+      <style>{`@keyframes novaBgFade { from { opacity: 0; } to { opacity: 1; } }`}</style>
     </div>
   );
 };
 
-// ── Autoplaying profile audio — with a click-to-enable fallback since ──
-// browsers block unmuted autoplay until the visitor interacts with the page.
-export const ProfileAudioPlayer = ({ url, title }) => {
+// ── Mini radio — profile audio playlist with skip/back/play, track name
+// + artist, and a LIVE indicator. Autoplay-with-click-to-enable fallback
+// since browsers block unmuted autoplay until the visitor interacts.
+export const ProfileAudioPlayer = ({ list }) => {
   const audioRef = useRef(null);
+  const [idx, setIdx]         = useState(0);
   const [blocked, setBlocked] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [open, setOpen]       = useState(false);
+
+  const track = list?.[idx];
+
+  useEffect(() => { setIdx(0); }, [list?.length]);
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio || !track?.url) return;
     audio.volume = 0.5;
-    audio.play().then(() => setPlaying(true)).catch(() => setBlocked(true));
-  }, [url]);
+    audio.play().then(() => { setPlaying(true); setBlocked(false); }).catch(() => setBlocked(true));
+  }, [track?.url]);
+
+  if (!list || list.length === 0) return null;
 
   const enable = () => {
-    audioRef.current?.play().then(() => { setPlaying(true); setBlocked(false); }).catch(() => {});
+    audioRef.current?.play().then(() => { setPlaying(true); setBlocked(false); setOpen(true); }).catch(() => {});
   };
-  const toggle = () => {
+  const togglePlay = () => {
     const audio = audioRef.current;
     if (!audio) return;
     if (playing) { audio.pause(); setPlaying(false); }
     else { audio.play().then(() => setPlaying(true)).catch(() => {}); }
   };
+  const next = () => setIdx(i => (i + 1) % list.length);
+  const prev = () => setIdx(i => (i - 1 + list.length) % list.length);
 
-  return (
-    <>
-      <audio ref={audioRef} src={url} loop onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} />
-      {blocked ? (
+  if (blocked) {
+    return (
+      <>
+        <audio ref={audioRef} src={track?.url} />
         <button onClick={enable} style={{
           position: 'fixed', bottom: 18, right: 18, zIndex: 50,
           display: 'flex', alignItems: 'center', gap: 6,
@@ -432,18 +534,64 @@ export const ProfileAudioPlayer = ({ url, title }) => {
           fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer',
           boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
         }}>
-          🔊 Click for sound{title ? ` — ${title}` : ''}
+          🔊 Click for sound{track?.title ? ` — ${track.title}` : ''}
         </button>
-      ) : (
-        <button onClick={toggle} title={playing ? 'Pause profile audio' : 'Play profile audio'} style={{
-          position: 'fixed', bottom: 18, right: 18, zIndex: 50,
-          width: 44, height: 44, borderRadius: '50%',
-          background: 'rgba(20,24,40,0.75)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)',
-          fontSize: '1.1rem', cursor: 'pointer', backdropFilter: 'blur(6px)',
-        }}>
-          {playing ? '🔊' : '🔇'}
-        </button>
-      )}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <audio ref={audioRef} src={track?.url} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={next} />
+      <div style={{
+        position: 'fixed', bottom: 18, right: 18, zIndex: 50,
+        display: 'flex', alignItems: 'center', gap: 8,
+        background: 'rgba(16,20,34,0.85)', backdropFilter: 'blur(8px)',
+        border: '1px solid rgba(255,255,255,0.1)', borderRadius: open ? 14 : 999,
+        padding: open ? '10px 12px' : '6px', boxShadow: '0 6px 20px rgba(0,0,0,0.4)',
+        maxWidth: open ? 240 : undefined, transition: 'border-radius 0.2s',
+      }}>
+        {!open ? (
+          <button onClick={() => setOpen(true)} title="Open mini radio" style={{
+            width: 34, height: 34, borderRadius: '50%', background: 'rgba(94,129,244,0.25)',
+            border: 'none', color: '#fff', fontSize: '1rem', cursor: 'pointer',
+          }}>📻</button>
+        ) : (
+          <>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
+                {playing && (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: '0.58rem', fontWeight: 800, color: '#ff4d4d', letterSpacing: '0.05em' }}>
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#ff4d4d', animation: 'novaLivePulse 1.2s ease-in-out infinite', display: 'inline-block' }} />
+                    LIVE
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {track?.title || 'Untitled'}
+              </div>
+              {track?.artist && (
+                <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {track.artist}
+                </div>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+              {list.length > 1 && (
+                <button onClick={prev} title="Back" style={{ width: 30, height: 30, borderRadius: '50%', background: 'transparent', border: 'none', color: '#fff', fontSize: '0.85rem', cursor: 'pointer' }}>⏮</button>
+              )}
+              <button onClick={togglePlay} title={playing ? 'Pause' : 'Play'} style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(94,129,244,0.3)', border: 'none', color: '#fff', fontSize: '0.9rem', cursor: 'pointer' }}>
+                {playing ? '⏸' : '▶'}
+              </button>
+              {list.length > 1 && (
+                <button onClick={next} title="Skip" style={{ width: 30, height: 30, borderRadius: '50%', background: 'transparent', border: 'none', color: '#fff', fontSize: '0.85rem', cursor: 'pointer' }}>⏭</button>
+              )}
+              <button onClick={() => setOpen(false)} title="Minimize" style={{ width: 24, height: 24, borderRadius: '50%', background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '0.7rem', cursor: 'pointer', marginLeft: 2 }}>✕</button>
+            </div>
+          </>
+        )}
+      </div>
+      <style>{`@keyframes novaLivePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(1.4)} }`}</style>
     </>
   );
 };
@@ -497,6 +645,7 @@ const MemberProfile = () => {
           const lsProfiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
           const lsFound    = lsProfiles.find(p => p.username === user.username);
           const p = { ...DEFAULT_PROFILE, username: user.username, ...(lsFound || {}), fav_teams: { ...DEFAULT_FAV_TEAMS, ...(lsFound?.fav_teams || {}) }, fav_games: lsFound?.fav_games || [] };
+          p.bg_media = effectiveBgList(p); p.audio_tracks = effectiveAudioList(p);
           setProfile(p); setFormData(p);
           // Seed fav_games from localStorage
           const lsGames = JSON.parse(localStorage.getItem(`nova_favgames_${user.username}`) || '[]');
@@ -504,6 +653,7 @@ const MemberProfile = () => {
           if (lsFound) db.saveMemberProfile(p).catch(() => {});
         } else {
           const p = { ...DEFAULT_PROFILE, ...found, fav_teams: { ...DEFAULT_FAV_TEAMS, ...(found.fav_teams || {}) }, fav_games: found.fav_games || [] };
+          p.bg_media = effectiveBgList(p); p.audio_tracks = effectiveAudioList(p);
           setProfile(p); setFormData(p);
           // Prefer Supabase fav_games; fall back to localStorage
           const supaGames = found.fav_games || [];
@@ -514,6 +664,7 @@ const MemberProfile = () => {
         const profiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
         const found    = profiles.find(p => p.username === user.username);
         const p = { ...DEFAULT_PROFILE, username: user.username, ...(found || {}), fav_teams: { ...DEFAULT_FAV_TEAMS, ...(found?.fav_teams || {}) }, fav_games: found?.fav_games || [] };
+          p.bg_media = effectiveBgList(p); p.audio_tracks = effectiveAudioList(p);
         setProfile(p); setFormData(p);
         const lsGames = JSON.parse(localStorage.getItem(`nova_favgames_${user.username}`) || '[]');
         setFavGames(p.fav_games.length > 0 ? p.fav_games : lsGames);
@@ -610,26 +761,17 @@ const MemberProfile = () => {
             <ImageField label="Avatar / Profile Pic"  fieldKey="avatar_url"     value={formData.avatar_url || ''}     onChange={handleField} username={user?.username} />
 
             <h4 className="gradient-text-cyan" style={{ margin: '20px 0 10px' }}>Page Customization</h4>
-            <MediaUploadField
-              label="Page Background (video or image)"
-              accept="video/*,image/*"
-              kind="bg"
+            <MultiBgUploadField
               username={user?.username}
-              urlValue={formData.bg_media_url}
-              extraValue={formData.bg_media_type}
-              onChange={(url, type) => setFormData(prev => ({ ...prev, bg_media_url: url, bg_media_type: type }))}
-              hint="Shows behind your whole profile, like a guns.lol page. Video loops muted; under 40MB."
+              list={formData.bg_media || []}
+              onChange={(list) => setFormData(prev => ({ ...prev, bg_media: list }))}
+              hint="Shows behind your whole profile, like a guns.lol page. Video loops muted; under 40MB each."
             />
-            <MediaUploadField
-              label="Profile Audio"
-              accept="audio/*"
-              kind="audio"
+            <MultiAudioUploadField
               username={user?.username}
-              urlValue={formData.audio_url}
-              extraValue={formData.audio_title}
-              onChange={(url) => setFormData(prev => ({ ...prev, audio_url: url }))}
-              onExtraChange={(title) => setFormData(prev => ({ ...prev, audio_title: title }))}
-              hint="Plays for visitors to your page. Under 15MB. Admins can remove this from the Owner Dashboard if it's inappropriate."
+              list={formData.audio_tracks || []}
+              onChange={(list) => setFormData(prev => ({ ...prev, audio_tracks: list }))}
+              hint="Plays for visitors to your page like a mini radio. Under 15MB each. Admins can remove tracks from the Owner Dashboard if something's inappropriate."
             />
             <div className="form-group">
               <label>About Me</label>
@@ -720,12 +862,8 @@ const MemberProfile = () => {
       )}
 
       {/* Custom page background — guns.lol style */}
-      {profile.bg_media_url && (
-        <ProfileBackground url={profile.bg_media_url} type={profile.bg_media_type} />
-      )}
-      {profile.audio_url && (
-        <ProfileAudioPlayer url={profile.audio_url} title={profile.audio_title} />
-      )}
+      <ProfileBackground list={effectiveBgList(profile)} />
+      <ProfileAudioPlayer list={effectiveAudioList(profile)} />
 
       {/* Banner */}
       <div className="tw-banner" style={{ backgroundImage: profile.top_banner_url ? `url(${profile.top_banner_url})` : undefined }}>

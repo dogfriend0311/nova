@@ -101,6 +101,22 @@ const Home = ({ onNavigate, user }) => {
   const [stats, setStats] = useState({ members: 0, online: 0 });
   const [onlineList, setOnlineList] = useState([]);
   const [songOfDay, setSongOfDay] = useState(getSongOfDay);
+  const [announcements, setAnnouncements] = useState([]);
+  const [showAllUpdates, setShowAllUpdates] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const loadAnnouncements = async () => {
+      try {
+        const { default: db } = await import('../../services/db');
+        const list = await db.getAnnouncements();
+        if (active) setAnnouncements(list);
+      } catch {}
+    };
+    loadAnnouncements();
+    const id = setInterval(loadAnnouncements, 60000);
+    return () => { active = false; clearInterval(id); };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -165,6 +181,31 @@ const Home = ({ onNavigate, user }) => {
           </span>
         </div>
       </div>
+
+      {announcements.length > 0 && (
+        <div className="neon-card p-3" style={{ marginBottom: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(158,165,196,0.4)' }}>
+              📢 Site Updates
+            </span>
+            {announcements.length > 1 && (
+              <button onClick={() => setShowAllUpdates(v => !v)} style={{ background: 'none', border: 'none', color: 'var(--color-cyan)', cursor: 'pointer', fontSize: '0.78rem' }}>
+                {showAllUpdates ? 'Show less ▲' : `View all ${announcements.length} updates ▼`}
+              </button>
+            )}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: showAllUpdates ? 360 : undefined, overflowY: showAllUpdates ? 'auto' : undefined }}>
+            {(showAllUpdates ? announcements : announcements.slice(0, 1)).map((a) => (
+              <div key={a.id} style={{ paddingBottom: 10, borderBottom: '1px solid rgba(94,129,244,0.1)' }}>
+                <div style={{ fontSize: '0.88rem', color: '#e2e5f0', whiteSpace: 'pre-wrap' }}>{a.message}</div>
+                <div style={{ fontSize: '0.7rem', color: 'rgba(158,165,196,0.4)', marginTop: 6 }}>
+                  {new Date(a.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {onlineList.length > 0 && (
         <>

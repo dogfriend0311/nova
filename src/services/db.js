@@ -683,6 +683,58 @@ export const db = {
     ls.set('nova_fantasy_schedules', ls.get('nova_fantasy_schedules').filter(e => e.id !== id));
   },
 
+  /* ── ANNOUNCEMENTS / UPDATE LOG ──────────────────────────────
+     Everyone can read these; only the owner can post/delete (enforced
+     client-side, same pattern as the rest of the admin dashboard).
+     Run this SQL once in Supabase:
+
+       CREATE TABLE IF NOT EXISTS nova_announcements (
+         id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+         message    TEXT NOT NULL,
+         posted_by  TEXT,
+         created_at TIMESTAMPTZ DEFAULT now()
+       );
+       ALTER TABLE nova_announcements ENABLE ROW LEVEL SECURITY;
+       CREATE POLICY "Public read"  ON nova_announcements FOR SELECT USING (true);
+       CREATE POLICY "Public write" ON nova_announcements FOR INSERT WITH CHECK (true);
+       CREATE POLICY "Public delete" ON nova_announcements FOR DELETE USING (true); */
+
+  async getAnnouncements() {
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase
+          .from('nova_announcements')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (!error) return data || [];
+      } catch {}
+    }
+    return ls.get('nova_announcements').sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  },
+
+  async postAnnouncement(message, username) {
+    const record = { message, posted_by: username || 'owner', created_at: new Date().toISOString() };
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_announcements').insert([record]).select();
+        if (!error && data?.[0]) {
+          ls.set('nova_announcements', [...ls.get('nova_announcements'), data[0]]);
+          return data[0];
+        }
+      } catch {}
+    }
+    const local = { ...record, id: Date.now().toString() };
+    ls.set('nova_announcements', [...ls.get('nova_announcements'), local]);
+    return local;
+  },
+
+  async deleteAnnouncement(id) {
+    if (hasSupabase()) {
+      try { await supabase.from('nova_announcements').delete().eq('id', id); } catch {}
+    }
+    ls.set('nova_announcements', ls.get('nova_announcements').filter(a => a.id !== id));
+  },
+
 };
 
 /* ── Internal: keep localStorage in sync with Supabase ─────────── */
