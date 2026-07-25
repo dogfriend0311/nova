@@ -48,16 +48,51 @@ function robloxThumbUrl(placeId) {
 }
 
 // ── Image upload field ────────────────────────────────────────
-const ImageField = ({ label, fieldKey, value, onChange }) => {
+// Previously this stored images as base64 directly in the profile row.
+// That meant every visit to the Members list downloaded every member's
+// full-size banner/avatar image data at once (select * on the whole
+// table) — a major contributor to slow page loads. Now it uploads to
+// Supabase Storage like the background/audio fields do, and only a
+// small URL is stored on the profile.
+const ImageField = ({ label, fieldKey, value, onChange, username }) => {
   const inputRef = useRef(null);
-  const handleFile = (e) => {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 3 * 1024 * 1024) { alert('Image must be under 3 MB'); return; }
-    const reader = new FileReader();
-    reader.onloadend = () => onChange(fieldKey, reader.result);
-    reader.readAsDataURL(file);
+    if (file.size > 5 * 1024 * 1024) {
+      setError(`Image must be under 5 MB (this file is ${(file.size / 1024 / 1024).toFixed(1)} MB)`);
+      return;
+    }
+    setUploading(true);
+    setError('');
+    try {
+      const ext  = file.name.split('.').pop();
+      const path = `image/${username || 'user'}-${Date.now()}-${_uid()}.${ext}`;
+      const uploadPromise = supabase.storage
+        .from('member-media')
+        .upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type || undefined });
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 60000));
+      const { error: upErr } = await Promise.race([uploadPromise, timeoutPromise]);
+      if (upErr) {
+        console.error('image upload error:', upErr);
+        setError(upErr.message?.toLowerCase().includes('bucket')
+          ? 'Storage bucket "member-media" not found.'
+          : (upErr.message || 'Upload failed — check the browser console for details.'));
+        return;
+      }
+      const { data: { publicUrl } } = supabase.storage.from('member-media').getPublicUrl(path);
+      onChange(fieldKey, publicUrl);
+    } catch (err) {
+      setError(err.message === 'TIMEOUT' ? 'Upload timed out. Try a smaller image or check your connection.' : (err.message || 'Upload failed'));
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
   };
+
   const isBase64 = value && value.startsWith('data:');
   const hasImage = !!value;
   return (
@@ -65,12 +100,18 @@ const ImageField = ({ label, fieldKey, value, onChange }) => {
       <label>{label}</label>
       <div className="mp-image-upload-row">
         <input type="text" value={isBase64 ? '' : (value || '')} onChange={(e) => onChange(fieldKey, e.target.value)} placeholder={isBase64 ? '(uploaded file)' : 'Paste image URL…'} style={{ flex: 1 }} />
-        <label className="mp-upload-btn" title="Upload from device">
-          📁 Upload
-          <input ref={inputRef} type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} />
+        <label className="mp-upload-btn" title="Upload from device" style={{ opacity: uploading ? 0.6 : 1 }}>
+          {uploading ? 'Uploading…' : '📁 Upload'}
+          <input ref={inputRef} type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} disabled={uploading} />
         </label>
-        {hasImage && <button className="mp-upload-clear" onClick={() => onChange(fieldKey, '')} title="Remove image">✕</button>}
+        {hasImage && !uploading && <button className="mp-upload-clear" onClick={() => onChange(fieldKey, '')} title="Remove image">✕</button>}
       </div>
+      {error && <div style={{ color: '#ff6b7a', fontSize: '0.75rem', marginTop: 4 }}>⚠ {error}</div>}
+      {isBase64 && (
+        <div style={{ fontSize: '0.72rem', color: 'rgba(255,180,80,0.7)', marginTop: 4 }}>
+          This image is stored the old (slower) way — re-upload it to speed up your page for visitors.
+        </div>
+      )}
       {hasImage && (
         <div className="mp-image-preview-wrap">
           <img src={value} alt="preview" className="mp-image-preview" onError={(e) => { e.target.style.display = 'none'; }} />
@@ -331,7 +372,7 @@ const LastFmWidget = ({ lastfmUsername }) => {
 };
 
 // ── Full-page background media (guns.lol style) ───────────────
-const ProfileBackground = ({ url, type }) => {
+export const ProfileBackground = ({ url, type }) => {
   if (!url) return null;
   const overlayStyle = {
     position: 'fixed', inset: 0, zIndex: -1,
@@ -357,7 +398,7 @@ const ProfileBackground = ({ url, type }) => {
 
 // ── Autoplaying profile audio — with a click-to-enable fallback since ──
 // browsers block unmuted autoplay until the visitor interacts with the page.
-const ProfileAudioPlayer = ({ url, title }) => {
+export const ProfileAudioPlayer = ({ url, title }) => {
   const audioRef = useRef(null);
   const [blocked, setBlocked] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -565,8 +606,8 @@ const MemberProfile = () => {
         </div>
         {!favTab ? (
           <div className="neon-card p-3">
-            <ImageField label="Banner Image"          fieldKey="top_banner_url" value={formData.top_banner_url || ''} onChange={handleField} />
-            <ImageField label="Avatar / Profile Pic"  fieldKey="avatar_url"     value={formData.avatar_url || ''}     onChange={handleField} />
+            <ImageField label="Banner Image"          fieldKey="top_banner_url" value={formData.top_banner_url || ''} onChange={handleField} username={user?.username} />
+            <ImageField label="Avatar / Profile Pic"  fieldKey="avatar_url"     value={formData.avatar_url || ''}     onChange={handleField} username={user?.username} />
 
             <h4 className="gradient-text-cyan" style={{ margin: '20px 0 10px' }}>Page Customization</h4>
             <MediaUploadField
