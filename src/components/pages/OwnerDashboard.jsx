@@ -114,6 +114,7 @@ const MemberPagesTab = () => {
                 localStorage.setItem('member_profiles', JSON.stringify(updated));
               }}>Del Account</button>
             </div>
+            </div>
             {(bgList.length > 0 || audioList.length > 0) && (
               <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(94,129,244,0.12)', display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {bgList.length > 0 && (
