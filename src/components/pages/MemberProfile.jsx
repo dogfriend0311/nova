@@ -58,11 +58,47 @@ function extractRobloxGameName(url) {
   return url;
 }
 
-function robloxThumbUrl(placeId) {
-  return `https://wsrv.nl/?url=${encodeURIComponent(
-    `https://www.roblox.com/Thumbs/GameIcon.ashx?placeId=${placeId}&width=256&height=256`
-  )}&w=64&h=64`;
-}
+// ── Roblox game card — fetches a live thumbnail (the old client-side
+// thumbnail URL was a Roblox endpoint that's since been discontinued)
+// and links out to the actual game when clicked.
+export const RobloxGameCard = ({ placeId, title, note, onRemove }) => {
+  const [thumbUrl, setThumbUrl] = useState(null);
+  const [failed,   setFailed]   = useState(false);
+
+  useEffect(() => {
+    if (!placeId) return;
+    let active = true;
+    fetch(`/api/roblox-game-thumb?placeId=${encodeURIComponent(placeId)}`)
+      .then(res => res.json())
+      .then(data => { if (active) { if (data?.thumbnailUrl) setThumbUrl(data.thumbnailUrl); else setFailed(true); } })
+      .catch(() => { if (active) setFailed(true); });
+    return () => { active = false; };
+  }, [placeId]);
+
+  return (
+    <div style={{ position: 'relative', background: 'rgba(94, 129, 244,0.04)', border: '1px solid rgba(94, 129, 244,0.1)', borderRadius: '10px', overflow: 'hidden' }}>
+      <a href={`https://www.roblox.com/games/${placeId}`} target="_blank" rel="noopener noreferrer" style={{ display: 'block', textDecoration: 'none' }}>
+        {thumbUrl ? (
+          <img src={thumbUrl} alt={title} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} onError={() => setFailed(true)} />
+        ) : (
+          <div style={{ width: '100%', aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(94,129,244,0.08)', fontSize: '1.8rem' }}>
+            {failed ? '🎮' : '⏳'}
+          </div>
+        )}
+        <div style={{ padding: '8px' }}>
+          <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--color-cyan)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</div>
+          {note && <div style={{ fontSize: '0.7rem', color: 'rgba(158, 165, 196,0.5)', marginTop: '2px', fontStyle: 'italic' }}>"{note}"</div>}
+        </div>
+      </a>
+      {onRemove && (
+        <button onClick={onRemove}
+          style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.6)', border: 'none', color: 'rgba(255, 107, 122,0.8)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.7rem', padding: '2px 6px' }}>
+          x
+        </button>
+      )}
+    </div>
+  );
+};
 
 // ── Image upload field ────────────────────────────────────────
 // Previously this stored images as base64 directly in the profile row.
@@ -1158,22 +1194,7 @@ const MemberProfile = () => {
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px' }}>
                 {favGames.filter(g => g.placeId).map(g => (
-                  <div key={g.id} style={{ position: 'relative', background: 'rgba(94, 129, 244,0.04)', border: '1px solid rgba(94, 129, 244,0.1)', borderRadius: '10px', overflow: 'hidden' }}>
-                    <img
-                      src={robloxThumbUrl(g.placeId)}
-                      alt={g.text}
-                      style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }}
-                      onError={(e) => { e.target.style.display = 'none'; }}
-                    />
-                    <div style={{ padding: '8px' }}>
-                      <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--color-cyan)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.text}</div>
-                      {g.note && <div style={{ fontSize: '0.7rem', color: 'rgba(158, 165, 196,0.5)', marginTop: '2px', fontStyle: 'italic' }}>"{g.note}"</div>}
-                    </div>
-                    <button onClick={() => removeFavGame(g.id)}
-                      style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.6)', border: 'none', color: 'rgba(255, 107, 122,0.8)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.7rem', padding: '2px 6px' }}>
-                      x
-                    </button>
-                  </div>
+                  <RobloxGameCard key={g.id} placeId={g.placeId} title={g.text} note={g.note} onRemove={() => removeFavGame(g.id)} />
                 ))}
               </div>
             )}

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl } from '../../data/teams';
 import * as lfm from '../../services/lastfmService';
-import { ProfileBackground, ProfileAudioPlayer, effectiveBgList, effectiveAudioList, RobloxLinkCard } from './MemberProfile';
+import { ProfileBackground, ProfileAudioPlayer, effectiveBgList, effectiveAudioList, RobloxLinkCard, RobloxGameCard } from './MemberProfile';
 
 // ── role helpers ──────────────────────────────────────────────
 const SPORT_KEYS = ['mlb', 'nfl', 'nba', 'nhl', 'cfb', 'cbb'];
@@ -36,11 +36,6 @@ function copyToClipboard(text, setCopied) {
   }).catch(() => {});
 }
 
-function robloxThumbUrl(placeId) {
-  return `https://wsrv.nl/?url=${encodeURIComponent(
-    `https://www.roblox.com/Thumbs/GameIcon.ashx?placeId=${placeId}&width=256&height=256`
-  )}&w=64&h=64`;
-}
 
 // ── Default gradient banners per role ─────────────────────────
 const defaultBanner = (role) => {
@@ -649,13 +644,7 @@ const MemberProfileView = ({ member, onBack }) => {
               : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
                   {robloxGames.map(g => (
-                    <div key={g.id} style={{ background: 'rgba(94,129,244,0.04)', border: '1px solid rgba(94,129,244,0.1)', borderRadius: 10, overflow: 'hidden' }}>
-                      <img src={robloxThumbUrl(g.placeId)} alt={g.text} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} onError={e => { e.target.style.display='none'; }} />
-                      <div style={{ padding: '6px 8px' }}>
-                        <p style={{ margin: 0, fontWeight: 700, color: 'var(--color-cyan)', fontSize: '0.78rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.text}</p>
-                        {g.note && <p style={{ margin: 0, color: 'rgba(158,165,196,0.5)', fontSize: '0.7rem', fontStyle: 'italic' }}>"{g.note}"</p>}
-                      </div>
-                    </div>
+                    <RobloxGameCard key={g.id} placeId={g.placeId} title={g.text} note={g.note} />
                   ))}
                 </div>
               )

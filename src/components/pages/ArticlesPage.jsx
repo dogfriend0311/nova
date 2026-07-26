@@ -198,15 +198,16 @@ const ArticleCard = ({ article, onOpen }) => (
 );
 
 // ── Root ──────────────────────────────────────────────────────
-const ArticlesPage = () => {
+const ArticlesPage = ({ initialArticleId, onArticleSelect }) => {
   const { user } = useAuth();
   const canManage = user?.role === 'owner' || user?.role === 'cofounder';
 
   const [articles, setArticles] = useState([]);
   const [loaded,   setLoaded]   = useState(false);
-  const [view,     setView]     = useState('list'); // 'list' | 'write' | 'edit' | 'read'
-  const [active,   setActive]   = useState(null);
+  const [view,     setView]     = useState(null); // null (URL-driven) | 'write' | 'edit'
+  const [editing,  setEditing]  = useState(null); // article being edited, when view==='edit'
   const [filter,   setFilter]   = useState('all');
+  const [copied,   setCopied]   = useState(false);
 
   const load = () => {
     import('../../services/db').then(({ default: db }) => {
@@ -216,39 +217,63 @@ const ArticlesPage = () => {
   useEffect(load, []);
 
   const filtered = filter === 'all' ? articles : articles.filter(a => a.category === filter);
+  const active = initialArticleId ? articles.find(a => String(a.id) === String(initialArticleId)) : null;
 
-  const openArticle = (a) => { setActive(a); setView('read'); };
+  const goTo = (id) => { if (onArticleSelect) onArticleSelect(id); };
+
   const deleteArticle = async (id) => {
     if (!window.confirm('Delete this article for everyone?')) return;
     const { default: db } = await import('../../services/db');
     await db.deleteArticle(id);
-    setView('list');
+    goTo(null);
     load();
+  };
+
+  const shareArticle = (id) => {
+    const url = `${window.location.origin}${window.location.pathname}#articles/${id}`;
+    navigator.clipboard?.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
   };
 
   if (view === 'write' || view === 'edit') {
     return (
       <div style={{ padding: '20px 12px' }}>
         <ArticleForm
-          initial={view === 'edit' ? active : null}
+          initial={view === 'edit' ? editing : null}
           username={user?.username}
-          onCancel={() => setView(view === 'edit' ? 'read' : 'list')}
-          onSaved={() => { setView('list'); load(); }}
+          onCancel={() => { setView(null); setEditing(null); }}
+          onSaved={() => { setView(null); setEditing(null); load(); }}
         />
       </div>
     );
   }
 
-  if (view === 'read' && active) {
+  if (initialArticleId && active) {
     return (
       <div style={{ padding: '20px 12px' }}>
+        <div style={{ maxWidth: 720, margin: '0 auto 12px', display: 'flex', justifyContent: 'flex-end' }}>
+          <button onClick={() => shareArticle(active.id)} style={{ background: 'rgba(94,129,244,0.1)', border: '1px solid rgba(94,129,244,0.3)', color: 'var(--color-cyan)', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
+            {copied ? '✓ Link copied!' : '🔗 Share this article'}
+          </button>
+        </div>
         <ArticleReader
           article={active}
           canManage={canManage}
-          onBack={() => setView('list')}
-          onEdit={() => setView('edit')}
+          onBack={() => goTo(null)}
+          onEdit={() => { setEditing(active); setView('edit'); }}
           onDelete={() => deleteArticle(active.id)}
         />
+      </div>
+    );
+  }
+
+  if (initialArticleId && loaded && !active) {
+    return (
+      <div style={{ padding: '40px 12px', textAlign: 'center' }}>
+        <p style={{ color: 'rgba(158,165,196,0.5)' }}>This article doesn't exist or was removed.</p>
+        <button className="neon-button" onClick={() => goTo(null)} style={{ marginTop: 10 }}>← Back to Articles</button>
       </div>
     );
   }
@@ -282,7 +307,7 @@ const ArticlesPage = () => {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {filtered.map(a => (
-            <ArticleCard key={a.id} article={a} onOpen={() => openArticle(a)} />
+            <ArticleCard key={a.id} article={a} onOpen={() => goTo(a.id)} />
           ))}
         </div>
       )}

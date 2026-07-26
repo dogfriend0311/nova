@@ -2003,13 +2003,20 @@ const OwnerDashboard = ({ onExit }) => {
               <Btn id="member-pages"     label="Member Pages" />
               <Btn id="user-roles"       label="User Roles" />
               <Btn id="give-coins"       label="Give Coins" />
-              <Btn id="fantasy-manage"   label="Fantasy Manage" />
-              <Btn id="fantasy-schedule" label="Fantasy Schedule" />
               {isOwner && <Btn id="admin-announcements" label="📢 Announcements" />}
               <Btn id="admin-sotd"       label="🎶 Song of Day" />
               <Btn id="admin-beatbattle" label="🎵 Beat Battle" />
               <Btn id="admin-propbets"   label="🎯 Prop Bets" />
               <Btn id="admin-playoffs"   label="🏆 Playoff Pools" />
+            </div>
+          </div>
+        )}
+        {isOwnerLevel && (
+          <div className="dashboard-section">
+            <div className="section-label">FANTASY</div>
+            <div className="dashboard-tabs">
+              <Btn id="fantasy-manage"   label="Manage" />
+              <Btn id="fantasy-schedule" label="Schedule" />
             </div>
           </div>
         )}

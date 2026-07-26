@@ -207,6 +207,16 @@ const AppContent = () => {
     }
   };
 
+  const handleArticleSelect = (id) => {
+    if (id) {
+      setRouteSub(id);
+      pushHash('articles', id);
+    } else {
+      setRouteSub(null);
+      pushHash('articles');
+    }
+  };
+
   // ── Dashboard full-screen override ───────────────────────
   if (showDashboard) {
     return (
@@ -253,7 +263,7 @@ const AppContent = () => {
         return <GamesPage key="games-default" onSignIn={() => setShowLoginModal(true)} initialTab="fantasy" user={user} />;
 
       case 'articles':
-        return <ArticlesPage />;
+        return <ArticlesPage initialArticleId={routeSub} onArticleSelect={handleArticleSelect} />;
 
       // ── Store tab now includes Coin Shop ──
       case 'store':
