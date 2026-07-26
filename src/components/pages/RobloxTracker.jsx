@@ -56,11 +56,21 @@ const RobloxTracker = ({ user }) => {
 
       setProfile(result);
 
-      // Link to Nova account
+      // Link to Nova account — save locally for instant reload, AND to the
+      // shared member profile in Supabase so it actually shows up on the
+      // member page (localStorage alone never left this browser).
       if (user?.username) {
         localStorage.setItem(STORAGE_KEY(user.username), JSON.stringify(result));
         setSaved(result);
         awardBadge(user.username, 'roblox_linked');
+        try {
+          const { default: db } = await import('../../services/db');
+          const profiles = await db.getMemberProfiles();
+          const existing = profiles.find(p => p.username === user.username) || { username: user.username };
+          await db.saveMemberProfile({ ...existing, roblox_username: result.username, roblox_id: result.id });
+        } catch (linkErr) {
+          console.error('Failed to save Roblox link to profile:', linkErr);
+        }
       }
     } catch (e) {
       setError(e.name === 'AbortError' ? 'Roblox took too long to respond. Please try again.' : (e.message || 'Failed to fetch Roblox profile'));
@@ -69,12 +79,20 @@ const RobloxTracker = ({ user }) => {
     }
   }
 
-  function unlink() {
+  async function unlink() {
     if (!user?.username) return;
     localStorage.removeItem(STORAGE_KEY(user.username));
     setSaved(null);
     setProfile(null);
     setInput('');
+    try {
+      const { default: db } = await import('../../services/db');
+      const profiles = await db.getMemberProfiles();
+      const existing = profiles.find(p => p.username === user.username);
+      if (existing) await db.saveMemberProfile({ ...existing, roblox_username: '', roblox_id: '' });
+    } catch (err) {
+      console.error('Failed to clear Roblox link from profile:', err);
+    }
   }
 
   const statBox = (value, label) => (

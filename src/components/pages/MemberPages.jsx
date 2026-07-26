@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl } from '../../data/teams';
 import * as lfm from '../../services/lastfmService';
-import { ProfileBackground, ProfileAudioPlayer, effectiveBgList, effectiveAudioList } from './MemberProfile';
+import { ProfileBackground, ProfileAudioPlayer, effectiveBgList, effectiveAudioList, RobloxLinkCard } from './MemberProfile';
 
 // ── role helpers ──────────────────────────────────────────────
 const SPORT_KEYS = ['mlb', 'nfl', 'nba', 'nhl', 'cfb', 'cbb'];
@@ -594,6 +594,8 @@ const MemberProfileView = ({ member, onBack }) => {
               {member.bio}
             </p>
           )}
+
+          {member.roblox_username && <RobloxLinkCard username={member.roblox_username} />}
         </div>
       </div>
 

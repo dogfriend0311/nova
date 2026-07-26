@@ -596,6 +596,63 @@ export const ProfileAudioPlayer = ({ list }) => {
   );
 };
 
+// ── Roblox link card — shown on a member's page once they've linked
+// their account via the Roblox Tracker. Fetches live stats each time
+// the page loads (same serverless endpoint the tracker itself uses).
+export const RobloxLinkCard = ({ username }) => {
+  const [data,    setData]    = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState(false);
+
+  useEffect(() => {
+    if (!username) { setLoading(false); return; }
+    let active = true;
+    setLoading(true);
+    setError(false);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    fetch(`/api/roblox-lookup?username=${encodeURIComponent(username)}`, { signal: controller.signal })
+      .then(res => res.json())
+      .then(result => { if (active) { setData(result); setLoading(false); } })
+      .catch(() => { if (active) { setError(true); setLoading(false); } })
+      .finally(() => clearTimeout(timer));
+    return () => { active = false; clearTimeout(timer); controller.abort(); };
+  }, [username]);
+
+  if (!username || error) return null;
+
+  return (
+    <div className="neon-card p-3" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+      {loading ? (
+        <div style={{ color: 'rgba(158,165,196,0.4)', fontSize: '0.85rem' }}>Loading Roblox stats…</div>
+      ) : (
+        <>
+          {data?.avatar && (
+            <img src={data.avatar} alt="" style={{ width: 48, height: 48, borderRadius: '50%', flexShrink: 0 }} />
+          )}
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(158,165,196,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>
+              🎮 Roblox
+            </div>
+            <div style={{ fontWeight: 700, color: '#e2e5f0', fontSize: '0.92rem' }}>{data?.displayName || username}</div>
+            <div style={{ fontSize: '0.78rem', color: 'rgba(158,165,196,0.5)' }}>
+              @{data?.username || username}
+              {data?.friendCount != null && ` · ${data.friendCount.toLocaleString()} friends`}
+              {data?.badgeCount != null && ` · ${data.badgeCount}+ badges`}
+            </div>
+          </div>
+          {data?.id && (
+            <a href={`https://www.roblox.com/users/${data.id}/profile`} target="_blank" rel="noopener noreferrer"
+              style={{ flexShrink: 0, fontSize: '0.78rem', color: 'var(--color-cyan)', textDecoration: 'none', fontWeight: 600 }}>
+              View →
+            </a>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
 // ══════════════════════════════════════════════════════════════
 //  Main MemberProfile
 // ══════════════════════════════════════════════════════════════
@@ -914,6 +971,8 @@ const MemberProfile = () => {
         </div>
 
         {profile.bio && <p className="tw-bio">{profile.bio}</p>}
+
+        {profile.roblox_username && <RobloxLinkCard username={profile.roblox_username} />}
 
         {socials.length > 0 && (
           <div className="tw-socials">
