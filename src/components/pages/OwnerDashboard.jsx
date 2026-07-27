@@ -4,6 +4,7 @@ import db from '../../services/db';
 import fantasyDb from '../../services/fantasyDb';
 import { ACCOLADE_TYPES, accoladeLabel, accoladeIcon } from '../../data/accolades';
 import { BadgeChip } from '../BadgeDisplay';
+import { BADGES as ACHIEVEMENT_BADGES } from '../../services/achievementsService';
 import './OwnerDashboard.css';
 
 const SI = { padding:'10px', background:'rgba(94, 129, 244,0.05)', border:'1px solid rgba(94, 129, 244,0.2)', color:'#e2e5f0', borderRadius:'4px', width:'100%' };
@@ -269,6 +270,22 @@ const BadgesAdminTab = () => {
 
   const flash = (text) => { setMsg(text); setTimeout(() => setMsg(''), 3000); };
 
+  // Copies the automatic "earned" achievement badges (Early Adopter, Coin
+  // Collector, etc. — from achievementsService.js) into this manageable
+  // catalog, so they can be assigned/removed like any admin-created badge.
+  // Skips ones that already exist (matched by name) so it's safe to click twice.
+  const seedAchievementBadges = () => {
+    const existingNames = new Set(badgeTypes.map(b => b.name.toLowerCase()));
+    const toAdd = ACHIEVEMENT_BADGES.filter(b => !existingNames.has(b.name.toLowerCase()));
+    if (toAdd.length === 0) { flash('Those are already in your badge list.'); return; }
+    Promise.all(toAdd.map(b => db.createBadgeType({
+      name: b.name, icon: b.emoji, color: b.color, description: b.desc, created_by: user?.username,
+    }))).then(() => {
+      flash(`Added ${toAdd.length} badge${toAdd.length === 1 ? '' : 's'}.`);
+      loadAll();
+    }).catch(() => flash('Failed to import badges.'));
+  };
+
   const createBadge = () => {
     if (!name.trim()) { flash('Give the badge a name first.'); return; }
     db.createBadgeType({ name: name.trim(), icon: icon.trim() || '🏅', color, description: description.trim(), created_by: user?.username }).then(() => {
@@ -340,7 +357,16 @@ const BadgesAdminTab = () => {
 
       {/* Existing badges */}
       <div className="neon-card p-3" style={{ marginBottom:'24px' }}>
-        <h4 className="gradient-text-cyan" style={{ marginTop:0 }}>Existing Badges</h4>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'10px' }}>
+          <h4 className="gradient-text-cyan" style={{ marginTop:0, marginBottom:0 }}>Existing Badges</h4>
+          <button className="neon-button" onClick={seedAchievementBadges} style={{ fontSize:'0.78rem', padding:'8px 14px' }}>
+            Import Achievement Badges
+          </button>
+        </div>
+        <p style={{ color:'rgba(158,165,196,0.4)', fontSize:'0.78rem', margin:'8px 0 14px' }}>
+          Adds the 14 auto-earned badges (Early Adopter, Coin Collector, Veteran, etc.) to this list so you can
+          assign or delete them manually too. They stay separate from members' automatic progress on the earned/locked list.
+        </p>
         {loading ? (
           <p style={{ color:'rgba(158,165,196,0.5)' }}>Loading…</p>
         ) : badgeTypes.length === 0 ? (
