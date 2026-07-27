@@ -79,6 +79,7 @@ const TILES = [
   { id: 'games',     icon: 'games',   title: 'Games',         desc: 'Fantasy, Pick\'ems, Beat Battle, Prop Bets & more',       accent: 'amber'  },
   { id: 'music',     icon: 'music',   title: 'Music',         desc: '🎧 Last.fm scrobbles & Beat Battle',                       accent: 'violet' },
   { id: 'articles',  icon: 'articles',title: 'Articles',      desc: '📰 Sports & music writeups from the staff',                accent: 'blue'   },
+  { id: 'franchise', icon: 'league',  title: 'Franchise Mode',desc: '⚾ 32-team league — claim a team, sim games, trades',      accent: 'amber'  },
   { id: 'coinshop',  icon: 'store',   title: 'Coin Shop',     desc: '🛍️ Buy name glows, avatar borders & badges',             accent: 'amber'  },
   { id: 'wrapped',   icon: 'profile', title: 'Nova Wrapped',  desc: '✨ Your monthly stats recap card',                        accent: 'violet' },
   { id: 'roblox',    icon: 'games',   title: 'Roblox Tracker','desc': '🎮 Link your Roblox account to your profile',           accent: 'blue'   },
