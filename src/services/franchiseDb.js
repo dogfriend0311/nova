@@ -3,25 +3,23 @@ import * as engine from './franchiseEngine';
 
 const hasSupabase = () => !!(process.env.REACT_APP_SUPABASE_URL && process.env.REACT_APP_SUPABASE_ANON_KEY);
 
-/** The one shared community league (MVP scope — personal instances come later). */
+/** The one public shared community league. */
 export async function getSharedInstance() {
   if (!hasSupabase()) return null;
   const { data } = await supabase.from('franchise_instances').select('*').eq('type', 'shared').limit(1).single();
   return data || null;
 }
 
-/** Generates the full 32-team league + rosters + a fresh season + schedule.
- *  Call once to bootstrap; safe to no-op if a shared instance already exists. */
-export async function initializeSharedLeague() {
-  const existing = await getSharedInstance();
-  if (existing) return existing;
+/** A user's own private instances (just them + CPU teams). */
+export async function getMyPersonalInstances(username) {
+  if (!hasSupabase() || !username) return [];
+  const { data } = await supabase.from('franchise_instances').select('*').eq('type', 'personal').eq('owner_user_id', username);
+  return data || [];
+}
 
-  const { data: instance, error: instErr } = await supabase
-    .from('franchise_instances')
-    .insert([{ name: 'Roblox Baseball League', type: 'shared' }])
-    .select().single();
-  if (instErr) throw new Error(instErr.message);
-
+/** Shared generator — builds the 32-team league + rosters + a fresh
+ *  preseason season + schedule for any instance (shared or personal). */
+async function generateLeagueContents(instance) {
   const teamsData = engine.generateLeague();
   const teamRows = teamsData.map(t => ({
     franchise_instance_id: instance.id,
@@ -33,17 +31,15 @@ export async function initializeSharedLeague() {
   const { data: insertedTeams, error: teamErr } = await supabase.from('teams').insert(teamRows).select();
   if (teamErr) throw new Error(teamErr.message);
 
-  // Attach rosters to their real inserted team ids
   const allPlayers = [];
   insertedTeams.forEach((team, i) => {
     const rosters = teamsData[i]._rosters;
     ['MLB', 'AAA', 'AA', 'A'].forEach(level => {
       rosters[level].forEach(p => {
-        allPlayers.push({ ...p, franchise_instance_id: instance.id, team_id: team.id });
+        allPlayers.push({ ...p, franchise_instance_id: instance.id, team_id: team.id, status: 'active' });
       });
     });
   });
-  // Insert in chunks (Supabase/PostgREST has payload limits)
   const CHUNK = 200;
   for (let i = 0; i < allPlayers.length; i += CHUNK) {
     const { error } = await supabase.from('players').insert(allPlayers.slice(i, i + CHUNK));
@@ -51,9 +47,10 @@ export async function initializeSharedLeague() {
   }
 
   const year = new Date().getFullYear();
+  // Starts in 'preseason' — teams can be claimed/picked before games begin.
   const { data: season, error: seasonErr } = await supabase
     .from('seasons')
-    .insert([{ franchise_instance_id: instance.id, year, phase: 'regular', current_day: 1, total_days: 162 }])
+    .insert([{ franchise_instance_id: instance.id, year, phase: 'preseason', current_day: 1, total_days: 162 }])
     .select().single();
   if (seasonErr) throw new Error(seasonErr.message);
 
@@ -66,6 +63,28 @@ export async function initializeSharedLeague() {
     if (error) throw new Error(error.message);
   }
 
+  return { instance, season };
+}
+
+/** Generates the public shared league. Safe to no-op if it already exists. */
+export async function initializeSharedLeague() {
+  const existing = await getSharedInstance();
+  if (existing) return existing;
+  const { data: instance, error } = await supabase
+    .from('franchise_instances').insert([{ name: 'Nova Baseball Simulator', type: 'shared' }]).select().single();
+  if (error) throw new Error(error.message);
+  await generateLeagueContents(instance);
+  return instance;
+}
+
+/** Creates a brand new private instance for one user — just them + 31 CPU teams. */
+export async function createPersonalInstance(username, name) {
+  const { data: instance, error } = await supabase
+    .from('franchise_instances')
+    .insert([{ name: name || `${username}'s League`, type: 'personal', owner_user_id: username }])
+    .select().single();
+  if (error) throw new Error(error.message);
+  await generateLeagueContents(instance);
   return instance;
 }
 
@@ -86,16 +105,47 @@ export async function getCurrentSeason(instanceId) {
   return data || null;
 }
 
-export async function claimTeam(teamId, username) {
+/** Ends the preseason team-selection window and opens regular-season play. */
+export async function startSeason(seasonId) {
+  const { error } = await supabase.from('seasons').update({ phase: 'regular' }).eq('id', seasonId);
+  if (error) throw new Error(error.message);
+}
+
+/** Claims a team for a user — blocks claiming a second team in the same league. */
+export async function claimTeam(teamId, username, instanceId) {
+  const { data: alreadyOwned } = await supabase.from('teams').select('id')
+    .eq('franchise_instance_id', instanceId).eq('owner_user_id', username).limit(1);
+  if (alreadyOwned && alreadyOwned.length) {
+    throw new Error("You already own a team in this league — release it before claiming another.");
+  }
   const { error } = await supabase.from('teams').update({ owner_user_id: username }).eq('id', teamId);
   if (error) throw new Error(error.message);
 }
+
+// ═══════════════════════════════════════════════════════════════
+//  GM ACTIONS — call up / send down / release
+// ═══════════════════════════════════════════════════════════════
+
+/** Moves a player between roster levels (call-up or send-down). */
+export async function changePlayerLevel(playerId, newLevel) {
+  const { error } = await supabase.from('players').update({ level: newLevel }).eq('id', playerId);
+  if (error) throw new Error(error.message);
+}
+
+/** Releases a player to free agency — off the roster entirely. */
+export async function releasePlayer(playerId) {
+  const { error } = await supabase.from('players').update({ team_id: null, status: 'free_agent' }).eq('id', playerId);
+  if (error) throw new Error(error.message);
+}
+
+
 
 /** Simulates every scheduled game for the season's current day, updates
  *  standings + player_game_stats, and advances current_day by one. */
 export async function simulateDay(seasonId) {
   const { data: season } = await supabase.from('seasons').select('*').eq('id', seasonId).single();
   if (!season) throw new Error('Season not found');
+  if (season.phase !== 'regular') throw new Error(`Can't simulate games during "${season.phase}" — finish that phase first.`);
 
   const { data: dayGames } = await supabase.from('games').select('*')
     .eq('season_id', seasonId).eq('day_number', season.current_day).eq('status', 'scheduled');
@@ -139,6 +189,25 @@ export async function simulateDay(seasonId) {
   await supabase.from('seasons').update({ current_day: nextDay }).eq('id', seasonId);
 
   return results;
+}
+
+/** Fast-forwards through every remaining day of the regular season in one
+ *  go. Returns a summary rather than full results (a season is ~161 days
+ *  of games — too much to hand back play-by-play for all of it at once). */
+export async function simulateRestOfSeason(seasonId, onProgress) {
+  let totalGames = 0;
+  let daysSimulated = 0;
+  for (let i = 0; i < 200; i++) {
+    const { data: season } = await supabase.from('seasons').select('*').eq('id', seasonId).single();
+    if (!season || season.phase !== 'regular' || season.current_day > season.total_days) break;
+    const dayBefore = season.current_day;
+    const dayResults = await simulateDay(seasonId);
+    totalGames += dayResults.length;
+    daysSimulated++;
+    if (onProgress) onProgress(daysSimulated, season.total_days - dayBefore);
+    if (dayBefore >= season.total_days) break; // just simulated the final day
+  }
+  return { daysSimulated, totalGames };
 }
 
 /** Aggregates a player's season stats and returns raw counting stats
@@ -185,4 +254,206 @@ export async function getLeagueAverages(seasonId) {
     slg: engine.slg(totals.h, totals.doubles, totals.triples, totals.hr, totals.ab),
     era: engine.era(totals.er, totals.outs_recorded),
   };
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  TRADES
+// ═══════════════════════════════════════════════════════════════
+
+export async function proposeTrade(instanceId, proposingTeamId, receivingTeamId, offeredPlayerIds, requestedPlayerIds) {
+  const { data, error } = await supabase.from('trades').insert([{
+    franchise_instance_id: instanceId,
+    proposing_team_id: proposingTeamId,
+    receiving_team_id: receivingTeamId,
+    players_offered: offeredPlayerIds,
+    players_requested: requestedPlayerIds,
+    status: 'pending',
+  }]).select().single();
+  if (error) throw new Error(error.message);
+
+  const { data: receivingTeam } = await supabase.from('teams').select('*').eq('id', receivingTeamId).single();
+  if (receivingTeam && !receivingTeam.owner_user_id) {
+    return await evaluateAndResolveCpuTrade(data);
+  }
+  return data;
+}
+
+export async function getTradesForTeam(teamId) {
+  const { data } = await supabase.from('trades').select('*')
+    .or(`proposing_team_id.eq.${teamId},receiving_team_id.eq.${teamId}`)
+    .order('created_at', { ascending: false });
+  return data || [];
+}
+
+async function fetchPlayersByIds(ids) {
+  if (!ids || !ids.length) return [];
+  const { data } = await supabase.from('players').select('*').in('id', ids);
+  return data || [];
+}
+
+async function evaluateAndResolveCpuTrade(trade) {
+  const [offered, requested] = await Promise.all([
+    fetchPlayersByIds(trade.players_offered),
+    fetchPlayersByIds(trade.players_requested),
+  ]);
+  const offeredValue = offered.reduce((s, p) => s + engine.overallRating(p), 0);
+  const requestedValue = requested.reduce((s, p) => s + engine.overallRating(p), 0);
+  const accept = offeredValue >= requestedValue * 0.9;
+  return await respondToTrade(trade.id, accept);
+}
+
+export async function respondToTrade(tradeId, accept) {
+  const { data: trade } = await supabase.from('trades').select('*').eq('id', tradeId).single();
+  if (!trade) throw new Error('Trade not found');
+
+  if (accept) {
+    if (trade.players_offered?.length) {
+      await supabase.from('players').update({ team_id: trade.receiving_team_id }).in('id', trade.players_offered);
+    }
+    if (trade.players_requested?.length) {
+      await supabase.from('players').update({ team_id: trade.proposing_team_id }).in('id', trade.players_requested);
+    }
+  }
+  const { data, error } = await supabase.from('trades')
+    .update({ status: accept ? 'accepted' : 'rejected' }).eq('id', tradeId).select().single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DRAFT
+// ═══════════════════════════════════════════════════════════════
+
+export async function startDraft(instanceId, seasonId, numRounds = 10) {
+  const { data: season } = await supabase.from('seasons').select('*').eq('id', seasonId).single();
+  const teams = await getTeams(instanceId);
+  const order = [...teams].sort((a, b) => (a.wins - a.losses) - (b.wins - b.losses));
+
+  const prospects = [];
+  for (let i = 0; i < teams.length * numRounds; i++) prospects.push(engine.generateProspect(season.year));
+  const prospectRows = prospects.map(p => ({ ...p, franchise_instance_id: instanceId, team_id: null, status: 'draft_prospect' }));
+  const CHUNK = 200;
+  const insertedProspects = [];
+  for (let i = 0; i < prospectRows.length; i += CHUNK) {
+    const { data, error } = await supabase.from('players').insert(prospectRows.slice(i, i + CHUNK)).select();
+    if (error) throw new Error(error.message);
+    insertedProspects.push(...(data || []));
+  }
+
+  const pickRows = [];
+  let pickNumber = 1;
+  for (let round = 1; round <= numRounds; round++) {
+    for (const team of order) {
+      pickRows.push({ season_id: seasonId, round, pick_number: pickNumber, team_id: team.id, made: false });
+      pickNumber++;
+    }
+  }
+  for (let i = 0; i < pickRows.length; i += CHUNK) {
+    const { error } = await supabase.from('draft_picks').insert(pickRows.slice(i, i + CHUNK));
+    if (error) throw new Error(error.message);
+  }
+
+  await supabase.from('seasons').update({ phase: 'draft' }).eq('id', seasonId);
+  return { prospectCount: insertedProspects.length, pickCount: pickRows.length };
+}
+
+export async function getCurrentPick(seasonId) {
+  const { data } = await supabase.from('draft_picks').select('*').eq('season_id', seasonId)
+    .eq('made', false).order('pick_number', { ascending: true }).limit(1).single();
+  return data || null;
+}
+
+export async function getAvailableProspects(instanceId) {
+  const { data } = await supabase.from('players').select('*')
+    .eq('franchise_instance_id', instanceId).eq('status', 'draft_prospect').is('team_id', null);
+  return (data || []).sort((a, b) => engine.overallRating(b) - engine.overallRating(a));
+}
+
+export async function makeDraftPick(pickId, playerId) {
+  const { data: pick } = await supabase.from('draft_picks').select('*').eq('id', pickId).single();
+  if (!pick) throw new Error('Pick not found');
+
+  await supabase.from('players').update({
+    team_id: pick.team_id, level: 'A', status: 'active',
+    draft_round: pick.round, draft_pick: pick.pick_number,
+  }).eq('id', playerId);
+
+  const { data, error } = await supabase.from('draft_picks').update({ made: true, player_id: playerId }).eq('id', pickId).select().single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function autoAdvanceCpuPicks(instanceId, seasonId) {
+  const made = [];
+  for (let i = 0; i < 200; i++) {
+    const current = await getCurrentPick(seasonId);
+    if (!current) break;
+    const { data: team } = await supabase.from('teams').select('owner_user_id').eq('id', current.team_id).single();
+    if (team?.owner_user_id) break;
+    const available = await getAvailableProspects(instanceId);
+    if (!available.length) break;
+    const best = available[0];
+    const result = await makeDraftPick(current.id, best.id);
+    made.push(result);
+  }
+  return made;
+}
+
+export async function isDraftComplete(seasonId) {
+  const current = await getCurrentPick(seasonId);
+  return !current;
+}
+
+export async function finishDraft(seasonId) {
+  await supabase.from('seasons').update({ phase: 'regular' }).eq('id', seasonId);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  FREE AGENCY
+// ═══════════════════════════════════════════════════════════════
+
+export async function generateFreeAgentPool(instanceId, count = 40) {
+  const rows = [];
+  for (let i = 0; i < count; i++) {
+    rows.push({ ...engine.generateFreeAgent(), franchise_instance_id: instanceId, team_id: null, status: 'free_agent' });
+  }
+  const { data, error } = await supabase.from('players').insert(rows).select();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function getFreeAgents(instanceId) {
+  const { data } = await supabase.from('players').select('*')
+    .eq('franchise_instance_id', instanceId).eq('status', 'free_agent').is('team_id', null);
+  return (data || []).sort((a, b) => engine.overallRating(b) - engine.overallRating(a));
+}
+
+export async function makeFreeAgentOffer(playerId, teamId, offerAmount, years) {
+  const [{ data: team }, { data: player }] = await Promise.all([
+    supabase.from('teams').select('*').eq('id', teamId).single(),
+    supabase.from('players').select('*').eq('id', playerId).single(),
+  ]);
+  if (!team) throw new Error('Team not found');
+  if (!player) throw new Error('Player not found');
+
+  if (team.budget_used + offerAmount > team.budget_cap) {
+    throw new Error(`Over budget cap — this team has $${(team.budget_cap - team.budget_used).toLocaleString()} remaining.`);
+  }
+
+  const { data: offer, error } = await supabase.from('free_agency_offers').insert([{
+    player_id: playerId, team_id: teamId, offer_amount: offerAmount, years, status: 'pending',
+  }]).select().single();
+  if (error) throw new Error(error.message);
+
+  const marketValue = engine.estimateMarketValue(player);
+  const accepted = offerAmount >= marketValue * 0.85;
+
+  if (accepted) {
+    await supabase.from('players').update({
+      team_id: teamId, status: 'active', salary: offerAmount, contract_years_remaining: years,
+    }).eq('id', playerId);
+    await supabase.from('teams').update({ budget_used: team.budget_used + offerAmount }).eq('id', teamId);
+  }
+  await supabase.from('free_agency_offers').update({ status: accepted ? 'accepted' : 'rejected' }).eq('id', offer.id);
+  return { accepted, marketValue, offer };
 }

@@ -51,7 +51,7 @@ function genName() { return { first: pick(FIRST_NAMES), last: pick(LAST_NAMES) }
 // ─────────────────────────────────────────────────────────────
 const HITTER_POSITIONS = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH'];
 
-function genHitter(level, position) {
+export function genHitter(level, position) {
   const { first, last } = genName();
   const levelMean = { MLB: 50, AAA: 42, AA: 36, A: 30 }[level] || 40;
   const ageRange  = { MLB: [22, 38], AAA: [21, 30], AA: [19, 27], A: [18, 24] }[level] || [20, 28];
@@ -74,7 +74,7 @@ function genHitter(level, position) {
   };
 }
 
-function genPitcher(level, position) {
+export function genPitcher(level, position) {
   const { first, last } = genName();
   const levelMean = { MLB: 50, AAA: 42, AA: 36, A: 30 }[level] || 40;
   const ageRange  = { MLB: [22, 38], AAA: [21, 30], AA: [19, 27], A: [18, 24] }[level] || [20, 28];
@@ -157,9 +157,65 @@ export function generateSchedule(teamIds, totalDays = 162) {
   return games;
 }
 
+/** A single draft prospect — same shape as a roster player but not yet
+ *  attached to any team (franchiseDb sets team_id=null, status='draft_prospect'). */
+export function generateProspect(draftYear) {
+  const isPitcher = Math.random() < 0.45;
+  const p = isPitcher ? genPitcher('A', pick(['SP', 'RP'])) : genHitter('A', pick(HITTER_POSITIONS));
+  // Prospects skew younger than a typical A-ball veteran and have wider variance
+  p.age = rand(18, 22);
+  p.draft_year = draftYear;
+  return p;
+}
+
+/** A standalone free agent (MLB-level, not tied to any draft class). */
+export function generateFreeAgent() {
+  const isPitcher = Math.random() < 0.4;
+  return isPitcher ? genPitcher('MLB', pick(['SP', 'RP'])) : genHitter('MLB', pick(HITTER_POSITIONS));
+}
+
+/** Single-number value estimate for a player — used by CPU trade evaluation,
+ *  CPU draft auto-picks, and free agent offer evaluation. Not a "real" stat,
+ *  just a consistent yardstick for comparing players against each other. */
+export function overallRating(player) {
+  if (player.is_pitcher) {
+    const raw = (player.stuff + player.control + player.movement + player.stamina) / 4;
+    return raw - Math.max(0, player.age - 30) * 0.8; // veterans past 30 discounted slightly
+  }
+  const raw = (player.contact + player.power + player.eye + player.speed + player.fielding + player.arm) / 6;
+  return raw - Math.max(0, player.age - 30) * 0.8;
+}
+
+/** Rough market-value salary estimate off overall rating, used to decide
+ *  whether a free agent accepts an offer. */
+export function estimateMarketValue(player) {
+  const rating = overallRating(player);
+  return Math.max(500000, Math.round((rating - 20) * 150000));
+}
+
 // ─────────────────────────────────────────────────────────────
-//  At-bat resolution — statistical model off ratings
+//  2D field layout — normalized 0-100 coordinate space, home
+//  plate at (50, 92). Used by the animated dot-diagram game viewer.
 // ─────────────────────────────────────────────────────────────
+export const FIELD_POSITIONS = {
+  P:  { x: 50, y: 62 },
+  C:  { x: 50, y: 90 },
+  '1B': { x: 68, y: 68 },
+  '2B': { x: 60, y: 48 },
+  '3B': { x: 32, y: 68 },
+  SS: { x: 40, y: 48 },
+  LF: { x: 25, y: 25 },
+  CF: { x: 50, y: 15 },
+  RF: { x: 75, y: 25 },
+};
+export const BASE_POSITIONS = {
+  home:  { x: 50, y: 92 },
+  first:  { x: 68, y: 68 },
+  second: { x: 50, y: 48 },
+  third:  { x: 32, y: 68 },
+};
+
+
 // Returns one of: 'K','BB','HBP','1B','2B','3B','HR','OUT'
 function resolveAtBat(batter, pitcher) {
   const contact = batter.contact ?? 50, power = batter.power ?? 50, eye = batter.eye ?? 50;

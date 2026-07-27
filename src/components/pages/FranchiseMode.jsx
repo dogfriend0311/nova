@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import * as fdb from '../../services/franchiseDb';
+import FranchiseTrades from './FranchiseTrades';
+import FranchiseDraft from './FranchiseDraft';
+import FranchiseFreeAgency from './FranchiseFreeAgency';
 
 const POS_ORDER = ['SP', 'RP', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH'];
+const LEVELS = ['MLB', 'AAA', 'AA', 'A'];
 
 function pct(w, l) { const g = w + l; return g > 0 ? (w / g).toFixed(3).replace(/^0/, '') : '.000'; }
 
-// ── Single player row with lazily-loaded season stats ──────────
-const PlayerRow = ({ player, seasonId, leagueAverages }) => {
+// ── Single player row with lazily-loaded season stats + GM actions ──
+const PlayerRow = ({ player, seasonId, leagueAverages, isGM, onLevelChange, onRelease }) => {
   const [stats, setStats] = useState(null);
 
   useEffect(() => {
@@ -35,15 +39,32 @@ const PlayerRow = ({ player, seasonId, leagueAverages }) => {
             : `AVG ${stats.avg.toFixed(3)} · OPS ${stats.ops.toFixed(3)} · HR ${stats.hr || 0} · RBI ${stats.rbi || 0} · WAR ${(stats.war || 0).toFixed(1)}`}
         </span>
       )}
+      {isGM && (
+        <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+          <select
+            value={player.level}
+            onChange={e => onLevelChange(player.id, e.target.value)}
+            style={{ fontSize: '0.7rem', padding: '4px 6px', background: 'rgba(94,129,244,0.08)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 5 }}
+          >
+            {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+          </select>
+          <button onClick={() => onRelease(player.id)} title="Release to free agency"
+            style={{ fontSize: '0.7rem', padding: '4px 8px', background: 'rgba(255,107,122,0.08)', border: '1px solid rgba(255,107,122,0.25)', color: '#ff6b7a', borderRadius: 5, cursor: 'pointer' }}>
+            Release
+          </button>
+        </div>
+      )}
     </div>
   );
 };
 
-// ── Roster view for one team, with level tabs ──────────────────
-const TeamRoster = ({ team, seasonId, leagueAverages, onBack, canClaim, onClaim, user }) => {
+// ── Roster view for one team, with level tabs + GM controls ────
+const TeamRoster = ({ team, seasonId, leagueAverages, onBack, canClaim, onClaim, user, preseason }) => {
   const [level, setLevel] = useState('MLB');
   const [roster, setRoster] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const isGM = !!(user?.username && team.owner_user_id === user.username);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -54,6 +75,16 @@ const TeamRoster = ({ team, seasonId, leagueAverages, onBack, canClaim, onClaim,
     });
   }, [team.id, level]);
   useEffect(load, [load]);
+
+  const handleLevelChange = async (playerId, newLevel) => {
+    await fdb.changePlayerLevel(playerId, newLevel);
+    load();
+  };
+  const handleRelease = async (playerId) => {
+    if (!window.confirm('Release this player to free agency?')) return;
+    await fdb.releasePlayer(playerId);
+    load();
+  };
 
   return (
     <div>
@@ -67,13 +98,19 @@ const TeamRoster = ({ team, seasonId, leagueAverages, onBack, canClaim, onClaim,
             {team.owner_user_id && ` · Owned by @${team.owner_user_id}`}
           </div>
         </div>
-        {!team.owner_user_id && canClaim && (
+        {!team.owner_user_id && canClaim && preseason && (
           <button className="neon-button" onClick={() => onClaim(team.id)}>Claim This Team</button>
         )}
       </div>
 
+      {isGM && (
+        <div style={{ fontSize: '0.78rem', color: '#43b581', marginBottom: 12 }}>
+          🧢 You're the GM of this team — change a player's level or release them below.
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
-        {['MLB', 'AAA', 'AA', 'A'].map(l => (
+        {LEVELS.map(l => (
           <button key={l} onClick={() => setLevel(l)} style={{
             padding: '7px 16px', borderRadius: 8, cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, minHeight: 40,
             background: level === l ? 'rgba(94,129,244,0.18)' : 'rgba(94,129,244,0.05)',
@@ -89,7 +126,10 @@ const TeamRoster = ({ team, seasonId, leagueAverages, onBack, canClaim, onClaim,
         ) : roster.length === 0 ? (
           <div style={{ color: 'rgba(158,165,196,0.35)', textAlign: 'center', padding: 20 }}>No players at this level.</div>
         ) : (
-          roster.map(p => <PlayerRow key={p.id} player={p} seasonId={seasonId} leagueAverages={leagueAverages} />)
+          roster.map(p => (
+            <PlayerRow key={p.id} player={p} seasonId={seasonId} leagueAverages={leagueAverages}
+              isGM={isGM} onLevelChange={handleLevelChange} onRelease={handleRelease} />
+          ))
         )}
       </div>
     </div>
@@ -127,51 +167,151 @@ const Standings = ({ teams, onSelectTeam }) => {
   );
 };
 
+// ── Instance picker — public league vs your private leagues ────
+const InstancePicker = ({ sharedInstance, personalInstances, onEnter, onCreatePersonal, canManagePublic, generatingPublic }) => {
+  const [creating, setCreating] = useState(false);
+
+  const handleCreate = async () => {
+    setCreating(true);
+    try { await onCreatePersonal(); } finally { setCreating(false); }
+  };
+
+  return (
+    <div style={{ padding: '30px 16px', maxWidth: 560, margin: '0 auto' }}>
+      <div style={{ textAlign: 'center', marginBottom: 24 }}>
+        <div style={{ fontSize: '2.4rem' }}>⚾</div>
+        <h1 style={{ color: '#e2e5f0', margin: '6px 0 0' }}>Nova Baseball Simulator</h1>
+        <p style={{ color: 'rgba(158,165,196,0.5)', fontSize: '0.88rem' }}>Pick a league to play in.</p>
+      </div>
+
+      <div className="neon-card p-3" style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(158,165,196,0.4)', textTransform: 'uppercase', marginBottom: 8 }}>🌐 Public League</div>
+        {sharedInstance ? (
+          <button className="neon-button" onClick={() => onEnter(sharedInstance)}>Enter {sharedInstance.name}</button>
+        ) : canManagePublic ? (
+          <button className="neon-button" onClick={() => onEnter(null, true)} disabled={generatingPublic}>
+            {generatingPublic ? 'Generating…' : '⚾ Generate Public League'}
+          </button>
+        ) : (
+          <p style={{ color: 'rgba(158,165,196,0.35)', fontSize: '0.85rem' }}>An owner or cofounder needs to generate this first.</p>
+        )}
+      </div>
+
+      <div className="neon-card p-3">
+        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(158,165,196,0.4)', textTransform: 'uppercase', marginBottom: 8 }}>🔒 Your Private Leagues</div>
+        {personalInstances.length === 0 ? (
+          <p style={{ color: 'rgba(158,165,196,0.4)', fontSize: '0.85rem', marginBottom: 12 }}>Just you against 31 CPU teams — good for practice or solo play.</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+            {personalInstances.map(inst => (
+              <button key={inst.id} className="neon-button" onClick={() => onEnter(inst)} style={{ textAlign: 'left' }}>{inst.name}</button>
+            ))}
+          </div>
+        )}
+        <button className="neon-button" onClick={handleCreate} disabled={creating} style={{ borderColor: 'rgba(94,129,244,0.4)' }}>
+          {creating ? 'Creating…' : '+ Create Private League'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // ── Root ──────────────────────────────────────────────────────
 const FranchiseMode = () => {
   const { user } = useAuth();
   const canManage = user?.role === 'owner' || user?.role === 'cofounder';
 
-  const [instance, setInstance]   = useState(null);
-  const [teams, setTeams]         = useState([]);
-  const [season, setSeason]       = useState(null);
+  const [sharedInstance, setSharedInstance] = useState(null);
+  const [personalInstances, setPersonalInstances] = useState([]);
+  const [instance, setInstance] = useState(null); // the one currently entered
+  const [pickerLoading, setPickerLoading] = useState(true);
+  const [generatingPublic, setGeneratingPublic] = useState(false);
+
+  const [teams, setTeams] = useState([]);
+  const [season, setSeason] = useState(null);
   const [leagueAvg, setLeagueAvg] = useState(null);
-  const [loading, setLoading]     = useState(true);
-  const [generating, setGenerating] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [simulating, setSimulating] = useState(false);
+  const [simProgress, setSimProgress] = useState('');
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [lastResults, setLastResults] = useState([]);
   const [error, setError] = useState('');
+  const [tab, setTab] = useState('standings');
 
-  const load = useCallback(async () => {
+  // ── Load the picker ──
+  const loadPicker = useCallback(async () => {
+    setPickerLoading(true);
+    const [shared, personal] = await Promise.all([
+      fdb.getSharedInstance(),
+      fdb.getMyPersonalInstances(user?.username),
+    ]);
+    setSharedInstance(shared);
+    setPersonalInstances(personal);
+    setPickerLoading(false);
+  }, [user]);
+  useEffect(() => { loadPicker(); }, [loadPicker]);
+
+  // ── Load an entered instance's data ──
+  const loadInstanceData = useCallback(async (inst) => {
     setLoading(true);
     try {
-      const inst = await fdb.getSharedInstance();
-      if (!inst) { setInstance(null); setLoading(false); return; }
-      setInstance(inst);
       const [teamList, currentSeason] = await Promise.all([fdb.getTeams(inst.id), fdb.getCurrentSeason(inst.id)]);
       setTeams(teamList);
       setSeason(currentSeason);
       if (currentSeason) setLeagueAvg(await fdb.getLeagueAverages(currentSeason.id));
     } catch (err) {
-      console.error('Franchise load error:', err);
-      setError(err.message || 'Failed to load franchise data.');
+      setError(err.message || 'Failed to load league data.');
     } finally {
       setLoading(false);
     }
   }, []);
-  useEffect(() => { load(); }, [load]);
 
-  const handleGenerate = async () => {
-    setGenerating(true);
+  const enterInstance = async (inst, generatePublicFirst) => {
+    if (generatePublicFirst) {
+      setGeneratingPublic(true);
+      setError('');
+      try {
+        const created = await fdb.initializeSharedLeague();
+        setSharedInstance(created);
+        setInstance(created);
+        await loadInstanceData(created);
+      } catch (err) {
+        setError(err.message || 'Failed to generate public league.');
+      } finally {
+        setGeneratingPublic(false);
+      }
+      return;
+    }
+    setInstance(inst);
+    setTab('standings');
+    setSelectedTeam(null);
+    await loadInstanceData(inst);
+  };
+
+  const createPersonal = async () => {
     setError('');
     try {
-      await fdb.initializeSharedLeague();
-      await load();
+      const inst = await fdb.createPersonalInstance(user.username);
+      setPersonalInstances(prev => [...prev, inst]);
+      setInstance(inst);
+      await loadInstanceData(inst);
     } catch (err) {
-      setError(err.message || 'Failed to generate league.');
-    } finally {
-      setGenerating(false);
+      setError(err.message || 'Failed to create private league.');
+    }
+  };
+
+  const myTeam = teams.find(t => t.owner_user_id === user?.username);
+  const canSimulate = instance?.type === 'personal' ? instance.owner_user_id === user?.username : canManage;
+  const preseason = season?.phase === 'preseason';
+  const inDraft = season?.phase === 'draft';
+
+  const handleStartSeason = async () => {
+    setError('');
+    try {
+      await fdb.startSeason(season.id);
+      await loadInstanceData(instance);
+    } catch (err) {
+      setError(err.message || 'Failed to start season.');
     }
   };
 
@@ -182,7 +322,7 @@ const FranchiseMode = () => {
     try {
       const results = await fdb.simulateDay(season.id);
       setLastResults(results);
-      await load();
+      await loadInstanceData(instance);
     } catch (err) {
       setError(err.message || 'Failed to simulate day.');
     } finally {
@@ -190,39 +330,55 @@ const FranchiseMode = () => {
     }
   };
 
+  const handleSimulateSeason = async () => {
+    if (!season) return;
+    setSimulating(true);
+    setError('');
+    setSimProgress('Starting…');
+    try {
+      const result = await fdb.simulateRestOfSeason(season.id, (done, remaining) => {
+        setSimProgress(`Simulated ${done} day(s)… ${remaining} to go`);
+      });
+      setSimProgress(`Done — simulated ${result.daysSimulated} days, ${result.totalGames} games.`);
+      await loadInstanceData(instance);
+    } catch (err) {
+      setError(err.message || 'Failed to simulate season.');
+    } finally {
+      setSimulating(false);
+    }
+  };
+
   const handleClaim = async (teamId) => {
     if (!user?.username) return;
+    setError('');
     try {
-      await fdb.claimTeam(teamId, user.username);
-      await load();
+      await fdb.claimTeam(teamId, user.username, instance.id);
+      await loadInstanceData(instance);
       setSelectedTeam(prev => prev ? { ...prev, owner_user_id: user.username } : prev);
     } catch (err) {
       setError(err.message || 'Failed to claim team.');
     }
   };
 
-  if (loading) {
-    return <div style={{ padding: 40, textAlign: 'center', color: 'rgba(158,165,196,0.4)' }}>Loading franchise…</div>;
+  if (pickerLoading) {
+    return <div style={{ padding: 40, textAlign: 'center', color: 'rgba(158,165,196,0.4)' }}>Loading…</div>;
   }
 
   if (!instance) {
     return (
-      <div style={{ padding: '40px 20px', textAlign: 'center', maxWidth: 480, margin: '0 auto' }}>
-        <div style={{ fontSize: '2.4rem', marginBottom: 10 }}>⚾</div>
-        <h2 style={{ color: '#e2e5f0' }}>No league yet</h2>
-        <p style={{ color: 'rgba(158,165,196,0.5)', fontSize: '0.9rem', marginBottom: 20 }}>
-          Generate the 32-team league to get started — full rosters (MLB/AAA/AA/A) for every team, ready to play.
-        </p>
-        {canManage ? (
-          <button className="neon-button" onClick={handleGenerate} disabled={generating}>
-            {generating ? 'Generating league… (this takes a moment)' : '⚾ Generate 32-Team League'}
-          </button>
-        ) : (
-          <p style={{ color: 'rgba(158,165,196,0.35)', fontSize: '0.85rem' }}>An owner or cofounder needs to generate the league first.</p>
-        )}
-        {error && <div style={{ color: '#ff6b7a', fontSize: '0.85rem', marginTop: 14 }}>⚠ {error}</div>}
-      </div>
+      <InstancePicker
+        sharedInstance={sharedInstance}
+        personalInstances={personalInstances}
+        onEnter={enterInstance}
+        onCreatePersonal={createPersonal}
+        canManagePublic={canManage}
+        generatingPublic={generatingPublic}
+      />
     );
+  }
+
+  if (loading) {
+    return <div style={{ padding: 40, textAlign: 'center', color: 'rgba(158,165,196,0.4)' }}>Loading franchise…</div>;
   }
 
   if (selectedTeam) {
@@ -236,6 +392,7 @@ const FranchiseMode = () => {
           canClaim={!!user}
           onClaim={handleClaim}
           user={user}
+          preseason={preseason}
         />
       </div>
     );
@@ -243,26 +400,62 @@ const FranchiseMode = () => {
 
   return (
     <div style={{ padding: '20px 12px', maxWidth: 900, margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
-        <h1 style={{ color: '#e2e5f0', margin: 0 }}>⚾ {instance.name}</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 4 }}>
+        <div>
+          <button onClick={() => setInstance(null)} style={{ background: 'none', border: 'none', color: 'rgba(158,165,196,0.4)', cursor: 'pointer', fontSize: '0.75rem', marginBottom: 4 }}>← Switch League</button>
+          <h1 style={{ color: '#e2e5f0', margin: 0 }}>⚾ {instance.name}</h1>
+        </div>
         {season && (
           <div style={{ fontSize: '0.8rem', color: 'rgba(158,165,196,0.5)' }}>
-            {season.year} Season · Day {season.current_day} of {season.total_days}
+            {season.year} · {season.phase === 'regular' ? `Day ${season.current_day} of ${season.total_days}` : season.phase}
           </div>
         )}
       </div>
 
-      {canManage && season && season.current_day < season.total_days && (
-        <div style={{ marginBottom: 16 }}>
-          <button className="neon-button" onClick={handleSimulateDay} disabled={simulating}>
+      {preseason && (
+        <div className="neon-card p-3" style={{ margin: '16px 0', background: 'rgba(94,129,244,0.08)' }}>
+          <div style={{ fontWeight: 700, color: 'var(--color-cyan)', marginBottom: 4 }}>🏟️ Preseason — Team Selection Open</div>
+          <p style={{ fontSize: '0.85rem', color: 'rgba(158,165,196,0.6)', margin: '0 0 10px' }}>
+            Pick your team from Standings below before the season starts.
+          </p>
+          {canSimulate && (
+            <button className="neon-button" onClick={handleStartSeason} style={{ fontSize: '0.95rem', padding: '10px 24px', fontWeight: 800 }}>
+              🚀 Start Season
+            </button>
+          )}
+        </div>
+      )}
+
+      {!preseason && !inDraft && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+          {['standings', 'trades', 'draft', 'freeagency'].map(t => (
+            <button key={t} onClick={() => setTab(t)} style={{
+              padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, minHeight: 44,
+              background: tab === t ? 'rgba(94,129,244,0.18)' : 'rgba(94,129,244,0.05)',
+              border: `1px solid ${tab === t ? 'rgba(94,129,244,0.5)' : 'rgba(94,129,244,0.15)'}`,
+              color: tab === t ? 'var(--color-cyan)' : 'rgba(158,165,196,0.55)',
+            }}>
+              {{ standings: '📊 Standings', trades: '🔁 Trades', draft: '🎓 Draft', freeagency: '💰 Free Agency' }[t]}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {canSimulate && !preseason && season && season.phase === 'regular' && season.current_day <= season.total_days && (
+        <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+          <button className="neon-button" onClick={handleSimulateDay} disabled={simulating} style={{ fontWeight: 700 }}>
             {simulating ? 'Simulating…' : '▶ Simulate Next Day'}
           </button>
+          <button className="neon-button" onClick={handleSimulateSeason} disabled={simulating} style={{ fontWeight: 700, borderColor: '#f5a623', color: '#f5a623' }}>
+            ⏩ Simulate Rest of Season
+          </button>
+          {simProgress && <span style={{ fontSize: '0.78rem', color: 'rgba(158,165,196,0.5)' }}>{simProgress}</span>}
         </div>
       )}
 
       {error && <div style={{ color: '#ff6b7a', fontSize: '0.85rem', marginBottom: 14 }}>⚠ {error}</div>}
 
-      {lastResults.length > 0 && (
+      {lastResults.length > 0 && tab === 'standings' && (
         <div className="neon-card p-3" style={{ marginBottom: 16 }}>
           <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'rgba(158,165,196,0.4)', marginBottom: 8 }}>Yesterday's Results</div>
           {lastResults.map(g => {
@@ -277,7 +470,17 @@ const FranchiseMode = () => {
         </div>
       )}
 
-      <Standings teams={teams} onSelectTeam={setSelectedTeam} />
+      {inDraft ? (
+        <FranchiseDraft instance={instance} season={season} teams={teams} myTeam={myTeam} onChanged={() => loadInstanceData(instance)} />
+      ) : tab === 'standings' ? (
+        <Standings teams={teams} onSelectTeam={setSelectedTeam} />
+      ) : tab === 'trades' ? (
+        <FranchiseTrades instance={instance} teams={teams} myTeam={myTeam} onChanged={() => loadInstanceData(instance)} />
+      ) : tab === 'draft' ? (
+        <FranchiseDraft instance={instance} season={season} teams={teams} myTeam={myTeam} onChanged={() => loadInstanceData(instance)} />
+      ) : (
+        <FranchiseFreeAgency instance={instance} myTeam={myTeam} canManage={canSimulate} onChanged={() => loadInstanceData(instance)} />
+      )}
     </div>
   );
 };
