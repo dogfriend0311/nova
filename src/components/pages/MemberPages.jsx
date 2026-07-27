@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl } from '../../data/teams';
 import * as lfm from '../../services/lastfmService';
 import { ProfileBackground, ProfileAudioPlayer, effectiveBgList, effectiveAudioList, RobloxLinkCard, RobloxGameCard } from './MemberProfile';
+import { BadgeRow } from '../BadgeDisplay';
 
 // ── role helpers ──────────────────────────────────────────────
 const SPORT_KEYS = ['mlb', 'nfl', 'nba', 'nhl', 'cfb', 'cbb'];
@@ -216,7 +217,7 @@ const CommentsSection = ({ toUsername, currentUser }) => {
 };
 
 // ── guns.lol-style Member Card ────────────────────────────────
-const MemberCard = ({ member, onClick }) => {
+const MemberCard = ({ member, badgeTypes, onClick }) => {
   const [hovered, setHovered] = useState(false);
   const rc = roleColor(member.role);
   const rg = roleGlow(member.role);
@@ -301,6 +302,7 @@ const MemberCard = ({ member, onClick }) => {
             {member.username}
             {member.role === 'owner' && <span style={{ fontSize: '0.75rem' }}>👑</span>}
             {member.role === 'mod'   && <span style={{ fontSize: '0.75rem' }}>🛡️</span>}
+            <BadgeRow badgeTypes={badgeTypes} ids={member.visible_badge_ids} size={14} />
           </div>
           {member.bio ? (
             <p style={{
@@ -329,18 +331,28 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
   const [search,         setSearch]         = useState('');
   const [roleFilter,     setRoleFilter]     = useState('all');
   const [loading,        setLoading]        = useState(true);
+  const [badgeTypes,     setBadgeTypes]     = useState([]);
+
+  // Attach the badge ids each member has both been assigned AND chosen to
+  // display, so a revoked or hidden badge never shows up stale.
+  const withVisibleBadges = (list, assignments) => list.map(m => {
+    const assignedIds = new Set(assignments.filter(a => a.username === m.username).map(a => String(a.badge_id)));
+    const chosen = Array.isArray(m.displayed_badges) ? m.displayed_badges : [];
+    return { ...m, visible_badge_ids: chosen.filter(id => assignedIds.has(String(id))) };
+  });
 
   useEffect(() => {
     import('../../services/db').then(({ default: db }) => {
-      Promise.all([db.getMemberProfiles(), db.getUsers()]).then(([profiles, users]) => {
-        const enriched = profiles.map(p => ({
+      Promise.all([db.getMemberProfiles(), db.getUsers(), db.getBadgeTypes(), db.getMemberBadges()]).then(([profiles, users, badges, assignments]) => {
+        const enriched = withVisibleBadges(profiles.map(p => ({
           ...p,
           role: users.find(u => u.username === p.username)?.role || p.role || 'member',
-        }));
+        })), assignments || []);
         // Sort: owner first, then cofounder, mod, vizta_helper, member
         const ORDER = { owner: 0, cofounder: 1, mod: 2, vizta_helper: 3, member: 4 };
         enriched.sort((a, b) => (ORDER[a.role] ?? 5) - (ORDER[b.role] ?? 5));
         setMembers(enriched);
+        setBadgeTypes(badges || []);
         setLoading(false);
         if (targetUsername) {
           const found = enriched.find(m => m.username === targetUsername);
@@ -349,7 +361,7 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
       }).catch(() => {
         const profiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
         const users    = JSON.parse(localStorage.getItem('nova_users')       || '[]');
-        const enriched = profiles.map(p => ({ ...p, role: users.find(u => u.username === p.username)?.role || 'member' }));
+        const enriched = withVisibleBadges(profiles.map(p => ({ ...p, role: users.find(u => u.username === p.username)?.role || 'member' })), []);
         setMembers(enriched);
         setLoading(false);
         if (targetUsername) {
@@ -370,7 +382,7 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
     if (onMemberSelect) onMemberSelect(null);
   };
 
-  if (selectedMember) return <MemberProfileView member={selectedMember} onBack={handleBack} />;
+  if (selectedMember) return <MemberProfileView member={selectedMember} onBack={handleBack} badgeTypes={badgeTypes} />;
 
   const filtered = members.filter(m => {
     const ms = m.username?.toLowerCase().includes(search.toLowerCase());
@@ -447,7 +459,7 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
           gap: 16,
         }}>
           {filtered.map((member, i) => (
-            <MemberCard key={member.username || i} member={member} onClick={() => handleSelect(member)} />
+            <MemberCard key={member.username || i} member={member} badgeTypes={badgeTypes} onClick={() => handleSelect(member)} />
           ))}
         </div>
       )}
@@ -456,7 +468,7 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
 };
 
 // ── Member Profile View (improved) ────────────────────────────
-const MemberProfileView = ({ member, onBack }) => {
+const MemberProfileView = ({ member, onBack, badgeTypes }) => {
   const users      = JSON.parse(localStorage.getItem('nova_users') || '[]');
   const userRecord = users.find(u => u.username === member.username);
   const role       = userRecord?.role || member.role || 'member';
@@ -569,6 +581,7 @@ const MemberProfileView = ({ member, onBack }) => {
             <h2 style={{ fontSize: '1.4rem', fontWeight: 900, color: '#ffffff', margin: 0, letterSpacing: '-0.01em' }}>
               {member.username}
             </h2>
+            <BadgeRow badgeTypes={badgeTypes} ids={member.visible_badge_ids} size={16} />
             <span style={{
               padding: '3px 10px', borderRadius: 20,
               background: `${rc}15`, border: `1px solid ${rc}50`,

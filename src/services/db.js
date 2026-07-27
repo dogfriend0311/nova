@@ -800,6 +800,97 @@ export const db = {
     ls.set('nova_articles', ls.get('nova_articles').filter(a => a.id !== id));
   },
 
+  /* ── PROFILE BADGES (owner/co-founder assigned, shown next to a member's name) ──
+     Two pieces:
+       nova_badge_types    — the badge catalog (name, icon, color, description)
+       nova_member_badges  — which badges are assigned to which username
+     Which of a member's assigned badges they've chosen to *display* lives on
+     their profile row (member_profiles.displayed_badges), saved via the
+     normal saveMemberProfile() call. */
+  async getBadgeTypes() {
+    if (hasSupabase()) {
+      const { data, error } = await supabase.from('nova_badge_types').select('*').order('created_at');
+      if (!error) return data;
+    }
+    return ls.get('nova_badge_types');
+  },
+
+  async createBadgeType(badge) {
+    const record = {
+      name:        badge.name,
+      icon:        badge.icon || '🏅',
+      description: badge.description || '',
+      color:       badge.color || '#5e81f4',
+      created_by:  badge.created_by || null,
+      created_at:  new Date().toISOString(),
+    };
+    if (hasSupabase()) {
+      const { data, error } = await supabase.from('nova_badge_types').insert([record]).select();
+      if (!error) {
+        const list = ls.get('nova_badge_types');
+        ls.set('nova_badge_types', [...list, data[0]]);
+        return data[0];
+      }
+      console.error('createBadgeType: Supabase insert failed —', error.message, error);
+    }
+    const list = ls.get('nova_badge_types');
+    const newItem = { ...record, id: Date.now().toString() };
+    ls.set('nova_badge_types', [...list, newItem]);
+    return newItem;
+  },
+
+  async deleteBadgeType(id) {
+    if (hasSupabase()) {
+      await supabase.from('nova_badge_types').delete().eq('id', id);
+      await supabase.from('nova_member_badges').delete().eq('badge_id', id);
+    }
+    ls.set('nova_badge_types', ls.get('nova_badge_types').filter(b => String(b.id) !== String(id)));
+    ls.set('nova_member_badges', ls.get('nova_member_badges').filter(a => String(a.badge_id) !== String(id)));
+  },
+
+  /** All badge assignments, or just one member's if username is passed. */
+  async getMemberBadges(username) {
+    if (hasSupabase()) {
+      let q = supabase.from('nova_member_badges').select('*');
+      if (username) q = q.eq('username', username);
+      const { data, error } = await q.order('created_at');
+      if (!error) return data;
+    }
+    const all = ls.get('nova_member_badges');
+    return username ? all.filter(a => a.username === username) : all;
+  },
+
+  async assignBadge(username, badgeId, assignedBy) {
+    const record = { username, badge_id: badgeId, assigned_by: assignedBy || null, created_at: new Date().toISOString() };
+    if (hasSupabase()) {
+      const { data, error } = await supabase
+        .from('nova_member_badges')
+        .upsert([record], { onConflict: 'username,badge_id' })
+        .select();
+      if (!error) {
+        const list = ls.get('nova_member_badges');
+        const exists = list.findIndex(a => a.username === username && String(a.badge_id) === String(badgeId));
+        if (exists >= 0) list[exists] = data[0]; else list.push(data[0]);
+        ls.set('nova_member_badges', list);
+        return data[0];
+      }
+      console.error('assignBadge: Supabase upsert failed —', error.message, error);
+    }
+    const list = ls.get('nova_member_badges');
+    const exists = list.findIndex(a => a.username === username && String(a.badge_id) === String(badgeId));
+    const newItem = { ...record, id: Date.now().toString() };
+    if (exists >= 0) list[exists] = newItem; else list.push(newItem);
+    ls.set('nova_member_badges', list);
+    return newItem;
+  },
+
+  async unassignBadge(username, badgeId) {
+    if (hasSupabase()) {
+      await supabase.from('nova_member_badges').delete().eq('username', username).eq('badge_id', badgeId);
+    }
+    ls.set('nova_member_badges', ls.get('nova_member_badges').filter(a => !(a.username === username && String(a.badge_id) === String(badgeId))));
+  },
+
 };
 
 /* ── Internal: keep localStorage in sync with Supabase ─────────── */

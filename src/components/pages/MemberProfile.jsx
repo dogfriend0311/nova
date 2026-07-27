@@ -5,6 +5,7 @@ import { TEAMS, SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl } from '../../data/team
 import { getWatchList } from '../../services/mediaService';
 import * as lfm from '../../services/lastfmService';
 import { BADGES, getEarnedBadges, syncBadges } from '../../services/achievementsService';
+import { BadgeRow } from '../BadgeDisplay';
 import './MemberProfile.css';
 
 const roleLabel = (role) => {
@@ -26,6 +27,7 @@ const DEFAULT_PROFILE = {
   audio_url: '', audio_title: '',
   bg_media: [],     // [{ id, url, type: 'video'|'image' }] — cycles through, each video loops
   audio_tracks: [], // [{ id, url, title, artist }] — mini radio playlist, loops
+  displayed_badges: [], // badge ids (from nova_badge_types) this member has chosen to show next to their name
 };
 
 // Old profiles only have the single bg_media_url/audio_url fields. New profiles
@@ -704,6 +706,10 @@ const MemberProfile = () => {
   const [copied,       setCopied]      = useState(false);
   const coinsRef = useRef(null);
 
+  // Admin-assigned profile badges (created/assigned by owners & co-founders)
+  const [badgeTypes,      setBadgeTypes]      = useState([]);
+  const [assignedBadgeIds, setAssignedBadgeIds] = useState([]);
+
   // fav games — synced to Supabase profile
   const [favGames,     setFavGames]    = useState([]);
   const [showAddGame,  setShowAddGame] = useState(false);
@@ -727,6 +733,19 @@ const MemberProfile = () => {
     setPresence(p);
     localStorage.setItem(`nova_presence_${user?.username}`, p);
   };
+
+  // ── Load this member's assigned badges + the full badge catalog ──
+  useEffect(() => {
+    if (!user?.username) return;
+    import('../../services/db').then(({ default: db }) => {
+      Promise.all([db.getBadgeTypes(), db.getMemberBadges(user.username)])
+        .then(([types, assignments]) => {
+          setBadgeTypes(types || []);
+          setAssignedBadgeIds((assignments || []).map(a => String(a.badge_id)));
+        })
+        .catch(() => {});
+    });
+  }, [user]);
 
   // ── Load profile from Supabase ────────────────────────────
   useEffect(() => {
@@ -852,6 +871,47 @@ const MemberProfile = () => {
           <div className="neon-card p-3">
             <ImageField label="Banner Image"          fieldKey="top_banner_url" value={formData.top_banner_url || ''} onChange={handleField} username={user?.username} />
             <ImageField label="Avatar / Profile Pic"  fieldKey="avatar_url"     value={formData.avatar_url || ''}     onChange={handleField} username={user?.username} />
+
+            <h4 className="gradient-text-cyan" style={{ margin: '20px 0 10px' }}>Badges</h4>
+            {assignedBadgeIds.length === 0 ? (
+              <p style={{ color: 'rgba(158, 165, 196,0.4)', fontSize: '0.82rem', marginBottom: '16px' }}>
+                No badges have been assigned to you yet. Owners and co-founders can assign badges from the dashboard.
+              </p>
+            ) : (
+              <div style={{ marginBottom: '16px' }}>
+                <p style={{ color: 'rgba(158, 165, 196,0.5)', fontSize: '0.82rem', marginBottom: '10px' }}>
+                  Pick which of your badges show up next to your name.
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                  {badgeTypes.filter(b => assignedBadgeIds.includes(String(b.id))).map(b => {
+                    const checked = (formData.displayed_badges || []).map(String).includes(String(b.id));
+                    return (
+                      <label key={b.id} style={{
+                        display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer',
+                        padding: '6px 12px', borderRadius: '20px',
+                        border: `1px solid ${checked ? (b.color || '#5e81f4') : 'rgba(94,129,244,0.2)'}`,
+                        background: checked ? `${b.color || '#5e81f4'}18` : 'transparent',
+                        fontSize: '0.82rem', color: checked ? (b.color || '#5e81f4') : 'rgba(158,165,196,0.6)',
+                      }}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            const cur = (formData.displayed_badges || []).map(String);
+                            const next = e.target.checked
+                              ? [...cur, String(b.id)]
+                              : cur.filter(id => id !== String(b.id));
+                            setFormData({ ...formData, displayed_badges: next });
+                          }}
+                          style={{ margin: 0 }}
+                        />
+                        <span>{b.icon}</span> {b.name}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <h4 className="gradient-text-cyan" style={{ margin: '20px 0 10px' }}>Page Customization</h4>
             <MultiBgUploadField
@@ -982,6 +1042,11 @@ const MemberProfile = () => {
       <div className="tw-info">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <h2 className="tw-name">{profile.username}</h2>
+          <BadgeRow
+            badgeTypes={badgeTypes}
+            ids={(profile.displayed_badges || []).filter(id => assignedBadgeIds.includes(String(id)))}
+            size={16}
+          />
           <span className={`tw-role-badge ${user?.role || 'member'}`}>{roleLabel(user?.role)}</span>
         </div>
         <p className="tw-handle">@{profile.username}</p>

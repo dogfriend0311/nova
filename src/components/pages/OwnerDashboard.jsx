@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import db from '../../services/db';
 import fantasyDb from '../../services/fantasyDb';
 import { ACCOLADE_TYPES, accoladeLabel, accoladeIcon } from '../../data/accolades';
+import { BadgeChip } from '../BadgeDisplay';
 import './OwnerDashboard.css';
 
 const SI = { padding:'10px', background:'rgba(94, 129, 244,0.05)', border:'1px solid rgba(94, 129, 244,0.2)', color:'#e2e5f0', borderRadius:'4px', width:'100%' };
@@ -227,6 +228,185 @@ const GiveCoinsTab = () => {
           <button className="neon-button" onClick={give}>Give Coins</button>
           {msg && <p style={{ color:'var(--color-cyan)', marginTop:'10px', fontSize:'0.88rem' }}>{msg}</p>}
         </div>
+      </div>
+    </div>
+  );
+};
+
+const BadgesAdminTab = () => {
+  const { user } = useAuth();
+  const [badgeTypes,  setBadgeTypes]  = useState([]);
+  const [users,       setUsers]       = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [msg,         setMsg]         = useState('');
+
+  // Create-badge form
+  const [name,        setName]        = useState('');
+  const [icon,        setIcon]        = useState('🏅');
+  const [color,       setColor]       = useState('#5e81f4');
+  const [description, setDescription] = useState('');
+
+  // Assign form
+  const [assignUsername, setAssignUsername] = useState('');
+  const [assignBadgeId,  setAssignBadgeId]  = useState('');
+  const [memberBadges,   setMemberBadges]   = useState([]); // assignments for assignUsername
+
+  const loadAll = () => {
+    setLoading(true);
+    Promise.all([db.getBadgeTypes(), db.getUsers()]).then(([badges, u]) => {
+      setBadgeTypes(badges || []);
+      setUsers(u || []);
+      setLoading(false);
+    });
+  };
+
+  useEffect(() => { loadAll(); }, []);
+
+  useEffect(() => {
+    if (!assignUsername) { setMemberBadges([]); return; }
+    db.getMemberBadges(assignUsername).then(setMemberBadges);
+  }, [assignUsername]);
+
+  const flash = (text) => { setMsg(text); setTimeout(() => setMsg(''), 3000); };
+
+  const createBadge = () => {
+    if (!name.trim()) { flash('Give the badge a name first.'); return; }
+    db.createBadgeType({ name: name.trim(), icon: icon.trim() || '🏅', color, description: description.trim(), created_by: user?.username }).then(() => {
+      setName(''); setIcon('🏅'); setColor('#5e81f4'); setDescription('');
+      flash('Badge created.');
+      loadAll();
+    }).catch(() => flash('Failed to create badge.'));
+  };
+
+  const removeBadge = (id) => {
+    if (!window.confirm('Delete this badge? It will be removed from every member it was assigned to.')) return;
+    db.deleteBadgeType(id).then(() => { flash('Badge deleted.'); loadAll(); if (assignUsername) db.getMemberBadges(assignUsername).then(setMemberBadges); });
+  };
+
+  const assign = () => {
+    if (!assignUsername || !assignBadgeId) { flash('Pick a member and a badge first.'); return; }
+    db.assignBadge(assignUsername, assignBadgeId, user?.username).then(() => {
+      flash('Badge assigned.');
+      db.getMemberBadges(assignUsername).then(setMemberBadges);
+    }).catch(() => flash('Failed to assign badge.'));
+  };
+
+  const unassign = (badgeId) => {
+    db.unassignBadge(assignUsername, badgeId).then(() => {
+      setMemberBadges(prev => prev.filter(a => String(a.badge_id) !== String(badgeId)));
+    });
+  };
+
+  const badgeById = (id) => badgeTypes.find(b => String(b.id) === String(id));
+
+  return (
+    <div className="tab-content">
+      <h2 className="gradient-text-cyan">Badges</h2>
+      <p style={{ color:'rgba(158,165,196,0.5)', fontSize:'0.85rem', marginTop:'-6px', marginBottom:'20px' }}>
+        Create badges, assign them to members, and remove ones you no longer want. Members choose which of their
+        assigned badges show up next to their name from their own profile editor.
+      </p>
+      {msg && <p style={{ color:'var(--color-cyan)', marginBottom:'14px', fontSize:'0.88rem' }}>{msg}</p>}
+
+      {/* Create badge */}
+      <div className="neon-card p-3" style={{ marginBottom:'24px' }}>
+        <h4 className="gradient-text-cyan" style={{ marginTop:0 }}>Create a Badge</h4>
+        <div className="edit-form" style={{ display:'grid', gap:'10px', maxWidth:'480px' }}>
+          <div className="form-field">
+            <label>Name</label>
+            <input type="text" value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Verified" style={SS} />
+          </div>
+          <div style={{ display:'flex', gap:'10px' }}>
+            <div className="form-field" style={{ flex:1 }}>
+              <label>Icon (emoji)</label>
+              <input type="text" value={icon} onChange={e=>setIcon(e.target.value)} placeholder="🏅" style={SS} />
+            </div>
+            <div className="form-field" style={{ flex:1 }}>
+              <label>Color</label>
+              <input type="color" value={color} onChange={e=>setColor(e.target.value)} style={{ ...SS, padding:'4px', height:'42px' }} />
+            </div>
+          </div>
+          <div className="form-field">
+            <label>Description (shown on hover)</label>
+            <input type="text" value={description} onChange={e=>setDescription(e.target.value)} placeholder="What this badge means…" style={SS} />
+          </div>
+          <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+            <span style={{ color:'rgba(158,165,196,0.5)', fontSize:'0.8rem' }}>Preview:</span>
+            <BadgeChip badge={{ name: name || 'Badge Name', icon, color, description }} size={20} />
+          </div>
+          <button className="neon-button" onClick={createBadge}>Create Badge</button>
+        </div>
+      </div>
+
+      {/* Existing badges */}
+      <div className="neon-card p-3" style={{ marginBottom:'24px' }}>
+        <h4 className="gradient-text-cyan" style={{ marginTop:0 }}>Existing Badges</h4>
+        {loading ? (
+          <p style={{ color:'rgba(158,165,196,0.5)' }}>Loading…</p>
+        ) : badgeTypes.length === 0 ? (
+          <p style={{ color:'rgba(158,165,196,0.5)' }}>No badges created yet.</p>
+        ) : (
+          <div style={{ display:'grid', gap:'10px' }}>
+            {badgeTypes.map(b => (
+              <div key={b.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:'10px', padding:'10px 14px', background:'rgba(94,129,244,0.05)', border:'1px solid rgba(94,129,244,0.15)', borderRadius:8, flexWrap:'wrap' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
+                  <BadgeChip badge={b} size={20} />
+                  <div>
+                    <div style={{ color:'#e2e5f0', fontWeight:700 }}>{b.name}</div>
+                    {b.description && <div style={{ color:'rgba(158,165,196,0.5)', fontSize:'0.78rem' }}>{b.description}</div>}
+                  </div>
+                </div>
+                <button className="neon-button" onClick={() => removeBadge(b.id)} style={{ fontSize:'0.78rem', padding:'6px 12px' }}>Delete</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Assign to member */}
+      <div className="neon-card p-3">
+        <h4 className="gradient-text-cyan" style={{ marginTop:0 }}>Assign to a Member</h4>
+        <div className="edit-form" style={{ display:'grid', gap:'10px', maxWidth:'480px', marginBottom:'16px' }}>
+          <div className="form-field">
+            <label>Member</label>
+            <select value={assignUsername} onChange={e=>setAssignUsername(e.target.value)} style={SS}>
+              <option value="">Choose member…</option>
+              {users.map(u => <option key={u.username} value={u.username}>{u.username}</option>)}
+            </select>
+          </div>
+          <div style={{ display:'flex', gap:'10px' }}>
+            <select value={assignBadgeId} onChange={e=>setAssignBadgeId(e.target.value)} style={{ ...SS, flex:1 }}>
+              <option value="">Choose badge…</option>
+              {badgeTypes.map(b => <option key={b.id} value={b.id}>{b.icon} {b.name}</option>)}
+            </select>
+            <button className="neon-button" onClick={assign}>Assign</button>
+          </div>
+        </div>
+
+        {assignUsername && (
+          <>
+            <div style={{ color:'rgba(158,165,196,0.5)', fontSize:'0.8rem', marginBottom:'8px' }}>
+              {assignUsername}'s badges:
+            </div>
+            {memberBadges.length === 0 ? (
+              <p style={{ color:'rgba(158,165,196,0.35)', fontSize:'0.82rem' }}>No badges assigned yet.</p>
+            ) : (
+              <div style={{ display:'flex', flexWrap:'wrap', gap:'10px' }}>
+                {memberBadges.map(a => {
+                  const b = badgeById(a.badge_id);
+                  if (!b) return null;
+                  return (
+                    <div key={a.id} style={{ display:'flex', alignItems:'center', gap:'8px', padding:'6px 10px', background:'rgba(94,129,244,0.05)', border:'1px solid rgba(94,129,244,0.15)', borderRadius:20 }}>
+                      <BadgeChip badge={b} size={16} />
+                      <span style={{ color:'#e2e5f0', fontSize:'0.82rem' }}>{b.name}</span>
+                      <button onClick={() => unassign(a.badge_id)} style={{ background:'none', border:'none', color:'rgba(255,107,122,0.8)', cursor:'pointer', fontSize:'0.9rem', lineHeight:1 }} title="Remove badge">✕</button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
@@ -1950,6 +2130,7 @@ const OwnerDashboard = ({ onExit }) => {
   const role = user?.role;
   const isOwner       = role === 'owner';
   const isOwnerLevel  = ['owner','cofounder','mod'].includes(role);
+  const isBadgeManager = ['owner','cofounder'].includes(role);
   const isViztaHelper = role === 'vizta_helper';
 
   const [activeTab, setActiveTab] = useState(
@@ -1968,6 +2149,7 @@ const OwnerDashboard = ({ onExit }) => {
       case 'admin-beatbattle': return <BeatBattleAdminTab />;
       case 'admin-propbets':   return <PropBetsAdminTab />;
       case 'admin-playoffs':   return <PlayoffPoolsAdminTab />;
+      case 'admin-badges':    return isBadgeManager ? <BadgesAdminTab /> : null;
       case 'vizta-players':   return <LeaguePlayersTab prefix="vizta" />;
       case 'vizta-teams':     return <LeagueTeamsTab prefix="vizta" />;
       case 'vizta-rosters':   return <LeagueRostersTab prefix="vizta" />;
@@ -2008,6 +2190,7 @@ const OwnerDashboard = ({ onExit }) => {
               <Btn id="admin-beatbattle" label="🎵 Beat Battle" />
               <Btn id="admin-propbets"   label="🎯 Prop Bets" />
               <Btn id="admin-playoffs"   label="🏆 Playoff Pools" />
+              {isBadgeManager && <Btn id="admin-badges" label="🏅 Badges" />}
             </div>
           </div>
         )}
