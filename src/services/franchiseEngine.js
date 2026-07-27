@@ -142,10 +142,8 @@ export function generateLeague() {
 
 /** Round-robin schedule across all teams for `totalDays` games each. */
 export function generateSchedule(teamIds, totalDays = 162) {
-  const n = teamIds.length;
   const games = []; // { day, home, away }
   let day = 1;
-  const rounds = totalDays / (n - 1 >= 1 ? Math.min(n - 1, 20) : 1);
   // Simple repeating round-robin: pair teams randomly each day, avoiding
   // a team playing itself; not a perfectly balanced MLB schedule, but a
   // functional one for simulation purposes.
