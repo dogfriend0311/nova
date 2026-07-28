@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import * as fdb from '../../services/franchiseDb';
+import * as engine from '../../services/franchiseEngine';
 
 const FranchiseDraft = ({ instance, season, teams, myTeam, onChanged }) => {
   const [currentPick, setCurrentPick] = useState(null);
@@ -113,19 +114,29 @@ const FranchiseDraft = ({ instance, season, teams, myTeam, onChanged }) => {
 
       {isMyPick ? (
         <div className="neon-card p-3" style={{ maxHeight: 500, overflowY: 'auto' }}>
-          {available.map(p => (
-            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 6px', borderBottom: '1px solid rgba(94,129,244,0.08)' }}>
-              <span style={{ width: 34, fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-cyan)' }}>{p.position}</span>
-              <span style={{ minWidth: 130, fontSize: '0.85rem', color: '#e2e5f0' }}>{p.first_name} {p.last_name}</span>
-              <span style={{ fontSize: '0.7rem', color: 'rgba(158,165,196,0.4)' }}>Age {p.age}</span>
-              <span style={{ flex: 1, fontSize: '0.7rem', color: 'rgba(158,165,196,0.4)' }}>
-                {p.is_pitcher ? `STU ${p.stuff} / CTL ${p.control}` : `CON ${p.contact} / POW ${p.power} / SPD ${p.speed}`}
-              </span>
-              <button className="neon-button" disabled={picking} onClick={() => makePick(p.id)} style={{ padding: '5px 14px', fontSize: '0.78rem' }}>
-                Draft
-              </button>
-            </div>
-          ))}
+          {available.map(p => {
+            const stars = engine.starRating(p);
+            const starColor = stars >= 4 ? '#ffd166' : stars === 3 ? '#5e81f4' : 'rgba(158,165,196,0.4)';
+            return (
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 6px', borderBottom: '1px solid rgba(94,129,244,0.08)' }}>
+                <span style={{ width: 34, fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-cyan)' }}>{p.position}</span>
+                <span style={{ minWidth: 130, fontSize: '0.85rem', color: '#e2e5f0' }}>{p.first_name} {p.last_name}</span>
+                <span style={{ fontSize: '0.7rem', color: 'rgba(158,165,196,0.4)' }}>Age {p.age}</span>
+                <span
+                  title={`${engine.STAR_LABELS[stars]} — projects to a ${p.potential ?? '—'} overall ceiling`}
+                  style={{ fontSize: '0.78rem', color: starColor, fontWeight: 700, letterSpacing: '0.02em', cursor: 'default' }}
+                >
+                  {engine.starDisplay(stars)}
+                </span>
+                <span style={{ flex: 1, fontSize: '0.7rem', color: 'rgba(158,165,196,0.4)' }}>
+                  {p.is_pitcher ? `STU ${p.stuff} / CTL ${p.control}` : `CON ${p.contact} / POW ${p.power} / SPD ${p.speed}`}
+                </span>
+                <button className="neon-button" disabled={picking} onClick={() => makePick(p.id)} style={{ padding: '5px 14px', fontSize: '0.78rem' }}>
+                  Draft
+                </button>
+              </div>
+            );
+          })}
         </div>
       ) : (
         <div style={{ color: 'rgba(158,165,196,0.35)', textAlign: 'center', padding: 20 }}>

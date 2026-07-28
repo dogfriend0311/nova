@@ -88,6 +88,38 @@ export async function createPersonalInstance(username, name) {
   return instance;
 }
 
+/** Deletes a private league and every row that belongs to it — teams,
+ *  players, seasons, games, draft picks, trades, stats, free agency
+ *  offers. Only the league's own owner may delete it (checked by the
+ *  caller passing `username`, verified again here against the row). */
+export async function deletePersonalInstance(instanceId, username) {
+  const { data: instance } = await supabase.from('franchise_instances').select('*').eq('id', instanceId).single();
+  if (!instance) throw new Error('League not found.');
+  if (instance.type !== 'personal') throw new Error('Only private leagues can be deleted.');
+  if (instance.owner_user_id !== username) throw new Error("You can only delete leagues you created.");
+
+  const { data: teamRows }   = await supabase.from('teams').select('id').eq('franchise_instance_id', instanceId);
+  const { data: seasonRows } = await supabase.from('seasons').select('id').eq('franchise_instance_id', instanceId);
+  const teamIds   = (teamRows || []).map(t => t.id);
+  const seasonIds = (seasonRows || []).map(s => s.id);
+
+  if (seasonIds.length) {
+    await supabase.from('player_game_stats').delete().in('season_id', seasonIds);
+    await supabase.from('games').delete().in('season_id', seasonIds);
+    await supabase.from('draft_picks').delete().in('season_id', seasonIds);
+  }
+  await supabase.from('trades').delete().eq('franchise_instance_id', instanceId);
+  if (teamIds.length) {
+    await supabase.from('free_agency_offers').delete().in('team_id', teamIds);
+  }
+  await supabase.from('players').delete().eq('franchise_instance_id', instanceId);
+  await supabase.from('teams').delete().eq('franchise_instance_id', instanceId);
+  await supabase.from('seasons').delete().eq('franchise_instance_id', instanceId);
+
+  const { error } = await supabase.from('franchise_instances').delete().eq('id', instanceId);
+  if (error) throw new Error(error.message);
+}
+
 export async function getTeams(instanceId) {
   const { data } = await supabase.from('teams').select('*').eq('franchise_instance_id', instanceId)
     .order('league').order('division').order('name');
@@ -182,7 +214,7 @@ export async function simulateDay(seasonId) {
     if (homeTeam) await supabase.from('teams').update({ wins: homeTeam.wins + (homeWon ? 1 : 0), losses: homeTeam.losses + (homeWon ? 0 : 1) }).eq('id', game.home_team_id);
     if (awayTeam) await supabase.from('teams').update({ wins: awayTeam.wins + (homeWon ? 0 : 1), losses: awayTeam.losses + (homeWon ? 1 : 0) }).eq('id', game.away_team_id);
 
-    results.push({ ...game, home_score: sim.homeScore, away_score: sim.awayScore });
+    results.push({ ...game, home_score: sim.homeScore, away_score: sim.awayScore, play_by_play: sim.playByPlay, box_score: sim.boxScore });
   }
 
   const nextDay = Math.min(season.current_day + 1, season.total_days);
@@ -296,8 +328,10 @@ async function evaluateAndResolveCpuTrade(trade) {
     fetchPlayersByIds(trade.players_offered),
     fetchPlayersByIds(trade.players_requested),
   ]);
-  const offeredValue = offered.reduce((s, p) => s + engine.overallRating(p), 0);
-  const requestedValue = requested.reduce((s, p) => s + engine.overallRating(p), 0);
+  // tradeValue() (not overallRating()) so 4-5★ prospects require a real
+  // overpay — a high star rating makes a player harder to pry loose.
+  const offeredValue = offered.reduce((s, p) => s + engine.tradeValue(p), 0);
+  const requestedValue = requested.reduce((s, p) => s + engine.tradeValue(p), 0);
   const accept = offeredValue >= requestedValue * 0.9;
   return await respondToTrade(trade.id, accept);
 }

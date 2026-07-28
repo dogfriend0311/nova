@@ -51,13 +51,29 @@ function genName() { return { first: pick(FIRST_NAMES), last: pick(LAST_NAMES) }
 // ─────────────────────────────────────────────────────────────
 const HITTER_POSITIONS = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH'];
 
+// Prospects project higher than their current tools suggest — younger
+// players in lower levels have more "development runway" left. This is
+// the number scouts use for star ratings (see starRating() below), kept
+// separate from overallRating() which reflects a player's tools *today*.
+function developmentBonus(level, age) {
+  const levelBonus = { A: 22, AA: 15, AAA: 8, MLB: 2 }[level] ?? 10;
+  const ageFactor = clamp((26 - age) / 8, 0, 1); // younger = more room to grow
+  return levelBonus * ageFactor;
+}
+function genPotential(levelMean, level, age) {
+  const bonus = developmentBonus(level, age);
+  const variance = rand(-8, 20); // most prospects project up; some bust
+  return clamp(Math.round((levelMean + bonus + variance) / 5) * 5, 20, 80);
+}
+
 export function genHitter(level, position) {
   const { first, last } = genName();
   const levelMean = { MLB: 50, AAA: 42, AA: 36, A: 30 }[level] || 40;
   const ageRange  = { MLB: [22, 38], AAA: [21, 30], AA: [19, 27], A: [18, 24] }[level] || [20, 28];
+  const age = rand(...ageRange);
   return {
     first_name: first, last_name: last,
-    age: rand(...ageRange),
+    age,
     position,
     bats: pick(['L', 'R', 'R', 'R', 'S']),
     throws: pick(['L', 'R', 'R', 'R', 'R']),
@@ -68,6 +84,7 @@ export function genHitter(level, position) {
     speed:    ratingRoll(levelMean),
     fielding: ratingRoll(levelMean),
     arm:      ratingRoll(levelMean),
+    potential: genPotential(levelMean, level, age),
     salary: level === 'MLB' ? rand(500000, 8000000) : 15000,
     contract_years_remaining: rand(1, 4),
     level,
@@ -78,9 +95,10 @@ export function genPitcher(level, position) {
   const { first, last } = genName();
   const levelMean = { MLB: 50, AAA: 42, AA: 36, A: 30 }[level] || 40;
   const ageRange  = { MLB: [22, 38], AAA: [21, 30], AA: [19, 27], A: [18, 24] }[level] || [20, 28];
+  const age = rand(...ageRange);
   return {
     first_name: first, last_name: last,
-    age: rand(...ageRange),
+    age,
     position,
     bats: pick(['L', 'R']),
     throws: pick(['L', 'R', 'R', 'R']),
@@ -89,6 +107,7 @@ export function genPitcher(level, position) {
     control:  ratingRoll(levelMean),
     movement: ratingRoll(levelMean),
     stamina:  ratingRoll(levelMean),
+    potential: genPotential(levelMean, level, age),
     salary: level === 'MLB' ? rand(500000, 8000000) : 15000,
     contract_years_remaining: rand(1, 4),
     level,
@@ -165,6 +184,9 @@ export function generateProspect(draftYear) {
   // Prospects skew younger than a typical A-ball veteran and have wider variance
   p.age = rand(18, 22);
   p.draft_year = draftYear;
+  // Recompute potential now that age has been narrowed to true draft-prospect range
+  const levelMean = 30;
+  p.potential = genPotential(levelMean, 'A', p.age);
   return p;
 }
 
@@ -191,6 +213,46 @@ export function overallRating(player) {
 export function estimateMarketValue(player) {
   const rating = overallRating(player);
   return Math.max(500000, Math.round((rating - 20) * 150000));
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Star ratings — scouting projection (1-5★), shown on draft
+//  boards and minor-league rosters. Based on `potential` (the
+//  player's ceiling), not overallRating() (their tools *today*),
+//  so a raw-but-toolsy A-ball 19-year-old can rate higher than a
+//  more "finished" but capped-out veteran.
+// ─────────────────────────────────────────────────────────────
+export function starRating(player) {
+  const pot = player.potential ?? overallRating(player);
+  if (pot >= 70) return 5;
+  if (pot >= 60) return 4;
+  if (pot >= 50) return 3;
+  if (pot >= 40) return 2;
+  return 1;
+}
+
+export const STAR_LABELS = {
+  5: 'Elite Prospect', 4: 'Top Prospect', 3: 'Solid Prospect', 2: 'Depth Prospect', 1: 'Org Filler',
+};
+
+/** ★★★★★-style string for display. */
+export function starDisplay(stars) {
+  return '★'.repeat(stars) + '☆'.repeat(5 - stars);
+}
+
+// The higher the star rating, the pricier/harder a player is to pry
+// loose in a trade — this multiplier is what makes CPU teams demand a
+// real overpay for a 4-5★ guy instead of evaluating them like an
+// average roster piece.
+export function tradeValueMultiplier(stars) {
+  return { 5: 3.2, 4: 2.1, 3: 1.4, 2: 1.0, 1: 0.75 }[stars] ?? 1.0;
+}
+
+/** Trade-evaluation value — overallRating() scaled by star premium.
+ *  Used instead of raw overallRating() anywhere a trade is judged
+ *  "fair" or not (CPU accept/reject logic). */
+export function tradeValue(player) {
+  return overallRating(player) * tradeValueMultiplier(starRating(player));
 }
 
 // ─────────────────────────────────────────────────────────────

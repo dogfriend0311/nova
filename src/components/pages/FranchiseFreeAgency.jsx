@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import * as fdb from '../../services/franchiseDb';
+import * as engine from '../../services/franchiseEngine';
 
 const FranchiseFreeAgency = ({ instance, myTeam, canManage, onChanged }) => {
   const [agents,   setAgents]   = useState([]);
@@ -83,21 +84,28 @@ const FranchiseFreeAgency = ({ instance, myTeam, canManage, onChanged }) => {
         </div>
       ) : (
         <div className="neon-card p-3">
-          {agents.map(p => (
-            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 6px', borderBottom: '1px solid rgba(94,129,244,0.08)', flexWrap: 'wrap' }}>
-              <span style={{ width: 34, fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-cyan)' }}>{p.position}</span>
-              <span style={{ minWidth: 130, fontSize: '0.85rem', color: '#e2e5f0' }}>{p.first_name} {p.last_name}</span>
-              <span style={{ fontSize: '0.7rem', color: 'rgba(158,165,196,0.4)' }}>Age {p.age}</span>
-              <span style={{ flex: 1, fontSize: '0.7rem', color: 'rgba(158,165,196,0.4)' }}>
-                {p.is_pitcher ? `STU ${p.stuff} / CTL ${p.control} / MOV ${p.movement}` : `CON ${p.contact} / POW ${p.power} / EYE ${p.eye}`}
-              </span>
-              {myTeam && (
-                <button className="neon-button" onClick={() => { setOffering(p); setAmount(1000000); setYears(2); setNotice(''); }} style={{ padding: '5px 14px', fontSize: '0.78rem' }}>
-                  Make Offer
-                </button>
-              )}
-            </div>
-          ))}
+          {agents.map(p => {
+            const stars = engine.starRating(p);
+            const starColor = stars >= 4 ? '#ffd166' : stars === 3 ? '#5e81f4' : 'rgba(158,165,196,0.35)';
+            return (
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 6px', borderBottom: '1px solid rgba(94,129,244,0.08)', flexWrap: 'wrap' }}>
+                <span style={{ width: 34, fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-cyan)' }}>{p.position}</span>
+                <span style={{ minWidth: 130, fontSize: '0.85rem', color: '#e2e5f0' }}>{p.first_name} {p.last_name}</span>
+                <span style={{ fontSize: '0.7rem', color: 'rgba(158,165,196,0.4)' }}>Age {p.age}</span>
+                <span title={engine.STAR_LABELS[stars]} style={{ fontSize: '0.74rem', color: starColor, fontWeight: 700, cursor: 'default' }}>
+                  {engine.starDisplay(stars)}
+                </span>
+                <span style={{ flex: 1, fontSize: '0.7rem', color: 'rgba(158,165,196,0.4)' }}>
+                  {p.is_pitcher ? `STU ${p.stuff} / CTL ${p.control} / MOV ${p.movement}` : `CON ${p.contact} / POW ${p.power} / EYE ${p.eye}`}
+                </span>
+                {myTeam && (
+                  <button className="neon-button" onClick={() => { setOffering(p); setAmount(1000000); setYears(2); setNotice(''); }} style={{ padding: '5px 14px', fontSize: '0.78rem' }}>
+                    Make Offer
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

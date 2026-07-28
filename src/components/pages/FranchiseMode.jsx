@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import * as fdb from '../../services/franchiseDb';
+import * as engine from '../../services/franchiseEngine';
 import FranchiseTrades from './FranchiseTrades';
 import FranchiseDraft from './FranchiseDraft';
 import FranchiseFreeAgency from './FranchiseFreeAgency';
+import GameFieldViewer from './GameFieldViewer';
 
 const POS_ORDER = ['SP', 'RP', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH'];
 const LEVELS = ['MLB', 'AAA', 'AA', 'A'];
@@ -26,11 +28,22 @@ const PlayerRow = ({ player, seasonId, leagueAverages, isGM, onLevelChange, onRe
     ? `STU ${player.stuff} / CTL ${player.control} / MOV ${player.movement} / STA ${player.stamina}`
     : `CON ${player.contact} / POW ${player.power} / EYE ${player.eye} / SPD ${player.speed} / FLD ${player.fielding}`;
 
+  const stars = engine.starRating(player);
+  const starColor = stars >= 4 ? '#ffd166' : stars === 3 ? '#5e81f4' : 'rgba(158,165,196,0.35)';
+
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderBottom: '1px solid rgba(94,129,244,0.08)', flexWrap: 'wrap' }}>
       <span style={{ width: 34, fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-cyan)', flexShrink: 0 }}>{player.position}</span>
       <span style={{ minWidth: 130, fontSize: '0.85rem', color: '#e2e5f0', fontWeight: 600 }}>{player.first_name} {player.last_name}</span>
       <span style={{ fontSize: '0.7rem', color: 'rgba(158,165,196,0.4)' }}>Age {player.age}</span>
+      {player.level !== 'MLB' && (
+        <span
+          title={`${engine.STAR_LABELS[stars]} — projects to a ${player.potential ?? '—'} overall ceiling`}
+          style={{ fontSize: '0.76rem', color: starColor, fontWeight: 700, cursor: 'default' }}
+        >
+          {engine.starDisplay(stars)}
+        </span>
+      )}
       <span style={{ fontSize: '0.7rem', color: 'rgba(158,165,196,0.45)', flex: 1, minWidth: 200 }}>{ratingsStr}</span>
       {stats && (
         <span style={{ fontSize: '0.72rem', color: 'rgba(158,165,196,0.6)', fontFamily: 'monospace' }}>
@@ -168,12 +181,20 @@ const Standings = ({ teams, onSelectTeam }) => {
 };
 
 // ── Instance picker — public league vs your private leagues ────
-const InstancePicker = ({ sharedInstance, personalInstances, onEnter, onCreatePersonal, canManagePublic, generatingPublic }) => {
+const InstancePicker = ({ sharedInstance, personalInstances, onEnter, onCreatePersonal, onDeletePersonal, canManagePublic, generatingPublic }) => {
   const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [deletingId, setDeletingId] = useState(null);
 
   const handleCreate = async () => {
     setCreating(true);
-    try { await onCreatePersonal(); } finally { setCreating(false); }
+    try { await onCreatePersonal(newName.trim()); setNewName(''); } finally { setCreating(false); }
+  };
+
+  const handleDelete = async (inst) => {
+    if (!window.confirm(`Delete "${inst.name}"? This permanently removes its teams, rosters, standings, and trade history — there's no undo.`)) return;
+    setDeletingId(inst.id);
+    try { await onDeletePersonal(inst.id); } finally { setDeletingId(null); }
   };
 
   return (
@@ -200,14 +221,31 @@ const InstancePicker = ({ sharedInstance, personalInstances, onEnter, onCreatePe
       <div className="neon-card p-3">
         <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(158,165,196,0.4)', textTransform: 'uppercase', marginBottom: 8 }}>🔒 Your Private Leagues</div>
         {personalInstances.length === 0 ? (
-          <p style={{ color: 'rgba(158,165,196,0.4)', fontSize: '0.85rem', marginBottom: 12 }}>Just you against 31 CPU teams — good for practice or solo play.</p>
+          <p style={{ color: 'rgba(158,165,196,0.4)', fontSize: '0.85rem', marginBottom: 12 }}>Just you against 31 CPU teams — good for practice or solo play. Create as many as you like, and delete any you're done with.</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
             {personalInstances.map(inst => (
-              <button key={inst.id} className="neon-button" onClick={() => onEnter(inst)} style={{ textAlign: 'left' }}>{inst.name}</button>
+              <div key={inst.id} style={{ display: 'flex', gap: 6, alignItems: 'stretch' }}>
+                <button className="neon-button" onClick={() => onEnter(inst)} style={{ textAlign: 'left', flex: 1 }}>{inst.name}</button>
+                <button
+                  onClick={() => handleDelete(inst)}
+                  disabled={deletingId === inst.id}
+                  title="Delete this league"
+                  style={{ padding: '0 14px', background: 'rgba(255,107,122,0.08)', border: '1px solid rgba(255,107,122,0.3)', color: '#ff6b7a', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem' }}
+                >
+                  {deletingId === inst.id ? '…' : '🗑️'}
+                </button>
+              </div>
             ))}
           </div>
         )}
+        <input
+          type="text"
+          value={newName}
+          onChange={e => setNewName(e.target.value)}
+          placeholder="League name (optional)"
+          style={{ width: '100%', padding: '9px 12px', marginBottom: 10, background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 8, fontSize: '0.85rem', boxSizing: 'border-box' }}
+        />
         <button className="neon-button" onClick={handleCreate} disabled={creating} style={{ borderColor: 'rgba(94,129,244,0.4)' }}>
           {creating ? 'Creating…' : '+ Create Private League'}
         </button>
@@ -237,6 +275,7 @@ const FranchiseMode = () => {
   const [lastResults, setLastResults] = useState([]);
   const [error, setError] = useState('');
   const [tab, setTab] = useState('standings');
+  const [watchingGame, setWatchingGame] = useState(null);
 
   // ── Load the picker ──
   const loadPicker = useCallback(async () => {
@@ -288,15 +327,26 @@ const FranchiseMode = () => {
     await loadInstanceData(inst);
   };
 
-  const createPersonal = async () => {
+  const createPersonal = async (name) => {
     setError('');
     try {
-      const inst = await fdb.createPersonalInstance(user.username);
+      const inst = await fdb.createPersonalInstance(user.username, name);
       setPersonalInstances(prev => [...prev, inst]);
       setInstance(inst);
       await loadInstanceData(inst);
     } catch (err) {
       setError(err.message || 'Failed to create private league.');
+    }
+  };
+
+  const deletePersonal = async (instanceId) => {
+    setError('');
+    try {
+      await fdb.deletePersonalInstance(instanceId, user.username);
+      setPersonalInstances(prev => prev.filter(i => i.id !== instanceId));
+      if (instance?.id === instanceId) setInstance(null);
+    } catch (err) {
+      setError(err.message || 'Failed to delete league.');
     }
   };
 
@@ -371,6 +421,7 @@ const FranchiseMode = () => {
         personalInstances={personalInstances}
         onEnter={enterInstance}
         onCreatePersonal={createPersonal}
+        onDeletePersonal={deletePersonal}
         canManagePublic={canManage}
         generatingPublic={generatingPublic}
       />
@@ -462,12 +513,28 @@ const FranchiseMode = () => {
             const home = teams.find(t => t.id === g.home_team_id);
             const away = teams.find(t => t.id === g.away_team_id);
             return (
-              <div key={g.id} style={{ fontSize: '0.82rem', color: 'rgba(158,165,196,0.7)', padding: '4px 0' }}>
-                {away?.name} {g.away_score} @ {home?.name} {g.home_score}
+              <div key={g.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '4px 0' }}>
+                <span style={{ fontSize: '0.82rem', color: 'rgba(158,165,196,0.7)' }}>
+                  {away?.name} {g.away_score} @ {home?.name} {g.home_score}
+                </span>
+                {g.play_by_play?.length > 0 && (
+                  <button onClick={() => setWatchingGame(g)} style={{ fontSize: '0.72rem', padding: '4px 10px', background: 'rgba(94,129,244,0.1)', border: '1px solid rgba(94,129,244,0.3)', color: 'var(--color-cyan)', borderRadius: 6, cursor: 'pointer', flexShrink: 0 }}>
+                    ▶ Watch
+                  </button>
+                )}
               </div>
             );
           })}
         </div>
+      )}
+
+      {watchingGame && (
+        <GameFieldViewer
+          game={watchingGame}
+          homeTeam={teams.find(t => t.id === watchingGame.home_team_id)}
+          awayTeam={teams.find(t => t.id === watchingGame.away_team_id)}
+          onClose={() => setWatchingGame(null)}
+        />
       )}
 
       {inDraft ? (

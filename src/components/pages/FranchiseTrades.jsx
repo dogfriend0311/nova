@@ -1,5 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import * as fdb from '../../services/franchiseDb';
+import * as engine from '../../services/franchiseEngine';
+
+const StarBadge = ({ player }) => {
+  const stars = engine.starRating(player);
+  const color = stars >= 4 ? '#ffd166' : stars === 3 ? '#5e81f4' : 'rgba(158,165,196,0.35)';
+  return (
+    <span
+      title={`${engine.STAR_LABELS[stars]}${stars >= 4 ? ' — expect to overpay for this player in a trade' : ''}`}
+      style={{ color, fontSize: '0.7rem', fontWeight: 700, marginLeft: 4, cursor: 'default' }}
+    >
+      {engine.starDisplay(stars)}
+    </span>
+  );
+};
 
 const FranchiseTrades = ({ instance, teams, myTeam, onChanged }) => {
   const [trades,   setTrades]   = useState([]);
@@ -79,6 +93,9 @@ const FranchiseTrades = ({ instance, teams, myTeam, onChanged }) => {
     <div>
       <h3 style={{ color: '#e2e5f0', marginBottom: 4 }}>🔁 Propose a Trade</h3>
       <p style={{ color: 'rgba(158,165,196,0.45)', fontSize: '0.82rem', marginBottom: 16 }}>Trading as {myTeam.city} {myTeam.name}.</p>
+      <p style={{ color: 'rgba(158,165,196,0.35)', fontSize: '0.76rem', marginTop: -10, marginBottom: 16 }}>
+        ★ ratings show a player's scouted ceiling — 4-5★ prospects are far pricier to pry away; CPU teams will demand a real overpay for them.
+      </p>
 
       <div className="neon-card p-3" style={{ marginBottom: 20 }}>
         <label style={{ display: 'block', fontSize: '0.78rem', color: 'rgba(158,165,196,0.5)', marginBottom: 6 }}>Trade with</label>
@@ -97,6 +114,7 @@ const FranchiseTrades = ({ instance, teams, myTeam, onChanged }) => {
                   <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: '#e2e5f0', padding: '4px 6px', background: offeredIds.includes(p.id) ? 'rgba(94,129,244,0.15)' : 'transparent', borderRadius: 5, cursor: 'pointer' }}>
                     <input type="checkbox" checked={offeredIds.includes(p.id)} onChange={() => toggle(p.id, offeredIds, setOfferedIds)} />
                     {p.first_name} {p.last_name} <span style={{ color: 'rgba(158,165,196,0.4)' }}>({p.position})</span>
+                    <StarBadge player={p} />
                   </label>
                 ))}
               </div>
@@ -108,6 +126,7 @@ const FranchiseTrades = ({ instance, teams, myTeam, onChanged }) => {
                   <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: '#e2e5f0', padding: '4px 6px', background: requestedIds.includes(p.id) ? 'rgba(94,129,244,0.15)' : 'transparent', borderRadius: 5, cursor: 'pointer' }}>
                     <input type="checkbox" checked={requestedIds.includes(p.id)} onChange={() => toggle(p.id, requestedIds, setRequestedIds)} />
                     {p.first_name} {p.last_name} <span style={{ color: 'rgba(158,165,196,0.4)' }}>({p.position})</span>
+                    <StarBadge player={p} />
                   </label>
                 ))}
               </div>
