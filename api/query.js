@@ -1,14 +1,15 @@
 import { Pool } from 'pg';
 
-let pool;
 function getPool() {
-  if (!pool) {
-    pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false },
-    });
-  }
-  return pool;
+  if (globalThis.__nova_pg_pool) return globalThis.__nova_pg_pool;
+  globalThis.__nova_pg_pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false },
+    max: 2,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
+  });
+  return globalThis.__nova_pg_pool;
 }
 
 const ALLOWED_TABLES = new Set([
