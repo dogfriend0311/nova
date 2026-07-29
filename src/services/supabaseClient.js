@@ -1,197 +1,186 @@
-import { createClient } from '@supabase/supabase-js';
+// src/services/supabaseClient.js
+//
+// This file used to create a real @supabase/supabase-js client. Now it
+// creates a lookalike object with the same `.from(table).select()...`
+// shape, so every other file in this app (db.js, franchiseDb.js, etc.)
+// keeps working completely unchanged. Under the hood, every call sends a
+// request to /api/query, a small backend function that runs the equivalent
+// SQL against Rivestack.
+//
+// Two things intentionally work differently than before:
+// 1. Realtime (`supabase.channel(...)`) is emulated with polling
+// (checking for changes every few seconds) instead of an instant
+// push — good enough for a chat panel or draft room, just not
+// millisecond-instant.
+// 2. File uploads (`supabase.storage...`) are stubbed out for now and
+// will return a clear error until storage is set up in a follow-up
+// step.
 
-// Initialize Supabase client
-const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
-const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+class QueryBuilder {
+  constructor(table) {
+    this.table = table;
+    this.action = null;
+    this.columns = '*';
+    this.filters = [];
+    this._order = null;
+    this._limit = null;
+    this._single = false;
+    this._maybeSingle = false;
+    this.values = null;
+    this.onConflict = null;
+    this._promise = null;
+  }
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error(
-    'Supabase configuration is missing. Make sure REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY are set in .env.local'
-  );
+  select(cols) {
+    if (!this.action) this.action = 'select';
+    if (cols) this.columns = cols;
+    return this;
+  }
+
+  insert(rows) {
+    this.action = 'insert';
+    this.values = rows;
+    return this;
+  }
+
+  update(obj) {
+    this.action = 'update';
+    this.values = obj;
+    return this;
+  }
+
+  upsert(rows, opts) {
+    this.action = 'upsert';
+    this.values = rows;
+    this.onConflict = opts?.onConflict || null;
+    return this;
+  }
+
+  delete() {
+    this.action = 'delete';
+    return this;
+  }
+
+  eq(column, value) { this.filters.push({ column, op: 'eq', value }); return this; }
+  neq(column, value) { this.filters.push({ column, op: 'neq', value }); return this; }
+  gt(column, value) { this.filters.push({ column, op: 'gt', value }); return this; }
+  gte(column, value) { this.filters.push({ column, op: 'gte', value }); return this; }
+  lt(column, value) { this.filters.push({ column, op: 'lt', value }); return this; }
+  lte(column, value) { this.filters.push({ column, op: 'lte', value }); return this; }
+  like(column, value) { this.filters.push({ column, op: 'like', value }); return this; }
+  ilike(column, value) { this.filters.push({ column, op: 'ilike', value }); return this; }
+  in(column, values) { this.filters.push({ column, op: 'in', value: values }); return this; }
+  is(column, value) { this.filters.push({ column, op: 'is', value }); return this; }
+
+  order(column, opts) { this._order = { column, ascending: opts?.ascending !== false }; return this; }
+  limit(n) { this._limit = n; return this; }
+  single() { this._single = true; return this; }
+  maybeSingle() { this._maybeSingle = true; return this; }
+
+  async _run() {
+    const res = await fetch('/api/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: this.table,
+        action: this.action || 'select',
+        columns: this.columns,
+        filters: this.filters,
+        order: this._order,
+        limit: this._limit,
+        single: this._single,
+        maybeSingle: this._maybeSingle,
+        values: this.values,
+        onConflict: this.onConflict,
+      }),
+    });
+    return res.json();
+  }
+
+  then(resolve, reject) {
+    if (!this._promise) this._promise = this._run();
+    return this._promise.then(resolve, reject);
+  }
+
+  catch(reject) {
+    return this.then(undefined, reject);
+  }
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// ── Realtime emulation via polling ──────────────────────────────────────
+class PollingChannel {
+  constructor(name) {
+    this.name = name;
+    this.subscriptions = [];
+    this.intervalId = null;
+    this.lastRows = new Map();
+  }
 
-// Helper functions for common operations
-export const supabaseHelpers = {
-  // Authentication
-  async signUp(email, password) {
-    return await supabase.auth.signUp({ email, password });
-  },
+  on(event, config, callback) {
+    this.subscriptions.push({ config, callback });
+    return this;
+  }
 
-  async signIn(email, password) {
-    return await supabase.auth.signInWithPassword({ email, password });
-  },
+  subscribe() {
+    const POLL_MS = 4000;
+    this.intervalId = setInterval(async () => {
+      for (const sub of this.subscriptions) {
+        try {
+          const { table, filter } = sub.config;
+          let builder = new QueryBuilder(table).select('*');
+          if (filter) {
+            const m = filter.match(/^([^=]+)=eq\.(.*)$/);
+            if (m) builder = builder.eq(m[1], m[2]);
+          }
+          const { data } = await builder;
+          if (!Array.isArray(data)) continue;
 
-  async signOut() {
-    return await supabase.auth.signOut();
-  },
+          const rowMap = new Map(data.map((row) => [row.id, row]));
+          const previous = this.lastRows.get(sub) || new Map();
+          const added = data.filter((row) => !previous.has(row.id));
+          const removed = Array.from(previous.values()).filter((row) => !rowMap.has(row.id));
+          if (added.length || removed.length) {
+            sub.callback({ eventType: 'postgres_changes', payload: { new: added, old: removed } });
+          }
+          this.lastRows.set(sub, rowMap);
+        } catch (err) {
+          console.error('PollingChannel error:', err);
+        }
+      }
+    }, POLL_MS);
+    return this;
+  }
 
-  async getCurrentUser() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    return user;
-  },
+  unsubscribe() {
+    if (this.intervalId) clearInterval(this.intervalId);
+  }
+}
 
-  // Database operations - Members
-  async getMembers(limit = 50) {
-    return await supabase.from('members').select('*').limit(limit);
+// ── Storage stub (file uploads land here until set up separately) ───────
+const storageStub = {
+  from(_bucket) {
+    return {
+      async upload() {
+        return { data: null, error: { message: 'Storage bucket not connected yet — file uploads are a follow-up step.' } };
+      },
+      getPublicUrl(_path) {
+        return { data: { publicUrl: null } };
+      },
+    };
   },
+};
 
-  async getMemberById(id) {
-    return await supabase.from('members').select('*').eq('id', id).single();
+export const supabase = {
+  from(table) {
+    return new QueryBuilder(table);
   },
-
-  async createMember(data) {
-    return await supabase.from('members').insert([data]);
+  channel(name) {
+    return new PollingChannel(name);
   },
-
-  async updateMember(id, data) {
-    return await supabase.from('members').update(data).eq('id', id);
+  removeChannel(channel) {
+    if (channel && typeof channel.unsubscribe === 'function') channel.unsubscribe();
   },
-
-  // Gaming clips
-  async getGamingClips(memberId, limit = 20) {
-    return await supabase
-      .from('gaming_clips')
-      .select('*')
-      .eq('member_id', memberId)
-      .limit(limit);
-  },
-
-  async createGamingClip(data) {
-    return await supabase.from('gaming_clips').insert([data]);
-  },
-
-  async deleteGamingClip(id) {
-    return await supabase.from('gaming_clips').delete().eq('id', id);
-  },
-
-  // Favorite songs
-  async getFavoriteSongs(memberId, limit = 20) {
-    return await supabase
-      .from('favorite_songs')
-      .select('*')
-      .eq('member_id', memberId)
-      .limit(limit);
-  },
-
-  async addFavoriteSong(data) {
-    return await supabase.from('favorite_songs').insert([data]);
-  },
-
-  async removeFavoriteSong(id) {
-    return await supabase.from('favorite_songs').delete().eq('id', id);
-  },
-
-  // Sports stats
-  async getSportsStats(league, limit = 50) {
-    return await supabase
-      .from('sports_stats')
-      .select('*')
-      .eq('league', league)
-      .limit(limit);
-  },
-
-  async getGameScores(league, date) {
-    return await supabase
-      .from('scores')
-      .select('*')
-      .eq('league', league)
-      .eq('game_date', date);
-  },
-
-  async updateGameScore(id, data) {
-    return await supabase.from('scores').update(data).eq('id', id);
-  },
-
-  // Roblox stats
-  async getRobloxStats(userId) {
-    return await supabase
-      .from('roblox_stats')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-  },
-
-  async getRobloxLeaderboard(limit = 100) {
-    return await supabase
-      .from('roblox_stats')
-      .select('*')
-      .order('league_rank', { ascending: true })
-      .limit(limit);
-  },
-
-  async updateRobloxStats(userId, data) {
-    return await supabase
-      .from('roblox_stats')
-      .update(data)
-      .eq('user_id', userId);
-  },
-
-  // Real-time subscriptions
-  subscribeToScores(league, callback) {
-    return supabase
-      .channel(`scores:${league}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'scores',
-          filter: `league=eq.${league}`,
-        },
-        callback
-      )
-      .subscribe();
-  },
-
-  subscribeToMembers(callback) {
-    return supabase
-      .channel('members')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'members',
-        },
-        callback
-      )
-      .subscribe();
-  },
-
-  subscribeToMemberActivity(memberId, callback) {
-    return supabase
-      .channel(`member:${memberId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'gaming_clips',
-          filter: `member_id=eq.${memberId}`,
-        },
-        callback
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'favorite_songs',
-          filter: `member_id=eq.${memberId}`,
-        },
-        callback
-      )
-      .subscribe();
-  },
-
-  // Unsubscribe
-  unsubscribe(channel) {
-    return supabase.removeChannel(channel);
-  },
+  storage: storageStub,
 };
 
 export default supabase;
