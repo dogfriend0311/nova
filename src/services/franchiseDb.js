@@ -1,7 +1,7 @@
 import { supabase } from './supabaseClient';
 import * as engine from './franchiseEngine';
 
-const hasSupabase = () => !!(process.env.REACT_APP_SUPABASE_URL && process.env.REACT_APP_SUPABASE_ANON_KEY);
+const hasSupabase = () => true; // Rivestack via /api/query — no client-side env vars needed
 
 /** The one public shared community league. */
 export async function getSharedInstance() {

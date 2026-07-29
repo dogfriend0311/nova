@@ -1,14 +1,11 @@
-/**
+﻿/**
  * db.js — Universal data service
  * Tries Supabase first (cross-device). Falls back to localStorage if
  * Supabase isn't configured yet so the site still works locally.
  */
 import { supabase } from './supabaseClient';
 
-const hasSupabase = () => !!(
-  process.env.REACT_APP_SUPABASE_URL &&
-  process.env.REACT_APP_SUPABASE_ANON_KEY
-);
+const hasSupabase = () => true; // Rivestack via /api/query — no client-side env vars needed
 
 /* ── Generic localStorage helpers ─────────────────────────────── */
 const ls = {
@@ -469,7 +466,7 @@ export const db = {
     return Object.entries(online).filter(([, ts]) => ts > fiveMinAgo).map(([u]) => u);
   },
 
-  /* ── PLAYER OF THE MONTH AWARDS ───────────────────────────────
+  /* ── PLAYER OF THE MONTH AWARDS ─────────────────────────────
      Permanent trophy-case entries for a player's stat page. Multiple
      awards can stack over a career (e.g. one per month won).         */
   async getPotmAwards(league, playerId) {
@@ -620,7 +617,7 @@ export const db = {
     ls.set(`${league}_player_comments`, ls.get(`${league}_player_comments`).filter(c => c.id !== id));
   },
 
-  /* ── FANTASY TEAM SCHEDULES ───────────────────────────────────────
+  /* ── FANTASY TEAM SCHEDULES ─────────────────────────────────────
      Stores schedule entries for fantasy teams (week, opponent, result).
      Requires: supabase/team_schedule_schema.sql to be run once.        */
 

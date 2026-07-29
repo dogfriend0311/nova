@@ -9,10 +9,7 @@
 import { supabase } from './supabaseClient';
 import sportsApi from './sportsApi';
 
-const hasSupabase = () => !!(
-  process.env.REACT_APP_SUPABASE_URL &&
-  process.env.REACT_APP_SUPABASE_ANON_KEY
-);
+const hasSupabase = () => true; // Rivestack via /api/query — no client-side env vars needed
 
 const ls = {
   get: (key) => JSON.parse(localStorage.getItem(key) || '[]'),
