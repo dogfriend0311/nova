@@ -5,9 +5,11 @@ function getPool() {
   globalThis.__nova_pg_pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false },
-    max: 2,
-    idleTimeoutMillis: 30000,
+    max: 1,
+    min: 0,
+    idleTimeoutMillis: 10000,
     connectionTimeoutMillis: 5000,
+    allowExitOnIdle: true,
   });
   return globalThis.__nova_pg_pool;
 }

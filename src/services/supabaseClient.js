@@ -122,7 +122,7 @@ class PollingChannel {
   }
 
   subscribe() {
-    const POLL_MS = 4000;
+    const POLL_MS = 12000;
     this.intervalId = setInterval(async () => {
       for (const sub of this.subscriptions) {
         try {

@@ -120,8 +120,8 @@ const DraftRoom = ({ league, teams, myTeam, username, isCommissioner, onLeagueCh
     // Note: fantasy_draft_picks filters on draft_id, which isn't known until
     // the draft exists — re-subscribed below once `draft` loads.
 
-    // Polling fallback (every 4 s) when realtime is unavailable
-    pollRef.current = setInterval(() => refreshDraft(), 4000);
+    // Polling fallback (every 12 s) when realtime is unavailable
+    pollRef.current = setInterval(() => refreshDraft(), 12000);
 
     return () => {
       fantasyDb.unsubscribe(subDraftRef.current);

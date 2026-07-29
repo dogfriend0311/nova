@@ -68,9 +68,9 @@ const ChatPanel = ({ league, username }) => {
 
     channelRef.current = channel;
 
-    // If no Supabase, fall back to polling every 4 seconds
+    // If no Supabase, fall back to polling every 12 seconds
     if (!channel) {
-      pollRef.current = setInterval(fetchMessages, 4000);
+      pollRef.current = setInterval(fetchMessages, 12000);
     }
 
     return () => {
