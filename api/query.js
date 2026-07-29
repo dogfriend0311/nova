@@ -2,16 +2,20 @@ import { Pool } from 'pg';
 
 function getPool() {
   if (globalThis.__nova_pg_pool) return globalThis.__nova_pg_pool;
-  globalThis.__nova_pg_pool = new Pool({
+  const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false },
     max: 1,
     min: 0,
-    idleTimeoutMillis: 10000,
-    connectionTimeoutMillis: 5000,
+    idleTimeoutMillis: 3000,
+    connectionTimeoutMillis: 3000,
     allowExitOnIdle: true,
   });
-  return globalThis.__nova_pg_pool;
+  pool.on('error', (err) => {
+    console.error('Postgres pool error:', err.message || err);
+  });
+  globalThis.__nova_pg_pool = pool;
+  return pool;
 }
 
 const ALLOWED_TABLES = new Set([
