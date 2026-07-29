@@ -32,7 +32,6 @@ const Sidebar = ({ currentPage, onNavigate }) => {
     { id: 'leagues',  label: 'Leagues',      icon: '' },
     { id: 'games',    label: 'Games',        icon: '🎮' },
     { id: 'articles', label: 'Articles',     icon: '📰' },
-    { id: 'franchise', label: 'Franchise Mode', icon: '⚾' },
     { id: 'sports',   label: 'Sports',       icon: '🏆' },
     { id: 'members',  label: 'Member Pages', icon: '👥' },
     { id: 'music',    label: 'Music',        icon: '🎵' },
