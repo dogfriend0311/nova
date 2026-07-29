@@ -33,6 +33,11 @@ const FranchiseDraft = ({ instance, season, teams, myTeam, onChanged }) => {
   useEffect(() => { refresh(); }, [refresh]);
 
   const startDraft = async () => {
+    if (!instance?.id || !season?.id) {
+      setError('League season is not loaded yet. Please refresh and try again.');
+      return;
+    }
+
     setStarting(true);
     setError('');
     try {
@@ -66,12 +71,18 @@ const FranchiseDraft = ({ instance, season, teams, myTeam, onChanged }) => {
   };
 
   if (!inDraft) {
+    const canStart = !!instance?.id && !!season?.id;
     return (
       <div style={{ textAlign: 'center', padding: 30 }}>
         <p style={{ color: 'rgba(158,165,196,0.5)', marginBottom: 16 }}>No draft is currently active.</p>
-        <button className="neon-button" onClick={startDraft} disabled={starting}>
+        <button className="neon-button" onClick={startDraft} disabled={starting || !canStart}>
           {starting ? 'Setting up draft…' : '🎓 Start Draft (10 rounds)'}
         </button>
+        {!canStart && (
+          <div style={{ color: 'rgba(158,165,196,0.45)', fontSize: '0.82rem', marginTop: 8 }}>
+            League or season data is still loading. Please wait a moment.
+          </div>
+        )}
         {error && <div style={{ color: '#ff6b7a', fontSize: '0.82rem', marginTop: 12 }}>⚠ {error}</div>}
       </div>
     );

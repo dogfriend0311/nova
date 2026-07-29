@@ -32,12 +32,27 @@ const CITIES = [
   'Savannah','Reno','Akron','Biloxi','Fresno','Charleston','Toledo','Wichita',
   'Albany','Knoxville','Chattanooga','Shreveport','Anchorage','Honolulu','Duluth','Amarillo',
 ];
+const NICKNAMES = [
+  'Aces','Bats','Bayhawks','Blazers','Breakers','Capitals','Citizens','Comets',
+  'Cyclones','Express','Gladiators','Grizzlies','Hawks','Honors','Mallards','Miners',
+  'Moons','Mustangs','Nighthawks','Pilots','Pioneers','Rangers','Rivercats','Sailors',
+  'Sharks','Skyline','Storm','Strikers','Stars','Thunder','Trailblazers','Voyagers',
+];
 const LEAGUES = ['American', 'National'];
 const DIVISIONS = ['East', 'West', 'North', 'South'];
 
 function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+function makeAbbreviation(city, nickname) {
+  const parts = `${city} ${nickname}`.split(/[^A-Za-z0-9]+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return parts.slice(0, 3).map(part => part[0]).join('').toUpperCase();
+  }
+  if (city.length <= 3) return city.toUpperCase();
+  return city.slice(0, 3).toUpperCase();
+}
 // 20-80 scale, roughly normal around 50
 function ratingRoll(mean = 50, spread = 15) {
   const v = mean + (Math.random() + Math.random() + Math.random() - 1.5) * spread;
@@ -136,10 +151,12 @@ export function generateLeague() {
   const cities = [...CITIES].sort(() => Math.random() - 0.5).slice(0, 32);
   const teams = [];
   for (let i = 0; i < 32; i++) {
+    const city = cities[i];
+    const nickname = NICKNAMES[i % NICKNAMES.length];
     teams.push({
-      name: `Team ${i + 1}`,
-      city: cities[i],
-      abbreviation: `T${i + 1}`,
+      name: nickname,
+      city,
+      abbreviation: makeAbbreviation(city, nickname),
       league: LEAGUES[Math.floor(i / 16)],
       division: DIVISIONS[Math.floor(i / 4) % 4],
       primary_color: '#5e81f4',

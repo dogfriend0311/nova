@@ -360,7 +360,11 @@ export async function respondToTrade(tradeId, accept) {
 
 export async function startDraft(instanceId, seasonId, numRounds = 10) {
   const { data: season } = await supabase.from('seasons').select('*').eq('id', seasonId).single();
+  if (!season) throw new Error('Season not found. Cannot start draft.');
+
   const teams = await getTeams(instanceId);
+  if (!teams || teams.length === 0) throw new Error('No teams found for this league. Cannot start draft.');
+
   const order = [...teams].sort((a, b) => (a.wins - a.losses) - (b.wins - b.losses));
 
   const prospects = [];
