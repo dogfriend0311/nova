@@ -393,7 +393,7 @@ export async function startDraft(instanceId, seasonId, numRounds = 10) {
 
 export async function getCurrentPick(seasonId) {
   const { data } = await supabase.from('draft_picks').select('*').eq('season_id', seasonId)
-    .eq('made', false).order('pick_number', { ascending: true }).limit(1).single();
+    .eq('made', false).order('pick_number', { ascending: true }).limit(1).maybeSingle();
   return data || null;
 }
 
