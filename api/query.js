@@ -186,11 +186,14 @@ export default async function handler(req, res) {
   } = body || {};
 
   try {
-    if (!ALLOWED_TABLES.has(table)) {
-      throw new Error(`Table not allowed: ${JSON.stringify(table)}`);
+    const tableName = typeof table === 'string'
+      ? table.trim().replace(/^"+|"+$/g, '')
+      : table;
+    if (!ALLOWED_TABLES.has(tableName)) {
+      throw new Error(`Table not allowed: ${JSON.stringify(tableName)}`);
     }
 
-    const tableIdent = quoteIdent(table);
+    const tableIdent = quoteIdent(tableName);
     const pool = getPool();
     const params = [];
     let sql;

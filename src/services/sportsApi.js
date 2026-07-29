@@ -17,7 +17,7 @@ const BASE = 'https://site.api.espn.com/apis/site/v2/sports';
 // On Vercel or any other domain it's CORS-blocked, so we proxy through corsproxy.io.
 function buildUrl(url) {
   const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-  const isDev = host === 'localhost' ||
+  const isDev = host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' ||
                 host.endsWith('.replit.dev') ||
                 host.endsWith('.repl.co') ||
                 host.endsWith('.replit.app');
