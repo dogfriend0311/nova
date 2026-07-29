@@ -1,4 +1,4 @@
-﻿/**
+/**
  * db.js — Universal data service
  * Tries Supabase first (cross-device). Falls back to localStorage if
  * Supabase isn't configured yet so the site still works locally.
