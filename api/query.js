@@ -25,6 +25,10 @@ const ALLOWED_TABLES = new Set([
   'player_hitting_stats', 'player_advanced_hitting_stats',
   'player_pitching_stats', 'player_advanced_pitching_stats',
   'members', 'gaming_clips', 'favorite_songs', 'sports_stats', 'scores', 'roblox_stats',
+  'fantasy_leagues', 'fantasy_teams', 'fantasy_players', 'fantasy_rosters',
+  'fantasy_drafts', 'fantasy_draft_picks', 'fantasy_matchups', 'fantasy_waiver_claims',
+  'fantasy_trades', 'fantasy_chat_messages',
+  'pickems_groups', 'pickems_members', 'pickems_games', 'pickems_picks',
 ]);
 
 const IDENT_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
