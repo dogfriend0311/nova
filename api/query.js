@@ -24,6 +24,13 @@ function getPool() {
     pool = new Pool({
       connectionString: process.env.DATABASE_URL,
       ssl: { rejectUnauthorized: false },
+      max: parseInt(process.env.PG_MAX_CLIENTS, 10) || 2,
+      idleTimeoutMillis: 10000,
+      connectionTimeoutMillis: 10000,
+    });
+
+    pool.on('error', (err) => {
+      console.error('Postgres pool error:', err);
     });
   }
   return pool;
