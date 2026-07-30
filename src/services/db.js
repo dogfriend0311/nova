@@ -363,9 +363,47 @@ export const db = {
     return p;
   },
 
+  // Postgres validates every string nested inside a jsonb value for
+  // well-formed Unicode. A single broken surrogate pair anywhere inside
+  // (e.g. an emoji mangled by a copy-paste or a filename-derived audio
+  // track title) makes the ENTIRE upsert fail with "invalid input syntax
+  // for type json" — even though the JS object's shape is fine. Repair
+  // lone surrogate halves before sending, rather than dropping the whole
+  // save.
+  _fixLoneSurrogates(str) {
+    let out = '';
+    for (let i = 0; i < str.length; i++) {
+      const code = str.charCodeAt(i);
+      if (code >= 0xD800 && code <= 0xDBFF) {
+        // high surrogate — keep only if immediately followed by its low half
+        const next = str.charCodeAt(i + 1);
+        if (next >= 0xDC00 && next <= 0xDFFF) {
+          out += str[i] + str[i + 1];
+          i++;
+        } // else: lone high surrogate — drop it
+      } else if (code >= 0xDC00 && code <= 0xDFFF) {
+        // lone low surrogate with no preceding high — drop it
+      } else {
+        out += str[i];
+      }
+    }
+    return out;
+  },
+
+  _deepFixUnicode(value) {
+    if (typeof value === 'string') return this._fixLoneSurrogates(value);
+    if (Array.isArray(value)) return value.map(v => this._deepFixUnicode(v));
+    if (value && typeof value === 'object') {
+      const out = {};
+      for (const k of Object.keys(value)) out[k] = this._deepFixUnicode(value[k]);
+      return out;
+    }
+    return value;
+  },
+
   async saveMemberProfile(profile) {
     if (hasSupabase()) {
-      const safeProfile = this._sanitizeProfileJsonFields(profile);
+      const safeProfile = this._deepFixUnicode(this._sanitizeProfileJsonFields(profile));
       const { data, error } = await supabase
         .from('nova_member_profiles')
         .upsert([{ ...safeProfile, updated_at: new Date().toISOString() }], { onConflict: 'username' })
