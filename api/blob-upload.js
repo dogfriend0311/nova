@@ -17,21 +17,18 @@ export default async function handler(request, response) {
   // that can cause `Cannot find module .../dist/client.cjs` on Vercel.
   let handleUpload;
   try {
-    // Prefer the client entry
-    ({ handleUpload } = await import('@vercel/blob/client'));
-  } catch (errClient) {
+    ({ handleUpload } = await import('@vercel/blob'));
+  } catch (errTop) {
     try {
-      // Fallback to top-level package (some versions export differently)
-      ({ handleUpload } = await import('@vercel/blob'));
-    } catch (errTop) {
-      try {
-        // Final fallback to CommonJS require for compiled environments
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        ({ handleUpload } = require('@vercel/blob/client'));
-      } catch (errRequire) {
-        console.error('Failed to load @vercel/blob SDK:', { errClient, errTop, errRequire });
-        return response.status(500).json({ error: 'Server misconfiguration: @vercel/blob SDK not found' });
-      }
+      const { createRequire } = await import('module');
+      const cjsRequire = createRequire(import.meta.url);
+      ({ handleUpload } = cjsRequire('@vercel/blob'));
+    } catch (errRequire) {
+      console.error('Failed to load @vercel/blob SDK:', {
+        errTop,
+        errRequire,
+      });
+      return response.status(500).json({ error: 'Server misconfiguration: @vercel/blob SDK not found' });
     }
   }
   // If the static read-write token isn't present, don't hard-fail —
