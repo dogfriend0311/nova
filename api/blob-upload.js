@@ -8,9 +8,11 @@
 // allowed to do that (the real BLOB_READ_WRITE_TOKEN never reaches the
 // browser). This is @vercel/blob's standard "client upload" pattern.
 //
-// Requires the BLOB_READ_WRITE_TOKEN env var, which Vercel sets
-// automatically once a Blob store is connected to this project. For local
-// dev, copy it into .env.local (see .env.example).
+// Requires the BLOB_READ_WRITE_TOKEN env var. Note: this is true even if
+// your project has been "Upgraded to OIDC" for other Blob operations —
+// handleUpload() (used here to mint client tokens for browser uploads)
+// always needs the static read-write token; OIDC is not accepted for it.
+// For local dev, copy the token into .env.local (see .env.example).
 
 export default async function handler(request, response) {
   // Resolve the SDK at runtime to avoid ESM/CJS resolution issues.
@@ -66,12 +68,20 @@ export default async function handler(request, response) {
       }
     }
   }
-  // If the static read-write token isn't present, don't hard-fail —
-  // Vercel may be using OIDC short-lived tokens for connected projects.
-  // Log a warning so operators can see the deprecated token is missing,
-  // but still attempt to generate a client token via the SDK.
+  // handleUpload() always needs the static read-write token to sign client
+  // tokens — OIDC (VERCEL_OIDC_TOKEN) is not accepted for this call, even on
+  // stores upgraded to OIDC. Fail fast with an actionable message instead of
+  // letting the SDK throw its generic "no read-write token found" error.
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    console.warn('BLOB_READ_WRITE_TOKEN not present; attempting OIDC short-lived token flow');
+    console.error(
+      'blob-upload misconfigured: BLOB_READ_WRITE_TOKEN is not set. ' +
+      'Go to Vercel dashboard -> Storage -> your Blob store -> Settings/Tokens, ' +
+      'copy the read-write token, and add it as BLOB_READ_WRITE_TOKEN in ' +
+      'Project Settings -> Environment Variables (Production and Preview), then redeploy.'
+    );
+    return response.status(500).json({
+      error: 'Server misconfiguration: BLOB_READ_WRITE_TOKEN env var is not set for this project.',
+    });
   }
 
   const body = request.body;
