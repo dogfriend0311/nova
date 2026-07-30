@@ -2,7 +2,17 @@
   "buildCommand": "npm run build",
   "outputDirectory": "build",
   "rewrites": [
-    { "source": "/members/:username", "destination": "/api/preview-member?username=:username" },
-    { "source": "/players/:id", "destination": "/api/preview-player?id=:id" }
+    {
+      "source": "/espn-proxy/:path*",
+      "destination": "/api/espn-proxy?path=:path*"
+    },
+    {
+      "source": "/members/:username",
+      "destination": "/api/preview-member?username=:username"
+    },
+    {
+      "source": "/players/:id",
+      "destination": "/api/preview-player?id=:id"
+    }
   ]
 }

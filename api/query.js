@@ -1,20 +1,31 @@
+// api/query.js
+//
+// This is the ONE backend function that replaces Supabase's auto-generated
+// database API. Your frontend code still calls things like
+// supabase.from('players').select('*').eq('team_id', 5) — but under the
+// hood, that now sends a request here, and this file turns it into a real,
+// safe SQL query against Rivestack (plain Postgres).
+//
+// Security note: this endpoint is reachable by anyone on the internet, the
+// same way your Supabase table's public read/write policies were. To keep
+// that safe:
+//   - Only table names in ALLOWED_TABLES can be queried.
+//   - Column names are checked against a strict "looks like a real column
+//     name" pattern before ever touching a SQL string.
+//   - All actual VALUES (the data itself) are sent as parameterized query
+//     arguments ($1, $2, ...), never pasted directly into the SQL string.
+//     This is what prevents SQL-injection attacks.
+
 import { Pool } from 'pg';
 
+let pool;
 function getPool() {
-  if (globalThis.__nova_pg_pool) return globalThis.__nova_pg_pool;
-  const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
-    max: 1,
-    min: 0,
-    idleTimeoutMillis: 3000,
-    connectionTimeoutMillis: 3000,
-    allowExitOnIdle: true,
-  });
-  pool.on('error', (err) => {
-    console.error('Postgres pool error:', err.message || err);
-  });
-  globalThis.__nova_pg_pool = pool;
+  if (!pool) {
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+    });
+  }
   return pool;
 }
 
@@ -27,15 +38,14 @@ const ALLOWED_TABLES = new Set([
   'nova_radio_config', 'nova_fantasy_schedules', 'nova_users',
   'nova_potm_awards', 'nova_accolades', 'nova_comments',
   'nabb_teams', 'nabb_players', 'nabb_games', 'nabb_box_scores', 'nabb_game_feed',
+  'nova_player_comments',
+  'fantasy_leagues', 'fantasy_teams', 'fantasy_drafts', 'fantasy_draft_picks', 'fantasy_players',
+  'pickems_groups', 'pickems_members', 'pickems_games', 'pickems_picks',
   'app_data',
   'member_profiles', 'admin_users', 'league_teams', 'league_players',
   'player_hitting_stats', 'player_advanced_hitting_stats',
   'player_pitching_stats', 'player_advanced_pitching_stats',
   'members', 'gaming_clips', 'favorite_songs', 'sports_stats', 'scores', 'roblox_stats',
-  'fantasy_leagues', 'fantasy_teams', 'fantasy_players', 'fantasy_rosters',
-  'fantasy_drafts', 'fantasy_draft_picks', 'fantasy_matchups', 'fantasy_waiver_claims',
-  'fantasy_trades', 'fantasy_chat_messages',
-  'pickems_groups', 'pickems_members', 'pickems_games', 'pickems_picks',
 ]);
 
 const IDENT_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
@@ -56,29 +66,12 @@ const OP_SQL = {
   like: 'LIKE', ilike: 'ILIKE',
 };
 
-function buildColumns(columns) {
-  if (!columns || columns === '*') return '*';
-  if (typeof columns === 'string') {
-    return columns
-      .split(',')
-      .map((column) => quoteIdent(assertIdent(column.trim(), 'column')))
-      .join(', ');
-  }
-  if (Array.isArray(columns)) {
-    return columns
-      .map((column) => quoteIdent(assertIdent(column, 'column')))
-      .join(', ');
-  }
-  throw new Error('Invalid columns specification');
-}
-
 function buildWhere(filters, params) {
   if (!filters || filters.length === 0) return '';
   const parts = filters.map((f) => {
     const col = quoteIdent(assertIdent(f.column, 'column'));
     if (f.op === 'in') {
       const arr = Array.isArray(f.value) ? f.value : [f.value];
-      if (arr.length === 0) throw new Error('IN filter requires at least one value');
       const placeholders = arr.map((v) => {
         params.push(v);
         return `$${params.length}`;
@@ -86,6 +79,7 @@ function buildWhere(filters, params) {
       return `${col} IN (${placeholders.join(',')})`;
     }
     if (f.op === 'is') {
+      // supabase uses .is(col, null) for IS NULL checks
       if (f.value === null) return `${col} IS NULL`;
       params.push(f.value);
       return `${col} IS $${params.length}`;
@@ -98,71 +92,6 @@ function buildWhere(filters, params) {
   return ' WHERE ' + parts.join(' AND ');
 }
 
-function buildOrder(order) {
-  if (!order || !order.column) return '';
-  const column = quoteIdent(assertIdent(order.column, 'column'));
-  const direction = order.ascending === false ? 'DESC' : 'ASC';
-  return ` ORDER BY ${column} ${direction}`;
-}
-
-function buildLimit(limit) {
-  if (limit == null) return '';
-  const parsed = Number(limit);
-  if (!Number.isInteger(parsed) || parsed < 0) throw new Error('Invalid limit value');
-  return ` LIMIT ${parsed}`;
-}
-
-function buildInsert(values, params) {
-  const rows = Array.isArray(values) ? values : [values];
-  if (rows.length === 0) throw new Error('Insert requires at least one row');
-  const keys = Object.keys(rows[0]);
-  if (keys.length === 0) throw new Error('Insert row must have at least one column');
-  const columns = keys.map((key) => quoteIdent(assertIdent(key, 'column'))).join(', ');
-  const placeholders = rows.map((row) => {
-    const rowPlaceholders = keys.map((key) => {
-      params.push(row[key]);
-      return `$${params.length}`;
-    });
-    return `(${rowPlaceholders.join(', ')})`;
-  }).join(', ');
-  return { columns, placeholders, keys };
-}
-
-function buildUpdate(values, params) {
-  const keys = Object.keys(values);
-  if (keys.length === 0) throw new Error('Update requires at least one column');
-  const setClause = keys.map((key) => {
-    const column = quoteIdent(assertIdent(key, 'column'));
-    params.push(values[key]);
-    return `${column} = $${params.length}`;
-  }).join(', ');
-  return setClause;
-}
-
-function buildOnConflict(onConflict, keys) {
-  if (!onConflict) return '';
-  const conflictColumns = Array.isArray(onConflict) ? onConflict : [onConflict];
-  if (conflictColumns.length === 0) throw new Error('onConflict must specify at least one column');
-  const conflictTarget = conflictColumns
-    .map((column) => quoteIdent(assertIdent(column, 'column')))
-    .join(', ');
-  if (keys.length === 0) return ` ON CONFLICT (${conflictTarget}) DO NOTHING`;
-  const updates = keys
-    .map((key) => {
-      const column = quoteIdent(assertIdent(key, 'column'));
-      return `${column} = EXCLUDED.${column}`;
-    })
-    .join(', ');
-  return ` ON CONFLICT (${conflictTarget}) DO UPDATE SET ${updates}`;
-}
-
-function buildReturning(action) {
-  if (action === 'insert' || action === 'upsert' || action === 'update' || action === 'delete') {
-    return ' RETURNING *';
-  }
-  return '';
-}
-
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
 
@@ -173,75 +102,85 @@ export default async function handler(req, res) {
 
   let body = req.body;
   if (typeof body === 'string') {
-    try {
-      body = JSON.parse(body);
-    } catch {
-      body = {};
-    }
+    try { body = JSON.parse(body); } catch { body = {}; }
   }
 
   const {
-    table, action = 'select', columns, filters = [], order, limit,
+    table, action, columns, filters = [], order, limit,
     single, maybeSingle, values, onConflict,
   } = body || {};
 
   try {
-    const tableName = typeof table === 'string'
-      ? table.trim().replace(/^"+|"+$/g, '')
-      : table;
-    if (!ALLOWED_TABLES.has(tableName)) {
-      throw new Error(`Table not allowed: ${JSON.stringify(tableName)}`);
+    if (!ALLOWED_TABLES.has(table)) {
+      throw new Error(`Table not allowed: ${JSON.stringify(table)}`);
     }
-
-    const tableIdent = quoteIdent(tableName);
+    const tableIdent = quoteIdent(table);
     const pool = getPool();
     const params = [];
     let sql;
 
     if (action === 'select') {
-      const cols = buildColumns(columns || '*');
+      const cols = columns && columns !== '*'
+        ? columns.split(',').map((c) => quoteIdent(assertIdent(c.trim(), 'column'))).join(',')
+        : '*';
       sql = `SELECT ${cols} FROM ${tableIdent}`;
       sql += buildWhere(filters, params);
-      sql += buildOrder(order);
-      sql += buildLimit(limit);
-    } else if (action === 'insert') {
-      const { columns: cols, placeholders, keys } = buildInsert(values, params);
-      sql = `INSERT INTO ${tableIdent} (${cols}) VALUES ${placeholders}`;
-      sql += buildOnConflict(onConflict, keys);
-      sql += buildReturning('insert');
-    } else if (action === 'upsert') {
-      const { columns: cols, placeholders, keys } = buildInsert(values, params);
-      sql = `INSERT INTO ${tableIdent} (${cols}) VALUES ${placeholders}`;
-      sql += buildOnConflict(onConflict, keys);
-      sql += buildReturning('upsert');
-    } else if (action === 'update') {
-      if (!values || typeof values !== 'object') {
-        throw new Error('Update requires values object');
+      if (order && order.column) {
+        const col = quoteIdent(assertIdent(order.column, 'column'));
+        sql += ` ORDER BY ${col} ${order.ascending === false ? 'DESC' : 'ASC'}`;
       }
-      const setClause = buildUpdate(values, params);
-      sql = `UPDATE ${tableIdent} SET ${setClause}`;
+      if (limit) sql += ` LIMIT ${Math.max(0, parseInt(limit, 10) || 0)}`;
+    } else if (action === 'insert' || action === 'upsert') {
+      const rows = Array.isArray(values) ? values : [values];
+      if (rows.length === 0) throw new Error('No rows to insert');
+      const cols = Object.keys(rows[0]).map((c) => assertIdent(c, 'column'));
+      const colList = cols.map(quoteIdent).join(',');
+      const valueGroups = rows.map((row) => {
+        const placeholders = cols.map((c) => {
+          params.push(row[c] === undefined ? null : row[c]);
+          return `$${params.length}`;
+        });
+        return `(${placeholders.join(',')})`;
+      });
+      sql = `INSERT INTO ${tableIdent} (${colList}) VALUES ${valueGroups.join(',')}`;
+      if (action === 'upsert') {
+        const conflictCols = (onConflict || '').split(',').map((c) => c.trim()).filter(Boolean).map((c) => quoteIdent(assertIdent(c, 'column')));
+        const updateSet = cols
+          .filter((c) => !conflictCols.includes(quoteIdent(c)))
+          .map((c) => `${quoteIdent(c)} = EXCLUDED.${quoteIdent(c)}`)
+          .join(',');
+        sql += ` ON CONFLICT (${conflictCols.join(',')})`;
+        sql += updateSet ? ` DO UPDATE SET ${updateSet}` : ' DO NOTHING';
+      }
+      sql += ' RETURNING *';
+    } else if (action === 'update') {
+      const cols = Object.keys(values).map((c) => assertIdent(c, 'column'));
+      const setParts = cols.map((c) => {
+        params.push(values[c] === undefined ? null : values[c]);
+        return `${quoteIdent(c)} = $${params.length}`;
+      });
+      sql = `UPDATE ${tableIdent} SET ${setParts.join(',')}`;
       sql += buildWhere(filters, params);
-      sql += buildReturning('update');
+      sql += ' RETURNING *';
     } else if (action === 'delete') {
       sql = `DELETE FROM ${tableIdent}`;
       sql += buildWhere(filters, params);
-      sql += buildReturning('delete');
+      sql += ' RETURNING *';
     } else {
       throw new Error(`Unsupported action: ${action}`);
     }
 
     const result = await pool.query(sql, params);
-
     let data = result.rows;
-    if (action === 'select') {
-      if (single) {
-        if (data.length === 0) {
-          throw new Error('No rows returned for single()');
-        }
-        data = data[0];
-      } else if (maybeSingle) {
-        data = data.length > 0 ? data[0] : null;
+
+    if (single) {
+      if (data.length !== 1) {
+        res.status(200).json({ data: null, error: { message: `Expected 1 row, got ${data.length}` } });
+        return;
       }
+      data = data[0];
+    } else if (maybeSingle) {
+      data = data.length > 0 ? data[0] : null;
     }
 
     res.status(200).json({ data, error: null });
