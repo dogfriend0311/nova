@@ -340,11 +340,35 @@ export const db = {
     return ls.get('member_profiles');
   },
 
+  // nova_member_profiles has several jsonb columns (fav_teams, fav_games,
+  // bg_media, audio_tracks, displayed_badges). Profiles that trace back to
+  // pre-Supabase localStorage data can carry these as the wrong shape (e.g.
+  // a plain string instead of an array) — Postgres then rejects the whole
+  // upsert with "invalid input syntax for type json" instead of just that
+  // field. Normalize defensively so a bad legacy value can't block a save.
+  _sanitizeProfileJsonFields(profile) {
+    const DEFAULT_FAV_TEAMS = { mlb: [], nfl: [], nba: [], nhl: [], cfb: [], cbb: [] };
+    const p = { ...profile };
+    if (!p.fav_teams || typeof p.fav_teams !== 'object' || Array.isArray(p.fav_teams)) {
+      p.fav_teams = DEFAULT_FAV_TEAMS;
+    } else {
+      p.fav_teams = { ...DEFAULT_FAV_TEAMS, ...p.fav_teams };
+      for (const league of Object.keys(DEFAULT_FAV_TEAMS)) {
+        if (!Array.isArray(p.fav_teams[league])) p.fav_teams[league] = [];
+      }
+    }
+    for (const key of ['fav_games', 'bg_media', 'audio_tracks', 'displayed_badges']) {
+      if (!Array.isArray(p[key])) p[key] = [];
+    }
+    return p;
+  },
+
   async saveMemberProfile(profile) {
     if (hasSupabase()) {
+      const safeProfile = this._sanitizeProfileJsonFields(profile);
       const { data, error } = await supabase
         .from('nova_member_profiles')
-        .upsert([{ ...profile, updated_at: new Date().toISOString() }], { onConflict: 'username' })
+        .upsert([{ ...safeProfile, updated_at: new Date().toISOString() }], { onConflict: 'username' })
         .select();
       if (!error) {
         const list = ls.get('member_profiles');
