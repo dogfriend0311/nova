@@ -20,15 +20,18 @@ export default async function handler(request, response) {
     ({ handleUpload } = await import('@vercel/blob'));
   } catch (errTop) {
     try {
-      const { createRequire } = await import('module');
-      const cjsRequire = createRequire(import.meta.url);
-      ({ handleUpload } = cjsRequire('@vercel/blob'));
-    } catch (errRequire) {
-      console.error('Failed to load @vercel/blob SDK:', {
-        errTop,
-        errRequire,
-      });
-      return response.status(500).json({ error: 'Server misconfiguration: @vercel/blob SDK not found' });
+      ({ handleUpload } = await import('@vercel/blob/client'));
+    } catch (errClient) {
+      try {
+        ({ handleUpload } = await import('@vercel/blob/dist/client.js'));
+      } catch (errDist) {
+        console.error('Failed to load @vercel/blob SDK:', {
+          errTop,
+          errClient,
+          errDist,
+        });
+        return response.status(500).json({ error: 'Server misconfiguration: @vercel/blob SDK not found' });
+      }
     }
   }
   // If the static read-write token isn't present, don't hard-fail —
