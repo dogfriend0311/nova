@@ -51,7 +51,27 @@ export default async function handler(request, response) {
 
     return response.status(200).json(jsonResponse);
   } catch (error) {
-    console.error('blob-upload token error:', error);
-    return response.status(400).json({ error: error.message || 'Upload authorization failed' });
+    // Log more context for server-side failures so we can diagnose
+    // FUNCTION_INVOCATION_FAILED and other 500-level issues.
+    try {
+      console.error('blob-upload token error:', {
+        message: error && error.message,
+        code: error && error.code,
+        stack: error && error.stack,
+        method: request?.method,
+        url: request?.url,
+        headers: {
+          origin: request?.headers?.origin,
+          host: request?.headers?.host,
+          referer: request?.headers?.referer,
+        },
+      });
+    } catch (logErr) {
+      console.error('Failed to log error context for blob-upload:', logErr);
+    }
+
+    // Return 500 for invocation failures (keep message minimal).
+    const clientMessage = (error && (error.message || error.code)) || 'Upload authorization failed';
+    return response.status(500).json({ error: clientMessage });
   }
 }
