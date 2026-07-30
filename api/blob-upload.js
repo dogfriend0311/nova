@@ -12,9 +12,28 @@
 // automatically once a Blob store is connected to this project. For local
 // dev, copy it into .env.local (see .env.example).
 
-import { handleUpload } from '@vercel/blob/client';
-
 export default async function handler(request, response) {
+  // Resolve the SDK at runtime to avoid ESM/CJS resolution issues
+  // that can cause `Cannot find module .../dist/client.cjs` on Vercel.
+  let handleUpload;
+  try {
+    // Prefer the client entry
+    ({ handleUpload } = await import('@vercel/blob/client'));
+  } catch (errClient) {
+    try {
+      // Fallback to top-level package (some versions export differently)
+      ({ handleUpload } = await import('@vercel/blob'));
+    } catch (errTop) {
+      try {
+        // Final fallback to CommonJS require for compiled environments
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        ({ handleUpload } = require('@vercel/blob/client'));
+      } catch (errRequire) {
+        console.error('Failed to load @vercel/blob SDK:', { errClient, errTop, errRequire });
+        return response.status(500).json({ error: 'Server misconfiguration: @vercel/blob SDK not found' });
+      }
+    }
+  }
   // If the static read-write token isn't present, don't hard-fail —
   // Vercel may be using OIDC short-lived tokens for connected projects.
   // Log a warning so operators can see the deprecated token is missing,
