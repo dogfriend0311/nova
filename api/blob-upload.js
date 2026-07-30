@@ -13,22 +13,54 @@
 // dev, copy it into .env.local (see .env.example).
 
 export default async function handler(request, response) {
-  // Resolve the SDK at runtime to avoid ESM/CJS resolution issues
-  // that can cause `Cannot find module .../dist/client.cjs` on Vercel.
+  // Resolve the SDK at runtime to avoid ESM/CJS resolution issues.
+  // Prefer the direct client bundle export to get `handleUpload`.
   let handleUpload;
+  const importedModules = [];
+
+  const assignHandleUpload = (mod) => {
+    if (!mod) return false;
+    if (typeof mod.handleUpload === 'function') {
+      handleUpload = mod.handleUpload;
+      return true;
+    }
+    if (mod.default && typeof mod.default.handleUpload === 'function') {
+      handleUpload = mod.default.handleUpload;
+      return true;
+    }
+    if (mod.default && typeof mod.default === 'function') {
+      handleUpload = mod.default;
+      return true;
+    }
+    return false;
+  };
+
   try {
-    ({ handleUpload } = await import('@vercel/blob'));
-  } catch (errTop) {
+    const mod = await import('@vercel/blob/dist/client.js');
+    importedModules.push({ source: '@vercel/blob/dist/client.js', mod });
+    if (!assignHandleUpload(mod)) {
+      throw new Error('handleUpload not found in @vercel/blob/dist/client.js');
+    }
+  } catch (errDist) {
     try {
-      ({ handleUpload } = await import('@vercel/blob/client'));
+      const mod = await import('@vercel/blob/client');
+      importedModules.push({ source: '@vercel/blob/client', mod });
+      if (!assignHandleUpload(mod)) {
+        throw new Error('handleUpload not found in @vercel/blob/client');
+      }
     } catch (errClient) {
       try {
-        ({ handleUpload } = await import('@vercel/blob/dist/client.js'));
-      } catch (errDist) {
+        const mod = await import('@vercel/blob');
+        importedModules.push({ source: '@vercel/blob', mod });
+        if (!assignHandleUpload(mod)) {
+          throw new Error('handleUpload not found in @vercel/blob');
+        }
+      } catch (errTop) {
         console.error('Failed to load @vercel/blob SDK:', {
-          errTop,
-          errClient,
           errDist,
+          errClient,
+          errTop,
+          importedModules: importedModules.map((entry) => entry.source),
         });
         return response.status(500).json({ error: 'Server misconfiguration: @vercel/blob SDK not found' });
       }
