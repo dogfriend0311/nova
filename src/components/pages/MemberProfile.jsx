@@ -182,7 +182,16 @@ async function uploadMemberMedia(file, kind, username) {
   // connection the upload can hang indefinitely with no error. Race it
   // against a timeout so the user always gets feedback instead of a
   // silent stall.
-  const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 60000));
+  //
+  // The timeout scales with file size (min 60s) instead of being flat.
+  // A flat 60s was firing on legitimately-slow-but-working uploads of
+  // large video/audio files — Promise.race doesn't cancel the real
+  // upload, so it kept going in the background and finished moments
+  // after the user was shown an error, silently wasting the upload
+  // since its URL was never attached to the profile.
+  const mb = file.size / (1024 * 1024);
+  const timeoutMs = Math.max(60000, mb * 2500);
+  const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), timeoutMs));
 
   let publicUrl;
   try {
@@ -211,7 +220,7 @@ const MultiBgUploadField = ({ username, list, onChange, hint }) => {
       const { publicUrl, isVideo } = await uploadMemberMedia(file, 'bg', username);
       onChange([...list, { id: _uid(), url: publicUrl, type: isVideo ? 'video' : 'image' }]);
     } catch (err) {
-      setError(err.message === 'TIMEOUT' ? 'Upload timed out after 60 seconds. Try a smaller file.' : err.message);
+      setError(err.message === 'TIMEOUT' ? 'Upload is taking a long time and may have stalled — check your connection. If it does complete, it may not be attached to your profile; try again in a moment.' : err.message);
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = '';
@@ -269,7 +278,7 @@ const MultiAudioUploadField = ({ username, list, onChange, hint }) => {
       const base = file.name.replace(/\.[^/.]+$/, '');
       onChange([...list, { id: _uid(), url: publicUrl, title: base, artist: '' }]);
     } catch (err) {
-      setError(err.message === 'TIMEOUT' ? 'Upload timed out after 60 seconds. Try a smaller file.' : err.message);
+      setError(err.message === 'TIMEOUT' ? 'Upload is taking a long time and may have stalled — check your connection. If it does complete, it may not be attached to your profile; try again in a moment.' : err.message);
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = '';
