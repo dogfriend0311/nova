@@ -15,6 +15,14 @@
 import { handleUpload } from '@vercel/blob/client';
 
 export default async function handler(request, response) {
+  // Fail fast with a clear message if the runtime token is missing.
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    console.error('BLOB_READ_WRITE_TOKEN is not set; cannot generate client token');
+    return response
+      .status(500)
+      .json({ error: 'BLOB_READ_WRITE_TOKEN is not set. Connect a Vercel Blob store or set the env var.' });
+  }
+
   const body = request.body;
 
   try {
