@@ -24,13 +24,6 @@ function getPool() {
     pool = new Pool({
       connectionString: process.env.DATABASE_URL,
       ssl: { rejectUnauthorized: false },
-      max: parseInt(process.env.PG_MAX_CLIENTS, 10) || 2,
-      idleTimeoutMillis: 10000,
-      connectionTimeoutMillis: 10000,
-    });
-
-    pool.on('error', (err) => {
-      console.error('Postgres pool error:', err);
     });
   }
   return pool;
@@ -62,6 +55,23 @@ function assertIdent(name, kind) {
     throw new Error(`Invalid ${kind} name: ${JSON.stringify(name)}`);
   }
   return name;
+}
+
+// node-postgres has a quirk: a plain JS Array passed as a query parameter
+// gets serialized as a Postgres ARRAY LITERAL ("{a,b,c}"), not JSON — even
+// when the destination column is jsonb. Plain objects go through
+// JSON.stringify correctly, but arrays don't, so any jsonb column that
+// holds an array (fav_games, bg_media, audio_tracks, displayed_badges,
+// etc. across every table this endpoint serves) would fail on insert with
+// "invalid input syntax for type json". Explicitly JSON.stringify arrays
+// and objects ourselves so pg just sends plain text and lets Postgres do
+// the normal text->jsonb cast.
+function toParamValue(v) {
+  if (v === undefined || v === null) return null;
+  if (v instanceof Date) return v;
+  if (Array.isArray(v)) return JSON.stringify(v);
+  if (typeof v === 'object') return JSON.stringify(v);
+  return v;
 }
 
 function quoteIdent(name) {
@@ -144,7 +154,7 @@ export default async function handler(req, res) {
       const colList = cols.map(quoteIdent).join(',');
       const valueGroups = rows.map((row) => {
         const placeholders = cols.map((c) => {
-          params.push(row[c] === undefined ? null : row[c]);
+          params.push(toParamValue(row[c]));
           return `$${params.length}`;
         });
         return `(${placeholders.join(',')})`;
@@ -163,7 +173,7 @@ export default async function handler(req, res) {
     } else if (action === 'update') {
       const cols = Object.keys(values).map((c) => assertIdent(c, 'column'));
       const setParts = cols.map((c) => {
-        params.push(values[c] === undefined ? null : values[c]);
+        params.push(toParamValue(values[c]));
         return `${quoteIdent(c)} = $${params.length}`;
       });
       sql = `UPDATE ${tableIdent} SET ${setParts.join(',')}`;
@@ -192,6 +202,14 @@ export default async function handler(req, res) {
 
     res.status(200).json({ data, error: null });
   } catch (err) {
-    res.status(200).json({ data: null, error: { message: err.message } });
+    res.status(200).json({
+      data: null,
+      error: {
+        message: err.message,
+        code: err.code || null,
+        detail: err.detail || null,
+        hint: err.hint || null,
+      },
+    });
   }
 }
