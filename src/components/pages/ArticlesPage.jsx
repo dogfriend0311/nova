@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { supabase } from '../../services/supabaseClient';
+import { uploadToBlob } from '../../services/blobUpload';
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
 
@@ -8,19 +8,13 @@ async function uploadArticlePhoto(file, username) {
   if (file.size > 8 * 1024 * 1024) throw new Error(`Photo must be under 8 MB (this file is ${(file.size / 1024 / 1024).toFixed(1)} MB)`);
   const ext  = file.name.split('.').pop();
   const path = `articles/${username || 'author'}-${Date.now()}-${uid()}.${ext}`;
-  const uploadPromise = supabase.storage
-    .from('member-media')
-    .upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type || undefined });
   const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 60000));
-  const { error: upErr } = await Promise.race([uploadPromise, timeoutPromise]);
-  if (upErr) {
-    console.error('article photo upload error:', upErr);
-    throw new Error(upErr.message?.toLowerCase().includes('bucket')
-      ? 'Storage bucket "member-media" not found — ask an admin to create it in Supabase.'
-      : (upErr.message || 'Upload failed'));
+  try {
+    return await Promise.race([uploadToBlob(file, path), timeoutPromise]);
+  } catch (err) {
+    console.error('article photo upload error:', err);
+    throw new Error(err.message === 'TIMEOUT' ? 'Upload timed out. Try a smaller photo or check your connection.' : (err.message || 'Upload failed'));
   }
-  const { data: { publicUrl } } = supabase.storage.from('member-media').getPublicUrl(path);
-  return publicUrl;
 }
 
 const CATEGORIES = [

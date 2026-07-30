@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { supabase } from '../../services/supabaseClient';
+import { uploadToBlob } from '../../services/blobUpload';
 import { TEAMS, SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl } from '../../data/teams';
 import { getWatchList } from '../../services/mediaService';
 import * as lfm from '../../services/lastfmService';
@@ -126,22 +126,11 @@ const ImageField = ({ label, fieldKey, value, onChange, username }) => {
     try {
       const ext  = file.name.split('.').pop();
       const path = `image/${username || 'user'}-${Date.now()}-${_uid()}.${ext}`;
-      const uploadPromise = supabase.storage
-        .from('member-media')
-        .upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type || undefined });
       const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 60000));
-      const { error: upErr } = await Promise.race([uploadPromise, timeoutPromise]);
-      if (upErr) {
-        console.error('image upload error:', upErr);
-        setError(upErr.message?.toLowerCase().includes('bucket')
-          ? 'Storage bucket "member-media" not found.'
-          : (upErr.message || 'Upload failed — check the browser console for details.'));
-        return;
-      }
-      const { data: { publicUrl } } = supabase.storage.from('member-media').getPublicUrl(path);
+      const publicUrl = await Promise.race([uploadToBlob(file, path), timeoutPromise]);
       onChange(fieldKey, publicUrl);
     } catch (err) {
-      setError(err.message === 'TIMEOUT' ? 'Upload timed out. Try a smaller image or check your connection.' : (err.message || 'Upload failed'));
+      setError(err.message === 'TIMEOUT' ? 'Upload timed out. Try a smaller image or check your connection.' : (err.message || 'Upload failed — check the browser console for details.'));
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = '';
@@ -177,8 +166,9 @@ const ImageField = ({ label, fieldKey, value, onChange, username }) => {
 };
 
 // ── Shared upload helper (guns.lol-style backgrounds/audio) ───
-// These files can be large, so they upload to Supabase Storage bucket
-// "member-media" and only the resulting URL is saved on the profile.
+// These files can be large, so they upload straight to Vercel Blob
+// storage (browser → Blob directly, bypassing serverless body limits)
+// and only the resulting URL is saved on the profile.
 async function uploadMemberMedia(file, kind, username) {
   const isVideo = file.type?.startsWith('video');
   const maxMb = isVideo ? 40 : 15;
@@ -188,31 +178,21 @@ async function uploadMemberMedia(file, kind, username) {
   const ext  = file.name.split('.').pop();
   const path = `${kind}/${username || 'user'}-${Date.now()}-${_uid()}.${ext}`;
 
-  // Supabase's client has no built-in timeout — on a stalled connection the
-  // upload can hang indefinitely with no error. Race it against a timeout
-  // so the user always gets feedback instead of a silent stall.
-  const uploadPromise = supabase.storage
-    .from('member-media')
-    .upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type || undefined });
+  // Vercel Blob's client SDK has no built-in timeout — on a stalled
+  // connection the upload can hang indefinitely with no error. Race it
+  // against a timeout so the user always gets feedback instead of a
+  // silent stall.
   const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 60000));
 
-  const { error: upErr } = await Promise.race([uploadPromise, timeoutPromise]);
-  if (upErr) {
-    console.error('member-media upload error:', upErr);
-    const msg = (upErr.message || '').toLowerCase();
-    if (msg.includes('bucket')) {
-      throw new Error('Storage bucket "member-media" not found. Ask an admin to create a public bucket named exactly "member-media" in Supabase.');
-    }
-    if (msg.includes('row-level security') || msg.includes('policy') || upErr.statusCode === '403' || upErr.statusCode === 403) {
-      throw new Error('Upload blocked by Supabase permissions (RLS policy). An admin needs to allow uploads to this bucket.');
-    }
-    if (msg.includes('exceeded') || msg.includes('too large') || upErr.statusCode === '413' || upErr.statusCode === 413) {
-      throw new Error("Supabase rejected this file for being too large. Check the bucket's file size limit in Storage settings.");
-    }
-    throw new Error(upErr.message || 'Upload failed — check the browser console for details.');
+  let publicUrl;
+  try {
+    publicUrl = await Promise.race([uploadToBlob(file, path), timeoutPromise]);
+  } catch (err) {
+    if (err.message === 'TIMEOUT') throw err;
+    console.error('member-media upload error:', err);
+    throw new Error(err.message || 'Upload failed — check the browser console for details.');
   }
 
-  const { data: { publicUrl } } = supabase.storage.from('member-media').getPublicUrl(path);
   return { publicUrl, isVideo };
 }
 
