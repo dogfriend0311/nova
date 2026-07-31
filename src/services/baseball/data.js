@@ -203,6 +203,63 @@ export function generateSchedule(teams, totalGames = 30) {
   return schedule.sort((a, b) => a.day - b.day);
 }
 
+// ── Import hydration ──────────────────────────────────────────
+// Accepts partial, human-authored JSON (a team might only specify
+// a city/name/colors, or a full roster with real ratings) and fills
+// in anything missing with generated defaults, so imports never
+// crash the game even if they're incomplete.
+export function hydratePlayer(raw = {}, fallbackOpts = {}) {
+  const base = generatePlayer(fallbackOpts);
+  return {
+    ...base,
+    ...raw,
+    appearance: { ...base.appearance, ...(raw.appearance || {}) },
+    ratings: { ...base.ratings, ...(raw.ratings || {}) },
+    season: { ...base.season, ...(raw.season || {}) },
+    career: { ...base.career, ...(raw.career || {}) },
+    careerHighs: { ...base.careerHighs, ...(raw.careerHighs || {}) },
+    id: raw.id || base.id,
+    isPitcher: raw.isPitcher ?? base.isPitcher,
+  };
+}
+
+export function hydrateTeam(raw = {}, usedNames) {
+  const base = generateTeam(usedNames, 'pro');
+  let roster = Array.isArray(raw.roster) && raw.roster.length > 0
+    ? raw.roster.map(p => hydratePlayer(p, { isPitcher: !!p.isPitcher }))
+    : base.roster;
+  // Top up an incomplete import so there's always a full lineup + a pitcher
+  // who can go the distance — otherwise the same one or two players would
+  // have to bat/pitch every single time through the order.
+  const hitterCount = roster.filter(p => !p.isPitcher).length;
+  const pitcherCount = roster.filter(p => p.isPitcher).length;
+  if (hitterCount < 9) roster = [...roster, ...base.roster.filter(p => !p.isPitcher).slice(0, 9 - hitterCount)];
+  if (pitcherCount < 1) roster = [...roster, ...base.roster.filter(p => p.isPitcher).slice(0, 3)];
+  return {
+    ...base,
+    ...raw,
+    colors: { ...base.colors, ...(raw.colors || {}) },
+    roster,
+    id: raw.id || base.id,
+    wins: 0, losses: 0, runsFor: 0, runsAgainst: 0, streak: 0,
+  };
+}
+
+export function hydrateLeague(raw = {}, { year = new Date().getFullYear() } = {}) {
+  const usedNames = new Set();
+  const teams = Array.isArray(raw.teams) && raw.teams.length >= 2
+    ? raw.teams.map(t => hydrateTeam(t, usedNames))
+    : generateLeague({ teamCount: 20 }).teams;
+  return {
+    id: uid('league'),
+    name: raw.name || 'Custom League',
+    year: raw.year || year,
+    level: raw.level || 'pro',
+    teams,
+  };
+}
+
+
 export function battingAvg(s) { return s.ab > 0 ? (s.h / s.ab) : 0; }
 export function era(s) { return s.ip > 0 ? (s.er * 9 / s.ip) : 0; }
 export function fmtAvg(n) { return n.toFixed(3).replace(/^0/, ''); }

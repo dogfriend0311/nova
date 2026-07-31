@@ -86,3 +86,16 @@ export function importSlotJson(username, slotId, json) {
 }
 
 export { SLOT_COUNT };
+
+// ── Custom imported league (raw JSON, used as a template for new saves) ──
+function customLeagueKey(username) { return `nova_diamond_customleague_${username || 'guest'}`; }
+
+export function saveCustomLeagueJson(username, json) {
+  localStorage.setItem(customLeagueKey(username), json);
+}
+export function loadCustomLeagueJson(username) {
+  return localStorage.getItem(customLeagueKey(username));
+}
+export function clearCustomLeagueJson(username) {
+  localStorage.removeItem(customLeagueKey(username));
+}

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import * as Data from '../../../services/baseball/data';
 import * as Save from '../../../services/baseball/save';
@@ -7,9 +7,7 @@ import './diamond.css';
 
 const ARCHETYPE_DEFAULT = 'Contact Hitter';
 
-function newCareerState({ leagueName, teamCount, totalGames, startYear, playerName, playerPos, teamId }) {
-  const league = Data.generateLeague({ teamCount, level: 'pro', year: startYear });
-  league.name = leagueName || league.name;
+function newCareerState({ league, totalGames, playerName, playerPos, teamId }) {
   const schedule = Data.generateSchedule(league.teams, totalGames);
   const team = teamId ? league.teams.find(t => t.id === teamId) : league.teams[0];
   const player = Data.generatePlayer({ isPitcher: playerPos === 'SP' || playerPos === 'RP', age: 18 });
@@ -38,15 +36,22 @@ export default function DiamondLeague() {
   const [activeSlot, setActiveSlot] = useState(null);
   const [session, setSession] = useState(null); // { data, meta }
   const [pendingMode, setPendingMode] = useState('career');
+  const [pendingLeague, setPendingLeague] = useState(null);
   const [setupError, setSetupError] = useState('');
   const [importText, setImportText] = useState('');
   const [importErr, setImportErr] = useState('');
+  const [customLeagueRaw, setCustomLeagueRaw] = useState(() => {
+    const raw = Save.loadCustomLeagueJson(username);
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch { return null; }
+  });
 
   const [setupForm, setSetupForm] = useState({
     leagueName: 'Diamond League',
     teamCount: 20,
     totalGames: 30,
     startYear: new Date().getFullYear(),
+    useCustom: false,
     firstName: '', lastName: '', position: 'SS', teamId: null,
   });
 
@@ -89,13 +94,15 @@ export default function DiamondLeague() {
   const startSetupFlow = (mode) => { setPendingMode(mode); setScreen('leagueSetup'); };
 
   const confirmLeagueSetup = () => {
-    if (setupForm.teamCount < 2) { setSetupError('Need at least 2 teams.'); return; }
+    if (!setupForm.useCustom && setupForm.teamCount < 2) { setSetupError('Need at least 2 teams.'); return; }
     setSetupError('');
+    const league = (setupForm.useCustom && customLeagueRaw)
+      ? Data.hydrateLeague(customLeagueRaw, { year: Number(setupForm.startYear) })
+      : Data.generateLeague({ teamCount: Number(setupForm.teamCount), level: 'pro', year: Number(setupForm.startYear) });
+    league.name = setupForm.leagueName || league.name;
+    setPendingLeague(league);
     if (pendingMode === 'career') setScreen('createPlayer');
-    else {
-      // Franchise / commissioner: skip player creation, just pick a team to run
-      setScreen('pickTeam');
-    }
+    else setScreen('pickTeam'); // Franchise / commissioner: skip player creation, pick a team to run
   };
 
   const finalizeCareer = () => {
@@ -103,10 +110,8 @@ export default function DiamondLeague() {
       setSetupError('Enter a first and last name.'); return;
     }
     const data = newCareerState({
-      leagueName: setupForm.leagueName,
-      teamCount: Number(setupForm.teamCount),
+      league: pendingLeague,
       totalGames: Number(setupForm.totalGames),
-      startYear: Number(setupForm.startYear),
       playerName: { first: setupForm.firstName, last: setupForm.lastName },
       playerPos: setupForm.position,
     });
@@ -120,8 +125,7 @@ export default function DiamondLeague() {
   };
 
   const finalizeFranchise = (teamId) => {
-    const league = Data.generateLeague({ teamCount: Number(setupForm.teamCount), level: 'pro', year: Number(setupForm.startYear) });
-    league.name = setupForm.leagueName || league.name;
+    const league = pendingLeague;
     const schedule = Data.generateSchedule(league.teams, Number(setupForm.totalGames));
     const team = league.teams.find(t => t.id === teamId) || league.teams[0];
     const data = { league, schedule, dayIndex: 0, careerPlayerId: null, userTeamId: team.id, news: [`${team.city} ${team.name} begin a new era.`], social: [] };
@@ -139,8 +143,10 @@ export default function DiamondLeague() {
       const parsed = JSON.parse(importText);
       if (!parsed.teams || !Array.isArray(parsed.teams)) throw new Error('JSON must include a "teams" array');
       setImportErr('');
-      alert('League JSON validated. Start a new Franchise/Commissioner save and it will be available to select. (Custom league storage slot: browser local storage)');
-      localStorage.setItem(`nova_diamond_customleague_${username || 'guest'}`, importText);
+      Save.saveCustomLeagueJson(username, importText);
+      setCustomLeagueRaw(parsed);
+      setSetupForm(f => ({ ...f, useCustom: true, teamCount: parsed.teams.length }));
+      alert(`Imported "${parsed.name || 'custom league'}" with ${parsed.teams.length} teams. It'll be offered as an option next time you start a new save.`);
     } catch (e) {
       setImportErr(e.message);
     }
@@ -188,6 +194,7 @@ export default function DiamondLeague() {
         {screen === 'leagueSetup' && (
           <LeagueSetupScreen
             form={setupForm} setForm={setSetupForm} error={setupError}
+            customLeagueRaw={customLeagueRaw}
             onBack={() => setScreen('mode')} onConfirm={confirmLeagueSetup}
           />
         )}
@@ -199,9 +206,9 @@ export default function DiamondLeague() {
           />
         )}
 
-        {screen === 'pickTeam' && (
+        {screen === 'pickTeam' && pendingLeague && (
           <PickTeamScreen
-            teamCount={Number(setupForm.teamCount)}
+            teams={pendingLeague.teams}
             onBack={() => setScreen('leagueSetup')}
             onPick={finalizeFranchise}
           />
@@ -308,11 +315,29 @@ function ModeScreen({ onPick, onBack }) {
   );
 }
 
-function LeagueSetupScreen({ form, setForm, error, onBack, onConfirm }) {
+function LeagueSetupScreen({ form, setForm, error, customLeagueRaw, onBack, onConfirm }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   return (
     <div className="dl-panel">
       <div className="dl-panel-title">General</div>
+
+      {customLeagueRaw && (
+        <div className="dl-row" style={{ marginBottom: 14 }}>
+          <div>
+            <div style={{ fontWeight: 700 }}>Use imported league</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--dl-text-dim)' }}>
+              "{customLeagueRaw.name || 'Custom League'}" — {customLeagueRaw.teams?.length || 0} teams
+            </div>
+          </div>
+          <button
+            className={`dl-btn dl-btn-sm ${form.useCustom ? 'dl-btn-primary' : ''}`}
+            onClick={() => set('useCustom', !form.useCustom)}
+          >
+            {form.useCustom ? 'ON' : 'OFF'}
+          </button>
+        </div>
+      )}
+
       <div className="dl-field">
         <label className="dl-label">League Name</label>
         <input className="dl-input" value={form.leagueName} onChange={e => set('leagueName', e.target.value)} />
@@ -328,9 +353,13 @@ function LeagueSetupScreen({ form, setForm, error, onBack, onConfirm }) {
         </div>
         <div className="dl-field">
           <label className="dl-label">Total Teams</label>
-          <select className="dl-select" value={form.teamCount} onChange={e => set('teamCount', Number(e.target.value))}>
-            {[8, 12, 16, 20, 24, 30].map(n => <option key={n} value={n}>{n}</option>)}
-          </select>
+          {form.useCustom ? (
+            <div className="dl-stepper-value">{customLeagueRaw?.teams?.length || 0} (from import)</div>
+          ) : (
+            <select className="dl-select" value={form.teamCount} onChange={e => set('teamCount', Number(e.target.value))}>
+              {[8, 12, 16, 20, 24, 30].map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          )}
         </div>
         <div className="dl-field">
           <label className="dl-label">Games / Season</label>
@@ -384,21 +413,12 @@ function CreatePlayerScreen({ form, setForm, error, onBack, onConfirm }) {
   );
 }
 
-function PickTeamScreen({ teamCount, onBack, onPick }) {
-  const preview = useMemo(() => {
-    const usedNames = new Set();
-    return Array.from({ length: teamCount }, () => {
-      let city, mascot, key;
-      do { city = Data.pick(Data.CITIES); mascot = Data.pick(Data.MASCOTS); key = `${city}-${mascot}`; } while (usedNames.has(key));
-      usedNames.add(key);
-      return { id: key, city, name: mascot };
-    });
-  }, [teamCount]);
+function PickTeamScreen({ teams, onBack, onPick }) {
   return (
     <div className="dl-panel">
       <div className="dl-panel-title">Pick Your Team</div>
       <div className="dl-grid dl-grid-3">
-        {preview.map(t => (
+        {teams.map(t => (
           <div key={t.id} className="dl-row dl-row-clickable" onClick={() => onPick(t.id)} style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
             <div style={{ fontWeight: 800 }}>{t.city}</div>
             <div style={{ color: 'var(--dl-text-dim)', fontSize: '0.8rem' }}>{t.name}</div>
