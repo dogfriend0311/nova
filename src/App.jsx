@@ -18,6 +18,7 @@ import ArticlesPage from './components/pages/ArticlesPage';
 import NovaWrapped from './components/pages/NovaWrapped';
 import RobloxTracker from './components/pages/RobloxTracker';
 import MusicHub from './components/pages/MusicHub';
+import DiamondLeague from './components/pages/baseball/DiamondLeague';
 import './styles/globals.css';
 import './styles/theme.css';
 import './styles/animations.css';
@@ -275,6 +276,9 @@ const AppContent = () => {
 
       case 'roblox':
         return <RobloxTracker user={user} />;
+
+      case 'diamond':
+        return <DiamondLeague />;
 
       case 'player':
         if (!selectedLeaguePlayer) {

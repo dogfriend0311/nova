@@ -8,6 +8,7 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, on
     { id: 'home',    label: 'Home',    icon: 'Home' },
     { id: 'sports',  label: 'Sports',  icon: 'Trophy' },
     { id: 'leagues', label: 'Leagues', icon: 'Baseball' },
+    { id: 'diamond', label: 'Diamond League', icon: 'Baseball' },
     { id: 'games',   label: 'Games',   icon: 'Gamepad' },
     { id: 'articles',label: 'Articles',icon: 'FileText' },
     { id: 'members', label: 'Members', icon: 'Users' },

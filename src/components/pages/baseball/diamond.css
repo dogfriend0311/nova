@@ -1,0 +1,317 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=IBM+Plex+Mono:wght@400;600;700&display=swap');
+
+/* ══════════════════════════════════════════════════════════════
+   DIAMOND LEAGUE — "Floodlight" design system
+   A night-game-at-a-minor-league-park palette: deep outfield green
+   against warm floodlight amber, chalk-white lines, clay-red alerts.
+   Distinct from Nova's ion-blue "Deep Field" shell around it.
+══════════════════════════════════════════════════════════════ */
+
+.dl-root {
+  --dl-bg: #0b1f18;
+  --dl-bg-darker: #061410;
+  --dl-panel: #0f2a20;
+  --dl-panel-raised: #143526;
+  --dl-line: #2a5c45;
+  --dl-line-bright: #3f8065;
+  --dl-amber: #ffb703;
+  --dl-amber-dim: #b98a1a;
+  --dl-clay: #e5533d;
+  --dl-white: #eaf3ec;
+  --dl-text: #eaf3ec;
+  --dl-text-dim: #9fc2ae;
+  --dl-text-faint: #5f8570;
+
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  background: var(--dl-bg);
+  color: var(--dl-text);
+  min-height: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  isolation: isolate;
+}
+
+.dl-root::before {
+  /* faint grass-mown stripe texture */
+  content: '';
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    135deg, rgba(255,255,255,0.015) 0 40px, transparent 40px 80px
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dl-screen { position: relative; z-index: 1; padding: 14px; max-width: 1100px; margin: 0 auto; }
+
+/* ── Signature: LED scoreboard ticker bar ─────────────────── */
+.dl-topbar {
+  display: flex; align-items: stretch; gap: 10px; margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.dl-chip {
+  background: var(--dl-panel);
+  border: 2px solid var(--dl-line);
+  border-radius: 6px;
+  padding: 8px 12px;
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.78rem;
+  color: var(--dl-text-dim);
+  white-space: nowrap;
+}
+.dl-ticker {
+  flex: 1;
+  min-width: 180px;
+  background: #05100c;
+  border: 2px solid var(--dl-line);
+  border-radius: 6px;
+  padding: 9px 16px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  color: var(--dl-amber);
+  text-shadow: 0 0 6px rgba(255,183,3,0.45);
+  display: flex; align-items: center;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.dl-coins {
+  background: var(--dl-panel);
+  border: 2px solid var(--dl-line);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-weight: 700;
+  color: var(--dl-amber);
+  display: flex; align-items: center; gap: 6px;
+  white-space: nowrap;
+}
+
+/* ── Panels ────────────────────────────────────────────────── */
+.dl-panel {
+  background: var(--dl-panel);
+  border: 2px solid var(--dl-line);
+  border-radius: 10px;
+  padding: 16px;
+}
+.dl-panel + .dl-panel { margin-top: 12px; }
+.dl-panel-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--dl-text-dim);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+.dl-panel-title::before {
+  content: '';
+  width: 8px; height: 8px;
+  background: var(--dl-amber);
+  display: inline-block;
+  box-shadow: 0 0 6px var(--dl-amber);
+}
+
+.dl-grid { display: grid; gap: 10px; }
+.dl-grid-2 { grid-template-columns: 1fr 1fr; }
+.dl-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.dl-grid-4 { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 720px) {
+  .dl-grid-2, .dl-grid-3, .dl-grid-4 { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 480px) {
+  .dl-grid-2, .dl-grid-3, .dl-grid-4 { grid-template-columns: 1fr; }
+}
+
+/* ── Buttons ───────────────────────────────────────────────── */
+.dl-btn {
+  background: var(--dl-panel-raised);
+  border: 2px solid var(--dl-line-bright);
+  border-radius: 8px;
+  color: var(--dl-text);
+  padding: 12px 16px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  min-height: 44px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: transform 0.08s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.dl-btn:hover { background: #1a4230; border-color: var(--dl-amber-dim); }
+.dl-btn:active { transform: scale(0.97); }
+.dl-btn-primary {
+  background: var(--dl-amber);
+  border-color: var(--dl-amber);
+  color: #241a00;
+}
+.dl-btn-primary:hover { background: #ffc633; }
+.dl-btn-danger { border-color: var(--dl-clay); color: var(--dl-clay); }
+.dl-btn-ghost { background: transparent; border-color: var(--dl-line); color: var(--dl-text-dim); }
+.dl-btn-sm { padding: 8px 12px; font-size: 0.78rem; min-height: 36px; }
+.dl-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.dl-btn-block { width: 100%; }
+
+.dl-back {
+  width: 44px; height: 44px; min-height: 44px;
+  border-radius: 8px;
+  background: var(--dl-panel);
+  border: 2px solid var(--dl-line);
+  color: var(--dl-text);
+  font-size: 1.1rem;
+  cursor: pointer;
+  flex: none;
+}
+
+.dl-footer-nav {
+  display: flex; justify-content: space-between; gap: 10px;
+  margin-top: 14px; flex-wrap: wrap;
+}
+
+/* ── Inputs ────────────────────────────────────────────────── */
+.dl-field { margin-bottom: 12px; }
+.dl-label {
+  display: block; font-size: 0.7rem; letter-spacing: 0.06em;
+  color: var(--dl-text-faint); text-transform: uppercase; margin-bottom: 6px;
+}
+.dl-input, .dl-select {
+  width: 100%;
+  background: var(--dl-bg-darker);
+  border: 2px solid var(--dl-line);
+  border-radius: 6px;
+  color: var(--dl-text);
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 0.88rem;
+  min-height: 42px;
+}
+.dl-input:focus, .dl-select:focus { outline: 2px solid var(--dl-amber); border-color: var(--dl-amber); }
+.dl-stepper { display: flex; align-items: center; gap: 10px; }
+.dl-stepper .dl-btn { width: 42px; padding: 0; flex: none; }
+.dl-stepper-value {
+  flex: 1; text-align: center; background: var(--dl-bg-darker);
+  border: 2px solid var(--dl-line); border-radius: 6px; padding: 10px; font-weight: 700;
+}
+
+/* ── Cards / rows ──────────────────────────────────────────── */
+.dl-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 10px; border-radius: 6px;
+  background: var(--dl-bg-darker);
+  border: 1px solid var(--dl-line);
+  margin-bottom: 8px;
+}
+.dl-row:last-child { margin-bottom: 0; }
+.dl-row-clickable { cursor: pointer; }
+.dl-row-clickable:hover { border-color: var(--dl-amber-dim); }
+
+.dl-stat-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.dl-stat-table th {
+  text-align: left; color: var(--dl-text-faint); font-weight: 600;
+  padding: 6px 8px; border-bottom: 2px solid var(--dl-line); font-size: 0.7rem;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.dl-stat-table td { padding: 7px 8px; border-bottom: 1px solid var(--dl-line); }
+.dl-stat-table tr:last-child td { border-bottom: none; }
+
+.dl-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 26px; height: 22px; padding: 0 6px;
+  border-radius: 4px; font-size: 0.72rem; font-weight: 800;
+  background: var(--dl-panel-raised); border: 1px solid var(--dl-line-bright);
+  color: var(--dl-amber);
+}
+
+.dl-empty {
+  text-align: center; padding: 30px 10px; color: var(--dl-text-faint);
+}
+
+/* Skill / rating bars, echoing Hoop Land's colored attribute strips */
+.dl-bar-track {
+  height: 8px; background: var(--dl-bg-darker); border-radius: 4px; overflow: hidden;
+  border: 1px solid var(--dl-line);
+}
+.dl-bar-fill { height: 100%; border-radius: 4px; }
+
+/* ── Player sprite ─────────────────────────────────────────── */
+.dl-sprite {
+  width: 84px; height: 84px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2.2rem;
+  border: 2px solid var(--dl-line-bright);
+}
+
+/* ── Diamond field (live game) ─────────────────────────────── */
+.dl-field {
+  position: relative;
+  background: radial-gradient(ellipse at 50% 100%, #1f5a3d 0%, #123d29 60%, #0b2a1c 100%);
+  border: 3px solid var(--dl-line-bright);
+  border-radius: 12px;
+  aspect-ratio: 16 / 11;
+  overflow: hidden;
+}
+.dl-diamond {
+  position: absolute; left: 50%; top: 62%;
+  width: 46%; aspect-ratio: 1;
+  transform: translate(-50%, -50%) rotate(45deg);
+  border: 3px solid rgba(234,243,236,0.55);
+}
+.dl-base {
+  position: absolute; width: 14px; height: 14px; background: var(--dl-white);
+  border-radius: 2px; transform: translate(-50%, -50%);
+  box-shadow: 0 0 6px rgba(0,0,0,0.4);
+}
+.dl-base.active { background: var(--dl-amber); box-shadow: 0 0 10px var(--dl-amber); }
+.dl-mound {
+  position: absolute; left: 50%; top: 62%; width: 14%; aspect-ratio: 1;
+  transform: translate(-50%, -20%);
+  background: #7a5a3a; border-radius: 50%; border: 2px solid #573f28;
+}
+.dl-batter, .dl-pitcher {
+  position: absolute; font-size: 1.6rem; transform: translate(-50%, -50%);
+}
+.dl-scoreboard {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;
+}
+.dl-team-score {
+  background: var(--dl-panel); border: 2px solid var(--dl-line); border-radius: 8px;
+  padding: 10px; text-align: center;
+}
+.dl-team-score .runs {
+  font-family: 'Press Start 2P', monospace; font-size: 1.6rem; color: var(--dl-amber);
+}
+.dl-count-row { display: flex; justify-content: center; gap: 16px; margin: 10px 0; font-size: 0.8rem; }
+.dl-log {
+  background: var(--dl-bg-darker); border: 2px solid var(--dl-line); border-radius: 8px;
+  padding: 10px; height: 150px; overflow-y: auto; font-size: 0.82rem; line-height: 1.5;
+}
+.dl-log-line { padding: 2px 0; color: var(--dl-text-dim); }
+.dl-log-line.hl { color: var(--dl-amber); font-weight: 700; }
+
+/* ── Tabs ──────────────────────────────────────────────────── */
+.dl-tabs { display: flex; gap: 6px; margin-bottom: 12px; overflow-x: auto; }
+.dl-tab {
+  padding: 9px 14px; border-radius: 6px; border: 2px solid var(--dl-line);
+  background: var(--dl-panel); color: var(--dl-text-dim); font-weight: 700;
+  font-size: 0.8rem; white-space: nowrap; cursor: pointer; min-height: 40px;
+}
+.dl-tab.active { background: var(--dl-amber); border-color: var(--dl-amber); color: #241a00; }
+
+/* ── Logo / hero ───────────────────────────────────────────── */
+.dl-logo {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 1.6rem; text-align: center; line-height: 1.5;
+  color: var(--dl-white);
+  text-shadow: 3px 3px 0 var(--dl-clay);
+}
+.dl-logo small {
+  display: block; font-size: 0.6rem; color: var(--dl-amber); margin-top: 6px; letter-spacing: 0.1em;
+}
+
+textarea.dl-input { min-height: 140px; font-size: 0.78rem; resize: vertical; }
+
+@media (max-width: 600px) {
+  .dl-screen { padding: 10px; }
+  .dl-logo { font-size: 1.15rem; }
+  .dl-ticker { font-size: 0.72rem; }
+}
