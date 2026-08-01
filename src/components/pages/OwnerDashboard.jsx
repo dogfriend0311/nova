@@ -11,11 +11,6 @@ import './OwnerDashboard.css';
 const SI = { padding:'10px', background:'rgba(94, 129, 244,0.05)', border:'1px solid rgba(94, 129, 244,0.2)', color:'#e2e5f0', borderRadius:'4px', width:'100%' };
 const SS = { ...SI };
 
-const S_HIT = [['season_g','G'],['season_ab','AB'],['season_avg','AVG'],['season_obp','OBP'],['season_slg','SLG'],['season_ops','OPS'],['season_hits','H'],['season_runs','R'],['season_2b','2B'],['season_3b','3B'],['season_home_runs','HR'],['season_rbis','RBI'],['season_bb','BB'],['season_strike_outs','K'],['season_sb','SB']];
-const S_PIT = [['season_w','W'],['season_l','L'],['season_era','ERA'],['season_pg','G'],['season_gs','GS'],['season_innings_pitched','IP'],['season_strikeouts_pitched','K'],['season_pit_bb','BB'],['season_hits_allowed','H'],['season_earned_runs','ER'],['season_whip','WHIP'],['season_sv','SV'],['season_hld','HLD']];
-const C_HIT = [['career_g','G'],['career_ab','AB'],['career_avg','AVG'],['career_obp','OBP'],['career_slg','SLG'],['career_ops','OPS'],['hits','H'],['runs','R'],['career_2b','2B'],['career_3b','3B'],['home_runs','HR'],['rbis','RBI'],['career_bb','BB'],['strike_outs','K'],['career_sb','SB']];
-const C_PIT = [['career_w','W'],['career_l','L'],['career_era','ERA'],['career_pg','G'],['career_gs','GS'],['innings_pitched','IP'],['strikeouts_pitched','K'],['career_pit_bb','BB'],['hits_allowed','H'],['earned_runs','ER'],['career_whip','WHIP'],['career_sv','SV'],['career_hld','HLD']];
-
 const emptyPlayer = {
   player_name:'', nickname:'', roblox_username:'', position:'', number:'', overall:75, avatar_data:'', spotify_url:'',
   season_g:'',season_ab:'',season_avg:'',season_obp:'',season_slg:'',season_ops:'',season_hits:'',season_runs:'',season_2b:'',season_3b:'',season_home_runs:'',season_rbis:'',season_bb:'',season_strike_outs:'',season_sb:'',
