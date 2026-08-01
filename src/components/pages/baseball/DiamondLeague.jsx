@@ -16,11 +16,30 @@ function newCareerState({ league, totalGames, playerName, playerPos, teamId }) {
   if (playerPos) player.position = playerPos;
   player.archetype = ARCHETYPE_DEFAULT;
   player.isRookie = true;
-  team.roster.push(player);
+  player.yearsPro = 0;
+
+  // Slot the rookie into an actual starting spot — battingOrder() only
+  // reads the FIRST 9 non-pitchers off the roster array, so simply
+  // pushing them to the end would mean they never actually play.
+  if (player.isPitcher) {
+    const idx = team.roster.findIndex(p => p.isPitcher && p.position === player.position);
+    const fallback = team.roster.findIndex(p => p.isPitcher);
+    if (idx !== -1) team.roster[idx] = player;
+    else if (fallback !== -1) team.roster[fallback] = player;
+    else team.roster.push(player);
+  } else {
+    const idx = team.roster.findIndex(p => !p.isPitcher && p.position === player.position);
+    const fallback = team.roster.findIndex(p => !p.isPitcher);
+    if (idx !== -1) team.roster[idx] = player;
+    else if (fallback !== -1) team.roster[fallback] = player;
+    else team.roster.push(player);
+  }
+
   return {
     league,
     schedule,
     dayIndex: 0,
+    totalGames,
     careerPlayerId: player.id,
     news: [`BREAKING: ${team.city} sign undrafted rookie ${player.firstName} ${player.lastName}.`],
     social: [],
@@ -128,7 +147,7 @@ export default function DiamondLeague() {
     const league = pendingLeague;
     const schedule = Data.generateSchedule(league.teams, Number(setupForm.totalGames));
     const team = league.teams.find(t => t.id === teamId) || league.teams[0];
-    const data = { league, schedule, dayIndex: 0, careerPlayerId: null, userTeamId: team.id, news: [`${team.city} ${team.name} begin a new era.`], social: [] };
+    const data = { league, schedule, dayIndex: 0, totalGames: Number(setupForm.totalGames), careerPlayerId: null, userTeamId: team.id, news: [`${team.city} ${team.name} begin a new era.`], social: [] };
     const next = {
       meta: { label: `[${pendingMode === 'commissioner' ? 'Commish' : 'Franchise'}] ${team.city} Y1 ${league.year}`, mode: pendingMode, record: '0-0' },
       data,

@@ -1,13 +1,12 @@
 // ══════════════════════════════════════════════════════════════
-// Diamond League — simulation engine (v2)
-// Rating-driven at-bat resolver plus a layer of in-game strategy:
-//   • stolen base attempts (speed vs. catcher arm + pitcher hold)
-//   • aggressive baserunning on hits (extra base attempts, with risk)
-//   • ground-ball double plays and sacrifice flies
-//   • pitch-count + times-through-the-order fatigue, with bullpen
-//     changes and closer-in-a-save-situation logic
-// Still not a physics sim — the goal is that ratings and game state
-// visibly matter, and the log reads like a real broadcast.
+// Diamond League — simulation engine (v3 / interactive)
+// simulateGame()       — whole game resolved instantly, AI vs AI.
+// simulateGameSteps()  — a generator. Yields {kind:'log', ...} for
+//   every play so the UI can stream them, and PAUSES with
+//   {kind:'bat-prompt'|'pitch-prompt'|'steal-prompt', ...} whenever
+//   the controlled player is up to bat, on the mound, or on first
+//   with second open — resume with gen.next(input) once the user
+//   has responded. Returns the final box score / log when done.
 // ══════════════════════════════════════════════════════════════
 
 function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
@@ -15,21 +14,13 @@ function rand() { return Math.random(); }
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function nameOf(p) { return `${p.firstName[0]}. ${p.lastName}`; }
 
-function battingOrder(roster) {
-  return roster.filter(p => !p.isPitcher).slice(0, 9);
-}
+function battingOrder(roster) { return roster.filter(p => !p.isPitcher).slice(0, 9); }
 function startingPitcher(roster) {
   return roster.find(p => p.isPitcher && p.position === 'SP') || roster.find(p => p.isPitcher) || roster[0];
 }
-function bullpen(roster) {
-  return roster.filter(p => p.isPitcher && p.position !== 'SP');
-}
-function closerOf(roster) {
-  return roster.find(p => p.isPitcher && p.position === 'CL');
-}
-function catcherOf(roster) {
-  return roster.find(p => p.position === 'C') || roster.find(p => !p.isPitcher);
-}
+function bullpen(roster) { return roster.filter(p => p.isPitcher && p.position !== 'SP'); }
+function closerOf(roster) { return roster.find(p => p.isPitcher && p.position === 'CL'); }
+function catcherOf(roster) { return roster.find(p => p.position === 'C') || roster.find(p => !p.isPitcher); }
 function outfieldArm(roster) {
   const of = roster.filter(p => ['LF', 'CF', 'RF'].includes(p.position));
   const pool = of.length ? of : roster.filter(p => !p.isPitcher);
@@ -43,23 +34,35 @@ function infieldFielding(roster) {
   return pool.reduce((s, p) => s + (p.ratings.fielding || 50), 0) / pool.length;
 }
 
-// ── Plate appearance resolution ──────────────────────────────
-function resolveAtBat(batter, pitcher, fatigue = 0) {
-  const b = batter.ratings, p = pitcher.ratings;
-  const stuffEff = p.stuff * (1 - fatigue * 0.35);
-  const controlEff = p.control * (1 - fatigue * 0.25);
+// Swing-timing / pitch-aim inputs translate into small, capped rating
+// nudges for just that one plate appearance — enough to feel earned
+// without letting a single tap overwhelm a player's real ratings.
+const SWING_BONUS = {
+  perfect: { contact: 18, power: 14 },
+  good: { contact: 8, power: 6 },
+  early: { contact: -14, power: -8 },
+  late: { contact: -14, power: -8 },
+  take: { contact: 0, power: 0 },
+};
 
-  let kChance = 0.20 + (stuffEff - b.contact) / 380 + (b.eye - 50) / -600;
+function resolveAtBat(batter, pitcher, fatigue = 0, modifier = {}) {
+  const b = batter.ratings, p = pitcher.ratings;
+  const contact = clamp(b.contact + (modifier.contactBonus || 0), 5, 99);
+  const power = clamp(b.power + (modifier.powerBonus || 0), 5, 99);
+  const stuffEff = clamp(p.stuff * (1 - fatigue * 0.35) + (modifier.stuffBonus || 0), 5, 99);
+  const controlEff = clamp(p.control * (1 - fatigue * 0.25) + (modifier.controlBonus || 0), 5, 99);
+
+  let kChance = 0.20 + (stuffEff - contact) / 380 + (b.eye - 50) / -600;
   let bbChance = 0.085 + (b.eye - controlEff) / 420;
-  let hrChance = 0.028 + (b.power - stuffEff) / 480;
-  kChance = clamp(kChance, 0.06, 0.42);
+  let hrChance = 0.028 + (power - stuffEff) / 480;
+  kChance = clamp(kChance, 0.04, 0.46);
   bbChance = clamp(bbChance, 0.02, 0.20);
-  hrChance = clamp(hrChance, 0.005, 0.10);
+  hrChance = clamp(hrChance, 0.003, 0.13);
 
   const hbpChance = 0.008;
-  const inPlayChance = clamp(1 - kChance - bbChance - hrChance - hbpChance, 0.25, 0.75);
+  const inPlayChance = clamp(1 - kChance - bbChance - hrChance - hbpChance, 0.2, 0.78);
 
-  const babip = clamp(0.30 + (b.contact - p.movement) / 700 - (b.contact < 40 ? 0.02 : 0), 0.18, 0.40);
+  const babip = clamp(0.30 + (contact - p.movement) / 700 - (contact < 40 ? 0.02 : 0), 0.16, 0.42);
   const hitOnInPlay = inPlayChance * babip;
   const outOnInPlay = inPlayChance - hitOnInPlay;
   const single = hitOnInPlay * 0.68;
@@ -81,7 +84,6 @@ function resolveAtBat(batter, pitcher, fatigue = 0) {
   return 'OUT';
 }
 
-// A batted-out "type" drives whether a double play or sac fly is in play.
 function battedBallType(batter) {
   const gbLean = clamp(0.55 - (batter.ratings.power - 50) / 400, 0.35, 0.68);
   const r = rand();
@@ -93,11 +95,9 @@ function groundOutText() { return pick(['grounds out to short', 'grounds out to 
 function flyOutText() { return pick(['flies out to center', 'flies out to left', 'flies out to right', 'pops out to short']); }
 function lineOutText() { return 'lines out sharply'; }
 
-// bases = [first, second, third]; returns { bases, scorers: [player,...], rbi }
 function advanceRunners(bases, batterOnBase, outcome) {
   const newBases = [null, null, null];
   let scorers = [];
-
   switch (outcome) {
     case 'HR':
       scorers = [...bases.filter(Boolean), batterOnBase];
@@ -142,8 +142,10 @@ function freshLine(isPitcher) {
     : { ab: 0, h: 0, doubles: 0, triples: 0, hr: 0, rbi: 0, bb: 0, k: 0, r: 0, sb: 0, cs: 0 };
 }
 
-export function simulateGame(homeTeam, awayTeam, opts = {}) {
+// ── Core generator: everything routes through this ───────────
+function* simulateGameCore(homeTeam, awayTeam, opts = {}) {
   const maxInnings = opts.innings || 9;
+  const controlledId = opts.controlledPlayerId || null;
   const log = [];
   const boxHome = {}, boxAway = {};
   const homeOrder = battingOrder(homeTeam.roster);
@@ -155,6 +157,7 @@ export function simulateGame(homeTeam, awayTeam, opts = {}) {
 
   const ensure = (box, player) => { if (!box[player.id]) box[player.id] = freshLine(player.isPitcher); return box[player.id]; };
   const scoreRunner = (box, player) => { ensure(box, player).r += 1; };
+  const isControlled = (p) => !!p && !!controlledId && p.id === controlledId;
 
   let homeIdx = 0, awayIdx = 0;
   let homeRuns = 0, awayRuns = 0;
@@ -169,9 +172,9 @@ export function simulateGame(homeTeam, awayTeam, opts = {}) {
   function considerPitchingChange(side, inningNum) {
     const u = usage[side];
     const team = side === 'home' ? homeTeam : awayTeam;
+    if (isControlled(u.pitcher)) return; // never auto-pull the human's pitcher
     const fatigueRatio = u.pitches / staminaLimit(u.pitcher);
     const timesThrough = Math.floor(u.battersFaced / Math.max(1, battingOrder(team.roster).length));
-
     const pitchingLeads = side === 'home' ? homeRuns > awayRuns : awayRuns > homeRuns;
     const leadMargin = side === 'home' ? homeRuns - awayRuns : awayRuns - homeRuns;
     const saveSpot = inningNum >= maxInnings && pitchingLeads && leadMargin <= 3 && u.pitcher.position !== 'CL' && !u.closerUsed;
@@ -180,29 +183,24 @@ export function simulateGame(homeTeam, awayTeam, opts = {}) {
     if (fatigueRatio >= 1.05) pullReason = 'tired';
     else if (saveSpot && rand() < 0.85) pullReason = 'save';
     else if (fatigueRatio >= 0.75 && timesThrough >= 2 && rand() < 0.35) pullReason = 'times-through';
-
     if (!pullReason) return;
 
     let next;
-    if (pullReason === 'save') {
-      next = closerOf(team.roster);
-      if (next) u.closerUsed = true;
-    }
+    if (pullReason === 'save') { next = closerOf(team.roster); if (next) u.closerUsed = true; }
     if (!next) {
       next = bullpen(team.roster).find(p => !u.used.has(p.id) && p.position === 'RP')
         || team.roster.find(p => p.isPitcher && !u.used.has(p.id));
     }
     if (!next || next.id === u.pitcher.id) return;
-
     log.push({ type: 'pitching-change', text: `${team.city} bring in ${nameOf(next)} to pitch${pullReason === 'save' ? ' for the save' : '.'}` });
     u.pitcher = next; u.pitches = 0; u.battersFaced = 0; u.used.add(next.id);
   }
 
-  function playHalf(top, inningNum) {
+  function* playHalf(top, inningNum) {
     const order = top ? awayOrder : homeOrder;
     const box = top ? boxAway : boxHome;
     const pitcherBox = top ? boxHome : boxAway;
-    const side = top ? 'home' : 'away'; // side on the mound
+    const side = top ? 'home' : 'away';
     const defenseTeam = top ? homeTeam : awayTeam;
 
     considerPitchingChange(side, inningNum);
@@ -216,45 +214,68 @@ export function simulateGame(homeTeam, awayTeam, opts = {}) {
       const activePitcher = u.pitcher;
       const fatigue = clamp(u.pitches / staminaLimit(activePitcher), 0, 1.3);
 
-      // ── Stolen base attempt (doesn't use up the batter's turn) ──
+      // ── Stolen base opportunity ──
       if (bases[0] && !bases[1] && outs < 3) {
         const runner = bases[0];
-        const attemptChance = runner.ratings.speed >= 60 ? clamp((runner.ratings.speed - 55) / 180, 0, 0.30) : 0;
-        if (rand() < attemptChance) {
+        let attempt = false;
+        if (isControlled(runner)) {
+          const resp = yield { kind: 'steal-prompt', runner, catcher: catcherOf(defenseTeam.roster) };
+          attempt = !!(resp && resp.attempt);
+        } else {
+          const chance = runner.ratings.speed >= 60 ? clamp((runner.ratings.speed - 55) / 180, 0, 0.30) : 0;
+          attempt = rand() < chance;
+        }
+        if (attempt) {
           const catcher = catcherOf(defenseTeam.roster);
           const successChance = clamp(0.65 + (runner.ratings.speed - (catcher.ratings.arm || 50) - activePitcher.ratings.hold) / 300, 0.35, 0.92);
+          let entry;
           if (rand() < successChance) {
             bases = [null, runner, bases[2]];
             ensure(box, runner).sb += 1;
-            log.push({ type: 'play', inning: inningNum, top, text: `${nameOf(runner)} steals second base.` });
+            entry = { type: 'play', inning: inningNum, top, text: `${nameOf(runner)} steals second base.` };
           } else {
             outs++;
             ensure(box, runner).cs += 1;
-            log.push({ type: 'play', inning: inningNum, top, text: `${nameOf(runner)} is caught stealing.` });
             bases = [null, bases[1], bases[2]];
+            entry = { type: 'play', inning: inningNum, top, text: `${nameOf(runner)} is caught stealing.` };
           }
+          log.push(entry);
+          yield { kind: 'log', entry };
           if (outs >= 3) break;
         }
       }
 
       const batter = order[(top ? awayIdx : homeIdx) % order.length];
-      const outcome = resolveAtBat(batter, activePitcher, fatigue);
+      const userBatting = isControlled(batter);
+      const userPitching = isControlled(activePitcher);
 
-      u.pitches += 3 + Math.floor(rand() * 4); // ~3-6 pitches per PA
+      let modifier = {};
+      if (userBatting) {
+        const resp = yield { kind: 'bat-prompt', batter, pitcher: activePitcher, bases: [...bases], outs };
+        const timing = (resp && resp.timing) || 'take';
+        const b = SWING_BONUS[timing] || SWING_BONUS.take;
+        modifier = { contactBonus: b.contact, powerBonus: b.power };
+      } else if (userPitching) {
+        const resp = yield { kind: 'pitch-prompt', batter, pitcher: activePitcher, bases: [...bases], outs };
+        const acc = clamp(resp && typeof resp.accuracy === 'number' ? resp.accuracy : 0.5, 0, 1);
+        modifier = { controlBonus: (acc - 0.5) * 26, stuffBonus: (acc - 0.5) * 12 };
+      }
+
+      const outcome = resolveAtBat(batter, activePitcher, fatigue, modifier);
+      u.pitches += 3 + Math.floor(rand() * 4);
       u.battersFaced += 1;
 
       const bLine = ensure(box, batter);
       const pLine = ensure(pitcherBox, activePitcher);
-
       let text = '';
+
       if (outcome === 'K') {
         outs++; bLine.ab++; bLine.k++; pLine.k++; pLine.outs++;
         text = `${nameOf(batter)} strikes out.`;
       } else if (outcome === 'BB') {
         const adv = advanceRunners(bases, batter, 'BB');
         bases = adv.bases; adv.scorers.forEach(s => scoreRunner(box, s));
-        runsThisHalf += adv.scorers.length; bLine.bb++; pLine.bb++; pLine.er += adv.scorers.length;
-        bLine.rbi += adv.rbi;
+        runsThisHalf += adv.scorers.length; bLine.bb++; pLine.bb++; pLine.er += adv.scorers.length; bLine.rbi += adv.rbi;
         text = `${nameOf(batter)} draws a walk.`;
       } else if (outcome === 'HBP') {
         const adv = advanceRunners(bases, batter, 'BB');
@@ -265,32 +286,27 @@ export function simulateGame(homeTeam, awayTeam, opts = {}) {
         const adv = advanceRunners(bases, batter, 'HR');
         bases = adv.bases; adv.scorers.forEach(s => scoreRunner(box, s));
         runsThisHalf += adv.scorers.length;
-        bLine.ab++; bLine.h++; bLine.hr++; bLine.rbi += adv.rbi;
-        pLine.h++; pLine.er += adv.scorers.length;
+        bLine.ab++; bLine.h++; bLine.hr++; bLine.rbi += adv.rbi; pLine.h++; pLine.er += adv.scorers.length;
         text = adv.scorers.length > 1 ? `${nameOf(batter)} hits a ${adv.scorers.length}-run homer!` : `${nameOf(batter)} homers!`;
       } else if (outcome === '3B') {
         const adv = advanceRunners(bases, batter, '3B');
         bases = adv.bases; adv.scorers.forEach(s => scoreRunner(box, s));
         runsThisHalf += adv.scorers.length;
-        bLine.ab++; bLine.h++; bLine.triples++; bLine.rbi += adv.rbi;
-        pLine.h++; pLine.er += adv.scorers.length;
+        bLine.ab++; bLine.h++; bLine.triples++; bLine.rbi += adv.rbi; pLine.h++; pLine.er += adv.scorers.length;
         text = `${nameOf(batter)} triples.`;
       } else if (outcome === '2B') {
         const adv = advanceRunners(bases, batter, '2B');
         bases = adv.bases; adv.scorers.forEach(s => scoreRunner(box, s));
         runsThisHalf += adv.scorers.length;
-        bLine.ab++; bLine.h++; bLine.doubles++; bLine.rbi += adv.rbi;
-        pLine.h++; pLine.er += adv.scorers.length;
+        bLine.ab++; bLine.h++; bLine.doubles++; bLine.rbi += adv.rbi; pLine.h++; pLine.er += adv.scorers.length;
         text = `${nameOf(batter)} doubles`;
-
         if (bases[2] && bases[2] !== batter) {
           const runner = bases[2];
           const arm = outfieldArm(defenseTeam.roster);
           const goChance = clamp(0.12 + (runner.ratings.speed - arm) / 300, 0, 0.35);
           if (rand() < goChance) {
             bases = [bases[0], bases[1], null];
-            scoreRunner(box, runner);
-            bLine.rbi += 1; pLine.er += 1; runsThisHalf += 1;
+            scoreRunner(box, runner); bLine.rbi += 1; pLine.er += 1; runsThisHalf += 1;
             text += `, and ${nameOf(runner)} scores all the way from first!`;
           } else text += '.';
         } else text += '.';
@@ -300,18 +316,15 @@ export function simulateGame(homeTeam, awayTeam, opts = {}) {
         const adv = advanceRunners(bases, batter, '1B');
         bases = adv.bases; adv.scorers.forEach(s => scoreRunner(box, s));
         runsThisHalf += adv.scorers.length;
-        bLine.ab++; bLine.h++; bLine.rbi += adv.rbi;
-        pLine.h++; pLine.er += adv.scorers.length;
+        bLine.ab++; bLine.h++; bLine.rbi += adv.rbi; pLine.h++; pLine.er += adv.scorers.length;
         text = `${nameOf(batter)} singles`;
-
         if (originalFirstRunner && originalSecondEmpty && bases[1] === originalFirstRunner) {
           const arm = outfieldArm(defenseTeam.roster);
           const goChance = clamp(0.30 + (originalFirstRunner.ratings.speed - arm) / 250, 0.05, 0.75);
           if (rand() < goChance) {
             const thrownOutChance = clamp(0.12 - (originalFirstRunner.ratings.speed - arm) / 800, 0.03, 0.2);
             if (rand() < thrownOutChance && outs < 2) {
-              bases = [bases[0], null, bases[2]];
-              outs++;
+              bases = [bases[0], null, bases[2]]; outs++;
               text += `, ${nameOf(originalFirstRunner)} tries for third but is thrown out!`;
             } else {
               bases = [bases[0], null, originalFirstRunner];
@@ -327,8 +340,7 @@ export function simulateGame(homeTeam, awayTeam, opts = {}) {
           const dpChance = clamp(0.42 + (defFielding - 50) / 200 - (batter.ratings.speed - 50) / 250, 0.1, 0.7);
           if (rand() < dpChance) {
             const runnerOut = bases[0];
-            outs += 2; pLine.outs += 2;
-            bases = [null, bases[1], bases[2]];
+            outs += 2; pLine.outs += 2; bases = [null, bases[1], bases[2]];
             text = `${nameOf(batter)} grounds into a double play, ${nameOf(runnerOut)} forced at second.`;
           } else if (bases[2] && outs < 2 && rand() < 0.22) {
             outs++; pLine.outs++;
@@ -357,7 +369,9 @@ export function simulateGame(homeTeam, awayTeam, opts = {}) {
         }
       }
 
-      log.push({ type: 'play', inning: inningNum, top, outs, text, score: { home: homeRuns + (top ? 0 : runsThisHalf), away: awayRuns + (top ? runsThisHalf : 0) } });
+      const entry = { type: 'play', inning: inningNum, top, outs, text, score: { home: homeRuns + (top ? 0 : runsThisHalf), away: awayRuns + (top ? runsThisHalf : 0) } };
+      log.push(entry);
+      yield { kind: 'log', entry };
       if (top) awayIdx++; else homeIdx++;
     }
 
@@ -367,27 +381,29 @@ export function simulateGame(homeTeam, awayTeam, opts = {}) {
 
   let inning = 1;
   while (inning <= maxInnings || homeRuns === awayRuns) {
-    const topRuns = playHalf(true, inning);
+    const topRuns = yield* playHalf(true, inning);
     awayRuns += topRuns;
-    log.push({ type: 'inning-end', inning, top: true, text: `End of the top of the ${ordinal(inning)}.` });
+    const endTop = { type: 'inning-end', inning, top: true, text: `End of the top of the ${ordinal(inning)}.` };
+    log.push(endTop); yield { kind: 'log', entry: endTop };
 
     if (!(inning === maxInnings && homeRuns > awayRuns)) {
-      const botRuns = playHalf(false, inning);
+      const botRuns = yield* playHalf(false, inning);
       homeRuns += botRuns;
-      log.push({ type: 'inning-end', inning, top: false, text: `End of the ${ordinal(inning)}.` });
+      const endBot = { type: 'inning-end', inning, top: false, text: `End of the ${ordinal(inning)}.` };
+      log.push(endBot); yield { kind: 'log', entry: endBot };
     }
     inning++;
     if (inning > maxInnings && homeRuns !== awayRuns) break;
-    if (inning > 30) break; // absolute safety valve
+    if (inning > 30) break;
   }
 
-  log.push({ type: 'final', text: `Final: ${awayTeam.city} ${awayRuns} — ${homeTeam.city} ${homeRuns}` });
+  const finalEntry = { type: 'final', text: `Final: ${awayTeam.city} ${awayRuns} — ${homeTeam.city} ${homeRuns}` };
+  log.push(finalEntry); yield { kind: 'log', entry: finalEntry };
 
   return {
     homeRuns, awayRuns,
     winner: homeRuns > awayRuns ? 'home' : 'away',
-    boxHome, boxAway,
-    log,
+    boxHome, boxAway, log,
     homeStartingPitcher: startingPitcher(homeTeam.roster).id,
     awayStartingPitcher: startingPitcher(awayTeam.roster).id,
   };
@@ -398,16 +414,37 @@ function ordinal(n) {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
+// Instant, fully-automatic game — used for exhibitions, CPU-vs-CPU,
+// and any at-bat where nobody is under user control.
+export function simulateGame(homeTeam, awayTeam, opts = {}) {
+  const gen = simulateGameCore(homeTeam, awayTeam, { ...opts, controlledPlayerId: null });
+  let result = gen.next();
+  while (!result.done) result = gen.next();
+  return result.value;
+}
+
+// Interactive generator — drive it with gen.next(input) each time it
+// yields a '*-prompt' event; 'log' events can be auto-continued.
+export function createInteractiveGame(homeTeam, awayTeam, controlledPlayerId, opts = {}) {
+  return simulateGameCore(homeTeam, awayTeam, { ...opts, controlledPlayerId });
+}
+
 export function applyBoxToRoster(team, box) {
   team.roster.forEach(p => {
     const line = box[p.id];
     if (!line) return;
     if (p.isPitcher) {
       if (line.ip === 0 && line.outs === 0) return;
-      p.season.g += 1; p.season.ip += line.ip + line.outs / 3;
+      const ipThisGame = line.ip + line.outs / 3;
+      p.season.g += 1; p.season.ip += ipThisGame;
       p.season.h += line.h; p.season.er += line.er; p.season.bb += line.bb; p.season.k += line.k;
-      p.career.g += 1; p.career.ip += line.ip + line.outs / 3;
+      p.career.g += 1; p.career.ip += ipThisGame;
       p.career.h += line.h; p.career.er += line.er; p.career.bb += line.bb; p.career.k += line.k;
+      p.lastGame = { ...line, ip: ipThisGame };
+      if (!p.careerHighs) p.careerHighs = { ip: 0, k: 0, er: 0, hits: 0 };
+      if (ipThisGame > (p.careerHighs.ip || 0)) p.careerHighs.ip = ipThisGame;
+      if (line.k > (p.careerHighs.k || 0)) p.careerHighs.k = line.k;
+      if (line.h > (p.careerHighs.hits || 0)) p.careerHighs.hits = line.h;
     } else {
       if (line.ab === 0 && line.bb === 0) return;
       p.season.g += 1; p.season.ab += line.ab; p.season.h += line.h;

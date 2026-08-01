@@ -67,8 +67,8 @@ function ratingRoll(base = 50, spread = 20) {
   return Math.max(20, Math.min(99, Math.round(base + (r - 0.5) * spread * 2)));
 }
 
-export function generatePlayer({ isPitcher = false, level = 'pro', age = null } = {}) {
-  const position = isPitcher ? pick(PITCHER_ROLES) : pick(POSITIONS);
+export function generatePlayer({ isPitcher = false, level = 'pro', age = null, position = null } = {}) {
+  const finalPosition = position || (isPitcher ? pick(PITCHER_ROLES) : pick(POSITIONS));
   const baseAdj = level === 'college' ? -12 : level === 'rookie' ? -6 : 0;
   const player = {
     id: uid('plyr'),
@@ -76,7 +76,7 @@ export function generatePlayer({ isPitcher = false, level = 'pro', age = null } 
     lastName: pick(LAST_NAMES),
     number: randInt(0, 99),
     age: age || randInt(19, 34),
-    position,
+    position: finalPosition,
     bats: pick(['L', 'R', 'R', 'S']),
     throws: pick(['L', 'R', 'R', 'R']),
     archetype: isPitcher ? pick(ARCHETYPES_PITCHER) : pick(ARCHETYPES_HITTER),
@@ -129,11 +129,11 @@ export function emptyCareerStats(isPitcher) {
 }
 
 export function generateRoster(level = 'pro') {
-  const hitters = POSITIONS.map(() => generatePlayer({ isPitcher: false, level }));
-  // A couple bench bats
+  const hitters = POSITIONS.map(pos => generatePlayer({ isPitcher: false, level, position: pos }));
+  // A couple bench bats — these can be true utility players, so leave them random
   hitters.push(generatePlayer({ isPitcher: false, level }));
   hitters.push(generatePlayer({ isPitcher: false, level }));
-  const pitchers = PITCHER_ROLES.map(() => generatePlayer({ isPitcher: true, level }));
+  const pitchers = PITCHER_ROLES.map(role => generatePlayer({ isPitcher: true, level, position: role }));
   return [...hitters, ...pitchers];
 }
 
@@ -178,6 +178,65 @@ export function generateDraftClass(size = 40) {
     ...generatePlayer({ isPitcher: i % 3 === 0, level: 'college', age: randInt(18, 22) }),
     draftRank: i + 1,
   }));
+}
+
+// A single number for sorting/draft-board purposes — not shown to the
+// player as a "rating", just used internally to rank prospects.
+export function overallRating(player) {
+  const vals = Object.values(player.ratings);
+  return vals.reduce((s, v) => s + v, 0) / vals.length;
+}
+
+// Age-based rating drift: young players trend up, players in their
+// prime hold steady, and anyone past ~33 starts trending down. Small,
+// noisy nudges each year rather than a hard formula, so no two careers
+// age identically.
+function ageAndProgress(player) {
+  let delta;
+  if (player.age < 24) delta = () => randInt(0, 3);
+  else if (player.age < 30) delta = () => randInt(-1, 2);
+  else if (player.age < 34) delta = () => randInt(-2, 1);
+  else delta = () => randInt(-4, 0);
+  Object.keys(player.ratings).forEach(k => {
+    player.ratings[k] = clampRating(player.ratings[k] + delta());
+  });
+}
+function clampRating(n) { return Math.max(15, Math.min(99, Math.round(n))); }
+
+function retirementRoll(age) {
+  if (age >= 42) return true;
+  if (age < 34) return false;
+  const chance = (age - 33) * 0.14;
+  return Math.random() < chance;
+}
+
+// Run at the turn of every season: age everyone up, drift ratings,
+// retire the old-timers, reset single-season stats, and top the
+// roster back up to a full lineup + pitching staff if it fell short.
+// `protectedId` (the user's own career player, if any) ages but keeps
+// its ratings untouched — that player only grows through spent XP.
+export function advanceRosterForNewSeason(roster, { protectedId = null } = {}) {
+  const retirees = [];
+  let next = roster.filter(p => {
+    p.age += 1;
+    if (p.id === protectedId) return true;
+    if (retirementRoll(p.age)) { retirees.push(p); return false; }
+    ageAndProgress(p);
+    return true;
+  });
+  next.forEach(p => { p.season = emptySeasonStats(p.isPitcher); p.lastGame = null; });
+
+  const hitterCount = next.filter(p => !p.isPitcher).length;
+  const pitcherCount = next.filter(p => p.isPitcher).length;
+  if (hitterCount < 9) next = [...next, ...Array.from({ length: 9 - hitterCount }, () => generatePlayer({ isPitcher: false, level: 'rookie', age: randInt(20, 24) }))];
+  if (pitcherCount < 5) next = [...next, ...Array.from({ length: 5 - pitcherCount }, () => generatePlayer({ isPitcher: true, level: 'rookie', age: randInt(20, 24) }))];
+
+  return { roster: next, retirees };
+}
+
+// Very simple draft order: worst record picks first (no lottery).
+export function draftOrder(teams) {
+  return [...teams].sort((a, b) => (a.wins - a.losses) - (b.wins - b.losses));
 }
 
 // Round-robin-ish schedule generator: each team plays a set number of
@@ -259,6 +318,37 @@ export function hydrateLeague(raw = {}, { year = new Date().getFullYear() } = {}
   };
 }
 
+
+// ── Career XP / leveling ─────────────────────────────────────
+export const XP_PER_LEVEL = 40;
+
+// How much XP a single game's box line is worth. Kept simple and
+// transparent: hits and impact plays earn XP, mistakes cost a little,
+// and everyone gets a small flat amount just for taking the field.
+export function xpForGame(line, isPitcher) {
+  if (!line) return 0;
+  let xp;
+  if (isPitcher) {
+    xp = 3 + line.k * 2 + (line.outs || 0) * 0.5 - line.er * 2 - line.bb * 0.5;
+  } else {
+    xp = 3 + line.h * 3 + line.hr * 5 + line.rbi * 1.5 + (line.sb || 0) * 2 + line.bb - line.k * 0.5;
+  }
+  return Math.max(1, Math.round(xp));
+}
+
+// Mutates the player: adds XP, levels up as many times as earned,
+// and grants one skill point per level. Returns how many levels
+// were gained this call, so the UI can show a "Level up!" moment.
+export function awardXp(player, xpGained) {
+  player.totalXp = (player.totalXp || 0) + xpGained;
+  let levelsGained = 0;
+  while (player.totalXp >= (player.level || 1) * XP_PER_LEVEL) {
+    player.level = (player.level || 1) + 1;
+    player.skillPoints = (player.skillPoints || 0) + 1;
+    levelsGained += 1;
+  }
+  return levelsGained;
+}
 
 export function battingAvg(s) { return s.ab > 0 ? (s.h / s.ab) : 0; }
 export function era(s) { return s.ip > 0 ? (s.er * 9 / s.ip) : 0; }
