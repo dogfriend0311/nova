@@ -46,6 +46,8 @@ const ALLOWED_TABLES = new Set([
   'player_hitting_stats', 'player_advanced_hitting_stats',
   'player_pitching_stats', 'player_advanced_pitching_stats',
   'members', 'gaming_clips', 'favorite_songs', 'sports_stats', 'scores', 'roblox_stats',
+  // Added for: team following, now-playing status, XP/achievements, Roblox badge showcase
+  'favorite_teams', 'now_playing', 'member_xp', 'achievements', 'member_achievements', 'roblox_badges',
 ]);
 
 const IDENT_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
