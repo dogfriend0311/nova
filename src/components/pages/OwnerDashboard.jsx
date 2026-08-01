@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import db from '../../services/db';
 import fantasyDb from '../../services/fantasyDb';
-import { ACCOLADE_TYPES, accoladeLabel, accoladeIcon } from '../../data/accolades';
+import { accoladeLabel, accoladeIcon, getAccoladeTypes } from '../../data/accolades';
 import { BadgeChip } from '../BadgeDisplay';
 import { BADGES as ACHIEVEMENT_BADGES } from '../../services/achievementsService';
+import { getSport } from '../../data/sportsConfig';
 import './OwnerDashboard.css';
 
 const SI = { padding:'10px', background:'rgba(94, 129, 244,0.05)', border:'1px solid rgba(94, 129, 244,0.2)', color:'#e2e5f0', borderRadius:'4px', width:'100%' };
@@ -444,7 +445,8 @@ const currentMonthLabel = () => new Date().toLocaleString('en-US', { month: 'lon
 
 const LeaguePlayersTab = ({ prefix }) => {
   const { user } = useAuth();
-  const label = prefix === 'vizta' ? 'Roblox Baseball' : prefix.toUpperCase();
+  const cfg = getSport(prefix);
+  const label = cfg.label;
   const [players, setPlayers] = useState([]);
   const [playerSearch, setPlayerSearch] = useState('');
   const [potmMsg, setPotmMsg] = useState('');
@@ -456,7 +458,8 @@ const LeaguePlayersTab = ({ prefix }) => {
   const [offsetY, setOffsetY] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x:0, y:0 });
-  const [statTab, setStatTab] = useState({ period:'season', type:'hitting' });
+  const [statTab, setStatTab] = useState({ period:'season', type:cfg.catA.id });
+  useEffect(() => { setStatTab({ period:'season', type:cfg.catA.id }); }, [cfg]);
   const canvasRef = useRef(null);
   const imgRef    = useRef(null);
   const [loading, setLoading] = useState(true);
@@ -592,13 +595,13 @@ const LeaguePlayersTab = ({ prefix }) => {
             ))}
           </div>
           <div style={{ display:'flex', gap:'8px', marginBottom:'14px', flexWrap:'wrap' }}>
-            {['hitting','pitching'].map(t => (
-              <button key={t} type="button" onClick={()=>setStatTab(prev=>({...prev,type:t}))}
-                style={{ padding:'5px 14px', background:statTab.type===t?'rgba(255, 158, 87,0.15)':'rgba(94, 129, 244,0.05)', border:`1px solid ${statTab.type===t?'var(--color-magenta)':'rgba(94, 129, 244,0.15)'}`, color:statTab.type===t?'var(--color-magenta)':'rgba(158, 165, 196,0.5)', borderRadius:'4px', cursor:'pointer', textTransform:'capitalize', fontWeight:600, fontSize:'0.8rem' }}>{t}</button>
+            {[cfg.catA, cfg.catB].map(c => (
+              <button key={c.id} type="button" onClick={()=>setStatTab(prev=>({...prev,type:c.id}))}
+                style={{ padding:'5px 14px', background:statTab.type===c.id?'rgba(255, 158, 87,0.15)':'rgba(94, 129, 244,0.05)', border:`1px solid ${statTab.type===c.id?'var(--color-magenta)':'rgba(94, 129, 244,0.15)'}`, color:statTab.type===c.id?'var(--color-magenta)':'rgba(158, 165, 196,0.5)', borderRadius:'4px', cursor:'pointer', fontWeight:600, fontSize:'0.8rem' }}>{c.label}</button>
             ))}
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(110px, 1fr))', gap:'8px' }}>
-            {(statTab.period==='season'?(statTab.type==='hitting'?S_HIT:S_PIT):(statTab.type==='hitting'?C_HIT:C_PIT)).map(([f,l]) => (
+            {(statTab.period==='season'?(statTab.type===cfg.catA.id?cfg.seasonA:cfg.seasonB):(statTab.type===cfg.catA.id?cfg.careerA:cfg.careerB)).map(([f,l]) => (
               <div key={f}>
                 <label style={{ fontSize:'0.75rem', color:'rgba(158, 165, 196,0.6)', display:'block', marginBottom:'3px' }}>{l}</label>
                 <input type="text" value={form[f]||''} onChange={e=>setForm({...form,[f]:e.target.value})} placeholder="--" style={{ ...SI, padding:'7px', fontSize:'0.9rem' }} />
@@ -673,7 +676,7 @@ const LeaguePlayersTab = ({ prefix }) => {
 };
 
 const LeagueTeamsTab = ({ prefix }) => {
-  const label = prefix === 'vizta' ? 'Roblox Baseball' : prefix.toUpperCase();
+  const label = getSport(prefix).label;
   const [teams, setTeams]   = useState([]);
   const [form, setForm]     = useState({ team_name:'', team_color:'#5e81f4', logo_url:'' });
   const [editing, setEditing] = useState(null);
@@ -746,7 +749,7 @@ const LeagueTeamsTab = ({ prefix }) => {
 };
 
 const LeagueRostersTab = ({ prefix }) => {
-  const label = prefix === 'vizta' ? 'Roblox Baseball' : prefix.toUpperCase();
+  const label = getSport(prefix).label;
   const [teams, setTeams]     = useState([]);
   const [players, setPlayers] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState(null);
@@ -832,7 +835,7 @@ const LeagueRostersTab = ({ prefix }) => {
 };
 
 const LeagueGamesTab = ({ prefix }) => {
-  const label = prefix === 'vizta' ? 'Roblox Baseball' : prefix.toUpperCase();
+  const label = getSport(prefix).label;
   const [games, setGames]   = useState([]);
   const [teams, setTeams]   = useState([]);
   const [newGame, setNewGame] = useState({ home_team:'', away_team:'', game_date:'', home_score:0, away_score:0 });
@@ -912,7 +915,8 @@ const LeagueGamesTab = ({ prefix }) => {
 };
 
 const LeagueBoxScoresTab = ({ prefix }) => {
-  const label = prefix === 'vizta' ? 'Roblox Baseball' : prefix.toUpperCase();
+  const cfg = getSport(prefix);
+  const label = cfg.label;
   const [bsGames, setBsGames]     = useState([]);
   const [boxScores, setBoxScores] = useState([]);
   const [players, setPlayers]     = useState([]);
@@ -925,8 +929,8 @@ const LeagueBoxScoresTab = ({ prefix }) => {
 
   useEffect(() => { db.getBsGames(prefix).then(setBsGames); db.getBoxScores(prefix).then(setBoxScores); db.getPlayers(prefix).then(setPlayers); db.getTeams(prefix).then(setTeams); }, [prefix]);
 
-  const statFields = ['hits','runs','rbis','home_runs','strike_outs','innings_pitched','strikeouts_pitched','hits_allowed','earned_runs'];
-  const statLabels = { hits:'H',runs:'R',rbis:'RBI',home_runs:'HR',strike_outs:'K',innings_pitched:'IP',strikeouts_pitched:'KP',hits_allowed:'HA',earned_runs:'ER' };
+  const statFields = cfg.boxFields;
+  const statLabels = cfg.boxLabels;
 
   const createGame = async () => {
     if (!newGame.game_name) return;
@@ -936,7 +940,8 @@ const LeagueBoxScoresTab = ({ prefix }) => {
   const deleteGame = async (id) => { await db.deleteBsGame(prefix, id); setBsGames(prev=>prev.filter(g=>g.id!==id)); setBoxScores(prev=>prev.filter(b=>b.game_id!==id)); };
   const addPlayerScore = async (playerId) => {
     const player = players.find(p=>p.id===playerId);
-    const newScore = { game_id:selectedGame.id, player_id:playerId, team:player?.team||'', hits:0, runs:0, rbis:0, home_runs:0, strike_outs:0, strikeouts_pitched:0, hits_allowed:0, earned_runs:0, innings_pitched:0 };
+    const blankStats = {}; statFields.forEach(f => { blankStats[f] = 0; });
+    const newScore = { game_id:selectedGame.id, player_id:playerId, team:player?.team||'', ...blankStats };
     const saved = await db.saveBoxScore(prefix, newScore);
     setBoxScores(prev=>[...prev, saved]);
   };
@@ -996,7 +1001,7 @@ const LeagueBoxScoresTab = ({ prefix }) => {
         {gameScores.length>0 && (
           <div className="neon-card p-3" style={{ overflowX:'auto' }}>
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.82rem' }}>
-              <thead><tr>{['Player','Team','H','R','RBI','HR','K','IP','KP','HA','ER',''].map(h=><th key={h} style={{ padding:'8px', color:'rgba(158, 165, 196,0.6)', textAlign:'center', borderBottom:'1px solid rgba(94, 129, 244,0.1)' }}>{h}</th>)}</tr></thead>
+              <thead><tr>{['Player','Team',...statFields.map(f=>statLabels[f]),''].map((h,hi)=><th key={hi} style={{ padding:'8px', color:'rgba(158, 165, 196,0.6)', textAlign:'center', borderBottom:'1px solid rgba(94, 129, 244,0.1)' }}>{h}</th>)}</tr></thead>
               <tbody>
                 {gameScores.map(score => {
                   const player = players.find(p=>String(p.id)===String(score.player_id));
@@ -1004,8 +1009,8 @@ const LeagueBoxScoresTab = ({ prefix }) => {
                     <tr key={score.id} style={{ borderBottom:'1px solid rgba(94, 129, 244,0.05)' }}>
                       <td style={{ padding:'8px', color:'var(--color-cyan)' }}>{player?.player_name||'?'}</td>
                       <td style={{ padding:'8px', textAlign:'center', color:'rgba(158, 165, 196,0.6)' }}>{score.team||'--'}</td>
-                      {[score.hits,score.runs,score.rbis,score.home_runs,score.strike_outs,score.innings_pitched,score.strikeouts_pitched,score.hits_allowed,score.earned_runs].map((v,i)=>(
-                        <td key={i} style={{ padding:'8px', textAlign:'center', color:'rgba(158, 165, 196,0.85)' }}>{v||0}</td>
+                      {statFields.map((f,i)=>(
+                        <td key={i} style={{ padding:'8px', textAlign:'center', color:'rgba(158, 165, 196,0.85)' }}>{score[f]||0}</td>
                       ))}
                       <td style={{ padding:'8px', textAlign:'center' }}>
                         <button onClick={()=>{ setEditingScore(score); setEditForm({...score}); }} style={{ background:'none', border:'none', color:'var(--color-cyan)', cursor:'pointer' }}>Edit</button>
@@ -1070,7 +1075,7 @@ const LeagueBoxScoresTab = ({ prefix }) => {
 };
 
 const LeagueGameFeedTab = ({ prefix }) => {
-  const label = prefix === 'vizta' ? 'Roblox Baseball' : prefix.toUpperCase();
+  const label = getSport(prefix).label;
   const [games, setGames]   = useState([]);
   const [players, setPlayers] = useState([]);
   const [feed, setFeed]     = useState([]);
@@ -1192,7 +1197,7 @@ const LeagueGameFeedTab = ({ prefix }) => {
 };
 
 const LeagueHofTab = ({ prefix }) => {
-  const label = prefix === 'vizta' ? 'Roblox Baseball' : prefix.toUpperCase();
+  const label = getSport(prefix).label;
   const [hofMembers, setHofMembers] = useState([]);
   const [players, setPlayers]       = useState([]);
   const [form, setForm] = useState({ player_name:'', year:new Date().getFullYear() });
@@ -1240,18 +1245,20 @@ const LeagueHofTab = ({ prefix }) => {
 
 const LeagueAwardsTab = ({ prefix }) => {
   const { user } = useAuth();
-  const label = prefix === 'vizta' ? 'Roblox Baseball' : prefix.toUpperCase();
+  const label = getSport(prefix).label;
+  const accoladeTypes = getAccoladeTypes(prefix);
   const [players, setPlayers] = useState([]);
   const [selectedId, setSelectedId] = useState('');
   const [potmAwards, setPotmAwards] = useState([]);
   const [accolades, setAccolades] = useState([]);
   const [monthLabel, setMonthLabel] = useState(currentMonthLabel());
   const [potmNote, setPotmNote] = useState('');
-  const [accType, setAccType] = useState(ACCOLADE_TYPES[0].key);
+  const [accType, setAccType] = useState(accoladeTypes[0].key);
   const [accSeason, setAccSeason] = useState('S1');
   const [accCustomLabel, setAccCustomLabel] = useState('');
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => { setAccType(accoladeTypes[0].key); }, [prefix]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { db.getPlayers(prefix).then(d => { setPlayers(d); setLoading(false); }); }, [prefix]);
 
   const selectedPlayer = players.find(p => String(p.id) === String(selectedId));
@@ -1347,7 +1354,7 @@ const LeagueAwardsTab = ({ prefix }) => {
               <div className="form-field">
                 <label>Award</label>
                 <select value={accType} onChange={e => setAccType(e.target.value)} style={SS}>
-                  {ACCOLADE_TYPES.map(t => <option key={t.key} value={t.key}>{t.icon} {t.label}</option>)}
+                  {accoladeTypes.map(t => <option key={t.key} value={t.key}>{t.icon} {t.label}</option>)}
                 </select>
               </div>
               <div className="form-field">
@@ -1906,7 +1913,7 @@ const PropBetsAdminTab = () => {
   const { user } = useAuth();
   const loadProps = () => { try { return JSON.parse(localStorage.getItem('nova_prop_bets') || '[]'); } catch { return []; } };
   const [props, setProps] = useState(loadProps);
-  const [form, setForm] = useState({ question: '', sport: 'nfl', options: 'Yes,No', multiplier: '2', deadline: '' });
+  const [form, setForm] = useState({ question: '', sport: 'baseball', options: 'Yes,No', multiplier: '2', deadline: '' });
   const [msg, setMsg] = useState(null);
 
   function addProp() {
@@ -1947,7 +1954,14 @@ const PropBetsAdminTab = () => {
       <div style={{ background: 'rgba(94,129,244,0.04)', border: '1px solid rgba(94,129,244,0.12)', borderRadius: 10, padding: 16, marginBottom: 20 }}>
         {F('Question', 'question', 'input', { placeholder: 'Will the Chiefs win the Super Bowl?' })}
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {F('Sport', 'sport', 'select', { children: ['nfl','nba','mlb','nhl'].map(s => <option key={s} value={s}>{s.toUpperCase()}</option>) })}
+          {F('Sport', 'sport', 'select', { children: [
+            <option key="grp-roblox" disabled>── Roblox Leagues ──</option>,
+            <option key="baseball" value="baseball">⚾ Roblox Baseball</option>,
+            <option key="hockey" value="hockey">🏒 Roblox Hockey</option>,
+            <option key="football" value="football">🏈 Roblox Football</option>,
+            <option key="grp-other" disabled>── Real Sports ──</option>,
+            ...['nfl','nba','mlb','nhl'].map(s => <option key={s} value={s}>{s.toUpperCase()}</option>),
+          ] })}
           {F('Options (comma-separated)', 'options', 'input', { placeholder: 'Yes,No or Team A,Team B' })}
           {F('Payout Multiplier', 'multiplier', 'input', { type: 'number', placeholder: '2' })}
           {F('Deadline (optional)', 'deadline', 'input', { type: 'date' })}
@@ -2184,6 +2198,22 @@ const OwnerDashboard = ({ onExit }) => {
       case 'vizta-feed':      return <LeagueGameFeedTab prefix="vizta" />;
       case 'vizta-hof':       return <LeagueHofTab prefix="vizta" />;
       case 'vizta-awards':    return <LeagueAwardsTab prefix="vizta" />;
+      case 'hockey-players':   return <LeaguePlayersTab prefix="hockey" />;
+      case 'hockey-teams':     return <LeagueTeamsTab prefix="hockey" />;
+      case 'hockey-rosters':   return <LeagueRostersTab prefix="hockey" />;
+      case 'hockey-games':     return <LeagueGamesTab prefix="hockey" />;
+      case 'hockey-boxscores': return <LeagueBoxScoresTab prefix="hockey" />;
+      case 'hockey-feed':      return <LeagueGameFeedTab prefix="hockey" />;
+      case 'hockey-hof':       return <LeagueHofTab prefix="hockey" />;
+      case 'hockey-awards':    return <LeagueAwardsTab prefix="hockey" />;
+      case 'football-players':   return <LeaguePlayersTab prefix="football" />;
+      case 'football-teams':     return <LeagueTeamsTab prefix="football" />;
+      case 'football-rosters':   return <LeagueRostersTab prefix="football" />;
+      case 'football-games':     return <LeagueGamesTab prefix="football" />;
+      case 'football-boxscores': return <LeagueBoxScoresTab prefix="football" />;
+      case 'football-feed':      return <LeagueGameFeedTab prefix="football" />;
+      case 'football-hof':       return <LeagueHofTab prefix="football" />;
+      case 'football-awards':    return <LeagueAwardsTab prefix="football" />;
       default: return null;
     }
   };
@@ -2241,6 +2271,36 @@ const OwnerDashboard = ({ onExit }) => {
               <Btn id="vizta-feed"      label="Feed" />
               <Btn id="vizta-hof"       label="HoF" />
               <Btn id="vizta-awards"    label="Awards" />
+            </div>
+          </div>
+        )}
+        {(isOwnerLevel || isViztaHelper) && (
+          <div className="dashboard-section">
+            <div className="section-label">ROBLOX HOCKEY</div>
+            <div className="dashboard-tabs">
+              <Btn id="hockey-players"   label="Players" />
+              <Btn id="hockey-teams"     label="Teams" />
+              <Btn id="hockey-rosters"   label="Rosters" />
+              <Btn id="hockey-games"     label="Games" />
+              <Btn id="hockey-boxscores" label="Box Scores" />
+              <Btn id="hockey-feed"      label="Feed" />
+              <Btn id="hockey-hof"       label="HoF" />
+              <Btn id="hockey-awards"    label="Awards" />
+            </div>
+          </div>
+        )}
+        {(isOwnerLevel || isViztaHelper) && (
+          <div className="dashboard-section">
+            <div className="section-label">ROBLOX FOOTBALL</div>
+            <div className="dashboard-tabs">
+              <Btn id="football-players"   label="Players" />
+              <Btn id="football-teams"     label="Teams" />
+              <Btn id="football-rosters"   label="Rosters" />
+              <Btn id="football-games"     label="Games" />
+              <Btn id="football-boxscores" label="Box Scores" />
+              <Btn id="football-feed"      label="Feed" />
+              <Btn id="football-hof"       label="HoF" />
+              <Btn id="football-awards"    label="Awards" />
             </div>
           </div>
         )}

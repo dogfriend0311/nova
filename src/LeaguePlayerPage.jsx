@@ -3,6 +3,7 @@ import './LeaguePlayerPage.css';
 import PlayerTradingCard from './PlayerTradingCard';
 import db from './services/db';
 import { accoladeLabel, accoladeIcon } from './data/accolades';
+import { getSport } from './data/sportsConfig';
 import PlayerComments from './components/PlayerComments';
 
 // Converts any Spotify link to an embed URL and appends autoplay=1
@@ -148,10 +149,21 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
     );
   }
 
+  const cfg = getSport(leaguePrefix || 'vizta');
+  const isBaseball = cfg.key === 'vizta';
+
   const boxScores    = JSON.parse(localStorage.getItem(`${(leaguePrefix || 'vizta')}_box_scores`) || '[]');
   const playerScores = boxScores.filter(b => b.player_id === player.id);
   const gamesPlayed  = playerScores.length;
   const gamesPitched = playerScores.filter(b => safe(b.innings_pitched) > 0).length;
+
+  // Generic (config-driven) stat sections for non-baseball leagues
+  const genericSeasonA = cfg.seasonA.map(([f, l]) => ({ label: l, value: player[f] || '—' }));
+  const genericCareerA = cfg.careerA.map(([f, l]) => ({ label: l, value: player[f] || '—' }));
+  const genericSeasonB = cfg.seasonB.map(([f, l]) => ({ label: l, value: player[f] || '—' }));
+  const genericCareerB = cfg.careerB.map(([f, l]) => ({ label: l, value: player[f] || '—' }));
+  const genericCardA = genericSeasonA.slice(0, 4);
+  const genericCardB = genericSeasonB.slice(0, 4);
 
   // Season aggregates
   const sH   = playerScores.reduce((s, b) => s + safeInt(b.hits), 0)               + safeInt(player.season_hits);
@@ -277,18 +289,18 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
   // Featured stats for the trading card - both hitting and pitching are
   // always shown (players in this league can have both, not just one
   // or the other based on position).
-  const hittingCardStats = [
+  const hittingCardStats = isBaseball ? [
     { label: 'AVG', value: sAVG },
     { label: 'HR',  value: sHR },
     { label: 'RBI', value: sRBI },
     { label: 'OPS', value: sOPS },
-  ];
-  const pitchingCardStats = [
+  ] : genericCardA;
+  const pitchingCardStats = isBaseball ? [
     { label: 'ERA', value: player.adv_s_era || sAdv.era },
     { label: 'W',   value: player.season_w || 0 },
     { label: 'K',   value: sKP },
     { label: 'IP',  value: sIP.toFixed(1) },
-  ];
+  ] : genericCardB;
 
   // Build a shareable link for this player page — path-based (not #hash)
   // so link-preview bots (Discord, iMessage, Slack, etc.) can see this
@@ -426,36 +438,57 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
             </div>
           )}
 
-          <SavantCard player={player} />
+          {isBaseball && <SavantCard player={player} />}
 
-          <StatSection
-            title="Season Hitting Stats"
-            color="cyan"
-            stats={toggles.hitBasic ? hitBasicCareer : hitBasicSeason}
-            isCareer={toggles.hitBasic}
-            onToggle={() => toggle('hitBasic')}
-          />
-          <StatSection
-            title="Advanced Hitting Stats"
-            color="magenta"
-            stats={toggles.hitAdv ? hitAdvCareer : hitAdvSeason}
-            isCareer={toggles.hitAdv}
-            onToggle={() => toggle('hitAdv')}
-          />
-          <StatSection
-            title="Pitching Stats"
-            color="cyan"
-            stats={toggles.pitchBasic ? pitchBasicCareer : pitchBasicSeason}
-            isCareer={toggles.pitchBasic}
-            onToggle={() => toggle('pitchBasic')}
-          />
-          <StatSection
-            title="Advanced Pitching Stats"
-            color="magenta"
-            stats={toggles.pitchAdv ? pitchAdvCareer : pitchAdvSeason}
-            isCareer={toggles.pitchAdv}
-            onToggle={() => toggle('pitchAdv')}
-          />
+          {isBaseball ? (
+            <>
+              <StatSection
+                title="Season Hitting Stats"
+                color="cyan"
+                stats={toggles.hitBasic ? hitBasicCareer : hitBasicSeason}
+                isCareer={toggles.hitBasic}
+                onToggle={() => toggle('hitBasic')}
+              />
+              <StatSection
+                title="Advanced Hitting Stats"
+                color="magenta"
+                stats={toggles.hitAdv ? hitAdvCareer : hitAdvSeason}
+                isCareer={toggles.hitAdv}
+                onToggle={() => toggle('hitAdv')}
+              />
+              <StatSection
+                title="Pitching Stats"
+                color="cyan"
+                stats={toggles.pitchBasic ? pitchBasicCareer : pitchBasicSeason}
+                isCareer={toggles.pitchBasic}
+                onToggle={() => toggle('pitchBasic')}
+              />
+              <StatSection
+                title="Advanced Pitching Stats"
+                color="magenta"
+                stats={toggles.pitchAdv ? pitchAdvCareer : pitchAdvSeason}
+                isCareer={toggles.pitchAdv}
+                onToggle={() => toggle('pitchAdv')}
+              />
+            </>
+          ) : (
+            <>
+              <StatSection
+                title={`${cfg.catA.label} Stats`}
+                color="cyan"
+                stats={toggles.hitBasic ? genericCareerA : genericSeasonA}
+                isCareer={toggles.hitBasic}
+                onToggle={() => toggle('hitBasic')}
+              />
+              <StatSection
+                title={`${cfg.catB.label} Stats`}
+                color="magenta"
+                stats={toggles.pitchBasic ? genericCareerB : genericSeasonB}
+                isCareer={toggles.pitchBasic}
+                onToggle={() => toggle('pitchBasic')}
+              />
+            </>
+          )}
 
           {/* Game Log */}
           {playerScores.length > 0 && (
@@ -465,18 +498,16 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                   <thead>
                     <tr>
-                      {['H', 'R', 'RBI', 'HR', 'K', 'IP', 'KP', 'HA', 'ER'].map(h => (
-                        <th key={h} style={{ padding: '8px', color: 'rgba(158, 165, 196,0.6)', textAlign: 'center', borderBottom: '1px solid rgba(94, 129, 244,0.1)' }}>{h}</th>
+                      {cfg.boxFields.map(f => (
+                        <th key={f} style={{ padding: '8px', color: 'rgba(158, 165, 196,0.6)', textAlign: 'center', borderBottom: '1px solid rgba(94, 129, 244,0.1)' }}>{cfg.boxLabels[f]}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {playerScores.map((score, i) => (
                       <tr key={i}>
-                        {[score.hits, score.runs, score.rbis, score.home_runs, score.strike_outs,
-                          score.innings_pitched, score.strikeouts_pitched, score.hits_allowed, score.earned_runs
-                        ].map((v, j) => (
-                          <td key={j} style={{ padding: '8px', textAlign: 'center', color: 'var(--color-cyan)', borderBottom: '1px solid rgba(94, 129, 244,0.05)' }}>{v || 0}</td>
+                        {cfg.boxFields.map((f, j) => (
+                          <td key={j} style={{ padding: '8px', textAlign: 'center', color: 'var(--color-cyan)', borderBottom: '1px solid rgba(94, 129, 244,0.05)' }}>{score[f] || 0}</td>
                         ))}
                       </tr>
                     ))}

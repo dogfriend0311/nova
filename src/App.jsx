@@ -120,11 +120,12 @@ const AppContent = () => {
         setCurrentPage('player');
         setRouteSub(sub1);
         import('./services/db').then(({ default: db }) => {
-          db.getPlayers('vizta').then(players => {
-            const found = players.find(p => String(p.id) === String(sub2));
-            if (found) { setSelectedLeaguePlayer(found); setSelectedLeague('vizta'); }
-            else { setCurrentPage('leagues'); pushHash('leagues'); }
-          }).catch(() => { setCurrentPage('leagues'); pushHash('leagues'); });
+          Promise.all(['vizta', 'hockey', 'football'].map(lg => db.getPlayers(lg).then(players => ({ lg, found: players.find(p => String(p.id) === String(sub2)) })).catch(() => ({ lg, found: null }))))
+            .then(results => {
+              const hit = results.find(r => r.found);
+              if (hit) { setSelectedLeaguePlayer(hit.found); setSelectedLeague(hit.lg); }
+              else { setCurrentPage('leagues'); pushHash('leagues'); }
+            });
         });
       } else {
         // Redirect legacy routes
@@ -145,11 +146,12 @@ const AppContent = () => {
     const { page, sub1, sub2 } = parseHash();
     if (page === 'leagues' && sub1 === 'player' && sub2) {
       import('./services/db').then(({ default: db }) => {
-        db.getPlayers('vizta').then(players => {
-          const found = players.find(p => String(p.id) === String(sub2));
-          if (found) { setSelectedLeaguePlayer(found); setSelectedLeague('vizta'); }
-          else { setCurrentPage('leagues'); pushHash('leagues'); }
-        }).catch(() => { setCurrentPage('leagues'); pushHash('leagues'); });
+        Promise.all(['vizta', 'hockey', 'football'].map(lg => db.getPlayers(lg).then(players => ({ lg, found: players.find(p => String(p.id) === String(sub2)) })).catch(() => ({ lg, found: null }))))
+          .then(results => {
+            const hit = results.find(r => r.found);
+            if (hit) { setSelectedLeaguePlayer(hit.found); setSelectedLeague(hit.lg); }
+            else { setCurrentPage('leagues'); pushHash('leagues'); }
+          });
       });
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

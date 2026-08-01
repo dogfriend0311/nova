@@ -1,11 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ViztaLeague from '../../ViztaLeague';
+import { SPORTS, SPORT_ORDER } from '../../data/sportsConfig';
 import './LeaguesPage.css';
 
 const LeaguesPage = ({ onSelectPlayer }) => {
+  const [league, setLeague] = useState('vizta');
+
   return (
     <div className="leagues-page">
-      <ViztaLeague onSelectPlayer={(p) => onSelectPlayer(p, 'vizta')} />
+      <div className="leagues-switcher">
+        {SPORT_ORDER.map(key => (
+          <button
+            key={key}
+            className={`league-switch-btn ${league === key ? 'active' : ''}`}
+            onClick={() => setLeague(key)}
+          >
+            {SPORTS[key].icon} {SPORTS[key].shortLabel}
+          </button>
+        ))}
+      </div>
+      <ViztaLeague sport={league} onSelectPlayer={(p) => onSelectPlayer(p, league)} />
     </div>
   );
 };
