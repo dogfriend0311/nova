@@ -1,1 +1,2 @@
 - [Nova app Supabase schema convention](nova-supabase-convention.md) — new features needing shared/persistent data follow the existing nova_* table + localStorage-fallback + SQL migration file pattern.
+- [Vercel lockfile registry compatibility](vercel-lockfile-registry.md) — Replit-generated npm tarball URLs can fail outside Replit; verify lockfiles before Vercel deploys.
