@@ -29,9 +29,7 @@ const apiFetch = async (url) => {
 
 export const fetchScoreboard  = (sport, date) => {
   const qs = date ? `?dates=${date.replace(/-/g,'')}` : '';
-  // Always use direct ESPN URL for scoreboard (proxy doesn't support query params)
-  const directESPN = 'https://site.api.espn.com/apis/site/v2/sports';
-  return apiFetch(`${directESPN}/${SPORT_PATHS[sport]}/scoreboard${qs}`);
+  return apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/scoreboard${qs}`);
 };
 
 export const fetchStandings   = (sport) => {
@@ -91,7 +89,9 @@ export const fetchAllAthletes = async (sport) => {
 
 /* ── Minor League Baseball (MLB Stats API) ───────────────────── */
 
-const MILB_API = 'https://statsapi.mlb.com/api/v1';
+const MILB_API = process.env.NODE_ENV === 'production'
+  ? '/mlb-proxy'
+  : 'https://statsapi.mlb.com/api/v1';
 
 const MILB_SPORT_IDS = {
   milb_aaa:     11,

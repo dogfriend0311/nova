@@ -1,7 +1,7 @@
 /**
  * sportsApi.js — Free, key-free client for ESPN's public JSON endpoints.
- * Uses corsproxy.io on non-dev domains (Vercel/production) because ESPN
- * blocks cross-origin requests from non-ESPN domains.
+ * Uses Nova's Vercel serverless proxy in production because ESPN blocks
+ * cross-origin requests from non-ESPN domains.
  */
 
 const ESPN_SPORT_PATH = {
@@ -11,10 +11,11 @@ const ESPN_SPORT_PATH = {
   nhl: 'hockey/nhl',
 };
 
-const BASE = 'https://site.api.espn.com/apis/site/v2/sports';
+const DIRECT_BASE = 'https://site.api.espn.com/apis/site/v2/sports';
 
-// On localhost / *.replit.dev / *.repl.co ESPN allows the request directly.
-// On Vercel or any other domain it's CORS-blocked, so we proxy through corsproxy.io.
+// On local development use ESPN directly. On Vercel use Nova's server-side
+// proxy so browser CORS restrictions and ESPN rate-limit behavior do not break
+// fantasy and pick'em data.
 function buildUrl(url) {
   const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
   const isDev = host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' ||
@@ -22,7 +23,7 @@ function buildUrl(url) {
                 host.endsWith('.repl.co') ||
                 host.endsWith('.replit.app');
   if (isDev) return url;
-  return `https://corsproxy.io/?${encodeURIComponent(url)}`;
+  return url.replace(DIRECT_BASE, '/espn-proxy/apis/site/v2/sports');
 }
 
 async function getJson(url) {
@@ -38,7 +39,7 @@ const sportsApi = {
   async getTeams(sport) {
     const path = ESPN_SPORT_PATH[sport];
     if (!path) return [];
-    const data = await getJson(`${BASE}/${path}/teams?limit=64`);
+    const data = await getJson(`${DIRECT_BASE}/${path}/teams?limit=64`);
     const list = data?.sports?.[0]?.leagues?.[0]?.teams || [];
     return list.map(({ team }) => ({
       id: team.id,
@@ -52,7 +53,7 @@ const sportsApi = {
   async getTeamRoster(sport, teamId) {
     const path = ESPN_SPORT_PATH[sport];
     if (!path) return [];
-    const data = await getJson(`${BASE}/${path}/teams/${teamId}/roster`);
+    const data = await getJson(`${DIRECT_BASE}/${path}/teams/${teamId}/roster`);
     const groups = data?.athletes || [];
     const flat = [];
     groups.forEach(g => {
@@ -83,7 +84,7 @@ const sportsApi = {
     const path = ESPN_SPORT_PATH[sport];
     if (!path) return [];
     const q = dateYYYYMMDD ? `?dates=${dateYYYYMMDD}` : '';
-    const data = await getJson(`${BASE}/${path}/scoreboard${q}`);
+    const data = await getJson(`${DIRECT_BASE}/${path}/scoreboard${q}`);
     const events = data?.events || [];
     return events.map(ev => {
       const comp = ev.competitions?.[0];

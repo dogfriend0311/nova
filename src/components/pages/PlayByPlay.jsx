@@ -12,6 +12,8 @@ import './PlayByPlay.css';
 
 const MLB_API = 'https://statsapi.mlb.com/api/v1';
 const ESPN    = 'https://site.api.espn.com';
+const MLB_PROXY = '/mlb-proxy';
+const ESPN_PROXY = '/espn-proxy';
 
 const ESPN_PATHS = {
   nfl: 'football/nfl',
@@ -130,7 +132,8 @@ const BaseballPBP = ({ gamePk, game }) => {
     (async () => {
       for (const date of tryDates) {
         try {
-          const r = await fetch(`${MLB_API}/schedule?sportId=1&date=${date}&hydrate=team`);
+          const scheduleBase = process.env.NODE_ENV === 'production' ? MLB_PROXY : MLB_API;
+          const r = await fetch(`${scheduleBase}/schedule?sportId=1&date=${date}&hydrate=team`);
           const data = await r.json();
           const games = data.dates?.[0]?.games || [];
           if (games.length > 0) {
@@ -157,10 +160,8 @@ const BaseballPBP = ({ gamePk, game }) => {
     }
 
     try {
-      let r = await fetch(`${MLB_API}/game/${resolvedPk}/feed/live`);
-      if (r.status === 404) {
-        r = await fetch(`https://statsapi.mlb.com/api/v1.1/game/${resolvedPk}/feed/live`);
-      }
+      const mlbBase = process.env.NODE_ENV === 'production' ? MLB_PROXY : MLB_API;
+      const r = await fetch(`${mlbBase}/game/${resolvedPk}/feed/live`);
       if (!r.ok) throw new Error(`Live feed unavailable (${r.status}). Try during an active game.`);
       const d = await r.json();
       setFeed(d);
@@ -415,7 +416,8 @@ const FootballPBP = ({ eventId, sport, game }) => {
       if (cached) { setData(cached); setFromCache(true); return; }
     }
     try {
-      const r = await fetch(`${ESPN}/apis/site/v2/sports/${path}/summary?event=${eventId}`);
+      const apiBase = process.env.NODE_ENV === 'production' ? ESPN_PROXY : ESPN;
+      const r = await fetch(`${apiBase}/apis/site/v2/sports/${path}/summary?event=${eventId}`);
       if (!r.ok) throw new Error(`${r.status}`);
       const d = await r.json();
       setData(d);
@@ -540,7 +542,8 @@ const BasketballPBP = ({ eventId, sport, game }) => {
       if (cached) { setData(cached); setFromCache(true); return; }
     }
     try {
-      const r = await fetch(`${ESPN}/apis/site/v2/sports/${ESPN_PATHS[sport]}/summary?event=${eventId}`);
+      const apiBase = process.env.NODE_ENV === 'production' ? ESPN_PROXY : ESPN;
+      const r = await fetch(`${apiBase}/apis/site/v2/sports/${ESPN_PATHS[sport]}/summary?event=${eventId}`);
       if (!r.ok) throw new Error(`${r.status}`);
       const d = await r.json();
       setData(d);
@@ -624,7 +627,8 @@ const HockeyPBP = ({ eventId, game }) => {
       if (cached) { setData(cached); setFromCache(true); return; }
     }
     try {
-      const r = await fetch(`${ESPN}/apis/site/v2/sports/hockey/nhl/summary?event=${eventId}`);
+      const apiBase = process.env.NODE_ENV === 'production' ? ESPN_PROXY : ESPN;
+      const r = await fetch(`${apiBase}/apis/site/v2/sports/hockey/nhl/summary?event=${eventId}`);
       if (!r.ok) throw new Error(`${r.status}`);
       const d = await r.json();
       setData(d);

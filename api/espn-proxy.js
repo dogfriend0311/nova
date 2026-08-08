@@ -20,6 +20,12 @@ export default async function handler(req, res) {
   }
   const qs = params.toString();
 
+  // Only proxy ESPN paths. This prevents the function from becoming an
+  // unrestricted outbound request endpoint.
+  if (!pathStr || pathStr.includes('://') || pathStr.includes('..')) {
+    return res.status(400).json({ error: 'Invalid ESPN path' });
+  }
+
   const targetUrl = `https://site.api.espn.com/${pathStr}${qs ? `?${qs}` : ''}`;
 
   try {

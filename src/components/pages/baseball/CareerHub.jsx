@@ -497,8 +497,8 @@ function MatchupScreen({ home, away, userTeam, careerPlayer, control, setControl
 }
 
 // ── Live game ──────────────────────────────────────────────────
-// Non-interactive: run the whole game instantly, animate a pacing
-// bar for feel, then hand the result up.
+// Non-interactive: resolve the game once, then stream every generated event
+// at a readable pace before handing the result up.
 // Interactive: drive the engine's generator one event at a time —
 // auto-advance 'log' events, pause on '*-prompt' events for real
 // swing/pitch/steal input from the user.
@@ -506,6 +506,8 @@ function LiveGameScreen({ home, away, careerPlayer, onDone }) {
   const interactive = !!careerPlayer;
   const genRef = useRef(null);
   const resultRef = useRef(null);
+  const playbackTimerRef = useRef(null);
+  const speedRef = useRef(1);
   const [speed, setSpeed] = useState(1);
   const [feed, setFeed] = useState([]);
   const [prompt, setPrompt] = useState(null);
@@ -514,23 +516,46 @@ function LiveGameScreen({ home, away, careerPlayer, onDone }) {
 
   const appendFeed = (text, hl) => setFeed(f => [...f.slice(-30), { text, hl }]);
 
-  // ── Non-interactive path: instant compute + cosmetic pacing ──
+  const changeSpeed = (nextSpeed) => {
+    speedRef.current = nextSpeed;
+    setSpeed(nextSpeed);
+  };
+
+  // ── Non-interactive path: compute once, then show every play ──
+  // The old implementation used a 40-step progress counter and looked up a
+  // calculated log index. That skipped most of the generated plays, making
+  // batters appear randomly and making the game finish before it could be read.
   useEffect(() => {
     if (interactive || startedRef.current) return;
     startedRef.current = true;
     const result = simulateGame(home, away);
     resultRef.current = result;
     let i = 0;
-    const id = setInterval(() => {
-      i += speed;
-      if (i >= 40) { clearInterval(id); onDone(result); return; }
-      const entry = result.log[Math.floor((i / 40) * result.log.length)];
+
+    const showNext = () => {
+      if (i >= result.log.length) {
+        playbackTimerRef.current = null;
+        onDone(result);
+        return;
+      }
+
+      const entry = result.log[i++];
       if (entry) {
         setLiveScore(s => ({ ...s, inning: entry.inning || s.inning, top: entry.top ?? s.top, home: entry.score?.home ?? s.home, away: entry.score?.away ?? s.away }));
         appendFeed(entry.text, entry.type === 'final');
       }
-    }, 90);
-    return () => clearInterval(id);
+
+      // 1x is deliberately slow enough to read. 3x is still fast, but never
+      // skips an event because the next event is scheduled after this one.
+      const delay = speedRef.current === 1 ? 850 : 280;
+      playbackTimerRef.current = setTimeout(showNext, delay);
+    };
+
+    showNext();
+    return () => {
+      if (playbackTimerRef.current) clearTimeout(playbackTimerRef.current);
+      playbackTimerRef.current = null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interactive]);
 
@@ -550,7 +575,7 @@ function LiveGameScreen({ home, away, careerPlayer, onDone }) {
       }));
       appendFeed(e.text, e.type === 'final' || e.type === 'pitching-change');
       setPrompt(null);
-      setTimeout(() => step(undefined), 500 / speed);
+      playbackTimerRef.current = setTimeout(() => step(undefined), speedRef.current === 1 ? 700 : 240);
     } else {
       setPrompt(ev);
     }
@@ -560,6 +585,10 @@ function LiveGameScreen({ home, away, careerPlayer, onDone }) {
     if (!interactive || startedRef.current) return;
     startedRef.current = true;
     step(undefined);
+    return () => {
+      if (playbackTimerRef.current) clearTimeout(playbackTimerRef.current);
+      playbackTimerRef.current = null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interactive]);
 
@@ -607,9 +636,13 @@ function LiveGameScreen({ home, away, careerPlayer, onDone }) {
 
         {!interactive && (
           <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 12 }}>
-            <button className={`dl-btn dl-btn-sm ${speed === 1 ? 'dl-btn-primary' : ''}`} onClick={() => setSpeed(1)}>1x</button>
-            <button className={`dl-btn dl-btn-sm ${speed === 3 ? 'dl-btn-primary' : ''}`} onClick={() => setSpeed(3)}>3x</button>
-            <button className="dl-btn dl-btn-sm" onClick={() => resultRef.current && onDone(resultRef.current)}>Skip to Result ▶▶</button>
+            <button className={`dl-btn dl-btn-sm ${speed === 1 ? 'dl-btn-primary' : ''}`} onClick={() => changeSpeed(1)}>1x</button>
+            <button className={`dl-btn dl-btn-sm ${speed === 3 ? 'dl-btn-primary' : ''}`} onClick={() => changeSpeed(3)}>3x</button>
+            <button className="dl-btn dl-btn-sm" onClick={() => {
+              if (playbackTimerRef.current) clearTimeout(playbackTimerRef.current);
+              playbackTimerRef.current = null;
+              if (resultRef.current) onDone(resultRef.current);
+            }}>Skip to Result ▶▶</button>
           </div>
         )}
       </div>

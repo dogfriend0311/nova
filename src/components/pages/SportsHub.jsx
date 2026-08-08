@@ -50,7 +50,8 @@ const HighlightsPanel = ({ gamePk }) => {
     if (!gamePk) return;
     setLoading(true);
     setError(null);
-    fetch(`https://statsapi.mlb.com/api/v1/game/${gamePk}/content`)
+    const mlbBase = process.env.NODE_ENV === 'production' ? '/mlb-proxy' : 'https://statsapi.mlb.com/api/v1';
+    fetch(`${mlbBase}/game/${gamePk}/content`)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(data => {
         const items = data?.highlights?.highlights?.items || [];
