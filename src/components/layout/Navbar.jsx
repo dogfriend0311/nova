@@ -5,19 +5,22 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, on
   const [menuOpen, setMenuOpen] = useState(false);
 
   const tabs = [
-    { id: 'home',    label: 'Home',    icon: 'Home' },
-    { id: 'sports',  label: 'Sports',  icon: 'Trophy' },
-    { id: 'leagues', label: 'Leagues', icon: 'Baseball' },
-    { id: 'diamond', label: 'Diamond League', icon: 'Baseball' },
-    { id: 'games',   label: 'Games',   icon: 'Gamepad' },
-    { id: 'articles',label: 'Articles',icon: 'FileText' },
-    { id: 'members', label: 'Members', icon: 'Users' },
-    { id: 'music',   label: 'Music',   icon: 'Music' },
-    { id: 'store',   label: 'Store',   icon: 'Store' },
+    { id: 'home',        label: 'Home',        icon: 'Home' },
+    { id: 'leagues',     label: 'Leagues',     icon: 'Baseball' },
+    { id: 'articles',    label: 'Articles',    icon: 'FileText' },
+    { id: 'sports',      label: 'Sports',      icon: 'Trophy' },
+    { id: 'simulations', label: 'Simulations', icon: 'Baseball' },
+    { id: 'games',       label: 'Games',       icon: 'Gamepad' },
+    { id: 'music',       label: 'Music',       icon: 'Music' },
+    { id: 'store',       label: 'Store',       icon: 'Store' },
+    { id: 'members',     label: 'Members',     icon: 'Users' },
   ];
 
   const staffRoles = ['owner', 'cofounder', 'mod', 'vizta_helper'];
-  const isActive = (id) => currentPage === id || (id === 'leagues' && currentPage === 'player');
+  const isActive = (id) =>
+    currentPage === id ||
+    (id === 'leagues' && currentPage === 'player') ||
+    (id === 'simulations' && currentPage === 'diamond');
 
   return (
     <nav className="navbar">

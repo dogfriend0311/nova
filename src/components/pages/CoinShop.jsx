@@ -10,16 +10,40 @@ export const COSMETICS = [
   { id: 'glow_gold',    category: 'Name Glow',    emoji: '💛', name: 'Solar Gold',    desc: 'Gold glow on your username',     price: 100, css: { color: '#ffd700', textShadow: '0 0 8px #ffd700' } },
   { id: 'glow_pink',    category: 'Name Glow',    emoji: '🩷', name: 'Neon Pink',     desc: 'Pink glow on your username',     price: 75,  css: { color: '#ff6ec7', textShadow: '0 0 8px #ff6ec7' } },
   { id: 'glow_green',   category: 'Name Glow',    emoji: '💚', name: 'Matrix Green',  desc: 'Green glow on your username',    price: 50,  css: { color: '#43b581', textShadow: '0 0 8px #43b581' } },
+  // Name glow — anime & artist inspired
+  { id: 'glow_titan',     category: 'Name Glow', emoji: '🗿', name: 'Titan Shifter',  desc: 'Steam-red glow inspired by Attack on Titan', price: 125, css: { color: '#e2432b', textShadow: '0 0 10px #e2432b, 0 0 2px #f4c542' } },
+  { id: 'glow_sharingan', category: 'Name Glow', emoji: '🌀', name: 'Sharingan',      desc: 'Blazing red glow inspired by Naruto',         price: 125, css: { color: '#e30016', textShadow: '0 0 10px #e30016' } },
+  { id: 'glow_shinigami', category: 'Name Glow', emoji: '📓', name: 'Shinigami Eyes', desc: 'Eerie violet glow inspired by Death Note',    price: 125, css: { color: '#8a2be2', textShadow: '0 0 10px #8a2be2' } },
+  { id: 'glow_afterhours',category: 'Name Glow', emoji: '🩸', name: 'After Hours',    desc: 'Neon red glow inspired by The Weeknd',        price: 125, css: { color: '#ff0033', textShadow: '0 0 10px #ff0033' } },
+  { id: 'glow_dropout',   category: 'Name Glow', emoji: '🎓', name: 'Dropout Gold',   desc: 'Warm gold glow inspired by Kanye West',       price: 125, css: { color: '#f2b632', textShadow: '0 0 10px #f2b632' } },
+  { id: 'glow_compton',   category: 'Name Glow', emoji: '🅿️', name: 'Compton Crown',  desc: 'Green & gold glow inspired by Kendrick Lamar',price: 125, css: { color: '#2fae4e', textShadow: '0 0 10px #2fae4e, 0 0 2px #f2b632' } },
+  { id: 'glow_ovo',       category: 'Name Glow', emoji: '🦉', name: 'OVO Nights',     desc: 'Owl-gold glow inspired by Drake',             price: 125, css: { color: '#d4af37', textShadow: '0 0 10px #d4af37' } },
   // Profile borders
   { id: 'border_nebula',  category: 'Avatar Border', emoji: '🌌', name: 'Nebula',     desc: 'Purple/blue gradient ring',      price: 100, css: { border: '3px solid #6c3ce7' } },
   { id: 'border_galaxy',  category: 'Avatar Border', emoji: '🌠', name: 'Galaxy',     desc: 'Animated rainbow border',        price: 200, css: { border: '3px solid #ff9e57' } },
   { id: 'border_fire',    category: 'Avatar Border', emoji: '🔥', name: 'Fire',        desc: 'Orange-red fire ring',           price: 150, css: { border: '3px solid #ff6b2b' } },
   { id: 'border_ice',     category: 'Avatar Border', emoji: '❄️', name: 'Ice',         desc: 'Icy blue ring',                  price: 150, css: { border: '3px solid #aee6ff' } },
+  // Avatar borders — anime & artist inspired
+  { id: 'border_survey',   category: 'Avatar Border', emoji: '🕊️', name: 'Survey Corps',  desc: 'Forest-green ring inspired by Attack on Titan', price: 175, css: { border: '3px solid #2e5339' } },
+  { id: 'border_leaf',     category: 'Avatar Border', emoji: '🍃', name: 'Hidden Leaf',   desc: 'Burnt-orange ring inspired by Naruto',           price: 175, css: { border: '3px solid #e07a2f' } },
+  { id: 'border_notebook', category: 'Avatar Border', emoji: '⚫', name: 'Death Note',    desc: 'Black & red ring inspired by Death Note',        price: 175, css: { border: '3px solid #1a1a1a', boxShadow: '0 0 8px #e30016' } },
+  { id: 'border_xo',       category: 'Avatar Border', emoji: '⭕', name: 'XO',            desc: 'Crimson ring inspired by The Weeknd',            price: 175, css: { border: '3px solid #b3001b' } },
+  { id: 'border_graduate', category: 'Avatar Border', emoji: '🧸', name: 'Graduation',    desc: 'Beige & pink ring inspired by Kanye West',       price: 175, css: { border: '3px solid #e8c9a0' } },
+  { id: 'border_tde',      category: 'Avatar Border', emoji: '🐝', name: 'TDE Purple',    desc: 'Deep purple ring inspired by Kendrick Lamar',    price: 175, css: { border: '3px solid #5c2d91' } },
+  { id: 'border_ovoowl',   category: 'Avatar Border', emoji: '🦉', name: 'OVO Owl',       desc: 'Gold ring inspired by Drake',                    price: 175, css: { border: '3px solid #d4af37' } },
   // Chat badges
   { id: 'badge_star',     category: 'Chat Badge',    emoji: '⭐', name: 'Star',        desc: 'Star icon next to your name',    price: 75  },
   { id: 'badge_crown',    category: 'Chat Badge',    emoji: '👑', name: 'Crown',       desc: 'Crown icon next to your name',   price: 150 },
   { id: 'badge_rocket',   category: 'Chat Badge',    emoji: '🚀', name: 'Rocket',      desc: 'Rocket icon next to your name',  price: 50  },
   { id: 'badge_gem',      category: 'Chat Badge',    emoji: '💎', name: 'Gem',         desc: 'Gem icon next to your name',     price: 200 },
+  // Chat badges — anime & artist inspired
+  { id: 'badge_wings',    category: 'Chat Badge', emoji: '🕊️', name: 'Wings of Freedom', desc: 'Attack on Titan inspired badge', price: 100 },
+  { id: 'badge_headband', category: 'Chat Badge', emoji: '🍃', name: 'Leaf Headband',    desc: 'Naruto inspired badge',          price: 100 },
+  { id: 'badge_notebook', category: 'Chat Badge', emoji: '📓', name: 'Death Note',       desc: 'Death Note inspired badge',      price: 100 },
+  { id: 'badge_xo',       category: 'Chat Badge', emoji: '⭕', name: 'XO',               desc: 'The Weeknd inspired badge',      price: 100 },
+  { id: 'badge_bear',     category: 'Chat Badge', emoji: '🧸', name: 'Dropout Bear',     desc: 'Kanye West inspired badge',      price: 100 },
+  { id: 'badge_kkenny',   category: 'Chat Badge', emoji: '👑', name: 'Kung Fu Kenny',    desc: 'Kendrick Lamar inspired badge',  price: 100 },
+  { id: 'badge_owl',      category: 'Chat Badge', emoji: '🦉', name: 'OVO Owl',          desc: 'Drake inspired badge',           price: 100 },
 ];
 
 const CATEGORIES = [...new Set(COSMETICS.map(c => c.category))];

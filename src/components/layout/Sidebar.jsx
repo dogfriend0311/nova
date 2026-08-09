@@ -29,14 +29,14 @@ const Sidebar = ({ currentPage, onNavigate }) => {
   }, []);
 
   const quickLinks = [
-    { id: 'leagues',  label: 'Leagues',      icon: '' },
-    { id: 'diamond',  label: 'Diamond League', icon: '⚾' },
-    { id: 'games',    label: 'Games',        icon: '🎮' },
-    { id: 'articles', label: 'Articles',     icon: '📰' },
-    { id: 'sports',   label: 'Sports',       icon: '🏆' },
-    { id: 'members',  label: 'Member Pages', icon: '👥' },
-    { id: 'music',    label: 'Music',        icon: '🎵' },
-    { id: 'store',    label: 'Store',        icon: '🛍️' },
+    { id: 'leagues',     label: 'Leagues',      icon: '' },
+    { id: 'articles',    label: 'Articles',     icon: '📰' },
+    { id: 'sports',      label: 'Sports',       icon: '🏆' },
+    { id: 'simulations', label: 'Simulations',  icon: '⚾' },
+    { id: 'games',       label: 'Games',        icon: '🎮' },
+    { id: 'music',       label: 'Music',        icon: '🎵' },
+    { id: 'store',       label: 'Store',        icon: '🛍️' },
+    { id: 'members',     label: 'Member Pages', icon: '👥' },
   ];
 
   return (

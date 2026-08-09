@@ -279,7 +279,8 @@ const AppContent = () => {
       case 'roblox':
         return <RobloxTracker user={user} />;
 
-      case 'diamond':
+      case 'simulations':
+      case 'diamond': // backward compat
         return <DiamondLeague />;
 
       case 'player':
