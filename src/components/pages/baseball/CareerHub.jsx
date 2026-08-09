@@ -1,6 +1,9 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import * as Data from '../../../services/baseball/data';
-import { simulateGame, createInteractiveGame, applyBoxToRoster } from '../../../services/baseball/engine';
+import { simulateGame, applyBoxToRoster } from '../../../services/baseball/engine';
+import GameDayScreen from './GameDayScreen';
+import MultiplayerLobbyScreen from './MultiplayerLobbyScreen';
+import MultiplayerGameScreen from './MultiplayerGameScreen';
 
 const RATING_COLORS = {
   contact: '#7fd8a0', power: '#e5533d', eye: '#ffb703', speed: '#5e9dff',
@@ -44,6 +47,7 @@ export default function CareerHub({ session, onUpdate, onExitToMenu }) {
   const [draftState, setDraftState] = useState(null);
   const [manageTeamId, setManageTeamId] = useState(null);
   const [tradePlayer, setTradePlayer] = useState(null);
+  const [mpConfig, setMpConfig] = useState(null);
   const [simming, setSimming] = useState(false);
 
   const userTeam = useMemo(() => findUserTeam(data), [data]);
@@ -79,10 +83,27 @@ export default function CareerHub({ session, onUpdate, onExitToMenu }) {
 
   // Called once a result exists — whether it came from the instant AI-vs-AI
   // sim or from the user having played every prompt out live.
+  // Roll injuries for anyone who appeared, then let one day of recovery
+  // pass for the rest of each roster (a simple stand-in for the calendar).
+  const applyInjuryRolls = (team, box) => {
+    team.roster.forEach(p => {
+      const line = box[p.id];
+      const appeared = line && (p.isPitcher ? ((line.outs || 0) > 0 || (line.ip || 0) > 0) : ((line.ab || 0) > 0 || (line.bb || 0) > 0));
+      if (appeared) {
+        const workload = p.isPitcher ? Math.min(2, ((line.outs || 0) / 3 + (line.ip || 0)) / 3) : Math.min(2, (line.ab || 0) / 4);
+        Data.rollInjury(p, workload);
+      } else {
+        Data.healOneGame(p);
+      }
+    });
+  };
+
   const finalizeGameResult = (result) => {
     const home = teamById(nextGame.home), away = teamById(nextGame.away);
     applyBoxToRoster(home, result.boxHome);
     applyBoxToRoster(away, result.boxAway);
+    applyInjuryRolls(home, result.boxHome);
+    applyInjuryRolls(away, result.boxAway);
     home.wins += result.winner === 'home' ? 1 : 0;
     home.losses += result.winner === 'away' ? 1 : 0;
     away.wins += result.winner === 'away' ? 1 : 0;
@@ -104,6 +125,7 @@ export default function CareerHub({ session, onUpdate, onExitToMenu }) {
       const lg = careerPlayer.lastGame;
       if (lg.hr >= 2) news = [`${careerPlayer.firstName} ${careerPlayer.lastName} goes deep twice as ${userTeam.city} ${result.winner === (nextGame.home === userTeam.id ? 'home' : 'away') ? 'win' : 'fall'}!`, ...news].slice(0, 6);
       if (lg.h >= 3) social = [{ user: careerPlayer, text: `${lg.h}-hit night. Just doing my job.` }, ...social].slice(0, 8);
+      if (careerPlayer.injury) news = [`${careerPlayer.firstName} ${careerPlayer.lastName} leaves with a ${careerPlayer.injury.type.toLowerCase()} — expected out ${careerPlayer.injury.totalGames} games.`, ...news].slice(0, 6);
     }
     const nextData = { ...data, news, social };
     setLastResult({ result, home, away, userIsHome: nextGame.home === userTeam.id, xpGained, levelsGained });
@@ -171,17 +193,24 @@ export default function CareerHub({ session, onUpdate, onExitToMenu }) {
   };
 
   const finishOffseason = () => {
+    let userFreeAgents = [];
+    let userRetirees = [];
     data.league.teams.forEach(t => {
       const protectedId = isCareer && t.id === userTeam?.id ? data.careerPlayerId : null;
-      const { roster } = Data.advanceRosterForNewSeason(t.roster, { protectedId });
+      const { roster, organization, retirees, freeAgents } = Data.advanceRosterForNewSeason(t.roster, { protectedId, organization: t.organization || [] });
       t.roster = roster;
+      t.organization = organization;
       t.wins = 0; t.losses = 0; t.runsFor = 0; t.runsAgainst = 0; t.streak = 0;
+      if (t.id === userTeam?.id) { userFreeAgents = freeAgents; userRetirees = retirees; }
     });
     if (careerPlayer) careerPlayer.yearsPro = (careerPlayer.yearsPro || 0) + 1;
     data.league.year += 1;
     const totalGames = data.totalGames || 30;
     const newSchedule = Data.generateSchedule(data.league.teams, totalGames);
-    const nextData = { ...data, schedule: newSchedule, news: [`Year ${data.league.year} begins!`, ...data.news].slice(0, 6) };
+    let offseasonNews = [`Year ${data.league.year} begins!`, ...data.news];
+    if (userRetirees.length) offseasonNews = [`${userRetirees.map(p => `${p.firstName} ${p.lastName}`).join(', ')} retired.`, ...offseasonNews];
+    if (userFreeAgents.length) offseasonNews = [`${userFreeAgents.map(p => `${p.firstName} ${p.lastName}`).join(', ')} hit free agency and left ${userTeam?.city}.`, ...offseasonNews];
+    const nextData = { ...data, schedule: newSchedule, news: offseasonNews.slice(0, 6) };
     onUpdate({ meta: { ...meta, record: '0-0' }, data: nextData });
     setDraftState(null);
     setScreen('home');
@@ -222,6 +251,17 @@ export default function CareerHub({ session, onUpdate, onExitToMenu }) {
     return { accepted };
   };
 
+  const callUpPlayer = (team, playerId) => {
+    Data.callUp(team, playerId);
+    onUpdate({ meta: { ...meta, record }, data: { ...data } });
+  };
+  const sendDownPlayer = (team, playerId) => {
+    if (playerId === data.careerPlayerId) { alert("You can't option yourself to the minors."); return; }
+    if (!canRelease(team, team.roster.find(p => p.id === playerId))) { alert('Roster is already at the minimum needed to field a full team.'); return; }
+    Data.sendDown(team, playerId);
+    onUpdate({ meta: { ...meta, record }, data: { ...data } });
+  };
+
   const simAllRemaining = () => {
     setSimming(true);
     setTimeout(() => {
@@ -230,6 +270,8 @@ export default function CareerHub({ session, onUpdate, onExitToMenu }) {
         const result = simulateGame(home, away);
         applyBoxToRoster(home, result.boxHome);
         applyBoxToRoster(away, result.boxAway);
+        applyInjuryRolls(home, result.boxHome);
+        applyInjuryRolls(away, result.boxAway);
         home.wins += result.winner === 'home' ? 1 : 0; home.losses += result.winner === 'away' ? 1 : 0;
         away.wins += result.winner === 'away' ? 1 : 0; away.losses += result.winner === 'home' ? 1 : 0;
         home.runsFor += result.homeRuns; home.runsAgainst += result.awayRuns;
@@ -249,6 +291,34 @@ export default function CareerHub({ session, onUpdate, onExitToMenu }) {
         home={home} away={away} userTeam={userTeam} careerPlayer={careerPlayer}
         control={playerControl} setControl={setPlayerControl}
         onBack={() => setScreen('home')} onStart={playGame}
+        onPlayVsFriend={() => setScreen('mpLobby')}
+      />
+    );
+  }
+
+  if (screen === 'mpLobby' && nextGame) {
+    const home = teamById(nextGame.home), away = teamById(nextGame.away);
+    const mySide = nextGame.home === userTeam?.id ? 'home' : 'away';
+    return (
+      <MultiplayerLobbyScreen
+        home={home} away={away} mySide={mySide}
+        defaultControlledId={data.careerPlayerId || null}
+        onBack={() => setScreen('matchup')}
+        onStart={(cfg) => { setMpConfig(cfg); setScreen('mpGame'); }}
+      />
+    );
+  }
+
+  if (screen === 'mpGame' && nextGame && mpConfig) {
+    const home = teamById(nextGame.home), away = teamById(nextGame.away);
+    return (
+      <MultiplayerGameScreen
+        home={home} away={away}
+        roomCode={mpConfig.roomCode} isHost={mpConfig.isHost} mySide={mpConfig.mySide}
+        transport={mpConfig.transport} relayUrl={mpConfig.relayUrl}
+        controlledHomeId={mpConfig.controlledHomeId} controlledAwayId={mpConfig.controlledAwayId}
+        onDone={finalizeGameResult}
+        onExit={() => { setMpConfig(null); setScreen('home'); }}
       />
     );
   }
@@ -257,7 +327,7 @@ export default function CareerHub({ session, onUpdate, onExitToMenu }) {
     const home = teamById(nextGame.home), away = teamById(nextGame.away);
     const interactive = isCareer && playerControl === 'play' && !!careerPlayer;
     return (
-      <LiveGameScreen
+      <GameDayScreen
         home={home} away={away} careerPlayer={interactive ? careerPlayer : null}
         onDone={finalizeGameResult}
       />
@@ -309,7 +379,20 @@ export default function CareerHub({ session, onUpdate, onExitToMenu }) {
         canManage={isCommissioner || manageTeam?.id === userTeam?.id}
         onRelease={(p) => releasePlayer(manageTeam, p)}
         onTrade={(p) => { setTradePlayer(p); setScreen('trade'); }}
+        onSendDown={(p) => sendDownPlayer(manageTeam, p.id)}
+        onOrganization={() => setScreen('organization')}
         onBack={() => setScreen(isCommissioner ? 'leagueOffice' : 'home')}
+      />
+    );
+  }
+
+  if (screen === 'organization') {
+    return (
+      <OrganizationScreen
+        team={manageTeam}
+        canManage={isCommissioner || manageTeam?.id === userTeam?.id}
+        onCallUp={(p) => callUpPlayer(manageTeam, p.id)}
+        onBack={() => setScreen('roster')}
       />
     );
   }
@@ -449,7 +532,7 @@ function HomeScreen({ data, userTeam, record, nextGame, recentGames, teamById, i
   );
 }
 
-function MatchupScreen({ home, away, userTeam, careerPlayer, control, setControl, onBack, onStart }) {
+function MatchupScreen({ home, away, userTeam, careerPlayer, control, setControl, onBack, onStart, onPlayVsFriend }) {
   return (
     <div className="dl-screen">
       <div className="dl-panel">
@@ -489,6 +572,7 @@ function MatchupScreen({ home, away, userTeam, careerPlayer, control, setControl
 
         <div className="dl-footer-nav">
           <button className="dl-back" onClick={onBack}>←</button>
+          <button className="dl-btn dl-btn-ghost" onClick={onPlayVsFriend}>Play vs Friend (Local)</button>
           <button className="dl-btn dl-btn-primary" onClick={onStart}>START GAME</button>
         </div>
       </div>
@@ -496,275 +580,6 @@ function MatchupScreen({ home, away, userTeam, careerPlayer, control, setControl
   );
 }
 
-// ── Live game ──────────────────────────────────────────────────
-// Non-interactive: resolve the game once, then stream every generated event
-// at a readable pace before handing the result up.
-// Interactive: drive the engine's generator one event at a time —
-// auto-advance 'log' events, pause on '*-prompt' events for real
-// swing/pitch/steal input from the user.
-function LiveGameScreen({ home, away, careerPlayer, onDone }) {
-  const interactive = !!careerPlayer;
-  const genRef = useRef(null);
-  const resultRef = useRef(null);
-  const playbackTimerRef = useRef(null);
-  const speedRef = useRef(1);
-  const [speed, setSpeed] = useState(1);
-  const [feed, setFeed] = useState([]);
-  const [prompt, setPrompt] = useState(null);
-  const [liveScore, setLiveScore] = useState({ home: 0, away: 0, inning: 1, top: true, outs: 0 });
-  const startedRef = useRef(false);
-
-  const appendFeed = (text, hl) => setFeed(f => [...f.slice(-30), { text, hl }]);
-
-  const changeSpeed = (nextSpeed) => {
-    speedRef.current = nextSpeed;
-    setSpeed(nextSpeed);
-  };
-
-  // ── Non-interactive path: compute once, then show every play ──
-  // The old implementation used a 40-step progress counter and looked up a
-  // calculated log index. That skipped most of the generated plays, making
-  // batters appear randomly and making the game finish before it could be read.
-  useEffect(() => {
-    if (interactive || startedRef.current) return;
-    startedRef.current = true;
-    const result = simulateGame(home, away);
-    resultRef.current = result;
-    let i = 0;
-
-    const showNext = () => {
-      if (i >= result.log.length) {
-        playbackTimerRef.current = null;
-        onDone(result);
-        return;
-      }
-
-      const entry = result.log[i++];
-      if (entry) {
-        setLiveScore(s => ({ ...s, inning: entry.inning || s.inning, top: entry.top ?? s.top, home: entry.score?.home ?? s.home, away: entry.score?.away ?? s.away }));
-        appendFeed(entry.text, entry.type === 'final');
-      }
-
-      // 1x is deliberately slow enough to read. 3x is still fast, but never
-      // skips an event because the next event is scheduled after this one.
-      const delay = speedRef.current === 1 ? 850 : 280;
-      playbackTimerRef.current = setTimeout(showNext, delay);
-    };
-
-    showNext();
-    return () => {
-      if (playbackTimerRef.current) clearTimeout(playbackTimerRef.current);
-      playbackTimerRef.current = null;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [interactive]);
-
-  // ── Interactive path ─────────────────────────────────────────
-  const step = (input) => {
-    if (!genRef.current) genRef.current = createInteractiveGame(home, away, careerPlayer.id);
-    const res = genRef.current.next(input);
-    if (res.done) { onDone(res.value); return; }
-    const ev = res.value;
-    if (ev.kind === 'log') {
-      const e = ev.entry;
-      setLiveScore(s => ({
-        ...s,
-        inning: e.inning || s.inning, top: e.top ?? s.top,
-        outs: e.outs !== undefined ? (e.outs % 3) : s.outs,
-        home: e.score?.home ?? s.home, away: e.score?.away ?? s.away,
-      }));
-      appendFeed(e.text, e.type === 'final' || e.type === 'pitching-change');
-      setPrompt(null);
-      playbackTimerRef.current = setTimeout(() => step(undefined), speedRef.current === 1 ? 700 : 240);
-    } else {
-      setPrompt(ev);
-    }
-  };
-
-  useEffect(() => {
-    if (!interactive || startedRef.current) return;
-    startedRef.current = true;
-    step(undefined);
-    return () => {
-      if (playbackTimerRef.current) clearTimeout(playbackTimerRef.current);
-      playbackTimerRef.current = null;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [interactive]);
-
-  const respond = (input) => step(input);
-
-  return (
-    <div className="dl-screen">
-      <div className="dl-panel">
-        <div className="dl-panel-title">
-          {liveScore.top ? 'Top' : 'Bottom'} {ordinalSuffix(liveScore.inning)} · {liveScore.outs} out{liveScore.outs === 1 ? '' : 's'}
-          {interactive && <span style={{ marginLeft: 8, color: 'var(--dl-amber)' }}>● YOU'RE PLAYING</span>}
-        </div>
-        <div className="dl-scoreboard">
-          <div className="dl-team-score"><div>{away.abbr}</div><div className="runs">{liveScore.away}</div></div>
-          <div className="dl-team-score"><div>{home.abbr}</div><div className="runs">{liveScore.home}</div></div>
-        </div>
-
-        {prompt?.kind === 'bat-prompt' && (
-          <BatPrompt prompt={prompt} careerPlayer={careerPlayer} onRespond={respond} />
-        )}
-        {prompt?.kind === 'pitch-prompt' && (
-          <PitchPrompt prompt={prompt} careerPlayer={careerPlayer} onRespond={respond} />
-        )}
-        {prompt?.kind === 'steal-prompt' && (
-          <StealPrompt prompt={prompt} careerPlayer={careerPlayer} onRespond={respond} />
-        )}
-
-        {!prompt && (
-          <div className="dl-field">
-            <div className="dl-mound" />
-            <div className="dl-diamond">
-              <div className={`dl-base ${liveScore.top ? '' : ''}`} style={{ left: '0%', top: '0%' }} />
-              <div className="dl-base" style={{ left: '100%', top: '0%' }} />
-              <div className="dl-base" style={{ left: '100%', top: '100%' }} />
-              <div className="dl-base" style={{ left: '0%', top: '100%' }} />
-            </div>
-            <div className="dl-pitcher" style={{ left: '50%', top: '58%' }}>🧑‍🦱</div>
-            <div className="dl-batter" style={{ left: '46%', top: '86%' }}>🏏</div>
-          </div>
-        )}
-
-        <div className="dl-log" style={{ marginTop: 12 }}>
-          {feed.map((l, i) => <div key={i} className={`dl-log-line ${l.hl ? 'hl' : ''}`}>{l.text}</div>)}
-        </div>
-
-        {!interactive && (
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 12 }}>
-            <button className={`dl-btn dl-btn-sm ${speed === 1 ? 'dl-btn-primary' : ''}`} onClick={() => changeSpeed(1)}>1x</button>
-            <button className={`dl-btn dl-btn-sm ${speed === 3 ? 'dl-btn-primary' : ''}`} onClick={() => changeSpeed(3)}>3x</button>
-            <button className="dl-btn dl-btn-sm" onClick={() => {
-              if (playbackTimerRef.current) clearTimeout(playbackTimerRef.current);
-              playbackTimerRef.current = null;
-              if (resultRef.current) onDone(resultRef.current);
-            }}>Skip to Result ▶▶</button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ordinalSuffix(n) {
-  const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
-  return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`;
-}
-
-// A reusable tap-the-sweet-spot meter, driven by click/touch or the
-// spacebar — works identically on mobile and PC.
-function TimingMeter({ durationMs = 1050, sweetLo = 55, sweetHi = 72, goodLo = 38, goodHi = 85, actionLabel, onResult, colorVar = '--dl-amber' }) {
-  const [pct, setPct] = useState(0);
-  const doneRef = useRef(false);
-  const startRef = useRef(Date.now());
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      const elapsed = Date.now() - startRef.current;
-      const p = Math.min(100, (elapsed / durationMs) * 100);
-      setPct(p);
-      if (p >= 100 && !doneRef.current) { doneRef.current = true; clearInterval(id); onResult(null); }
-    }, 16);
-    const onKey = (e) => { if (e.code === 'Space' || e.key === 'Enter') { e.preventDefault(); tap(); } };
-    window.addEventListener('keydown', onKey);
-    return () => { clearInterval(id); window.removeEventListener('keydown', onKey); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const tap = () => {
-    if (doneRef.current) return;
-    doneRef.current = true;
-    onResult(pct);
-  };
-
-  return (
-    <div style={{ margin: '10px 0' }}>
-      <div style={{ position: 'relative', height: 22, background: 'var(--dl-bg-darker)', border: '2px solid var(--dl-line)', borderRadius: 6, overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', left: `${goodLo}%`, width: `${goodHi - goodLo}%`, top: 0, bottom: 0, background: 'rgba(127,216,160,0.18)' }} />
-        <div style={{ position: 'absolute', left: `${sweetLo}%`, width: `${sweetHi - sweetLo}%`, top: 0, bottom: 0, background: 'rgba(255,183,3,0.35)' }} />
-        <div style={{ position: 'absolute', left: `calc(${pct}% - 2px)`, width: 4, top: 0, bottom: 0, background: 'var(--dl-white)', boxShadow: '0 0 6px #fff' }} />
-      </div>
-      <button className="dl-btn dl-btn-primary dl-btn-block" style={{ marginTop: 10, background: `var(${colorVar})` }} onClick={tap}>
-        {actionLabel}
-      </button>
-    </div>
-  );
-}
-
-function BatPrompt({ prompt, careerPlayer, onRespond }) {
-  const { pitcher, bases, outs } = prompt;
-  const onSwingResult = (pct) => {
-    let timing = 'take';
-    if (pct !== null) {
-      if (pct >= 55 && pct <= 72) timing = 'perfect';
-      else if (pct >= 38 && pct <= 85) timing = 'good';
-      else if (pct < 38) timing = 'early';
-      else timing = 'late';
-    }
-    onRespond({ timing });
-  };
-  return (
-    <div className="dl-panel">
-      <div className="dl-panel-title">🏏 You're up — {careerPlayer.firstName} {careerPlayer.lastName} vs {pitcher.firstName[0]}. {pitcher.lastName}</div>
-      <p style={{ fontSize: '0.75rem', color: 'var(--dl-text-dim)' }}>
-        {outs} out{outs === 1 ? '' : 's'} · runners: {bases.map((b, i) => b ? ['1st', '2nd', '3rd'][i] : null).filter(Boolean).join(', ') || 'none'}
-      </p>
-      <TimingMeter actionLabel="⚡ SWING (tap / space)" onResult={onSwingResult} />
-      <button className="dl-btn dl-btn-ghost dl-btn-block" onClick={() => onRespond({ timing: 'take' })}>TAKE PITCH</button>
-    </div>
-  );
-}
-
-function PitchPrompt({ prompt, careerPlayer, onRespond }) {
-  const { batter } = prompt;
-  const onAimResult = (pct) => {
-    const accuracy = pct === null ? 0.15 : clampNum(1 - Math.abs(pct - 60) / 60, 0, 1);
-    onRespond({ accuracy });
-  };
-  return (
-    <div className="dl-panel">
-      <div className="dl-panel-title">⚾ You're pitching — {careerPlayer.firstName} {careerPlayer.lastName} vs {batter.firstName[0]}. {batter.lastName}</div>
-      <p style={{ fontSize: '0.75rem', color: 'var(--dl-text-dim)' }}>Time it to hit the zone for your best stuff.</p>
-      <TimingMeter actionLabel="⚡ PITCH (tap / space)" sweetLo={52} sweetHi={68} colorVar="--dl-clay" onResult={onAimResult} />
-    </div>
-  );
-}
-
-function clampNum(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
-
-function StealPrompt({ prompt, careerPlayer, onRespond }) {
-  const [pct, setPct] = useState(0);
-  const doneRef = useRef(false);
-  const startRef = useRef(Date.now());
-  useEffect(() => {
-    const id = setInterval(() => {
-      const elapsed = Date.now() - startRef.current;
-      const p = Math.min(100, (elapsed / 2200) * 100);
-      setPct(p);
-      if (p >= 100 && !doneRef.current) { doneRef.current = true; clearInterval(id); onRespond({ attempt: false }); }
-    }, 16);
-    const onKey = (e) => { if (e.key === 's' || e.key === 'S') { e.preventDefault(); go(); } };
-    window.addEventListener('keydown', onKey);
-    return () => { clearInterval(id); window.removeEventListener('keydown', onKey); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  const go = () => { if (doneRef.current) return; doneRef.current = true; onRespond({ attempt: true }); };
-  const stay = () => { if (doneRef.current) return; doneRef.current = true; onRespond({ attempt: false }); };
-  return (
-    <div className="dl-panel">
-      <div className="dl-panel-title">🏃 {careerPlayer.firstName} {careerPlayer.lastName} takes a lead off first...</div>
-      <div className="dl-bar-track"><div className="dl-bar-fill" style={{ width: `${100 - pct}%`, background: 'var(--dl-clay)' }} /></div>
-      <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-        <button className="dl-btn dl-btn-primary" style={{ flex: 1 }} onClick={go}>🏃 STEAL! (tap / S)</button>
-        <button className="dl-btn dl-btn-ghost" style={{ flex: 1 }} onClick={stay}>Stay put</button>
-      </div>
-    </div>
-  );
-}
 
 function BoxScoreScreen({ lastResult, careerPlayer, onContinue }) {
   const { result, home, away, xpGained, levelsGained } = lastResult;
@@ -1041,36 +856,99 @@ function MyPlayerScreen({ player, team, tab, setTab, onBack, onSpend }) {
   );
 }
 
-function RosterScreen({ team, careerPlayerId, canManage, onRelease, onTrade, onBack }) {
+function RosterScreen({ team, careerPlayerId, canManage, onRelease, onTrade, onSendDown, onOrganization, onBack }) {
   if (!team) return null;
+  const payroll = Data.teamPayroll(team);
   return (
     <div className="dl-screen">
       <div className="dl-panel">
         <div className="dl-panel-title">{team.city} {team.name} — Roster</div>
+        <div className="dl-row" style={{ marginBottom: 12 }}>
+          <span style={{ color: 'var(--dl-text-dim)' }}>Active payroll</span>
+          <span style={{ fontFamily: "'Teko', sans-serif", fontSize: '1.15rem', color: 'var(--dl-amber-bright)' }}>{Data.fmtSalary(payroll)}</span>
+        </div>
         <table className="dl-stat-table">
-          <thead><tr><th>#</th><th>Name</th><th>Pos</th><th>Age</th><th>AVG/ERA</th>{canManage && <th></th>}</tr></thead>
+          <thead><tr><th>#</th><th>Name</th><th>Pos</th><th>Age</th><th>AVG/ERA</th><th>Contract</th><th>Status</th>{canManage && <th></th>}</tr></thead>
           <tbody>
-            {team.roster.map(p => (
-              <tr key={p.id}>
-                <td>{p.number}</td>
-                <td>{p.firstName} {p.lastName}{p.id === careerPlayerId ? ' (you)' : ''}</td>
-                <td>{p.position}</td>
-                <td>{p.age}</td>
-                <td>{p.isPitcher ? Data.fmtEra(Data.era(p.season)) : Data.fmtAvg(Data.battingAvg(p.season))}</td>
-                {canManage && (
-                  <td>
-                    {p.id !== careerPlayerId && (
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        <button className="dl-btn dl-btn-sm" onClick={() => onTrade(p)}>Trade</button>
-                        <button className="dl-btn dl-btn-sm dl-btn-danger" onClick={() => onRelease(p)}>Cut</button>
-                      </div>
-                    )}
-                  </td>
-                )}
-              </tr>
-            ))}
+            {team.roster.map(p => {
+              const il = Data.ilStatus(p);
+              const arb = Data.isArbEligible(p), fa = Data.isFreeAgentEligible(p);
+              return (
+                <tr key={p.id}>
+                  <td>{p.number}</td>
+                  <td>{p.firstName} {p.lastName}{p.id === careerPlayerId ? ' (you)' : ''}</td>
+                  <td>{p.position}</td>
+                  <td>{p.age}</td>
+                  <td>{p.isPitcher ? Data.fmtEra(Data.era(p.season)) : Data.fmtAvg(Data.battingAvg(p.season))}</td>
+                  <td>{Data.fmtSalary(p.contract?.salary)} · {p.contract?.yearsLeft ?? 0}yr{fa ? ' · FA' : arb ? ' · Arb' : ''}</td>
+                  <td>{il ? <span style={{ color: 'var(--dl-clay-bright)' }}>{il}</span> : <span style={{ color: 'var(--dl-line-bright)' }}>Healthy</span>}</td>
+                  {canManage && (
+                    <td>
+                      {p.id !== careerPlayerId && (
+                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                          <button className="dl-btn dl-btn-sm" onClick={() => onTrade(p)}>Trade</button>
+                          <button className="dl-btn dl-btn-sm" onClick={() => onSendDown(p)}>Option</button>
+                          <button className="dl-btn dl-btn-sm dl-btn-danger" onClick={() => onRelease(p)}>Cut</button>
+                        </div>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
+        <div className="dl-footer-nav">
+          <button className="dl-back" onClick={onBack}>←</button>
+          <button className="dl-btn dl-btn-primary" onClick={onOrganization}>Minor League Organization →</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OrganizationScreen({ team, canManage, onCallUp, onBack }) {
+  if (!team) return null;
+  const levels = ['AAA', 'AA', 'A', 'Rookie'];
+  const org = team.organization || [];
+  return (
+    <div className="dl-screen">
+      <div className="dl-panel">
+        <div className="dl-panel-title">{team.city} {team.name} — Organization</div>
+        <p style={{ fontSize: '0.82rem', color: 'var(--dl-text-dim)', marginBottom: 12 }}>
+          Ratings on prospects are scouted, not exact — the further from the majors, the fuzzier the read.
+          Accuracy sharpens the longer they're in your system.
+        </p>
+        {levels.map(lvl => {
+          const players = org.filter(p => p.orgLevel === lvl);
+          if (!players.length) return null;
+          return (
+            <div key={lvl} style={{ marginBottom: 16 }}>
+              <div className="dl-panel-title" style={{ marginBottom: 8 }}>{lvl}</div>
+              <table className="dl-stat-table">
+                <thead><tr><th>Name</th><th>Pos</th><th>Age</th><th>Scouted OVR</th><th>Potential</th>{canManage && <th></th>}</tr></thead>
+                <tbody>
+                  {players.map(p => {
+                    const scoutedOvr = Data.scoutedOverall(p);
+                    return (
+                      <tr key={p.id}>
+                        <td>{p.firstName} {p.lastName}</td>
+                        <td>{p.position}</td>
+                        <td>{p.age}</td>
+                        <td>{Data.to80Scale(scoutedOvr)} <span style={{ color: 'var(--dl-text-faint)' }}>({Math.round(scoutedOvr)})</span></td>
+                        <td>{Data.to80Scale(p.potential)}</td>
+                        {canManage && (
+                          <td><button className="dl-btn dl-btn-sm dl-btn-primary" onClick={() => onCallUp(p)}>Call Up</button></td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          );
+        })}
+        {org.length === 0 && <div className="dl-empty">No minor-league players in the system.</div>}
         <div className="dl-footer-nav"><button className="dl-back" onClick={onBack}>←</button></div>
       </div>
     </div>
@@ -1177,6 +1055,7 @@ function LeagueOfficeScreen({ teams, userTeamId, simming, remainingGames, onMana
             <div key={t.id} className="dl-row dl-row-clickable" style={{ flexDirection: 'column', alignItems: 'flex-start' }} onClick={() => onManageTeam(t.id)}>
               <div style={{ fontWeight: 800 }}>{t.city}</div>
               <div style={{ color: 'var(--dl-text-dim)', fontSize: '0.78rem' }}>{t.name} · {t.wins}-{t.losses}{t.id === userTeamId ? ' · your team' : ''}</div>
+              <div style={{ color: 'var(--dl-amber-bright)', fontSize: '0.72rem' }}>{Data.fmtSalary(Data.teamPayroll(t))} payroll</div>
             </div>
           ))}
         </div>

@@ -1,0 +1,13 @@
+{
+  "name": "diamond-league-relay",
+  "version": "1.0.0",
+  "description": "WebSocket relay for Diamond League online multiplayer — pure message forwarding, no game logic, no database.",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

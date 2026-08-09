@@ -14,12 +14,18 @@ function rand() { return Math.random(); }
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function nameOf(p) { return `${p.firstName[0]}. ${p.lastName}`; }
 
-function battingOrder(roster) { return roster.filter(p => !p.isPitcher).slice(0, 9); }
-function startingPitcher(roster) {
-  return roster.find(p => p.isPitcher && p.position === 'SP') || roster.find(p => p.isPitcher) || roster[0];
+function battingOrder(roster) {
+  const healthy = roster.filter(p => !p.isPitcher && !p.injury);
+  const pool = healthy.length >= 9 ? healthy : roster.filter(p => !p.isPitcher);
+  return pool.slice(0, 9);
 }
-function bullpen(roster) { return roster.filter(p => p.isPitcher && p.position !== 'SP'); }
-function closerOf(roster) { return roster.find(p => p.isPitcher && p.position === 'CL'); }
+function startingPitcher(roster) {
+  const healthy = roster.filter(p => p.isPitcher && !p.injury);
+  return healthy.find(p => p.position === 'SP') || healthy[0]
+    || roster.find(p => p.isPitcher && p.position === 'SP') || roster.find(p => p.isPitcher) || roster[0];
+}
+function bullpen(roster) { return roster.filter(p => p.isPitcher && p.position !== 'SP' && !p.injury); }
+function closerOf(roster) { return roster.find(p => p.isPitcher && p.position === 'CL' && !p.injury); }
 function catcherOf(roster) { return roster.find(p => p.position === 'C') || roster.find(p => !p.isPitcher); }
 function outfieldArm(roster) {
   const of = roster.filter(p => ['LF', 'CF', 'RF'].includes(p.position));
@@ -45,15 +51,46 @@ const SWING_BONUS = {
   take: { contact: 0, power: 0 },
 };
 
+// Batter's-box approach called from the Strategy desk before the pitch —
+// trades contact/power/eye against each other rather than adding pure
+// upside, so there's a real decision instead of a strictly-best option.
+const APPROACH_ADJ = {
+  contact: { contact: 6, power: -4, eye: 0, babip: 0.01 },
+  power: { contact: -8, power: 12, eye: -4, babip: -0.01 },
+  patient: { contact: 0, power: -3, eye: 10, babip: 0 },
+  bunt: { contact: 10, power: -30, eye: 0, babip: 0.10, groundLean: 0.9 },
+};
+
+// Pitch-type flavor: each shape trades a little stuff for control or
+// vice versa, on top of whatever the location-timing meter earns.
+const PITCH_TYPE_ADJ = {
+  fastball: { stuff: 4, control: -2 },
+  slider: { stuff: 2, control: 2, whiffBonus: 0.02 },
+  changeup: { stuff: -2, control: 4, whiffBonus: 0.015 },
+  curveball: { stuff: 3, control: -1, whiffBonus: 0.02 },
+};
+
+// Defensive alignment called from the Field tab — shifts run-prevention
+// against extra-base risk instead of being a free upgrade.
+const ALIGNMENT_ADJ = {
+  standard: { babip: 0, xbhGuard: 0 },
+  infield_in: { babip: 0.03, groundOutBonus: -0.10 },
+  shift: { babip: -0.03, groundOutBonus: 0.08 },
+  no_doubles: { babip: 0.015, xbhGuard: 0.10 },
+  bunt_guard: { babip: 0.02, groundOutBonus: -0.05 },
+  deep: { babip: -0.015, xbhGuard: -0.06 },
+};
+
 function resolveAtBat(batter, pitcher, fatigue = 0, modifier = {}) {
   const b = batter.ratings, p = pitcher.ratings;
   const contact = clamp(b.contact + (modifier.contactBonus || 0), 5, 99);
   const power = clamp(b.power + (modifier.powerBonus || 0), 5, 99);
+  const eye = clamp(b.eye + (modifier.eyeBonus || 0), 5, 99);
   const stuffEff = clamp(p.stuff * (1 - fatigue * 0.35) + (modifier.stuffBonus || 0), 5, 99);
   const controlEff = clamp(p.control * (1 - fatigue * 0.25) + (modifier.controlBonus || 0), 5, 99);
 
-  let kChance = 0.20 + (stuffEff - contact) / 380 + (b.eye - 50) / -600;
-  let bbChance = 0.085 + (b.eye - controlEff) / 420;
+  let kChance = 0.20 + (stuffEff - contact) / 380 + (eye - 50) / -600 + (modifier.whiffBonus || 0);
+  let bbChance = 0.085 + (eye - controlEff) / 420;
   let hrChance = 0.028 + (power - stuffEff) / 480;
   kChance = clamp(kChance, 0.04, 0.46);
   bbChance = clamp(bbChance, 0.02, 0.20);
@@ -62,7 +99,7 @@ function resolveAtBat(batter, pitcher, fatigue = 0, modifier = {}) {
   const hbpChance = 0.008;
   const inPlayChance = clamp(1 - kChance - bbChance - hrChance - hbpChance, 0.2, 0.78);
 
-  const babip = clamp(0.30 + (contact - p.movement) / 700 - (contact < 40 ? 0.02 : 0), 0.16, 0.42);
+  const babip = clamp(0.30 + (contact - p.movement) / 700 - (contact < 40 ? 0.02 : 0) + (modifier.babipAdj || 0), 0.14, 0.46);
   const hitOnInPlay = inPlayChance * babip;
   const outOnInPlay = inPlayChance - hitOnInPlay;
   const single = hitOnInPlay * 0.68;
@@ -84,8 +121,8 @@ function resolveAtBat(batter, pitcher, fatigue = 0, modifier = {}) {
   return 'OUT';
 }
 
-function battedBallType(batter) {
-  const gbLean = clamp(0.55 - (batter.ratings.power - 50) / 400, 0.35, 0.68);
+function battedBallType(batter, groundLeanBonus = 0) {
+  const gbLean = clamp(0.55 - (batter.ratings.power - 50) / 400 + groundLeanBonus, 0.2, 0.92);
   const r = rand();
   if (r < gbLean) return 'ground';
   if (r < gbLean + 0.32) return 'fly';
@@ -145,7 +182,14 @@ function freshLine(isPitcher) {
 // ── Core generator: everything routes through this ───────────
 function* simulateGameCore(homeTeam, awayTeam, opts = {}) {
   const maxInnings = opts.innings || 9;
-  const controlledId = opts.controlledPlayerId || null;
+  // Legacy single-player mode: controlledPlayerId can belong to either
+  // roster and is resolved to whichever side it's actually on. For two
+  // human players (local hot-seat or networked), pass controlledHomeId
+  // and controlledAwayId explicitly instead — see session.js.
+  const legacyId = opts.controlledPlayerId || null;
+  const legacyIsHome = legacyId ? homeTeam.roster.some(p => p.id === legacyId) : false;
+  const controlledHomeId = opts.controlledHomeId || (legacyIsHome ? legacyId : null);
+  const controlledAwayId = opts.controlledAwayId || (legacyId && !legacyIsHome ? legacyId : null);
   const log = [];
   const boxHome = {}, boxAway = {};
   const homeOrder = battingOrder(homeTeam.roster);
@@ -157,14 +201,22 @@ function* simulateGameCore(homeTeam, awayTeam, opts = {}) {
 
   const ensure = (box, player) => { if (!box[player.id]) box[player.id] = freshLine(player.isPitcher); return box[player.id]; };
   const scoreRunner = (box, player) => { ensure(box, player).r += 1; };
-  const isControlled = (p) => !!p && !!controlledId && p.id === controlledId;
+  // Which side (if either) controls a given player — this is what a
+  // multiplayer session uses to route a prompt to the right client.
+  const controllingSide = (p) => {
+    if (!p) return null;
+    if (controlledHomeId && p.id === controlledHomeId) return 'home';
+    if (controlledAwayId && p.id === controlledAwayId) return 'away';
+    return null;
+  };
+  const isControlled = (p) => controllingSide(p) !== null;
 
   let homeIdx = 0, awayIdx = 0;
   let homeRuns = 0, awayRuns = 0;
 
   const usage = {
-    home: { pitcher: startingPitcher(homeTeam.roster), pitches: 0, battersFaced: 0, used: new Set([startingPitcher(homeTeam.roster).id]), closerUsed: false },
-    away: { pitcher: startingPitcher(awayTeam.roster), pitches: 0, battersFaced: 0, used: new Set([startingPitcher(awayTeam.roster).id]), closerUsed: false },
+    home: { pitcher: startingPitcher(homeTeam.roster), pitches: 0, battersFaced: 0, used: new Set([startingPitcher(homeTeam.roster).id]), closerUsed: false, alignment: 'standard' },
+    away: { pitcher: startingPitcher(awayTeam.roster), pitches: 0, battersFaced: 0, used: new Set([startingPitcher(awayTeam.roster).id]), closerUsed: false, alignment: 'standard' },
   };
 
   function staminaLimit(pitcher) { return 55 + (pitcher.ratings.stamina || 50) * 0.75; }
@@ -218,16 +270,22 @@ function* simulateGameCore(homeTeam, awayTeam, opts = {}) {
       if (bases[0] && !bases[1] && outs < 3) {
         const runner = bases[0];
         let attempt = false;
+        let aggressive = false;
         if (isControlled(runner)) {
-          const resp = yield { kind: 'steal-prompt', runner, catcher: catcherOf(defenseTeam.roster) };
+          const resp = yield { kind: 'steal-prompt', side: controllingSide(runner), runner, catcher: catcherOf(defenseTeam.roster), pitcher: activePitcher };
           attempt = !!(resp && resp.attempt);
+          aggressive = !!(resp && resp.aggressive);
         } else {
           const chance = runner.ratings.speed >= 60 ? clamp((runner.ratings.speed - 55) / 180, 0, 0.30) : 0;
           attempt = rand() < chance;
         }
         if (attempt) {
           const catcher = catcherOf(defenseTeam.roster);
-          const successChance = clamp(0.65 + (runner.ratings.speed - (catcher.ratings.arm || 50) - activePitcher.ratings.hold) / 300, 0.35, 0.92);
+          // Aggressive jumps buy a better break (higher success) but a worse
+          // one when it fails outright gets you picked off more cleanly —
+          // modeled here as a wider swing rather than a free win.
+          const aggBonus = aggressive ? 10 : 0;
+          const successChance = clamp(0.65 + aggBonus + (runner.ratings.speed - (catcher.ratings.arm || 50) - activePitcher.ratings.hold) / 300, 0.30, 0.94);
           let entry;
           if (rand() < successChance) {
             bases = [null, runner, bases[2]];
@@ -250,15 +308,41 @@ function* simulateGameCore(homeTeam, awayTeam, opts = {}) {
       const userPitching = isControlled(activePitcher);
 
       let modifier = {};
+      let groundLeanBonus = 0;
+      const alignment = ALIGNMENT_ADJ[u.alignment] || ALIGNMENT_ADJ.standard;
       if (userBatting) {
-        const resp = yield { kind: 'bat-prompt', batter, pitcher: activePitcher, bases: [...bases], outs };
+        const resp = yield {
+          kind: 'bat-prompt', side: controllingSide(batter), batter, pitcher: activePitcher, bases: [...bases], outs,
+          fatigue, pitchCount: u.pitches, staminaLimit: staminaLimit(activePitcher),
+        };
         const timing = (resp && resp.timing) || 'take';
+        const approach = APPROACH_ADJ[resp && resp.approach] || APPROACH_ADJ.contact;
         const b = SWING_BONUS[timing] || SWING_BONUS.take;
-        modifier = { contactBonus: b.contact, powerBonus: b.power };
+        modifier = {
+          contactBonus: b.contact + approach.contact,
+          powerBonus: b.power + approach.power,
+          eyeBonus: approach.eye,
+          babipAdj: (approach.babip || 0) + alignment.babip,
+        };
+        groundLeanBonus = (approach.groundLean ? 0.25 : 0) + (alignment.groundOutBonus || 0) * -1;
       } else if (userPitching) {
-        const resp = yield { kind: 'pitch-prompt', batter, pitcher: activePitcher, bases: [...bases], outs };
+        const resp = yield {
+          kind: 'pitch-prompt', side: controllingSide(activePitcher), batter, pitcher: activePitcher, bases: [...bases], outs,
+          fatigue, pitchCount: u.pitches, staminaLimit: staminaLimit(activePitcher),
+        };
         const acc = clamp(resp && typeof resp.accuracy === 'number' ? resp.accuracy : 0.5, 0, 1);
-        modifier = { controlBonus: (acc - 0.5) * 26, stuffBonus: (acc - 0.5) * 12 };
+        const type = PITCH_TYPE_ADJ[resp && resp.pitchType] || PITCH_TYPE_ADJ.fastball;
+        if (resp && resp.alignment) u.alignment = resp.alignment;
+        modifier = {
+          controlBonus: (acc - 0.5) * 26 + type.control,
+          stuffBonus: (acc - 0.5) * 12 + type.stuff,
+          whiffBonus: type.whiffBonus || 0,
+          babipAdj: alignment.babip,
+        };
+        groundLeanBonus = -(alignment.groundOutBonus || 0);
+      } else {
+        modifier = { babipAdj: alignment.babip };
+        groundLeanBonus = -(alignment.groundOutBonus || 0);
       }
 
       const outcome = resolveAtBat(batter, activePitcher, fatigue, modifier);
@@ -333,7 +417,7 @@ function* simulateGameCore(homeTeam, awayTeam, opts = {}) {
           } else text += '.';
         } else text += '.';
       } else {
-        const type = battedBallType(batter);
+        const type = battedBallType(batter, groundLeanBonus);
         bLine.ab++;
         if (type === 'ground' && bases[0] && outs < 2) {
           const defFielding = infieldFielding(defenseTeam.roster);
@@ -425,8 +509,15 @@ export function simulateGame(homeTeam, awayTeam, opts = {}) {
 
 // Interactive generator — drive it with gen.next(input) each time it
 // yields a '*-prompt' event; 'log' events can be auto-continued.
+// Pass either controlledPlayerId (legacy single-player) or the pair
+// controlledHomeId/controlledAwayId for two humans, one per side —
+// see session.js for the networked wrapper built on top of this.
 export function createInteractiveGame(homeTeam, awayTeam, controlledPlayerId, opts = {}) {
   return simulateGameCore(homeTeam, awayTeam, { ...opts, controlledPlayerId });
+}
+
+export function createMultiplayerGame(homeTeam, awayTeam, { controlledHomeId = null, controlledAwayId = null, ...opts } = {}) {
+  return simulateGameCore(homeTeam, awayTeam, { ...opts, controlledHomeId, controlledAwayId });
 }
 
 export function applyBoxToRoster(team, box) {
@@ -465,3 +556,6 @@ export function applyBoxToRoster(team, box) {
 }
 
 export { resolveAtBat };
+export const APPROACH_KEYS = Object.keys(APPROACH_ADJ);
+export const PITCH_TYPE_KEYS = Object.keys(PITCH_TYPE_ADJ);
+export const ALIGNMENT_KEYS = Object.keys(ALIGNMENT_ADJ);

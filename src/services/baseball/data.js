@@ -5,6 +5,11 @@
 // ships free, same idea as Hoop Land's default league.
 // ══════════════════════════════════════════════════════════════
 
+import {
+  attachOrgMeta, tickContractYear, bumpServiceTime, isArbEligible, isFreeAgentEligible,
+  arbitrationRaise, generateContract, advanceOrganizationForNewSeason, healOneGame,
+} from './roster';
+
 const CITIES = [
   'Bozeman', 'Durham', 'Missoula', 'Corvallis', 'Spokane', 'Ogden', 'Tulsa',
   'Amarillo', 'Biloxi', 'Savannah', 'Erie', 'Akron', 'Peoria', 'Modesto',
@@ -67,7 +72,7 @@ function ratingRoll(base = 50, spread = 20) {
   return Math.max(20, Math.min(99, Math.round(base + (r - 0.5) * spread * 2)));
 }
 
-export function generatePlayer({ isPitcher = false, level = 'pro', age = null, position = null } = {}) {
+export function generatePlayer({ isPitcher = false, level = 'pro', age = null, position = null, orgLevel = 'MLB' } = {}) {
   const finalPosition = position || (isPitcher ? pick(PITCHER_ROLES) : pick(POSITIONS));
   const baseAdj = level === 'college' ? -12 : level === 'rookie' ? -6 : 0;
   const player = {
@@ -114,6 +119,7 @@ export function generatePlayer({ isPitcher = false, level = 'pro', age = null, p
     lastGame: null,
     isPitcher,
   };
+  attachOrgMeta(player, { orgLevel });
   return player;
 }
 
@@ -137,6 +143,27 @@ export function generateRoster(level = 'pro') {
   return [...hitters, ...pitchers];
 }
 
+// A small minor-league pipeline underneath the 25-man roster — a
+// handful of prospects at each level, generated once per team and
+// developed/promoted through advanceOrganizationForNewSeason each
+// offseason (see roster.js).
+export function generateOrganization() {
+  const org = [];
+  const spec = [
+    { orgLevel: 'Rookie', count: 5, level: 'rookie', ageRange: [18, 21] },
+    { orgLevel: 'A', count: 5, level: 'college', ageRange: [19, 22] },
+    { orgLevel: 'AA', count: 4, level: 'college', ageRange: [20, 24] },
+    { orgLevel: 'AAA', count: 4, level: 'pro', ageRange: [22, 27] },
+  ];
+  spec.forEach(({ orgLevel, count, level, ageRange }) => {
+    for (let i = 0; i < count; i++) {
+      const isPitcher = Math.random() < 0.42;
+      org.push(generatePlayer({ isPitcher, level, orgLevel, age: randInt(ageRange[0], ageRange[1]) }));
+    }
+  });
+  return org;
+}
+
 export function generateTeam(usedNames, level = 'pro') {
   let city, mascot, key;
   do {
@@ -153,6 +180,7 @@ export function generateTeam(usedNames, level = 'pro') {
     abbr,
     colors: { primary: pick(['#123024', '#1c2a4a', '#4a1c1c', '#2a2a1c', '#1c2a2a']), secondary: pick(['#ffb703', '#e5533d', '#eaf3ec', '#7fd8a0']) },
     roster: generateRoster(level),
+    organization: generateOrganization(),
     wins: 0,
     losses: 0,
     runsFor: 0,
@@ -215,8 +243,9 @@ function retirementRoll(age) {
 // roster back up to a full lineup + pitching staff if it fell short.
 // `protectedId` (the user's own career player, if any) ages but keeps
 // its ratings untouched — that player only grows through spent XP.
-export function advanceRosterForNewSeason(roster, { protectedId = null } = {}) {
+export function advanceRosterForNewSeason(roster, { protectedId = null, organization = [] } = {}) {
   const retirees = [];
+  const freeAgents = [];
   let next = roster.filter(p => {
     p.age += 1;
     if (p.id === protectedId) return true;
@@ -224,6 +253,28 @@ export function advanceRosterForNewSeason(roster, { protectedId = null } = {}) {
     ageAndProgress(p);
     return true;
   });
+
+  // Contracts / service time / arbitration / free agency. Injuries are
+  // treated as within-season only — everyone's healthy again on Opening Day.
+  next = next.filter(p => {
+    p.injury = null;
+    bumpServiceTime(p);
+    tickContractYear(p);
+    if (p.id === protectedId) return true;
+    if (isFreeAgentEligible(p)) {
+      // A star is worth keeping around; chance of walking rises the
+      // cheaper their value looks relative to what they'd command.
+      const walkChance = clamp01(0.45 - (p.potential ?? 60) / 400);
+      if (Math.random() < walkChance) { freeAgents.push(p); return false; }
+      const overall = ratingsAvgLocal(p.ratings);
+      p.contract = generateContract(overall, p.age, { type: 'standard' });
+      p.serviceYears = 0;
+    } else if (isArbEligible(p) && p.contract?.yearsLeft <= 0) {
+      arbitrationRaise(p);
+    }
+    return true;
+  });
+
   next.forEach(p => { p.season = emptySeasonStats(p.isPitcher); p.lastGame = null; });
 
   const hitterCount = next.filter(p => !p.isPitcher).length;
@@ -231,7 +282,14 @@ export function advanceRosterForNewSeason(roster, { protectedId = null } = {}) {
   if (hitterCount < 9) next = [...next, ...Array.from({ length: 9 - hitterCount }, () => generatePlayer({ isPitcher: false, level: 'rookie', age: randInt(20, 24) }))];
   if (pitcherCount < 5) next = [...next, ...Array.from({ length: 5 - pitcherCount }, () => generatePlayer({ isPitcher: true, level: 'rookie', age: randInt(20, 24) }))];
 
-  return { roster: next, retirees };
+  const nextOrganization = advanceOrganizationForNewSeason(organization);
+
+  return { roster: next, organization: nextOrganization, retirees, freeAgents };
+}
+function clamp01(n) { return Math.max(0, Math.min(1, n)); }
+function ratingsAvgLocal(ratings) {
+  const vals = Object.values(ratings);
+  return vals.reduce((s, v) => s + v, 0) / vals.length;
 }
 
 // Very simple draft order: worst record picks first (no lottery).
@@ -277,6 +335,7 @@ export function hydratePlayer(raw = {}, fallbackOpts = {}) {
     season: { ...base.season, ...(raw.season || {}) },
     career: { ...base.career, ...(raw.career || {}) },
     careerHighs: { ...base.careerHighs, ...(raw.careerHighs || {}) },
+    contract: { ...base.contract, ...(raw.contract || {}) },
     id: raw.id || base.id,
     isPitcher: raw.isPitcher ?? base.isPitcher,
   };
@@ -299,6 +358,7 @@ export function hydrateTeam(raw = {}, usedNames) {
     ...raw,
     colors: { ...base.colors, ...(raw.colors || {}) },
     roster,
+    organization: Array.isArray(raw.organization) ? raw.organization.map(p => hydratePlayer(p, { isPitcher: !!p.isPitcher, orgLevel: p.orgLevel || 'AA' })) : base.organization,
     id: raw.id || base.id,
     wins: 0, losses: 0, runsFor: 0, runsAgainst: 0, streak: 0,
   };
@@ -354,5 +414,14 @@ export function battingAvg(s) { return s.ab > 0 ? (s.h / s.ab) : 0; }
 export function era(s) { return s.ip > 0 ? (s.er * 9 / s.ip) : 0; }
 export function fmtAvg(n) { return n.toFixed(3).replace(/^0/, ''); }
 export function fmtEra(n) { return n.toFixed(2); }
+
+// ── Re-exported roster-depth helpers (contracts / scouting / injuries /
+// minors) so the rest of the app only ever has to import from data.js ──
+export {
+  fmtSalary, teamPayroll, isArbEligible, isFreeAgentEligible, isExpiring,
+  scoutedRatings, scoutedOverall, to80Scale, initialScoutAccuracy,
+  rollInjury, healOneGame, isAvailable, ilStatus,
+  ORG_LEVELS, canCallUp, callUp, sendDown,
+} from './roster';
 
 export { CITIES, MASCOTS, FIRST_NAMES, LAST_NAMES, uid, randInt, pick };
