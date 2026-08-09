@@ -7,7 +7,7 @@
 
 import {
   attachOrgMeta, tickContractYear, bumpServiceTime, isArbEligible, isFreeAgentEligible,
-  arbitrationRaise, generateContract, advanceOrganizationForNewSeason, healOneGame,
+  arbitrationRaise, generateContract, advanceOrganizationForNewSeason,
 } from './roster';
 
 const CITIES = [

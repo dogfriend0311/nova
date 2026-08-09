@@ -26,10 +26,6 @@ const ALIGN_META = {
 const ZONE_WIDTH = [12, 20, 12, 20, 30, 20, 12, 20, 12];
 const ZONE_LABEL = ['High-glove', 'High', 'High-arm', 'Glove-side', 'Middle-middle', 'Arm-side', 'Low-glove', 'Low', 'Low-arm'];
 
-function ordinalSuffix(n) {
-  const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
-  return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`;
-}
 function nameOf(p) { return p ? `${p.firstName[0]}. ${p.lastName}` : ''; }
 function avg(season) { return season.ab > 0 ? (season.h / season.ab).toFixed(3).replace(/^0/, '') : '—'; }
 function era(season) { return season.ip > 0 ? ((season.er * 9) / season.ip).toFixed(2) : '—'; }

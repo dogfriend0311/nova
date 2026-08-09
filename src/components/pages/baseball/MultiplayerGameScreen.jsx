@@ -66,6 +66,7 @@ export default function MultiplayerGameScreen({ home, away, roomCode, isHost, my
     if (snapshot.prompt.kind === 'bat-prompt') setTab('atbat');
     else if (snapshot.prompt.kind === 'pitch-prompt') setTab('pitch');
     else if (snapshot.prompt.kind === 'steal-prompt') setTab('strategy');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [snapshot?.prompt?.kind, snapshot?.prompt?.side]);
 
   const submit = (payload) => {

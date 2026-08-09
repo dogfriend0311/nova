@@ -16,7 +16,7 @@ export default function MultiplayerLobbyScreen({ home, away, mySide, defaultCont
   const [mode, setMode] = useState(null);
   const [xport, setXport] = useState('local'); // 'local' | 'online'
   const [relayUrl, setRelayUrl] = useState(defaultRelayUrl());
-  const [roomCode, setRoomCode] = useState(randomRoomCode());
+  const [roomCode] = useState(randomRoomCode());
   const [joinCode, setJoinCode] = useState('');
   const [joinSide, setJoinSide] = useState(mySide === 'home' ? 'away' : 'home');
 
