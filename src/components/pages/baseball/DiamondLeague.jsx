@@ -1,6 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import './diamond.css';
-import { createRoom, getRoom, joinRoom, setPlayerReady, startRoom, finishRoom, subscribeToRoom } from '../../../services/multiplayerDb';
+import {
+  createRoom,
+  joinRoom,
+  setPlayerReady,
+  startRoom,
+  subscribeToRoom
+} from '../../../services/multiplayerDb';
 import { simulateGame } from '../../../services/simulationEngine';
 
 const TEAM_A = {

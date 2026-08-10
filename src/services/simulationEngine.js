@@ -1122,14 +1122,3 @@ export function calculatePitchingLine(
         : 0
   };
 }
-
-export default {
-  createGameState,
-  simulatePlateAppearance,
-  simulateNextPlay,
-  simulateGame,
-  calculateBattingLine,
-  calculatePitchingLine,
-  normalizeBatter,
-  normalizePitcher
-};
