@@ -602,6 +602,12 @@ export function validatePack(
   );
 }
 
+export function savePack(pack) {
+  return saveContentPack(
+    pack
+  );
+}
+
 export function saveContentPack(
   pack
 ) {
@@ -1111,6 +1117,7 @@ export default {
   parseContentPack,
   parseContentFile,
   saveContentPack,
+  savePack,
   getContentPacks,
   listPacks,
   flattenPlayers,
