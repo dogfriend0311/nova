@@ -594,6 +594,14 @@ export function parseContentFile(
   );
 }
 
+export function validatePack(
+  pack
+) {
+  return validateContentPack(
+    pack
+  );
+}
+
 export function saveContentPack(
   pack
 ) {
@@ -1097,6 +1105,7 @@ export default {
   createContentPack,
   createSamplePack,
   validateContentPack,
+  validatePack,
   normalizeContentPack,
   serializeContentPack,
   parseContentPack,
