@@ -40,7 +40,6 @@ export default function DiamondLeague() {
     let errorCount = 0;
 
     let bases = { first: false, second: false, third: false };
-    let runsThisInning = 0;
 
     let pitchPower = 0;
     let pitchCharging = false;
@@ -171,7 +170,6 @@ export default function DiamondLeague() {
       strikes = 0;
       balls = 0;
       bases = { first: false, second: false, third: false };
-      runsThisInning = 0;
       hitCount = 0;
       errorCount = 0;
       isPitching = true;
@@ -212,7 +210,6 @@ export default function DiamondLeague() {
       strikes = 0;
       balls = 0;
       bases = { first: false, second: false, third: false };
-      runsThisInning = 0;
       resetPitch();
       if (inning > 9) state = 'MENU';
     }
@@ -235,7 +232,6 @@ export default function DiamondLeague() {
       }
 
       score1 += runsScored;
-      runsThisInning += runsScored;
       hitCount++;
       resetPitch();
       if (outs >= 3) endInning();
@@ -258,7 +254,6 @@ export default function DiamondLeague() {
     function walkBatter() {
       if (bases.first && bases.second && bases.third) {
         score1 += 1;
-        runsThisInning += 1;
         bases.third = false;
         bases.second = true;
         bases.first = true;
@@ -309,9 +304,6 @@ export default function DiamondLeague() {
         if (keys['Enter']) {
           isSwinging = true;
           swingTimer = 20;
-          const pitchSpeed = Math.sqrt(ballSpeedX * ballSpeedX + ballSpeedY * ballSpeedY);
-          let hitPower = Math.min(100, 40 + pitchSpeed * 3 + Math.random() * 20);
-          if (ballY > 350 && ballY < 400) hitPower *= 1.3;
         }
       }
 
