@@ -849,6 +849,10 @@ export function downloadContentTemplate() {
   );
 }
 
+export function downloadTemplate() {
+  return downloadContentTemplate();
+}
+
 export function getTeamById(
   pack,
   teamId
@@ -1126,6 +1130,7 @@ export default {
   exportContentPack,
   importContentFile,
   downloadContentTemplate,
+  downloadTemplate,
   getTeamById,
   getStadiumById,
   getRoster,
