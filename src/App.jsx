@@ -281,7 +281,7 @@ const AppContent = () => {
 
       case 'simulations':
       case 'diamond': // backward compat
-        return <DiamondLeague />;
+        return <DiamondLeague user={user} />;
 
       case 'player':
         if (!selectedLeaguePlayer) {
