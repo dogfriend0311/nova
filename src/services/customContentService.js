@@ -541,6 +541,59 @@ export function parseContentPack(
   );
 }
 
+export function parseContentFile(
+  file
+) {
+  if (!file) {
+    throw new Error(
+      'No content file provided.'
+    );
+  }
+
+  if (
+    typeof file ===
+    'string'
+  ) {
+    return parseContentPack(
+      file
+    );
+  }
+
+  if (
+    typeof file.text ===
+    'function'
+  ) {
+    return file
+      .text()
+      .then((text) =>
+        parseContentPack(text)
+      );
+  }
+
+  if (typeof file === 'object') {
+    const validation =
+      validateContentPack(
+        file
+      );
+
+    if (!validation.valid) {
+      throw new Error(
+        validation.errors.join(
+          '\n'
+        )
+      );
+    }
+
+    return normalizeContentPack(
+      file
+    );
+  }
+
+  throw new Error(
+    'Unsupported content file.'
+  );
+}
+
 export function saveContentPack(
   pack
 ) {
@@ -1047,6 +1100,7 @@ export default {
   normalizeContentPack,
   serializeContentPack,
   parseContentPack,
+  parseContentFile,
   saveContentPack,
   getContentPacks,
   listPacks,
