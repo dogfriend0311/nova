@@ -610,6 +610,51 @@ export function listPacks() {
   return getContentPacks();
 }
 
+export function flattenPlayers(pack) {
+  const normalized =
+    normalizeContentPack(pack);
+
+  const teamPlayers =
+    normalized.teams.flatMap(
+      (team) =>
+        (team.roster || []).map(
+          (player) => ({
+            ...player,
+            teamId: team.id,
+            teamName: team.name,
+            teamAbbreviation:
+              team.abbreviation
+          })
+        )
+    );
+
+  const standalonePlayers =
+    normalized.players || [];
+
+  const seen = new Set();
+  const players = [];
+
+  for (const player of [
+    ...teamPlayers,
+    ...standalonePlayers
+  ]) {
+    const id =
+      player.id ||
+      `${player.teamId || 'free-agent'}-${player.name}`;
+
+    if (seen.has(id)) continue;
+
+    seen.add(id);
+
+    players.push({
+      ...player,
+      id
+    });
+  }
+
+  return players;
+}
+
 export function getContentPack(
   name
 ) {
@@ -1005,6 +1050,7 @@ export default {
   saveContentPack,
   getContentPacks,
   listPacks,
+  flattenPlayers,
   getContentPack,
   deleteContentPack,
   exportContentPack,
