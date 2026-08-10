@@ -754,6 +754,14 @@ export function deleteContentPack(
   return remaining;
 }
 
+export function deletePack(
+  packId
+) {
+  return deleteContentPack(
+    packId
+  );
+}
+
 export function exportContentPack(
   pack
 ) {
@@ -1127,6 +1135,7 @@ export default {
   flattenPlayers,
   getContentPack,
   deleteContentPack,
+  deletePack,
   exportContentPack,
   importContentFile,
   downloadContentTemplate,
