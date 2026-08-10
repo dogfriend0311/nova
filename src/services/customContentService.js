@@ -48,6 +48,9 @@ export const DEFAULT_CONTENT_PACK = {
   }
 };
 
+export const CONTENT_PACK_TEMPLATE =
+  DEFAULT_CONTENT_PACK;
+
 function clone(value) {
   return JSON.parse(
     JSON.stringify(value)
