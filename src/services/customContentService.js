@@ -1115,7 +1115,7 @@ export function createSamplePack() {
   });
 }
 
-export default {
+const customContentService = {
   CONTENT_FORMAT,
   CONTENT_VERSION,
   DEFAULT_CONTENT_PACK,
@@ -1146,3 +1146,5 @@ export default {
   getStartingPitcher,
   getStartingLineup
 };
+
+export default customContentService;

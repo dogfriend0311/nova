@@ -38,7 +38,6 @@ const DEMO_PACK = {
   ],
 };
 
-const pct = (v) => `${Math.round(v * 1000) / 10}%`;
 const fmt = (v) => Number(v || 0).toFixed(3).replace(/^0/, '');
 
 function TeamCard({ team, selected, onClick }) {
