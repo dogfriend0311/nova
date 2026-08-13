@@ -130,6 +130,24 @@ export default async function handler(req, res) {
   } = body || {};
 
   try {
+    // Temporary diagnostic — call with { table: '__diag__' } to see exactly which
+    // database/host this deployed function is connected to, and whether it can
+    // see the season_gp column on nova_players. Safe: read-only, no user input.
+    if (table === '__diag__') {
+      const pool = getPool();
+      const info = await pool.query(`
+        SELECT current_database() AS database,
+               current_schema()   AS schema,
+               inet_server_addr()::text AS host,
+               (SELECT count(*) FROM information_schema.columns
+                 WHERE table_name = 'nova_players' AND column_name = 'season_gp') AS has_season_gp,
+               (SELECT count(*) FROM information_schema.columns
+                 WHERE table_name = 'nova_players') AS nova_players_column_count
+      `);
+      res.status(200).json({ data: info.rows[0], error: null });
+      return;
+    }
+
     if (!ALLOWED_TABLES.has(table)) {
       throw new Error(`Table not allowed: ${JSON.stringify(table)}`);
     }
