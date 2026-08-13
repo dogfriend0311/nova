@@ -95,20 +95,25 @@ const SavantCard = ({ player }) => {
 
 // ── Stat Section ─────────────────────────────────────────────
 const StatSection = ({ title, color, stats, isCareer, onToggle }) => (
-  <div className="stats-section neon-card">
+  <div className="stats-section neon-card fx-statcard">
     <div className="stats-header">
       <h3 className={color === 'cyan' ? 'gradient-text-cyan' : 'gradient-text-magenta'}>{title}</h3>
-      <button className="career-toggle" onClick={onToggle}>
-        {isCareer ? 'Season' : 'Career'}
-      </button>
+      <div className="fx-toggle-track" onClick={onToggle} data-active={isCareer ? 'career' : 'season'}>
+        <span className="fx-toggle-pill" />
+        <span className="fx-toggle-opt">Season</span>
+        <span className="fx-toggle-opt">Career</span>
+      </div>
     </div>
     <div className="stats-grid">
-      {stats.map(({ label, value }) => (
-        <div key={label} className="stat-item">
-          <span className="stat-label">{label}</span>
-          <span className="stat-value">{value}</span>
-        </div>
-      ))}
+      {stats.map(({ label, value }, i) => {
+        const isEmpty = value === '—' || value === undefined || value === null || value === '';
+        return (
+          <div key={label} className={`stat-item fx-stat-item${isEmpty ? ' fx-empty' : ''}`} style={{ animationDelay: `${i * 25}ms` }}>
+            <span className="stat-label">{label}</span>
+            <span className="stat-value">{value}</span>
+          </div>
+        );
+      })}
     </div>
   </div>
 );

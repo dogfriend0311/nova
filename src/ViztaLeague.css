@@ -125,3 +125,160 @@
   }
 }
 
+/* ══════════════════════════════════════════════════════════════
+   FUTURISTIC UI LAYER — schedule / box score / team picker
+   Prefixed "fx-" so it never collides with existing utility classes.
+   ══════════════════════════════════════════════════════════════ */
+
+@keyframes fx-scan {
+  0%   { background-position: 0 0; }
+  100% { background-position: 0 -200px; }
+}
+@keyframes fx-pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 rgba(94, 129, 244, 0); }
+  50%      { box-shadow: 0 0 22px rgba(94, 129, 244, 0.28); }
+}
+@keyframes fx-sweep {
+  0%   { transform: translateX(-120%) skewX(-15deg); }
+  100% { transform: translateX(220%) skewX(-15deg); }
+}
+@keyframes fx-fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Team picker cards (Schedule tab + Rosters) */
+.fx-teampick {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+  border: 1px solid rgba(94, 129, 244, 0.12);
+}
+.fx-teampick::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(115deg, transparent 40%, rgba(94, 129, 244, 0.14) 50%, transparent 60%);
+  transform: translateX(-120%);
+  transition: transform 0.5s ease;
+  pointer-events: none;
+}
+.fx-teampick:hover {
+  transform: translateY(-3px);
+  border-color: rgba(94, 129, 244, 0.4);
+  box-shadow: 0 8px 24px rgba(94, 129, 244, 0.18);
+}
+.fx-teampick:hover::after { transform: translateX(120%); }
+
+/* Record pills next to a team header */
+.fx-record-pills { display: flex; gap: 8px; margin-left: auto; }
+.fx-pill {
+  padding: 4px 12px; border-radius: 999px; font-weight: 800; font-size: 0.78rem;
+  letter-spacing: 0.04em; animation: fx-fade-up 0.3s ease;
+  border: 1px solid transparent;
+}
+.fx-pill-w { color: #22c55e; background: rgba(34, 197, 94, 0.1); border-color: rgba(34, 197, 94, 0.35); }
+.fx-pill-l { color: #ef4444; background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.35); }
+.fx-pill-t { color: #eab308; background: rgba(234, 179, 8, 0.1); border-color: rgba(234, 179, 8, 0.35); }
+
+/* Schedule rows */
+.fx-schedule-row {
+  display: grid;
+  grid-template-columns: 56px 1fr auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: rgba(94, 129, 244, 0.03);
+  animation: fx-fade-up 0.25s ease;
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+.fx-schedule-row.fx-clickable { cursor: pointer; }
+.fx-schedule-row.fx-clickable:hover {
+  background: rgba(94, 129, 244, 0.09);
+  transform: translateX(2px);
+}
+.fx-schedule-result {
+  font-weight: 900; font-size: 0.95rem; text-align: center;
+  letter-spacing: 0.03em;
+}
+.fx-schedule-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fx-schedule-opp { color: #e2e5f0; font-weight: 700; font-size: 0.92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fx-schedule-meta { color: rgba(158, 165, 196, 0.45); font-size: 0.74rem; }
+.fx-schedule-score { color: rgba(158, 165, 196, 0.8); font-weight: 700; font-size: 0.88rem; white-space: nowrap; }
+.fx-schedule-cta {
+  color: var(--color-cyan); font-size: 0.72rem; font-weight: 700;
+  white-space: nowrap; opacity: 0.75;
+}
+@media (max-width: 600px) {
+  .fx-schedule-row { grid-template-columns: 40px 1fr auto; }
+  .fx-schedule-cta { display: none; }
+}
+
+/* Box score VS card */
+.fx-vscard {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(94, 129, 244, 0.18);
+  animation: fx-pulse-glow 4s ease-in-out infinite;
+}
+.fx-vscard::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    180deg, rgba(94, 129, 244, 0.05) 0px, rgba(94, 129, 244, 0.05) 1px,
+    transparent 1px, transparent 3px
+  );
+  opacity: 0.4; pointer-events: none;
+}
+.fx-win-chip {
+  display: inline-block; margin-top: 6px; padding: 2px 10px;
+  font-size: 0.62rem; font-weight: 800; letter-spacing: 0.12em;
+  color: #0a0d1a; background: linear-gradient(135deg, #5ee6a8, #5e81f4);
+  border-radius: 999px; box-shadow: 0 0 10px rgba(94, 230, 168, 0.5);
+}
+
+/* Per-team score tables inside a box score */
+.fx-scoretable { position: relative; }
+.fx-scoretable table thead tr th { position: relative; }
+.fx-scoretable table tbody tr { transition: background 0.15s ease; }
+.fx-scoretable table tbody tr:hover { background: rgba(94, 129, 244, 0.06); }
+
+/* Team stat tiles (Rosters → Team Stats panel) */
+.fx-stat-tilegrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 10px;
+}
+.fx-stat-tile {
+  position: relative;
+  padding: 10px 12px 12px;
+  border-radius: 10px;
+  background: rgba(94, 129, 244, 0.035);
+  border: 1px solid rgba(94, 129, 244, 0.1);
+  display: flex; flex-direction: column; gap: 4px;
+  animation: fx-fade-up 0.35s ease both;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  overflow: hidden;
+}
+.fx-stat-tile:hover {
+  border-color: var(--tile-color, rgba(94, 129, 244, 0.4));
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(94, 129, 244, 0.12);
+}
+.fx-stat-tile-label {
+  font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em;
+  color: rgba(158, 165, 196, 0.5); font-weight: 700;
+}
+.fx-stat-tile-value {
+  font-size: 1.05rem; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+.fx-stat-tile-bar {
+  height: 3px; border-radius: 99px; background: rgba(158, 165, 196, 0.08);
+  overflow: hidden; margin-top: 2px;
+}
+.fx-stat-tile-fill {
+  height: 100%; border-radius: 99px;
+  background: linear-gradient(90deg, var(--tile-color, #5e81f4), transparent);
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+

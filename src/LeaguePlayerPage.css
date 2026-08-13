@@ -113,3 +113,119 @@
   .player-container { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: 1fr; }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   FUTURISTIC PLAYER PAGE LAYER
+   ══════════════════════════════════════════════════════════════ */
+
+@keyframes fxp-fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fxp-border-glow {
+  0%, 100% { box-shadow: 0 0 0 rgba(94, 129, 244, 0), inset 0 0 0 rgba(94, 129, 244, 0); }
+  50%      { box-shadow: 0 0 30px rgba(94, 129, 244, 0.16); }
+}
+@keyframes fxp-scan {
+  0%   { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+/* Player card gets a subtle animated holo border + corner scanline */
+.player-card {
+  position: relative;
+  overflow: hidden;
+  animation: fxp-border-glow 6s ease-in-out infinite;
+}
+.player-card::before {
+  content: '';
+  position: absolute; left: 0; right: 0; top: 0; height: 40%;
+  background: linear-gradient(180deg, rgba(94, 129, 244, 0.12), transparent);
+  pointer-events: none; z-index: 0;
+}
+.card-avatar { position: relative; overflow: hidden; }
+.card-avatar::after {
+  content: '';
+  position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(94, 230, 249, 0.85), transparent);
+  animation: fxp-scan 3.2s linear infinite;
+  box-shadow: 0 0 12px rgba(94, 230, 249, 0.6);
+  pointer-events: none;
+}
+.card-name {
+  background: linear-gradient(90deg, #8fb3ff, #cbe0ff 40%, #8fb3ff);
+  background-size: 200% auto;
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  animation: fx-title-shimmer 5s linear infinite;
+}
+@keyframes fx-title-shimmer { to { background-position: -200% center; } }
+
+/* Stat section cards */
+.fx-statcard { position: relative; }
+.fx-statcard .stats-header h3 { position: relative; padding-bottom: 6px; }
+.fx-statcard .stats-header h3::after {
+  content: '';
+  position: absolute; left: 0; bottom: 0; height: 2px; width: 36px;
+  background: linear-gradient(90deg, currentColor, transparent);
+  opacity: 0.6;
+}
+
+/* Season / Career sliding toggle */
+.fx-toggle-track {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 148px; height: 30px;
+  background: rgba(148, 163, 220, 0.08);
+  border: 1px solid rgba(148, 163, 220, 0.18);
+  border-radius: 999px;
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+}
+.fx-toggle-pill {
+  position: absolute; top: 2px; left: 2px;
+  width: calc(50% - 2px); height: calc(100% - 4px);
+  border-radius: 999px;
+  background: linear-gradient(135deg, #5e81f4, #7c9bff);
+  box-shadow: 0 0 10px rgba(94, 129, 244, 0.5);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.fx-toggle-track[data-active="career"] .fx-toggle-pill { transform: translateX(100%); }
+.fx-toggle-opt {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.68rem; font-weight: 800; letter-spacing: 0.03em;
+  color: rgba(203, 213, 255, 0.55); text-transform: uppercase;
+  transition: color 0.25s ease;
+}
+.fx-toggle-track[data-active="season"] .fx-toggle-opt:first-child,
+.fx-toggle-track[data-active="career"] .fx-toggle-opt:last-child {
+  color: #0a0d1a;
+}
+
+/* Individual stat tiles: entrance animation + hover lift + accent underline */
+.fx-stat-item {
+  position: relative;
+  animation: fxp-fade-up 0.35s ease both;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+  overflow: hidden;
+}
+.fx-stat-item::after {
+  content: '';
+  position: absolute; left: 10px; right: 10px; bottom: 0; height: 2px;
+  background: linear-gradient(90deg, var(--color-cyan, #5e81f4), transparent);
+  transform: scaleX(0); transform-origin: left;
+  transition: transform 0.25s ease;
+}
+.fx-stat-item:hover {
+  transform: translateY(-2px);
+  background: rgba(94, 129, 244, 0.06);
+  border-color: rgba(94, 129, 244, 0.3);
+}
+.fx-stat-item:hover::after { transform: scaleX(1); }
+.fx-stat-item.fx-empty { opacity: 0.45; }
+.fx-stat-item.fx-empty:hover { transform: none; background: transparent; }
+.fx-stat-item.fx-empty::after { display: none; }
+
+@media (max-width: 480px) {
+  .fx-toggle-track { width: 120px; height: 26px; }
+  .fx-toggle-opt { font-size: 0.6rem; }
+}

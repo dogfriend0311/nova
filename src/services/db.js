@@ -235,49 +235,6 @@ export const db = {
     }
   },
 
-  /* GAME FEED */
-  async getFeed(league, gameId) {
-    if (hasSupabase()) {
-      let q = supabase.from('nova_game_feed').select('*').eq('league', league);
-      if (gameId) q = q.eq('game_id', gameId);
-      const { data, error } = await q.order('created_at');
-      if (!error) return data;
-    }
-    const all = ls.get(`${league}_feed`);
-    return gameId ? all.filter(f => f.game_id === gameId) : all;
-  },
-
-  async addFeedEvent(league, event) {
-    const record = { ...event, league, created_at: new Date().toISOString() };
-    if (hasSupabase()) {
-      delete record.id;
-      const { data, error } = await supabase.from('nova_game_feed').insert([record]).select();
-      if (!error) { _syncLs(league, 'feed', data[0], 'add'); return data[0]; }
-    }
-    const list = ls.get(`${league}_feed`);
-    const newItem = { ...record, id: Date.now().toString() };
-    ls.set(`${league}_feed`, [...list, newItem]);
-    return newItem;
-  },
-
-  async deleteFeedEvent(league, id) {
-    if (hasSupabase()) {
-      await supabase.from('nova_game_feed').delete().eq('id', id);
-    }
-    ls.set(`${league}_feed`, ls.get(`${league}_feed`).filter(f => f.id !== id));
-  },
-
-  async updateFeedEvent(league, id, updates) {
-    if (hasSupabase()) {
-      const { data, error } = await supabase.from('nova_game_feed').update(updates).eq('id', id).select();
-      if (!error) { _syncLs(league, 'feed', data[0], 'update'); return data[0]; }
-    }
-    const list = ls.get(`${league}_feed`);
-    const updated = list.map(f => f.id === id ? { ...f, ...updates } : f);
-    ls.set(`${league}_feed`, updated);
-    return updated.find(f => f.id === id);
-  },
-
   /* HALL OF FAME */
   async getHof(league) {
     if (hasSupabase()) {

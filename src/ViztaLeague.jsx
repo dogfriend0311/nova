@@ -22,7 +22,7 @@ const ViztaLeague = ({ onSelectPlayer, sport = 'vizta' }) => {
       case 'rosters':    return <RostersTab sport={sport} cfg={cfg} onSelectPlayer={onSelectPlayer} />;
       case 'players':    return <PlayersTab sport={sport} cfg={cfg} onSelectPlayer={onSelectPlayer} />;
       case 'leaders':    return <LeagueLeadersTab sport={sport} cfg={cfg} onSelectPlayer={onSelectPlayer} />;
-      case 'feed':       return <GameFeedTab sport={sport} cfg={cfg} />;
+      case 'schedule':    return <ScheduleTab sport={sport} cfg={cfg} />;
       case 'scores':     return <BoxScoresTab sport={sport} cfg={cfg} />;
       case 'compare':    return <CompareTab sport={sport} cfg={cfg} />;
       case 'propbets':   return <PropBetsTab sport={sport} cfg={cfg} />;
@@ -44,7 +44,7 @@ const ViztaLeague = ({ onSelectPlayer, sport = 'vizta' }) => {
           { id: 'rosters',    label: 'Rosters' },
           { id: 'players',    label: 'Players' },
           { id: 'leaders',    label: 'League Leaders' },
-          { id: 'feed',       label: 'Game Feed' },
+          { id: 'schedule',   label: '📅 Schedule' },
           { id: 'scores',     label: 'Box Scores' },
           { id: 'compare',    label: 'Compare' },
           { id: 'propbets',   label: '🎯 Prop Bets' },
@@ -230,12 +230,19 @@ const RostersTab = ({ sport, cfg, onSelectPlayer }) => {
           {rightPanel === 'stats' && (
             <>
               <h4 style={{ color:teamColor, marginBottom:'14px', marginTop:0 }}>Team Stats (Season)</h4>
-              {teamStats.map(({label,value}) => (
-                <div key={label} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 0', borderBottom:'1px solid rgba(94,129,244,0.06)' }}>
-                  <span style={{ fontSize:'0.78rem', color:'rgba(158,165,196,0.55)' }}>{label}</span>
-                  <span style={{ fontWeight:700, color:value==='--'?'rgba(158,165,196,0.25)':teamColor, fontSize:'0.88rem' }}>{value}</span>
-                </div>
-              ))}
+              <div className="fx-stat-tilegrid">
+                {teamStats.map(({label,value}, i) => {
+                  const numeric = parseFloat(value);
+                  const hasVal = value !== '--' && !isNaN(numeric);
+                  return (
+                    <div key={label} className="fx-stat-tile" style={{ animationDelay:`${i*30}ms`, '--tile-color': teamColor }}>
+                      <span className="fx-stat-tile-label">{label}</span>
+                      <span className="fx-stat-tile-value" style={{ color: hasVal ? teamColor : 'rgba(158,165,196,0.25)' }}>{value}</span>
+                      <div className="fx-stat-tile-bar"><div className="fx-stat-tile-fill" style={{ width: hasVal ? '100%' : '0%' }} /></div>
+                    </div>
+                  );
+                })}
+              </div>
             </>
           )}
 
@@ -403,61 +410,21 @@ const LeagueLeadersTab = ({ sport, cfg, onSelectPlayer }) => {
   );
 };
 
-const GameFeedTab = ({ sport }) => {
-  const [feed, setFeed] = useState([]);
-  useEffect(() => { db.getFeed(sport).then(setFeed); }, [sport]);
-  const sorted = [...feed].reverse();
-  return (
-    <div className="card-container">
-      <div className="neon-card p-3">
-        <h3 className="gradient-text-cyan">Game Feed</h3>
-        {sorted.length === 0 ? (
-          <p style={{ marginTop:'15px', color:'rgba(158, 165, 196,0.7)' }}>Game updates and news will appear here</p>
-        ) : (
-          <div style={{ marginTop:'15px', display:'flex', flexDirection:'column', gap:'10px' }}>
-            {sorted.map((entry, i) => (
-              <div key={i} style={{ padding:'12px', background:'rgba(94, 129, 244,0.04)', border:'1px solid rgba(94, 129, 244,0.1)', borderRadius:'6px' }}>
-                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'4px' }}>
-                  <span style={{ color:'var(--color-cyan)', fontWeight:'600', fontSize:'0.85rem' }}>{entry.event_type || 'Event'}</span>
-                  {entry.timestamp && <span style={{ color:'rgba(158, 165, 196,0.4)', fontSize:'0.75rem' }}>{new Date(entry.timestamp).toLocaleString()}</span>}
-                </div>
-                <p style={{ margin:0, color:'rgba(158, 165, 196,0.85)', fontSize:'0.9rem' }}>{entry.description}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const BoxScoresTab = ({ sport, cfg }) => {
-  const [bsGames, setBsGames]     = useState([]);
-  const [boxScores, setBoxScores] = useState([]);
-  const [players, setPlayers]     = useState([]);
-  const [teams, setTeams]         = useState([]);
-  const [selectedGame, setSelectedGame] = useState(null);
-
-  useEffect(() => {
-    db.getBsGames(sport).then(setBsGames);
-    db.getBoxScores(sport).then(setBoxScores);
-    db.getPlayers(sport).then(setPlayers);
-    db.getTeams(sport).then(setTeams);
-  }, [sport]);
-
-  const getTeamColor = (name) => teams.find(t=>t.team_name===name)?.team_color||null;
-  const getTeamLogo  = (name) => teams.find(t=>t.team_name===name)?.logo_url||null;
-  const getPlayer    = (id)   => players.find(p=>p.id===id);
+/* ── Shared game box-score detail (used by Schedule tab + Box Scores tab) ── */
+const GameBoxScoreDetail = ({ game, boxScores, players, teams, cfg, onBack, backLabel = 'Back' }) => {
+  const getTeamColor = (name) => teams.find(t => t.team_name === name)?.team_color || null;
+  const getTeamLogo  = (name) => teams.find(t => t.team_name === name)?.logo_url || null;
+  const getPlayer    = (id)   => players.find(p => p.id === id);
 
   const thS = { padding:'7px 8px', color:'rgba(158, 165, 196,0.5)', fontSize:'0.72rem', fontWeight:'700', letterSpacing:'0.06em', textTransform:'uppercase', textAlign:'center', borderBottom:'1px solid rgba(94, 129, 244,0.08)' };
   const tdS = { padding:'7px 8px', textAlign:'center', color:'rgba(158, 165, 196,0.85)', fontSize:'0.83rem', borderBottom:'1px solid rgba(94, 129, 244,0.04)' };
 
   const TeamTable = ({ teamName, scores, accent }) => {
-    const color = getTeamColor(teamName)||accent;
+    const color = getTeamColor(teamName) || accent;
     const logo  = getTeamLogo(teamName);
     if (!scores.length) return null;
     return (
-      <div className="neon-card p-3" style={{ marginBottom:'16px', borderTop:`3px solid ${color||accent}` }}>
+      <div className="neon-card p-3 fx-scoretable" style={{ marginBottom:'16px', borderTop:`3px solid ${color||accent}` }}>
         <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'12px' }}>
           {logo ? <img src={logo} alt={teamName} style={{ width:'32px', height:'32px', objectFit:'contain', borderRadius:'4px' }} /> : <div style={{ width:'32px', height:'32px', background:color||accent, borderRadius:'4px', opacity:0.7 }} />}
           <h4 style={{ margin:0, color:color||accent, fontWeight:'800', fontSize:'0.95rem' }}>{teamName||'Unknown Team'}</h4>
@@ -492,45 +459,216 @@ const BoxScoresTab = ({ sport, cfg }) => {
     );
   };
 
-  if (selectedGame) {
-    const gameScores  = boxScores.filter(b=>b.game_id===selectedGame.id);
-    const homeScores  = gameScores.filter(s=>s.team===selectedGame.home_team);
-    const awayScores  = gameScores.filter(s=>s.team===selectedGame.away_team);
-    const otherScores = gameScores.filter(s=>s.team!==selectedGame.home_team&&s.team!==selectedGame.away_team);
-    const homeWin = selectedGame.home_score > selectedGame.away_score;
-    const awayWin = selectedGame.away_score > selectedGame.home_score;
-    return (
-      <div>
-        <button className="neon-button" style={{ marginBottom:'20px', fontSize:'0.9rem' }} onClick={()=>setSelectedGame(null)}>Back to Box Scores</button>
-        <div className="neon-card p-3" style={{ marginBottom:'20px' }}>
-          <h3 className="gradient-text-cyan" style={{ marginBottom:'14px' }}>{selectedGame.game_name}</h3>
-          <div className="vz-vs-grid">
-            <div style={{ textAlign:'center' }}>
-              {getTeamLogo(selectedGame.home_team) && <img src={getTeamLogo(selectedGame.home_team)} alt="" style={{ width:'40px', height:'40px', objectFit:'contain', display:'block', margin:'0 auto 8px' }} />}
-              <p style={{ margin:'0 0 4px', color:getTeamColor(selectedGame.home_team)||'var(--color-cyan)', fontWeight:'700' }}>{selectedGame.home_team||'Home'}</p>
-              <p style={{ margin:0, fontSize:homeWin?'2rem':'1.6rem', fontWeight:'800', color:homeWin?'var(--color-cyan)':'rgba(158, 165, 196,0.6)' }}>{selectedGame.home_score}</p>
-            </div>
-            <div style={{ textAlign:'center' }}>
-              <span style={{ color:'rgba(158, 165, 196,0.3)', fontSize:'1.2rem' }}>-</span>
-              {selectedGame.game_date && <p style={{ margin:'6px 0 0', color:'rgba(158, 165, 196,0.4)', fontSize:'0.75rem' }}>{new Date(selectedGame.game_date).toLocaleDateString()}</p>}
-            </div>
-            <div style={{ textAlign:'center' }}>
-              {getTeamLogo(selectedGame.away_team) && <img src={getTeamLogo(selectedGame.away_team)} alt="" style={{ width:'40px', height:'40px', objectFit:'contain', display:'block', margin:'0 auto 8px' }} />}
-              <p style={{ margin:'0 0 4px', color:getTeamColor(selectedGame.away_team)||'var(--color-magenta)', fontWeight:'700' }}>{selectedGame.away_team||'Away'}</p>
-              <p style={{ margin:0, fontSize:awayWin?'2rem':'1.6rem', fontWeight:'800', color:awayWin?'var(--color-magenta)':'rgba(158, 165, 196,0.6)' }}>{selectedGame.away_score}</p>
-            </div>
+  const gameScores  = boxScores.filter(b => b.game_id === game.id);
+  const homeScores  = gameScores.filter(s => s.team === game.home_team);
+  const awayScores  = gameScores.filter(s => s.team === game.away_team);
+  const otherScores = gameScores.filter(s => s.team !== game.home_team && s.team !== game.away_team);
+  const homeWin = game.home_score > game.away_score;
+  const awayWin = game.away_score > game.home_score;
+
+  return (
+    <div>
+      {onBack && <button className="neon-button" style={{ marginBottom:'20px', fontSize:'0.9rem' }} onClick={onBack}>{backLabel}</button>}
+      <div className="neon-card p-3 fx-vscard" style={{ marginBottom:'20px' }}>
+        <h3 className="gradient-text-cyan" style={{ marginBottom:'14px' }}>{game.game_name}</h3>
+        <div className="vz-vs-grid">
+          <div style={{ textAlign:'center' }}>
+            {getTeamLogo(game.home_team) && <img src={getTeamLogo(game.home_team)} alt="" style={{ width:'40px', height:'40px', objectFit:'contain', display:'block', margin:'0 auto 8px' }} />}
+            <p style={{ margin:'0 0 4px', color:getTeamColor(game.home_team)||'var(--color-cyan)', fontWeight:'700' }}>{game.home_team||'Home'}</p>
+            <p style={{ margin:0, fontSize:homeWin?'2rem':'1.6rem', fontWeight:'800', color:homeWin?'var(--color-cyan)':'rgba(158, 165, 196,0.6)' }}>{game.home_score}</p>
+            {homeWin && <span className="fx-win-chip">WIN</span>}
+          </div>
+          <div style={{ textAlign:'center' }}>
+            <span style={{ color:'rgba(158, 165, 196,0.3)', fontSize:'1.2rem' }}>-</span>
+            {game.game_date && <p style={{ margin:'6px 0 0', color:'rgba(158, 165, 196,0.4)', fontSize:'0.75rem' }}>{new Date(game.game_date).toLocaleDateString()}</p>}
+          </div>
+          <div style={{ textAlign:'center' }}>
+            {getTeamLogo(game.away_team) && <img src={getTeamLogo(game.away_team)} alt="" style={{ width:'40px', height:'40px', objectFit:'contain', display:'block', margin:'0 auto 8px' }} />}
+            <p style={{ margin:'0 0 4px', color:getTeamColor(game.away_team)||'var(--color-magenta)', fontWeight:'700' }}>{game.away_team||'Away'}</p>
+            <p style={{ margin:0, fontSize:awayWin?'2rem':'1.6rem', fontWeight:'800', color:awayWin?'var(--color-magenta)':'rgba(158, 165, 196,0.6)' }}>{game.away_score}</p>
+            {awayWin && <span className="fx-win-chip">WIN</span>}
           </div>
         </div>
-        {gameScores.length===0 ? (
-          <div className="neon-card p-3"><p style={{ color:'rgba(158, 165, 196,0.5)', textAlign:'center' }}>No player stats logged for this game</p></div>
+      </div>
+      {gameScores.length===0 ? (
+        <div className="neon-card p-3"><p style={{ color:'rgba(158, 165, 196,0.5)', textAlign:'center' }}>No player stats logged for this game</p></div>
+      ) : (
+        <>
+          <TeamTable teamName={game.home_team} scores={homeScores} accent="var(--color-cyan)" />
+          <TeamTable teamName={game.away_team} scores={awayScores} accent="var(--color-magenta)" />
+          {otherScores.length>0 && <TeamTable teamName="Other" scores={otherScores} accent="rgba(158, 165, 196,0.6)" />}
+        </>
+      )}
+    </div>
+  );
+};
+
+/* ── Schedule tab: pick a team → see W/L record + dates → click a game for its box score ── */
+const ScheduleTab = ({ sport, cfg }) => {
+  const [teams, setTeams]       = useState([]);
+  const [players, setPlayers]   = useState([]);
+  const [bsGames, setBsGames]   = useState([]);
+  const [boxScores, setBoxScores] = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [selectedTeam, setSelectedTeam] = useState(null);
+  const [schedule, setSchedule] = useState([]);
+  const [schedLoading, setSchedLoading] = useState(false);
+  const [selectedGame, setSelectedGame] = useState(null);
+
+  useEffect(() => {
+    Promise.all([db.getTeams(sport), db.getPlayers(sport), db.getBsGames(sport), db.getBoxScores(sport)])
+      .then(([t, p, g, b]) => { setTeams(t); setPlayers(p); setBsGames(g); setBoxScores(Array.isArray(b)?b:[]); setLoading(false); });
+  }, [sport]);
+
+  useEffect(() => {
+    if (!selectedTeam) return;
+    setSchedLoading(true);
+    setSelectedGame(null);
+    db.getTeamSchedule(selectedTeam.id)
+      .then(entries => { setSchedule(entries || []); setSchedLoading(false); })
+      .catch(() => { setSchedule([]); setSchedLoading(false); });
+  }, [selectedTeam]);
+
+  if (loading) return <p style={{ color:'rgba(158, 165, 196,0.5)', padding:'40px', textAlign:'center' }}>Loading...</p>;
+
+  // ── Game box score drill-down ──
+  if (selectedGame) {
+    return (
+      <GameBoxScoreDetail
+        game={selectedGame}
+        boxScores={boxScores}
+        players={players}
+        teams={teams}
+        cfg={cfg}
+        onBack={() => setSelectedGame(null)}
+        backLabel="Back to Schedule"
+      />
+    );
+  }
+
+  // ── Team picker ──
+  if (!selectedTeam) {
+    return (
+      <div>
+        <h2 className="gradient-text-cyan">Schedule</h2>
+        <p style={{ color:'rgba(158, 165, 196,0.5)', margin:'6px 0 20px', fontSize:'0.88rem' }}>Pick a team to see which games they've won, lost, and when they were played.</p>
+        <div className="card-container">
+          {teams.length === 0 && <p style={{ color:'rgba(158, 165, 196,0.5)' }}>No teams yet.</p>}
+          {teams.map(team => (
+            <div key={team.id} className="neon-card p-3 fx-teampick" style={{ cursor:'pointer', display:'flex', alignItems:'center', gap:'16px' }} onClick={() => setSelectedTeam(team)}>
+              {team.logo_url
+                ? <img src={team.logo_url} alt={team.team_name} style={{ width:'44px', height:'44px', objectFit:'contain', borderRadius:'6px' }} />
+                : <div style={{ width:'44px', height:'44px', background:team.team_color, borderRadius:'6px', flexShrink:0 }} />}
+              <div>
+                <p style={{ margin:'0 0 3px', color:'var(--color-cyan)', fontWeight:700, fontSize:'1rem' }}>{team.team_name}</p>
+                <p style={{ margin:0, fontSize:'0.8rem', color:'rgba(158, 165, 196,0.5)' }}>View schedule &amp; results →</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Team schedule ──
+  const teamColor = selectedTeam.team_color || 'var(--color-cyan)';
+  const wins   = schedule.filter(e => e.result === 'W').length;
+  const losses = schedule.filter(e => e.result === 'L').length;
+  const ties   = schedule.filter(e => e.result === 'T').length;
+  const sorted = [...schedule].sort((a,b) => {
+    if (a.game_date && b.game_date) return new Date(a.game_date) - new Date(b.game_date);
+    return (a.week||999) - (b.week||999);
+  });
+
+  const openGame = (entry) => {
+    if (!entry.game_id) return;
+    const g = bsGames.find(g => String(g.id) === String(entry.game_id));
+    if (g) setSelectedGame(g);
+  };
+
+  return (
+    <div>
+      <button className="neon-button" onClick={() => setSelectedTeam(null)} style={{ marginBottom:'20px' }}>Back to Teams</button>
+      <div style={{ display:'flex', alignItems:'center', gap:'14px', marginBottom:'18px', flexWrap:'wrap' }}>
+        {selectedTeam.logo_url
+          ? <img src={selectedTeam.logo_url} alt={selectedTeam.team_name} style={{ width:'52px', height:'52px', objectFit:'contain', borderRadius:'8px' }} />
+          : <div style={{ width:'52px', height:'52px', background:teamColor, borderRadius:'8px', flexShrink:0 }} />}
+        <h2 style={{ margin:0, color:teamColor, fontWeight:900 }}>{selectedTeam.team_name}</h2>
+        <div className="fx-record-pills">
+          <span className="fx-pill fx-pill-w">{wins}W</span>
+          <span className="fx-pill fx-pill-l">{losses}L</span>
+          {ties > 0 && <span className="fx-pill fx-pill-t">{ties}T</span>}
+        </div>
+      </div>
+
+      <div className="neon-card p-3">
+        {schedLoading ? (
+          <p style={{ color:'rgba(158,165,196,0.4)', textAlign:'center', padding:'30px 0' }}>Loading…</p>
+        ) : sorted.length === 0 ? (
+          <p style={{ color:'rgba(158,165,196,0.35)', textAlign:'center', padding:'30px 0', fontSize:'0.85rem' }}>
+            No schedule yet.<br />An admin can add games via Admin → Schedule.
+          </p>
         ) : (
-          <>
-            <TeamTable teamName={selectedGame.home_team} scores={homeScores} accent="var(--color-cyan)" />
-            <TeamTable teamName={selectedGame.away_team} scores={awayScores} accent="var(--color-magenta)" />
-            {otherScores.length>0&&<TeamTable teamName="Other" scores={otherScores} accent="rgba(158, 165, 196,0.6)" />}
-          </>
+          <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+            {sorted.map(entry => {
+              const hasGame = !!entry.game_id && bsGames.some(g => String(g.id) === String(entry.game_id));
+              const resultColor = entry.result==='W' ? '#22c55e' : entry.result==='L' ? '#ef4444' : entry.result==='T' ? '#eab308' : 'rgba(158,165,196,0.35)';
+              return (
+                <div
+                  key={entry.id}
+                  className={`fx-schedule-row ${hasGame ? 'fx-clickable' : ''}`}
+                  onClick={() => hasGame && openGame(entry)}
+                  style={{ borderLeft:`3px solid ${resultColor}` }}
+                >
+                  <div className="fx-schedule-result" style={{ color: resultColor }}>
+                    {entry.result || (entry.game_date && new Date(entry.game_date) < new Date() ? '—' : 'TBD')}
+                  </div>
+                  <div className="fx-schedule-main">
+                    <span className="fx-schedule-opp">
+                      {entry.is_home ? 'vs' : '@'} {entry.opponent || 'TBD'}
+                    </span>
+                    <span className="fx-schedule-meta">
+                      {entry.game_date ? new Date(entry.game_date).toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' }) : 'Date TBD'}
+                      {entry.week ? ` · Wk ${entry.week}` : ''}
+                    </span>
+                  </div>
+                  <div className="fx-schedule-score">{entry.score || '—'}</div>
+                  {hasGame && <div className="fx-schedule-cta">Box Score →</div>}
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
+    </div>
+  );
+};
+
+const BoxScoresTab = ({ sport, cfg }) => {
+  const [bsGames, setBsGames]     = useState([]);
+  const [boxScores, setBoxScores] = useState([]);
+  const [players, setPlayers]     = useState([]);
+  const [teams, setTeams]         = useState([]);
+  const [selectedGame, setSelectedGame] = useState(null);
+
+  useEffect(() => {
+    db.getBsGames(sport).then(setBsGames);
+    db.getBoxScores(sport).then(setBoxScores);
+    db.getPlayers(sport).then(setPlayers);
+    db.getTeams(sport).then(setTeams);
+  }, [sport]);
+
+  if (selectedGame) {
+    return (
+      <GameBoxScoreDetail
+        game={selectedGame}
+        boxScores={boxScores}
+        players={players}
+        teams={teams}
+        cfg={cfg}
+        onBack={() => setSelectedGame(null)}
+        backLabel="Back to Box Scores"
+      />
     );
   }
 

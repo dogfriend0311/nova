@@ -1069,128 +1069,6 @@ const LeagueBoxScoresTab = ({ prefix }) => {
   );
 };
 
-const LeagueGameFeedTab = ({ prefix }) => {
-  const label = getSport(prefix).label;
-  const [games, setGames]   = useState([]);
-  const [players, setPlayers] = useState([]);
-  const [feed, setFeed]     = useState([]);
-  const [selectedGame, setSelectedGame] = useState(null);
-  const [selectedPlayer, setSelectedPlayer] = useState(null);
-  const [selectedEvent, setSelectedEvent]   = useState('');
-  const [editingEvent, setEditingEvent]     = useState(null);
-  const [editNote, setEditNote]             = useState('');
-
-  useEffect(() => { db.getGames(prefix).then(setGames); db.getPlayers(prefix).then(setPlayers); db.getFeed(prefix).then(setFeed); }, [prefix]);
-
-  const eventTypes = ['Single','Double','Triple','Home Run','Strike Out','Walk','Hit by Pitch',"Fielder's Choice",'Error','Stolen Base','Caught Stealing','Double Play','Pitching Change','Pinch Hitter','Scoring Play'];
-  const liveGames = games.filter(g=>g.status==='live'||g.status==='final');
-  const gameFeed  = selectedGame ? feed.filter(f=>f.game_id===selectedGame.id) : [];
-
-  const logEvent = async () => {
-    if (!selectedPlayer||!selectedEvent) return;
-    const player = players.find(p=>String(p.id)===String(selectedPlayer));
-    const saved = await db.addFeedEvent(prefix, { game_id:selectedGame.id, player_id:selectedPlayer, player_name:player?.player_name, team:player?.team, event_type:selectedEvent });
-    setFeed(prev=>[...prev,saved]); setSelectedPlayer(null); setSelectedEvent('');
-  };
-  const deleteEvent = async (id) => { await db.deleteFeedEvent(prefix, id); setFeed(prev=>prev.filter(f=>f.id!==id)); };
-  const saveEdit = async () => {
-    const saved = await db.updateFeedEvent(prefix, editingEvent, { event_type:editNote });
-    setFeed(prev=>prev.map(f=>f.id===editingEvent?{...f,...saved}:f)); setEditingEvent(null); setEditNote('');
-  };
-
-  if (!selectedGame) return (
-    <div className="tab-content">
-      <h2 className="gradient-text-cyan">{label} Game Feed</h2>
-      <p style={{ color:'rgba(158, 165, 196,0.7)', marginTop:'10px' }}>Select a live or final game</p>
-      <div style={{ marginTop:'20px' }}>
-        {liveGames.length===0
-          ? <div className="neon-card p-3"><p style={{ color:'rgba(158, 165, 196,0.5)', textAlign:'center' }}>No live or final games. Set a game status to Live in the Games tab.</p></div>
-          : liveGames.map(game=>(
-            <div key={game.id} className="neon-card p-3" style={{ marginBottom:'15px', cursor:'pointer' }} onClick={()=>setSelectedGame(game)}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <p style={{ margin:0, color:'var(--color-cyan)' }}><strong>{game.home_team}</strong> {game.home_score} - {game.away_score} <strong>{game.away_team}</strong></p>
-                <span className={`badge badge-${game.status==='live'?'active':'pending'}`}>{game.status}</span>
-              </div>
-            </div>
-          ))}
-      </div>
-    </div>
-  );
-
-  const homeTeamPlayers = players.filter(p=>p.team===selectedGame.home_team);
-  const awayTeamPlayers = players.filter(p=>p.team===selectedGame.away_team);
-
-  return (
-    <div className="tab-content">
-      <button className="neon-button" onClick={()=>setSelectedGame(null)} style={{ marginBottom:'20px' }}>Back</button>
-      <h2 className="gradient-text-cyan">{selectedGame.home_team} vs {selectedGame.away_team}</h2>
-      <div className="od-2col-grid" style={{ marginTop:'20px' }}>
-        {[{title:selectedGame.home_team,plist:homeTeamPlayers,color:'cyan'},{title:selectedGame.away_team,plist:awayTeamPlayers,color:'magenta'}].map(({title,plist,color})=>(
-          <div key={title} className="neon-card p-3">
-            <h4 className={`gradient-text-${color}`}>{title}</h4>
-            <div style={{ marginTop:'15px', maxHeight:'250px', overflowY:'auto', display:'grid', gap:'6px' }}>
-              {plist.map(player=>(
-                <button key={player.id} onClick={()=>setSelectedPlayer(player.id)}
-                  style={{ padding:'8px', background:selectedPlayer===player.id?`rgba(${color==='cyan'?'94, 129, 244':'255, 158, 87'},0.2)`:`rgba(${color==='cyan'?'94, 129, 244':'255, 158, 87'},0.05)`, border:`${selectedPlayer===player.id?'2px':'1px'} solid ${color==='cyan'?'rgba(94, 129, 244,0.4)':'rgba(255, 158, 87,0.4)'}`, color:'#e2e5f0', borderRadius:'4px', cursor:'pointer', textAlign:'left', display:'flex', alignItems:'center', gap:'8px' }}>
-                  {player.avatar_data && <img src={player.avatar_data} alt="" style={{ width:'24px', height:'24px', borderRadius:'3px', objectFit:'cover' }} />}
-                  {player.player_name}
-                </button>
-              ))}
-              {plist.length===0 && <p style={{ color:'rgba(158, 165, 196,0.4)', fontSize:'0.85rem' }}>No players on roster</p>}
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="neon-card p-3" style={{ marginTop:'20px' }}>
-        <h4 className="gradient-text-magenta">Log Event</h4>
-        <label style={{ fontSize:'0.8rem', color:'rgba(158, 165, 196,0.7)', display:'block', marginBottom:'8px', marginTop:'10px' }}>
-          {selectedPlayer ? `Player: ${players.find(p=>p.id===selectedPlayer)?.player_name}` : 'Select a player first'}
-        </label>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(100px, 1fr))', gap:'8px' }}>
-          {eventTypes.map(event=>(
-            <button key={event} onClick={()=>setSelectedEvent(event)}
-              style={{ padding:'8px', background:selectedEvent===event?'rgba(94, 129, 244,0.2)':'rgba(94, 129, 244,0.05)', border:`${selectedEvent===event?'2':'1'}px solid rgba(94, 129, 244,0.3)`, color:selectedEvent===event?'var(--color-cyan)':'rgba(158, 165, 196,0.7)', borderRadius:'4px', cursor:'pointer', fontSize:'0.78rem', fontWeight:'600' }}>
-              {event}
-            </button>
-          ))}
-        </div>
-        <button className="neon-button" onClick={logEvent} disabled={!selectedPlayer||!selectedEvent} style={{ marginTop:'15px', width:'100%' }}>Log Event</button>
-      </div>
-      <div className="neon-card p-3" style={{ marginTop:'20px' }}>
-        <h4 className="gradient-text-cyan">Live Feed ({gameFeed.length} events)</h4>
-        <div style={{ marginTop:'15px', maxHeight:'400px', overflowY:'auto', display:'grid', gap:'8px' }}>
-          {gameFeed.length===0 ? <p style={{ color:'rgba(158, 165, 196,0.6)' }}>No events logged yet</p> :
-            [...gameFeed].reverse().map(event=>(
-              <div key={event.id} style={{ padding:'12px', background:'rgba(94, 129, 244,0.05)', border:'1px solid rgba(94, 129, 244,0.1)', borderRadius:'4px' }}>
-                {editingEvent===event.id ? (
-                  <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
-                    <select value={editNote} onChange={e=>setEditNote(e.target.value)} style={{ ...SS, flex:1 }}>
-                      {eventTypes.map(e=><option key={e} value={e}>{e}</option>)}
-                    </select>
-                    <button className="neon-button" style={{ padding:'4px 12px' }} onClick={saveEdit}>Save</button>
-                    <button className="neon-button" style={{ padding:'4px 12px' }} onClick={()=>{setEditingEvent(null);setEditNote('');}}>X</button>
-                  </div>
-                ) : (
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
-                    <div>
-                      <p style={{ margin:0, color:'var(--color-cyan)', fontWeight:600 }}>{event.player_name}</p>
-                      <p style={{ margin:'4px 0 0', color:'rgba(158, 165, 196,0.8)' }}>{event.event_type}</p>
-                      <p style={{ margin:'2px 0 0', fontSize:'0.75rem', color:'rgba(158, 165, 196,0.4)' }}>{new Date(event.created_at||event.timestamp).toLocaleTimeString()}</p>
-                    </div>
-                    <div style={{ display:'flex', gap:'6px' }}>
-                      <button onClick={()=>{setEditingEvent(event.id);setEditNote(event.event_type);}} style={{ background:'none', border:'none', color:'var(--color-cyan)', cursor:'pointer' }}>Edit</button>
-                      <button onClick={()=>deleteEvent(event.id)} style={{ background:'none', border:'none', color:'#ff6b7a', cursor:'pointer' }}>X</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const LeagueHofTab = ({ prefix }) => {
   const label = getSport(prefix).label;
   const [hofMembers, setHofMembers] = useState([]);
@@ -1496,29 +1374,45 @@ const FantasyScheduleTab = () => {
   const [selectedTeam,   setSelectedTeam]   = useState(null);
   const [schedule,       setSchedule]       = useState([]);
   const [schedLoading,   setSchedLoading]   = useState(false);
-  const [form,           setForm]           = useState({ week: '', opponent: '', is_home: 'true', game_date: '', result: '', score: '', notes: '' });
+  const [bsGames,        setBsGames]        = useState([]); // box score games available to link, for Roblox leagues
+  const [form,           setForm]           = useState({ week: '', opponent: '', is_home: 'true', game_date: '', result: '', score: '', notes: '', game_id: '' });
   const [saving,         setSaving]         = useState(false);
   const [msg,            setMsg]            = useState('');
 
+  // Roblox leagues use the generic `db` under a sport prefix; fantasy leagues use fantasyDb.
+  const ROBLOX_LEAGUES = [
+    { id: '__vizta__',    name: 'Roblox Baseball League', prefix: 'vizta',    sport: 'baseball' },
+    { id: '__hockey__',   name: 'Roblox Hockey League',   prefix: 'hockey',   sport: 'hockey' },
+    { id: '__football__', name: 'Roblox Football League', prefix: 'football', sport: 'football' },
+  ];
+
   useEffect(() => {
-    // Build league list: all fantasy leagues + a synthetic Roblox Baseball entry
+    // Build league list: the 3 Roblox leagues + all fantasy leagues
     fantasyDb.getAllLeagues()
-      .then(fl => setLeagues([
-        { id: '__vizta__', name: 'Roblox Baseball League ⚾', sport: 'baseball' },
-        ...fl,
-      ]))
-      .catch(() => setLeagues([{ id: '__vizta__', name: 'Roblox Baseball League ⚾', sport: 'baseball' }]));
+      .then(fl => setLeagues([...ROBLOX_LEAGUES, ...fl]))
+      .catch(() => setLeagues([...ROBLOX_LEAGUES]));
   }, []);
+
+  const robloxPrefix = (league) => ROBLOX_LEAGUES.find(r => r.id === league.id)?.prefix || null;
 
   const pickLeague = async (league) => {
     setSelectedLeague(league);
     setSelectedTeam(null);
     setSchedule([]);
-    // Roblox Baseball teams live in the generic db under prefix 'vizta', not in fantasyDb
-    const t = league.id === '__vizta__'
-      ? await db.getTeams('vizta').catch(() => [])
-      : await fantasyDb.getTeams(league.id).catch(() => []);
-    setTeams(t);
+    setForm(f => ({ ...f, game_id: '' }));
+    const prefix = robloxPrefix(league);
+    if (prefix) {
+      const [t, g] = await Promise.all([
+        db.getTeams(prefix).catch(() => []),
+        db.getBsGames(prefix).catch(() => []),
+      ]);
+      setTeams(t);
+      setBsGames(g || []);
+    } else {
+      const t = await fantasyDb.getTeams(league.id).catch(() => []);
+      setTeams(t);
+      setBsGames([]);
+    }
   };
 
   const pickTeam = async (team) => {
@@ -1538,10 +1432,11 @@ const FantasyScheduleTab = () => {
       team_id: selectedTeam.id,
       week:    form.week ? Number(form.week) : null,
       is_home: form.is_home === 'true' || form.is_home === true,
+      game_id: form.game_id || null,
     };
     const saved = await db.saveScheduleEntry(entry);
     setSchedule(prev => [...prev, saved]);
-    setForm({ week: '', opponent: '', is_home: 'true', game_date: '', result: '', score: '', notes: '' });
+    setForm({ week: '', opponent: '', is_home: 'true', game_date: '', result: '', score: '', notes: '', game_id: '' });
     setMsg('✓ Entry added');
     setTimeout(() => setMsg(''), 2500);
     setSaving(false);
@@ -1552,11 +1447,14 @@ const FantasyScheduleTab = () => {
     setSchedule(prev => prev.filter(e => e.id !== id));
   };
 
+  const isRoblox = selectedLeague && !!robloxPrefix(selectedLeague);
+
   return (
     <div className="tab-content">
-      <h2 className="gradient-text-cyan">Fantasy Schedule Manager</h2>
+      <h2 className="gradient-text-cyan">Schedule Manager</h2>
       <p style={{ color:'rgba(158,165,196,0.5)', fontSize:'0.85rem', margin:'4px 0 20px' }}>
-        Insert schedule entries for any fantasy team. Players see their schedule on the Roster tab.
+        Insert schedule entries for any Roblox league or fantasy team — set the result (win/loss/tie) and, for
+        Roblox leagues, link the game to a Box Score so the public Schedule tab can open it.
       </p>
 
       {/* Step 1: League */}
@@ -1564,9 +1462,15 @@ const FantasyScheduleTab = () => {
         <label style={{ fontWeight:700, color:'var(--color-cyan)', fontSize:'0.8rem', textTransform:'uppercase', letterSpacing:'0.5px' }}>1. Select League</label>
         <select style={{ ...SI, marginTop:8 }} value={selectedLeague?.id || ''} onChange={e => { const l = leagues.find(x=>x.id===e.target.value); if(l) pickLeague(l); }}>
           <option value="">— pick a league —</option>
-          {leagues.map(l => <option key={l.id} value={l.id}>{l.name} ({(l.sport||'').toUpperCase()})</option>)}
+          <optgroup label="Roblox Leagues">
+            {ROBLOX_LEAGUES.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+          </optgroup>
+          {leagues.some(l => !robloxPrefix(l)) && (
+            <optgroup label="Fantasy Leagues">
+              {leagues.filter(l => !robloxPrefix(l)).map(l => <option key={l.id} value={l.id}>{l.name} ({(l.sport||'').toUpperCase()})</option>)}
+            </optgroup>
+          )}
         </select>
-        {leagues.length === 0 && <p style={{ color:'rgba(158,165,196,0.4)', fontSize:'0.8rem', margin:'6px 0 0' }}>No fantasy leagues found yet.</p>}
       </div>
 
       {/* Step 2: Team */}
@@ -1575,8 +1479,9 @@ const FantasyScheduleTab = () => {
           <label style={{ fontWeight:700, color:'var(--color-cyan)', fontSize:'0.8rem', textTransform:'uppercase', letterSpacing:'0.5px' }}>2. Select Team</label>
           <select style={{ ...SI, marginTop:8 }} value={selectedTeam?.id || ''} onChange={e => { const t = teams.find(x=>x.id===e.target.value); if(t) pickTeam(t); }}>
             <option value="">— pick a team —</option>
-            {teams.map(t => <option key={t.id} value={t.id}>{t.team_name} ({t.owner_username})</option>)}
+            {teams.map(t => <option key={t.id} value={t.id}>{t.team_name}{t.owner_username ? ` (${t.owner_username})` : ''}</option>)}
           </select>
+          {teams.length === 0 && <p style={{ color:'rgba(158,165,196,0.4)', fontSize:'0.8rem', margin:'6px 0 0' }}>No teams found for this league yet.</p>}
         </div>
       )}
 
@@ -1607,7 +1512,7 @@ const FantasyScheduleTab = () => {
               <input type="date" style={SI} value={form.game_date} onChange={e=>setForm({...form,game_date:e.target.value})} />
             </div>
             <div>
-              <label style={{ fontSize:'0.75rem', color:'rgba(158,165,196,0.55)' }}>Result</label>
+              <label style={{ fontSize:'0.75rem', color:'rgba(158,165,196,0.55)' }}>Result (Won/Lost)</label>
               <select style={SI} value={form.result} onChange={e=>setForm({...form,result:e.target.value})}>
                 <option value="">TBD</option>
                 <option value="W">Win</option>
@@ -1617,8 +1522,22 @@ const FantasyScheduleTab = () => {
             </div>
             <div>
               <label style={{ fontSize:'0.75rem', color:'rgba(158,165,196,0.55)' }}>Score</label>
-              <input type="text" style={SI} value={form.score} placeholder="120.5–98.2" onChange={e=>setForm({...form,score:e.target.value})} />
+              <input type="text" style={SI} value={form.score} placeholder="e.g. 7-3" onChange={e=>setForm({...form,score:e.target.value})} />
             </div>
+            {isRoblox && (
+              <div style={{ gridColumn:'1/-1' }}>
+                <label style={{ fontSize:'0.75rem', color:'rgba(158,165,196,0.55)' }}>Link Box Score Game (optional — lets fans click into full stats)</label>
+                <select style={SI} value={form.game_id} onChange={e=>setForm({...form,game_id:e.target.value})}>
+                  <option value="">— no linked box score —</option>
+                  {bsGames.map(g => (
+                    <option key={g.id} value={g.id}>
+                      {g.game_name} — {g.home_team||'Home'} {g.home_score} - {g.away_score} {g.away_team||'Away'}{g.game_date ? ` (${g.game_date})` : ''}
+                    </option>
+                  ))}
+                </select>
+                {bsGames.length === 0 && <p style={{ color:'rgba(158,165,196,0.4)', fontSize:'0.75rem', margin:'6px 0 0' }}>No box score games created yet — add one under Box Scores first, then link it here.</p>}
+              </div>
+            )}
             <div style={{ gridColumn:'1/-1', display:'flex', gap:10, alignItems:'flex-end' }}>
               <div style={{ flex:1 }}>
                 <label style={{ fontSize:'0.75rem', color:'rgba(158,165,196,0.55)' }}>Notes (optional)</label>
@@ -1647,26 +1566,30 @@ const FantasyScheduleTab = () => {
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.82rem' }}>
               <thead>
                 <tr style={{ borderBottom:'1px solid rgba(94,129,244,0.2)' }}>
-                  {['Wk','Opponent','Loc','Date','Score','Result','Notes',''].map(h => (
+                  {['Wk','Opponent','Loc','Date','Score','Result','Box Score','Notes',''].map(h => (
                     <th key={h} style={{ padding:'5px 8px', textAlign:'left', color:'rgba(158,165,196,0.45)', fontWeight:600, fontSize:'0.72rem', textTransform:'uppercase' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {[...schedule].sort((a,b)=>(a.week||999)-(b.week||999)).map(entry => (
-                  <tr key={entry.id} style={{ borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
-                    <td style={{ padding:'7px 8px', fontWeight:700, color:'var(--color-cyan)' }}>{entry.week??'—'}</td>
-                    <td style={{ padding:'7px 8px', color:'#e2e5f0' }}>{entry.opponent||'—'}</td>
-                    <td style={{ padding:'7px 8px', color: entry.is_home?'var(--color-cyan)':'var(--color-magenta)', fontSize:'0.72rem', fontWeight:700 }}>{entry.is_home?'HOME':'AWAY'}</td>
-                    <td style={{ padding:'7px 8px', color:'rgba(158,165,196,0.55)', fontSize:'0.78rem' }}>{entry.game_date||'—'}</td>
-                    <td style={{ padding:'7px 8px' }}>{entry.score||'—'}</td>
-                    <td style={{ padding:'7px 8px', fontWeight:700, color: entry.result==='W'?'#22c55e':entry.result==='L'?'#ef4444':'#eab308' }}>{entry.result||'TBD'}</td>
-                    <td style={{ padding:'7px 8px', color:'rgba(158,165,196,0.45)', fontSize:'0.75rem', maxWidth:110, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{entry.notes||'—'}</td>
-                    <td style={{ padding:'7px 8px' }}>
-                      <button className="neon-button" style={{ borderColor:'#ff6b7a', color:'#ff6b7a', fontSize:'0.72rem', padding:'3px 9px' }} onClick={()=>handleDelete(entry.id)}>Del</button>
-                    </td>
-                  </tr>
-                ))}
+                {[...schedule].sort((a,b)=>(a.week||999)-(b.week||999)).map(entry => {
+                  const linkedGame = entry.game_id ? bsGames.find(g => String(g.id) === String(entry.game_id)) : null;
+                  return (
+                    <tr key={entry.id} style={{ borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
+                      <td style={{ padding:'7px 8px', fontWeight:700, color:'var(--color-cyan)' }}>{entry.week??'—'}</td>
+                      <td style={{ padding:'7px 8px', color:'#e2e5f0' }}>{entry.opponent||'—'}</td>
+                      <td style={{ padding:'7px 8px', color: entry.is_home?'var(--color-cyan)':'var(--color-magenta)', fontSize:'0.72rem', fontWeight:700 }}>{entry.is_home?'HOME':'AWAY'}</td>
+                      <td style={{ padding:'7px 8px', color:'rgba(158,165,196,0.55)', fontSize:'0.78rem' }}>{entry.game_date||'—'}</td>
+                      <td style={{ padding:'7px 8px' }}>{entry.score||'—'}</td>
+                      <td style={{ padding:'7px 8px', fontWeight:700, color: entry.result==='W'?'#22c55e':entry.result==='L'?'#ef4444':'#eab308' }}>{entry.result||'TBD'}</td>
+                      <td style={{ padding:'7px 8px', fontSize:'0.75rem' }}>{linkedGame ? <span style={{ color:'var(--color-cyan)' }}>✓ linked</span> : <span style={{ color:'rgba(158,165,196,0.3)' }}>—</span>}</td>
+                      <td style={{ padding:'7px 8px', color:'rgba(158,165,196,0.45)', fontSize:'0.75rem', maxWidth:110, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{entry.notes||'—'}</td>
+                      <td style={{ padding:'7px 8px' }}>
+                        <button className="neon-button" style={{ borderColor:'#ff6b7a', color:'#ff6b7a', fontSize:'0.72rem', padding:'3px 9px' }} onClick={()=>handleDelete(entry.id)}>Del</button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -2190,7 +2113,6 @@ const OwnerDashboard = ({ onExit }) => {
       case 'vizta-rosters':   return <LeagueRostersTab prefix="vizta" />;
       case 'vizta-games':     return <LeagueGamesTab prefix="vizta" />;
       case 'vizta-boxscores': return <LeagueBoxScoresTab prefix="vizta" />;
-      case 'vizta-feed':      return <LeagueGameFeedTab prefix="vizta" />;
       case 'vizta-hof':       return <LeagueHofTab prefix="vizta" />;
       case 'vizta-awards':    return <LeagueAwardsTab prefix="vizta" />;
       case 'hockey-players':   return <LeaguePlayersTab prefix="hockey" />;
@@ -2198,7 +2120,6 @@ const OwnerDashboard = ({ onExit }) => {
       case 'hockey-rosters':   return <LeagueRostersTab prefix="hockey" />;
       case 'hockey-games':     return <LeagueGamesTab prefix="hockey" />;
       case 'hockey-boxscores': return <LeagueBoxScoresTab prefix="hockey" />;
-      case 'hockey-feed':      return <LeagueGameFeedTab prefix="hockey" />;
       case 'hockey-hof':       return <LeagueHofTab prefix="hockey" />;
       case 'hockey-awards':    return <LeagueAwardsTab prefix="hockey" />;
       case 'football-players':   return <LeaguePlayersTab prefix="football" />;
@@ -2206,7 +2127,6 @@ const OwnerDashboard = ({ onExit }) => {
       case 'football-rosters':   return <LeagueRostersTab prefix="football" />;
       case 'football-games':     return <LeagueGamesTab prefix="football" />;
       case 'football-boxscores': return <LeagueBoxScoresTab prefix="football" />;
-      case 'football-feed':      return <LeagueGameFeedTab prefix="football" />;
       case 'football-hof':       return <LeagueHofTab prefix="football" />;
       case 'football-awards':    return <LeagueAwardsTab prefix="football" />;
       default: return null;
@@ -2250,7 +2170,14 @@ const OwnerDashboard = ({ onExit }) => {
             <div className="section-label">FANTASY</div>
             <div className="dashboard-tabs">
               <Btn id="fantasy-manage"   label="Manage" />
-              <Btn id="fantasy-schedule" label="Schedule" />
+            </div>
+          </div>
+        )}
+        {(isOwnerLevel || isViztaHelper) && (
+          <div className="dashboard-section">
+            <div className="section-label">SCHEDULES</div>
+            <div className="dashboard-tabs">
+              <Btn id="fantasy-schedule" label="📅 All Leagues Schedule" />
             </div>
           </div>
         )}
@@ -2263,7 +2190,6 @@ const OwnerDashboard = ({ onExit }) => {
               <Btn id="vizta-rosters"   label="Rosters" />
               <Btn id="vizta-games"     label="Games" />
               <Btn id="vizta-boxscores" label="Box Scores" />
-              <Btn id="vizta-feed"      label="Feed" />
               <Btn id="vizta-hof"       label="HoF" />
               <Btn id="vizta-awards"    label="Awards" />
             </div>
@@ -2278,7 +2204,6 @@ const OwnerDashboard = ({ onExit }) => {
               <Btn id="hockey-rosters"   label="Rosters" />
               <Btn id="hockey-games"     label="Games" />
               <Btn id="hockey-boxscores" label="Box Scores" />
-              <Btn id="hockey-feed"      label="Feed" />
               <Btn id="hockey-hof"       label="HoF" />
               <Btn id="hockey-awards"    label="Awards" />
             </div>
@@ -2293,7 +2218,6 @@ const OwnerDashboard = ({ onExit }) => {
               <Btn id="football-rosters"   label="Rosters" />
               <Btn id="football-games"     label="Games" />
               <Btn id="football-boxscores" label="Box Scores" />
-              <Btn id="football-feed"      label="Feed" />
               <Btn id="football-hof"       label="HoF" />
               <Btn id="football-awards"    label="Awards" />
             </div>
