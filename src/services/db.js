@@ -23,9 +23,9 @@ export const db = {
         const { data, error } = await supabase
           .from('nova_teams').select('*').eq('league', league).order('created_at');
         if (!error && Array.isArray(data)) return data;
-        if (error) console.error('[db.getTeams] supabase error:', error);
+        if (error) console.error('[db.getTeams] supabase error:', error && error.message ? error.message : JSON.stringify(error));
       } catch (err) {
-        console.error('[db.getTeams] request failed:', err);
+        console.error('[db.getTeams] request failed:', err && err.message ? err.message : String(err));
       }
     }
     return ls.get(`${league}_teams`);
@@ -42,15 +42,15 @@ export const db = {
           delete record.id;
           const { data, error } = await supabase.from('nova_teams').insert([record]).select();
           if (!error && data && data[0]) { _syncLs(league, 'teams', data[0], 'add'); return data[0]; }
-          if (error) console.error('[db.saveTeam] insert error:', error);
+          if (error) console.error('[db.saveTeam] insert error:', error && error.message ? error.message : JSON.stringify(error));
         } else {
           const { data, error } = await supabase.from('nova_teams')
             .update({ ...record, id: undefined }).eq('id', team.id).select();
           if (!error && data && data[0]) { _syncLs(league, 'teams', data[0], 'update'); return data[0]; }
-          if (error) console.error('[db.saveTeam] update error:', error);
+          if (error) console.error('[db.saveTeam] update error:', error && error.message ? error.message : JSON.stringify(error));
         }
       } catch (err) {
-        console.error('[db.saveTeam] request failed:', err);
+        console.error('[db.saveTeam] request failed:', err && err.message ? err.message : String(err));
       }
     }
     const list = ls.get(`${league}_teams`);
@@ -69,9 +69,9 @@ export const db = {
     if (hasSupabase()) {
       try {
         const { error } = await supabase.from('nova_teams').delete().eq('id', id);
-        if (error) console.error('[db.deleteTeam] error:', error);
+        if (error) console.error('[db.deleteTeam] error:', error && error.message ? error.message : JSON.stringify(error));
       } catch (err) {
-        console.error('[db.deleteTeam] request failed:', err);
+        console.error('[db.deleteTeam] request failed:', err && err.message ? err.message : String(err));
       }
     }
     ls.set(`${league}_teams`, ls.get(`${league}_teams`).filter(t => t.id !== id));
@@ -84,9 +84,9 @@ export const db = {
         const { data, error } = await supabase
           .from('nova_players').select('*').eq('league', league).order('player_name');
         if (!error && Array.isArray(data)) return data;
-        if (error) console.error('[db.getPlayers] supabase error:', error);
+        if (error) console.error('[db.getPlayers] supabase error:', error && error.message ? error.message : JSON.stringify(error));
       } catch (err) {
-        console.error('[db.getPlayers] request failed:', err);
+        console.error('[db.getPlayers] request failed:', err && err.message ? err.message : String(err));
       }
     }
     return ls.get(`${league}_players`);
@@ -103,17 +103,17 @@ export const db = {
           delete record.id;
           const { data, error } = await supabase.from('nova_players').insert([record]).select();
           if (!error && data && data[0]) { _syncLs(league, 'players', data[0], 'add'); return data[0]; }
-          if (error) console.error('[db.savePlayer] insert error:', error);
+          if (error) console.error('[db.savePlayer] insert error:', error && error.message ? error.message : JSON.stringify(error));
         } else {
           const updateRecord = { ...record };
           delete updateRecord.id;
           const { data, error } = await supabase.from('nova_players')
             .update(updateRecord).eq('id', player.id).select();
           if (!error && data && data[0]) { _syncLs(league, 'players', data[0], 'update'); return data[0]; }
-          if (error) console.error('[db.savePlayer] update error:', error);
+          if (error) console.error('[db.savePlayer] update error:', error && error.message ? error.message : JSON.stringify(error));
         }
       } catch (err) {
-        console.error('[db.savePlayer] request failed:', err);
+        console.error('[db.savePlayer] request failed:', err && err.message ? err.message : String(err));
       }
     }
     const list = ls.get(`${league}_players`);
@@ -132,9 +132,9 @@ export const db = {
     if (hasSupabase()) {
       try {
         const { error } = await supabase.from('nova_players').delete().eq('id', id);
-        if (error) console.error('[db.deletePlayer] error:', error);
+        if (error) console.error('[db.deletePlayer] error:', error && error.message ? error.message : JSON.stringify(error));
       } catch (err) {
-        console.error('[db.deletePlayer] request failed:', err);
+        console.error('[db.deletePlayer] request failed:', err && err.message ? err.message : String(err));
       }
     }
     ls.set(`${league}_players`, ls.get(`${league}_players`).filter(p => p.id !== id));
