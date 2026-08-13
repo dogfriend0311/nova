@@ -1367,6 +1367,13 @@ const FantasyManageTab = () => {
 
 /* ── FANTASY SCHEDULE TAB ──────────────────────────────────── */
 
+// Roblox leagues use the generic `db` under a sport prefix; fantasy leagues use fantasyDb.
+const ROBLOX_LEAGUES = [
+  { id: '__vizta__',    name: 'Roblox Baseball League', prefix: 'vizta',    sport: 'baseball' },
+  { id: '__hockey__',   name: 'Roblox Hockey League',   prefix: 'hockey',   sport: 'hockey' },
+  { id: '__football__', name: 'Roblox Football League', prefix: 'football', sport: 'football' },
+];
+
 const FantasyScheduleTab = () => {
   const [leagues,        setLeagues]        = useState([]);
   const [selectedLeague, setSelectedLeague] = useState(null);
@@ -1378,13 +1385,6 @@ const FantasyScheduleTab = () => {
   const [form,           setForm]           = useState({ week: '', opponent: '', is_home: 'true', game_date: '', result: '', score: '', notes: '', game_id: '' });
   const [saving,         setSaving]         = useState(false);
   const [msg,            setMsg]            = useState('');
-
-  // Roblox leagues use the generic `db` under a sport prefix; fantasy leagues use fantasyDb.
-  const ROBLOX_LEAGUES = [
-    { id: '__vizta__',    name: 'Roblox Baseball League', prefix: 'vizta',    sport: 'baseball' },
-    { id: '__hockey__',   name: 'Roblox Hockey League',   prefix: 'hockey',   sport: 'hockey' },
-    { id: '__football__', name: 'Roblox Football League', prefix: 'football', sport: 'football' },
-  ];
 
   useEffect(() => {
     // Build league list: the 3 Roblox leagues + all fantasy leagues
