@@ -13,9 +13,11 @@ const LeaguesPage = ({ onSelectPlayer }) => {
           <button
             key={key}
             className={`league-switch-btn ${league === key ? 'active' : ''}`}
+            style={{ '--sw-accent': SPORTS[key].accent }}
             onClick={() => setLeague(key)}
           >
-            {SPORTS[key].icon} {SPORTS[key].shortLabel}
+            <span className="league-switch-icon">{SPORTS[key].icon}</span>
+            {SPORTS[key].shortLabel}
           </button>
         ))}
       </div>

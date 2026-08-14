@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import db from './services/db';
 import { getSport } from './data/sportsConfig';
+import {
+  LayoutDashboard, Users, Search, Trophy, CalendarDays, ScrollText,
+  GitCompare, Target, Award, ArrowLeft, ChevronRight, Medal,
+} from 'lucide-react';
 import './ViztaLeague.css';
 
 const fmtVal = (v, fmt) => {
@@ -12,9 +16,36 @@ const fmtVal = (v, fmt) => {
   return Math.round(n) || 0;
 };
 
+const hexToRgb = (hex) => {
+  if (!hex || typeof hex !== 'string') return null;
+  const h = hex.replace('#', '');
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) return null;
+  const bigint = parseInt(full, 16);
+  return `${(bigint >> 16) & 255},${(bigint >> 8) & 255},${bigint & 255}`;
+};
+
+const TABS = [
+  { id: 'overview',   label: 'Overview',    Icon: LayoutDashboard },
+  { id: 'rosters',    label: 'Rosters',     Icon: Users },
+  { id: 'players',    label: 'Players',     Icon: Search },
+  { id: 'leaders',    label: 'Leaders',     Icon: Trophy },
+  { id: 'schedule',   label: 'Schedule',    Icon: CalendarDays },
+  { id: 'scores',     label: 'Box Scores',  Icon: ScrollText },
+  { id: 'compare',    label: 'Compare',     Icon: GitCompare },
+  { id: 'propbets',   label: 'Prop Bets',   Icon: Target },
+  { id: 'halloffame', label: 'Hall of Fame',Icon: Award },
+];
+
 const ViztaLeague = ({ onSelectPlayer, sport = 'vizta' }) => {
   const cfg = getSport(sport);
   const [activeTab, setActiveTab] = useState('overview');
+  const [counts, setCounts] = useState({ teams: 0, players: 0, games: 0 });
+
+  useEffect(() => {
+    Promise.all([db.getTeams(sport), db.getPlayers(sport), db.getBsGames(sport)])
+      .then(([t, p, g]) => setCounts({ teams: t.length, players: p.length, games: g.length }));
+  }, [sport]);
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -31,40 +62,44 @@ const ViztaLeague = ({ onSelectPlayer, sport = 'vizta' }) => {
     }
   };
 
+  const accentRgb = hexToRgb(cfg.accent) || '94,129,244';
+
   return (
-    <div className="page nabb-league">
-      <div className="page-header">
-        <h1 className="gradient-text">{cfg.label}</h1>
-        <p className="subtitle">League Central</p>
+    <div className="lh-page" style={{ '--accent': cfg.accent, '--accent-rgb': accentRgb }}>
+      <div className="lh-hero">
+        <div className="lh-hero-grid" />
+        <span className="lh-hero-icon" aria-hidden="true">{cfg.icon}</span>
+        <div className="lh-hero-content">
+          <div className="lh-hero-eyebrow"><span className="lh-live-dot" /> League Central</div>
+          <h1 className="lh-hero-title">{cfg.label}</h1>
+          <p className="lh-hero-sub">Live stats, rosters, scores and standings for every {cfg.shortLabel.toLowerCase()} team in the league.</p>
+          <div className="lh-hero-stats">
+            <div className="lh-hero-stat"><b>{counts.teams}</b><span>Teams</span></div>
+            <div className="lh-hero-stat"><b>{counts.players}</b><span>Players</span></div>
+            <div className="lh-hero-stat"><b>{counts.games}</b><span>Games Played</span></div>
+          </div>
+        </div>
       </div>
 
-      <div className="league-tabs">
-        {[
-          { id: 'overview',   label: 'Overview' },
-          { id: 'rosters',    label: 'Rosters' },
-          { id: 'players',    label: 'Players' },
-          { id: 'leaders',    label: 'League Leaders' },
-          { id: 'schedule',   label: '📅 Schedule' },
-          { id: 'scores',     label: 'Box Scores' },
-          { id: 'compare',    label: 'Compare' },
-          { id: 'propbets',   label: '🎯 Prop Bets' },
-          { id: 'halloffame', label: 'Hall of Fame' },
-        ].map(tab => (
+      <div className="lh-tabs">
+        {TABS.map(tab => (
           <button
             key={tab.id}
-            className={`league-tab ${activeTab === tab.id ? 'active' : ''}`}
+            className={`lh-tab ${activeTab === tab.id ? 'active' : ''}`}
             onClick={() => setActiveTab(tab.id)}
           >
-            {tab.label}
+            <tab.Icon size={15} strokeWidth={2.4} />
+            <span>{tab.label}</span>
           </button>
         ))}
       </div>
 
-      <div className="league-content">{renderTabContent()}</div>
+      <div className="lh-content">{renderTabContent()}</div>
     </div>
   );
 };
 
+/* ── Overview ─────────────────────────────────────────────────── */
 const OverviewTab = ({ sport, cfg }) => {
   const [teams, setTeams] = useState([]);
   const [players, setPlayers] = useState([]);
@@ -74,49 +109,90 @@ const OverviewTab = ({ sport, cfg }) => {
     db.getPlayers(sport).then(setPlayers);
     db.getBsGames(sport).then(setBsGames);
   }, [sport]);
-  const recentGames = [...bsGames].reverse().slice(0, 3);
+  const recentGames = [...bsGames].reverse().slice(0, 8);
+
+  const getTeamColor = (name) => teams.find(t => t.team_name === name)?.team_color || null;
+  const getTeamLogo  = (name) => teams.find(t => t.team_name === name)?.logo_url || null;
 
   return (
-    <div className="card-container">
-      <div className="neon-card p-3">
-        <h3 className="gradient-text-cyan">League Overview</h3>
-        <div className="mt-2">
-          <div className="data-row"><span className="data-label">League</span><span className="data-value">{cfg.label}</span></div>
-          <div className="data-row"><span className="data-label">Sport</span><span className="data-value">{cfg.label}</span></div>
-          <div className="data-row">
-            <span className="data-label">Status</span>
-            <span className="data-value" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#5ee6a8', boxShadow: '0 0 8px rgba(94, 230, 168,0.6)' }} />
-              ONGOING
-            </span>
-          </div>
-          <div className="data-row"><span className="data-label">Teams</span><span className="data-value">{teams.length}</span></div>
-          <div className="data-row"><span className="data-label">Players</span><span className="data-value">{players.length}</span></div>
-          <div className="data-row"><span className="data-label">Games Played</span><span className="data-value">{bsGames.length}</span></div>
+    <div>
+      <div className="lh-pulse-row">
+        <div className="lh-pulse-card">
+          <span className="lh-pulse-label">Teams</span>
+          <span className="lh-pulse-value">{teams.length}</span>
+        </div>
+        <div className="lh-pulse-card">
+          <span className="lh-pulse-label">Players</span>
+          <span className="lh-pulse-value">{players.length}</span>
+        </div>
+        <div className="lh-pulse-card">
+          <span className="lh-pulse-label">Games Played</span>
+          <span className="lh-pulse-value">{bsGames.length}</span>
+        </div>
+        <div className="lh-pulse-card">
+          <span className="lh-pulse-label">Status</span>
+          <span className="lh-pulse-value lh-status-live"><span className="lh-live-dot" />Ongoing</span>
         </div>
       </div>
 
-      <div className="neon-card p-3">
-        <h3 className="gradient-text-magenta">Recent Games</h3>
-        {recentGames.length === 0 ? (
-          <p style={{ marginTop: '15px', color: 'rgba(158, 165, 196,0.7)' }}>No games played yet</p>
-        ) : (
-          <div className="mt-2">
-            {recentGames.map(game => (
-              <div key={game.id} className="data-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px', padding: '10px 0', borderBottom: '1px solid rgba(94, 129, 244,0.08)' }}>
-                <span style={{ color: 'var(--color-cyan)', fontWeight: '600', fontSize: '0.9rem' }}>{game.game_name}</span>
-                <span style={{ color: 'rgba(158, 165, 196,0.8)' }}>
-                  {game.home_team} <strong>{game.home_score}</strong> - <strong>{game.away_score}</strong> {game.away_team}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
+      <div className="lh-section-head">
+        <h3>Recent Results</h3>
+        <span className="lh-section-tag">Scoreboard</span>
       </div>
+      {recentGames.length === 0 ? (
+        <div className="lh-empty">No games played yet — check back once the season kicks off.</div>
+      ) : (
+        <div className="lh-scoreboard-strip">
+          {recentGames.map(game => {
+            const homeWin = game.home_score > game.away_score;
+            const awayWin = game.away_score > game.home_score;
+            return (
+              <div key={game.id} className="lh-score-card">
+                <div className="lh-score-card-tag">FINAL</div>
+                <div className="lh-score-row">
+                  {getTeamLogo(game.home_team)
+                    ? <img className="lh-score-logo" src={getTeamLogo(game.home_team)} alt="" />
+                    : <div className="lh-score-logo lh-score-logo-fallback" style={{ background: getTeamColor(game.home_team) || 'var(--accent)' }} />}
+                  <span className={`lh-score-team ${homeWin ? 'win' : ''}`}>{game.home_team || 'Home'}</span>
+                  <span className={`lh-score-num ${homeWin ? 'win' : ''}`}>{game.home_score}</span>
+                </div>
+                <div className="lh-score-row">
+                  {getTeamLogo(game.away_team)
+                    ? <img className="lh-score-logo" src={getTeamLogo(game.away_team)} alt="" />
+                    : <div className="lh-score-logo lh-score-logo-fallback" style={{ background: getTeamColor(game.away_team) || 'var(--accent)' }} />}
+                  <span className={`lh-score-team ${awayWin ? 'win' : ''}`}>{game.away_team || 'Away'}</span>
+                  <span className={`lh-score-num ${awayWin ? 'win' : ''}`}>{game.away_score}</span>
+                </div>
+                <div className="lh-score-card-name">{game.game_name}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="lh-section-head" style={{ marginTop: '32px' }}>
+        <h3>League Teams</h3>
+        <span className="lh-section-tag">{teams.length} Total</span>
+      </div>
+      {teams.length === 0 ? (
+        <div className="lh-empty">No teams added yet.</div>
+      ) : (
+        <div className="lh-teamstrip">
+          {teams.map(team => (
+            <div key={team.id} className="lh-team-chip">
+              {team.logo_url
+                ? <img src={team.logo_url} alt="" />
+                : <div className="lh-team-chip-fallback" style={{ '--tc': team.team_color || 'var(--accent)' }} />}
+              <span>{team.team_name}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
 
+/* ── Rosters ──────────────────────────────────────────────────── */
 const RostersTab = ({ sport, cfg, onSelectPlayer }) => {
   const [teams, setTeams]         = useState([]);
   const [players, setPlayers]     = useState([]);
@@ -139,25 +215,34 @@ const RostersTab = ({ sport, cfg, onSelectPlayer }) => {
       .catch(() => { setSchedule([]); setSchedLoading(false); });
   }, [selectedTeam]);
 
-  if (loading) return <p style={{ color:'rgba(158, 165, 196,0.5)', padding:'40px', textAlign:'center' }}>Loading...</p>;
+  if (loading) return <div className="lh-loading">Loading…</div>;
 
   if (!selectedTeam) return (
     <div>
-      <h2 className="gradient-text-cyan">Rosters</h2>
-      <div className="card-container" style={{ marginTop:'20px' }}>
-        {teams.length === 0 && <p style={{ color:'rgba(158, 165, 196,0.5)' }}>No teams yet.</p>}
-        {teams.map(team => (
-          <div key={team.id} className="neon-card p-3" style={{ cursor:'pointer', display:'flex', alignItems:'center', gap:'16px' }} onClick={() => setSelectedTeam(team)}>
-            {team.logo_url
-              ? <img src={team.logo_url} alt={team.team_name} style={{ width:'44px', height:'44px', objectFit:'contain', borderRadius:'6px' }} />
-              : <div style={{ width:'44px', height:'44px', background:team.team_color, borderRadius:'6px', flexShrink:0 }} />}
-            <div>
-              <p style={{ margin:'0 0 3px', color:'var(--color-cyan)', fontWeight:700, fontSize:'1rem' }}>{team.team_name}</p>
-              <p style={{ margin:0, fontSize:'0.8rem', color:'rgba(158, 165, 196,0.5)' }}>{players.filter(p=>p.team===team.team_name).length} players</p>
-            </div>
-          </div>
-        ))}
-      </div>
+      <div className="lh-section-head"><h2>Rosters</h2><span className="lh-section-tag">Pick a team</span></div>
+      {teams.length === 0 ? (
+        <div className="lh-empty">No teams yet.</div>
+      ) : (
+        <div className="lh-team-grid">
+          {teams.map(team => {
+            const rgb = hexToRgb(team.team_color) || accentRgbFromCfg(cfg);
+            return (
+              <div
+                key={team.id}
+                className="lh-team-tile"
+                style={{ '--tc': team.team_color || 'var(--accent)', '--tc-rgb': rgb }}
+                onClick={() => setSelectedTeam(team)}
+              >
+                {team.logo_url
+                  ? <img className="lh-team-tile-logo" src={team.logo_url} alt={team.team_name} />
+                  : <div className="lh-team-tile-fallback" />}
+                <span className="lh-team-tile-name">{team.team_name}</span>
+                <span className="lh-team-tile-count">{players.filter(p => p.team === team.team_name).length} players</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 
@@ -172,117 +257,108 @@ const RostersTab = ({ sport, cfg, onSelectPlayer }) => {
     {label:'Avg OVR', value: teamPlayers.length ? Math.round(teamPlayers.reduce((s,p)=>s+(parseInt(p.overall)||0),0)/teamPlayers.length) : '--'},
     ...cfg.teamStats.map(ts => ({ label: ts.label, value: ts.agg === 'avg' ? avg(ts.field) : sum(ts.field) })),
   ];
-  const teamColor = selectedTeam.team_color || 'var(--color-cyan)';
+  const teamColor = selectedTeam.team_color || cfg.accent;
+  const teamRgb = hexToRgb(teamColor) || accentRgbFromCfg(cfg);
 
   const wins   = schedule.filter(e => e.result === 'W').length;
   const losses = schedule.filter(e => e.result === 'L').length;
   const ties   = schedule.filter(e => e.result === 'T').length;
 
   return (
-    <div>
-      <button className="neon-button" onClick={() => { setSelectedTeam(null); setRightPanel('stats'); }} style={{ marginBottom:'20px' }}>Back to Teams</button>
-      <div style={{ display:'flex', alignItems:'center', gap:'14px', marginBottom:'20px' }}>
+    <div style={{ '--tc': teamColor, '--tc-rgb': teamRgb }}>
+      <button className="lh-back-btn" onClick={() => { setSelectedTeam(null); setRightPanel('stats'); }}>
+        <ArrowLeft size={14} /> Back to Teams
+      </button>
+      <div className="lh-team-header">
         {selectedTeam.logo_url
-          ? <img src={selectedTeam.logo_url} alt={selectedTeam.team_name} style={{ width:'52px', height:'52px', objectFit:'contain', borderRadius:'8px' }} />
-          : <div style={{ width:'52px', height:'52px', background:teamColor, borderRadius:'8px', flexShrink:0 }} />}
-        <h2 style={{ margin:0, color:teamColor, fontWeight:900 }}>{selectedTeam.team_name}</h2>
+          ? <img className="lh-team-header-logo" src={selectedTeam.logo_url} alt={selectedTeam.team_name} />
+          : <div className="lh-team-header-fallback" />}
+        <h2 className="lh-team-header-name">{selectedTeam.team_name}</h2>
       </div>
-      <div className="vz-2col-grid">
-        {/* Left: Roster */}
-        <div className="neon-card p-3">
-          <h4 style={{ color:'var(--color-cyan)', marginBottom:'14px' }}>Roster ({teamPlayers.length})</h4>
-          {teamPlayers.length === 0
-            ? <p style={{ color:'rgba(158, 165, 196,0.4)', fontSize:'0.85rem' }}>No players assigned</p>
-            : teamPlayers.map(p => (
-              <div key={p.id}
-                onClick={() => onSelectPlayer && onSelectPlayer(p)}
-                style={{ display:'flex', alignItems:'center', gap:'10px', padding:'10px', marginBottom:'6px', background:'rgba(94, 129, 244,0.04)', borderRadius:'6px', border:'1px solid rgba(94, 129, 244,0.08)', cursor:onSelectPlayer?'pointer':'default', transition:'all 0.15s' }}
-                onMouseEnter={e=>{if(onSelectPlayer) e.currentTarget.style.background='rgba(94, 129, 244,0.1)';}}
-                onMouseLeave={e=>{e.currentTarget.style.background='rgba(94, 129, 244,0.04)';}}
-              >
-                {p.avatar_data
-                  ? <img src={p.avatar_data} alt={p.player_name} style={{ width:'36px', height:'36px', borderRadius:'50%', objectFit:'cover', border:`1px solid ${teamColor}44` }} />
-                  : <div style={{ width:'36px', height:'36px', borderRadius:'50%', background:`${teamColor}22`, border:`1px solid ${teamColor}33`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1rem', flexShrink:0 }}>G</div>}
-                <div style={{ flex:1, minWidth:0 }}>
-                  <p style={{ margin:0, color:'var(--color-cyan)', fontWeight:600, fontSize:'0.88rem', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.player_name}</p>
-                  <p style={{ margin:0, fontSize:'0.72rem', color:'rgba(158, 165, 196,0.5)' }}>{p.position||'--'} - OVR {p.overall||'?'}</p>
+
+      <div className="lh-split">
+        <div className="lh-card">
+          <div className="lh-section-head" style={{ marginBottom: '12px' }}>
+            <h3>Roster ({teamPlayers.length})</h3>
+          </div>
+          {teamPlayers.length === 0 ? (
+            <div className="lh-empty">No players assigned</div>
+          ) : (
+            <div className="lh-roster-list">
+              {teamPlayers.map(p => (
+                <div
+                  key={p.id}
+                  className={`lh-roster-row ${onSelectPlayer ? 'clickable' : ''}`}
+                  onClick={() => onSelectPlayer && onSelectPlayer(p)}
+                >
+                  {p.avatar_data
+                    ? <img className="lh-roster-avatar" src={p.avatar_data} alt={p.player_name} />
+                    : <div className="lh-roster-avatar-fallback">🎮</div>}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p className="lh-roster-name">{p.player_name}</p>
+                    <p className="lh-roster-meta">{p.position||'--'} · OVR {p.overall||'?'}</p>
+                  </div>
+                  {onSelectPlayer && <ChevronRight size={15} color={`rgba(${teamRgb},0.6)`} />}
                 </div>
-                {onSelectPlayer && <span style={{ color:`${teamColor}66`, fontSize:'0.75rem' }}>→</span>}
-              </div>
-            ))}
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Right: Stats / Schedule toggle */}
-        <div className="neon-card p-3">
-          {/* Toggle */}
-          <div style={{ display:'flex', gap:6, marginBottom:14 }}>
+        <div className="lh-card">
+          <div className="lh-toggle-group">
             {['stats','schedule'].map(id => (
-              <button key={id} onClick={() => setRightPanel(id)} style={{
-                padding:'5px 14px', borderRadius:20, border:'none', cursor:'pointer', fontWeight:700, fontSize:'0.78rem',
-                background: rightPanel===id ? teamColor : 'rgba(94,129,244,0.08)',
-                color: rightPanel===id ? '#0a0d1a' : 'rgba(158,165,196,0.6)',
-              }}>
-                {id === 'stats' ? '📊 Team Stats' : '📅 Schedule'}
+              <button key={id} className={`lh-toggle-btn ${rightPanel===id?'active':''}`} onClick={() => setRightPanel(id)}>
+                {id === 'stats' ? <><Trophy size={13}/> Team Stats</> : <><CalendarDays size={13}/> Schedule</>}
               </button>
             ))}
           </div>
 
           {rightPanel === 'stats' && (
-            <>
-              <h4 style={{ color:teamColor, marginBottom:'14px', marginTop:0 }}>Team Stats (Season)</h4>
-              <div className="fx-stat-tilegrid">
-                {teamStats.map(({label,value}, i) => {
-                  const numeric = parseFloat(value);
-                  const hasVal = value !== '--' && !isNaN(numeric);
-                  return (
-                    <div key={label} className="fx-stat-tile" style={{ animationDelay:`${i*30}ms`, '--tile-color': teamColor }}>
-                      <span className="fx-stat-tile-label">{label}</span>
-                      <span className="fx-stat-tile-value" style={{ color: hasVal ? teamColor : 'rgba(158,165,196,0.25)' }}>{value}</span>
-                      <div className="fx-stat-tile-bar"><div className="fx-stat-tile-fill" style={{ width: hasVal ? '100%' : '0%' }} /></div>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
+            <div className="lh-percentile-grid">
+              {teamStats.map(({label,value}, i) => {
+                const numeric = parseFloat(value);
+                const hasVal = value !== '--' && !isNaN(numeric);
+                return (
+                  <div key={label} className="lh-percentile-tile" style={{ animationDelay:`${i*30}ms` }}>
+                    <span className="lh-percentile-label">{label}</span>
+                    <span className="lh-percentile-value" style={{ color: hasVal ? teamColor : 'rgba(158,165,196,0.25)' }}>{value}</span>
+                    <div className="lh-percentile-bar"><div className="lh-percentile-fill" style={{ width: hasVal ? '100%' : '0%' }} /></div>
+                  </div>
+                );
+              })}
+            </div>
           )}
 
           {rightPanel === 'schedule' && (
             <>
-              <h4 style={{ color:teamColor, marginBottom:'10px', marginTop:0 }}>Schedule</h4>
-              {/* Record pills */}
-              <div style={{ display:'flex', gap:12, marginBottom:14, flexWrap:'wrap' }}>
-                {[['W', wins,'#22c55e'],['L',losses,'#ef4444'],['T',ties,'#eab308']].filter(([,v])=>v>0||['W','L'].includes(''+v[0])).map(([l,v,c])=>(
-                  <span key={l} style={{ fontWeight:800, fontSize:'0.95rem', color:c }}>{v} {l}</span>
-                ))}
+              <div style={{ display:'flex', gap:12, marginBottom:14, flexWrap:'wrap', alignItems:'center' }}>
+                {wins > 0 && <span className="lh-record-pill w">{wins}W</span>}
+                {losses > 0 && <span className="lh-record-pill l">{losses}L</span>}
+                {ties > 0 && <span className="lh-record-pill t">{ties}T</span>}
                 {schedule.filter(e=>!e.result).length > 0 && (
-                  <span style={{ color:'rgba(158,165,196,0.4)', fontSize:'0.85rem' }}>{schedule.filter(e=>!e.result).length} upcoming</span>
+                  <span style={{ color:'rgba(158,165,196,0.4)', fontSize:'0.82rem' }}>{schedule.filter(e=>!e.result).length} upcoming</span>
                 )}
               </div>
               {schedLoading ? (
-                <p style={{ color:'rgba(158,165,196,0.4)', textAlign:'center', padding:'20px 0', fontSize:'0.85rem' }}>Loading…</p>
+                <div className="lh-loading">Loading…</div>
               ) : schedule.length === 0 ? (
-                <p style={{ color:'rgba(158,165,196,0.35)', textAlign:'center', padding:'20px 0', fontSize:'0.82rem' }}>
-                  No schedule yet.<br />An admin can add games via Admin → Fantasy Schedule.
-                </p>
+                <div className="lh-empty">No schedule yet.<br/>An admin can add games via Admin → Fantasy Schedule.</div>
               ) : (
-                <div style={{ overflowX:'auto' }}>
-                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.8rem' }}>
+                <div className="lh-boxtable-wrap">
+                  <table className="lh-boxtable">
                     <thead>
-                      <tr style={{ borderBottom:'1px solid rgba(94,129,244,0.15)' }}>
-                        {['Wk','Opponent','Loc','Date','Score','Result'].map(h=>(
-                          <th key={h} style={{ padding:'5px 6px', textAlign:'left', color:'rgba(158,165,196,0.4)', fontWeight:600, fontSize:'0.72rem', textTransform:'uppercase' }}>{h}</th>
-                        ))}
-                      </tr>
+                      <tr>{['Wk','Opponent','Loc','Date','Score','Result'].map(h => <th key={h}>{h}</th>)}</tr>
                     </thead>
                     <tbody>
                       {[...schedule].sort((a,b)=>(a.week||999)-(b.week||999)).map(entry=>(
-                        <tr key={entry.id} style={{ borderBottom:'1px solid rgba(255,255,255,0.03)' }}>
-                          <td style={{ padding:'6px', fontWeight:700, color:'var(--color-cyan)' }}>{entry.week??'—'}</td>
-                          <td style={{ padding:'6px', color:'#e2e5f0' }}>{entry.opponent||'—'}</td>
-                          <td style={{ padding:'6px', fontSize:'0.7rem', fontWeight:700, color:entry.is_home?'var(--color-cyan)':'#d946ef' }}>{entry.is_home?'HOME':'AWAY'}</td>
-                          <td style={{ padding:'6px', color:'rgba(158,165,196,0.5)', fontSize:'0.75rem' }}>{entry.game_date||'—'}</td>
-                          <td style={{ padding:'6px' }}>{entry.score||'—'}</td>
-                          <td style={{ padding:'6px', fontWeight:700, color:entry.result==='W'?'#22c55e':entry.result==='L'?'#ef4444':'#eab308' }}>{entry.result||<span style={{color:'rgba(158,165,196,0.3)',fontSize:'0.75rem'}}>TBD</span>}</td>
+                        <tr key={entry.id}>
+                          <td style={{ fontWeight:700, color:'var(--tc, var(--accent))' }}>{entry.week??'—'}</td>
+                          <td>{entry.opponent||'—'}</td>
+                          <td style={{ fontSize:'0.7rem', fontWeight:700, color: entry.is_home ? 'var(--tc, var(--accent))' : '#d946ef' }}>{entry.is_home?'HOME':'AWAY'}</td>
+                          <td style={{ color:'rgba(158,165,196,0.5)', fontSize:'0.75rem' }}>{entry.game_date||'—'}</td>
+                          <td>{entry.score||'—'}</td>
+                          <td style={{ fontWeight:700, color: entry.result==='W'?'#22c55e':entry.result==='L'?'#ef4444':entry.result==='T'?'#eab308':'rgba(158,165,196,0.3)' }}>{entry.result || 'TBD'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -297,6 +373,9 @@ const RostersTab = ({ sport, cfg, onSelectPlayer }) => {
   );
 };
 
+const accentRgbFromCfg = (cfg) => hexToRgb(cfg.accent) || '94,129,244';
+
+/* ── Players ──────────────────────────────────────────────────── */
 const PlayersTab = ({ sport, onSelectPlayer }) => {
   const [players, setPlayers] = useState([]);
   const [search, setSearch] = useState('');
@@ -309,23 +388,35 @@ const PlayersTab = ({ sport, onSelectPlayer }) => {
 
   return (
     <div>
-      <div style={{ marginBottom:'20px' }}>
-        <input type="text" placeholder="Search players or teams..." value={search} onChange={e=>setSearch(e.target.value)} style={{ width:'100%', maxWidth:'400px' }} />
+      <div className="lh-search-wrap">
+        <Search size={16} />
+        <input
+          type="text" className="lh-search-input"
+          placeholder="Search players or teams…" value={search}
+          onChange={e=>setSearch(e.target.value)}
+        />
       </div>
       {filtered.length === 0 ? (
-        <div className="neon-card p-3"><p style={{ color:'rgba(158, 165, 196,0.5)', textAlign:'center' }}>{players.length === 0 ? 'No players added yet' : 'No players match your search'}</p></div>
+        <div className="lh-empty">{players.length === 0 ? 'No players added yet' : 'No players match your search'}</div>
       ) : (
-        <div className="card-grid">
-          {filtered.map(player => (
-            <div key={player.id} className="neon-card p-3" style={{ cursor:'pointer' }} onClick={() => onSelectPlayer && onSelectPlayer(player)}>
-              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'10px' }}>
-                <h4 className="gradient-text-cyan" style={{ margin:0 }}>{player.player_name}</h4>
-                {player.number && <span style={{ color:'rgba(158, 165, 196,0.5)' }}>#{player.number}</span>}
+        <div className="lh-player-grid">
+          {filtered.map((player, i) => (
+            <div key={player.id} className="lh-player-card" style={{ animationDelay:`${Math.min(i,20)*25}ms` }} onClick={() => onSelectPlayer && onSelectPlayer(player)}>
+              <div className="lh-player-card-top">
+                {player.avatar_data
+                  ? <img className="lh-player-avatar" src={player.avatar_data} alt={player.player_name} />
+                  : <div className="lh-player-avatar-fallback">{(player.player_name||'?')[0]}</div>}
+                <div style={{ minWidth: 0 }}>
+                  <p className="lh-player-name">{player.player_name}</p>
+                  <p className="lh-player-team">{player.team || 'Free Agent'}</p>
+                </div>
+                {player.number && <span className="lh-player-num">#{player.number}</span>}
               </div>
-              <div className="data-row"><span className="data-label">Team</span><span className="data-value">{player.team || 'Free Agent'}</span></div>
-              <div className="data-row"><span className="data-label">Position</span><span className="data-value">{player.position || '--'}</span></div>
-              <div className="data-row"><span className="data-label">Overall</span><span className="data-value">{player.overall || '--'}</span></div>
-              <p style={{ marginTop:'10px', fontSize:'0.8rem', color:'rgba(94, 129, 244,0.6)', textAlign:'center' }}>Click to view stat page</p>
+              <div className="lh-player-badges">
+                <span className="lh-player-badge">{player.position || '--'}</span>
+                <span className="lh-player-badge">OVR {player.overall || '--'}</span>
+              </div>
+              <p className="lh-player-cta">View Stat Page →</p>
             </div>
           ))}
         </div>
@@ -334,6 +425,7 @@ const PlayersTab = ({ sport, onSelectPlayer }) => {
   );
 };
 
+/* ── League Leaders ───────────────────────────────────────────── */
 const LeagueLeadersTab = ({ sport, cfg, onSelectPlayer }) => {
   const [players, setPlayers]   = useState([]);
   const [boxScores, setBoxScores] = useState([]);
@@ -348,7 +440,7 @@ const LeagueLeadersTab = ({ sport, cfg, onSelectPlayer }) => {
       .then(([p, b]) => { setPlayers(p); setBoxScores(Array.isArray(b)?b:[]); setLoading(false); });
   }, [sport]);
 
-  if (loading) return <p style={{ color:'rgba(158, 165, 196,0.5)', padding:'40px', textAlign:'center' }}>Loading...</p>;
+  if (loading) return <div className="lh-loading">Loading…</div>;
 
   const CATS = statType === cfg.catA.id ? cfg.leadersA : cfg.leadersB;
 
@@ -365,90 +457,94 @@ const LeagueLeadersTab = ({ sport, cfg, onSelectPlayer }) => {
     return { ...p, _vals: vals };
   });
 
-  const btnSty = (active) => ({
-    padding:'6px 16px', background:active?'rgba(94, 129, 244,0.12)':'rgba(10,10,30,0.6)',
-    border:active?'1px solid rgba(94, 129, 244,0.4)':'1px solid rgba(100,120,200,0.15)',
-    color:active?'var(--color-cyan)':'rgba(158, 165, 196,0.4)', borderRadius:'6px',
-    cursor:'pointer', fontWeight:'700', fontSize:'0.78rem', textTransform:'uppercase', letterSpacing:'0.08em',
-  });
+  const rankClass = (i) => i===0?'gold':i===1?'silver':i===2?'bronze':'';
 
   return (
     <div>
-      <div style={{ display:'flex', gap:'8px', marginBottom:'12px', flexWrap:'wrap', justifyContent:'center' }}>
-        {['season','career'].map(m2 => <button key={m2} style={btnSty(mode===m2)} onClick={()=>setMode(m2)}>{m2}</button>)}
+      <div style={{ display:'flex', justifyContent:'center', marginBottom:'14px' }}>
+        <div className="lh-toggle-group">
+          {['season','career'].map(m2 => (
+            <button key={m2} className={`lh-toggle-btn ${mode===m2?'active':''}`} onClick={()=>setMode(m2)}>{m2}</button>
+          ))}
+        </div>
       </div>
-      <div style={{ display:'flex', gap:'8px', marginBottom:'24px', flexWrap:'wrap', justifyContent:'center' }}>
-        {[cfg.catA, cfg.catB].map(c => (
-          <button key={c.id} style={{...btnSty(statType===c.id), borderColor:statType===c.id?'rgba(255, 158, 87,0.4)':'rgba(100,120,200,0.15)', color:statType===c.id?'var(--color-magenta)':'rgba(158, 165, 196,0.4)', background:statType===c.id?'rgba(255, 158, 87,0.1)':'rgba(10,10,30,0.6)'}} onClick={()=>setStatType(c.id)}>{c.label}</button>
-        ))}
+      <div style={{ display:'flex', justifyContent:'center', marginBottom:'26px' }}>
+        <div className="lh-toggle-group">
+          {[cfg.catA, cfg.catB].map(c => (
+            <button key={c.id} className={`lh-toggle-btn ${statType===c.id?'active':''}`} onClick={()=>setStatType(c.id)}>{c.label}</button>
+          ))}
+        </div>
       </div>
-      {CATS.map((cat) => {
-        const key = cat.label + '_' + mode;
-        const sorted = [...withStats].filter(p=>p._vals[key]!==undefined).sort((a,b)=>cat.hi?(b._vals[key]||0)-(a._vals[key]||0):(a._vals[key]||9999)-(b._vals[key]||9999)).slice(0,10);
-        if (!sorted.length) return null;
-        return (
-          <div key={cat.label} className="neon-card p-3" style={{ marginBottom:'20px' }}>
-            <h4 className="gradient-text-magenta" style={{ marginBottom:'12px' }}>{cat.label}</h4>
-            {sorted.map((p,i) => (
-              <div key={p.id} onClick={()=>onSelectPlayer&&onSelectPlayer(p)} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'8px', borderRadius:'6px', marginBottom:'4px', background:i===0?'rgba(94, 129, 244,0.06)':'transparent', cursor:onSelectPlayer?'pointer':'default' }}>
-                <span style={{ width:'22px', textAlign:'center', color:i===0?'#ffd700':i===1?'#c0c0c0':i===2?'#cd7f32':'rgba(158, 165, 196,0.4)', fontWeight:'700', fontSize:'0.82rem' }}>
-                  {i===0?'#1':i===1?'#2':i===2?'#3':`#${i+1}`}
-                </span>
-                {p.avatar_data && <img src={p.avatar_data} alt="" style={{ width:'28px', height:'28px', borderRadius:'50%', objectFit:'cover' }} />}
-                <div style={{ flex:1 }}>
-                  <p style={{ margin:0, color:'var(--color-cyan)', fontWeight:600, fontSize:'0.88rem' }}>{p.player_name}</p>
-                  <p style={{ margin:0, fontSize:'0.72rem', color:'rgba(158, 165, 196,0.4)' }}>{p.team||'FA'} - {p.position||'--'}</p>
+
+      <div className="lh-leader-board">
+        {CATS.map((cat) => {
+          const key = cat.label + '_' + mode;
+          const sorted = [...withStats].filter(p=>p._vals[key]!==undefined).sort((a,b)=>cat.hi?(b._vals[key]||0)-(a._vals[key]||0):(a._vals[key]||9999)-(b._vals[key]||9999)).slice(0,10);
+          if (!sorted.length) return null;
+          const maxVal = Math.max(...sorted.map(p => Math.abs(p._vals[key]||0)), 1);
+          return (
+            <div key={cat.label} className="lh-leader-card">
+              <div className="lh-leader-head"><h4>{cat.label}</h4><Trophy size={15} color="var(--accent)" /></div>
+              {sorted.map((p,i) => (
+                <div key={p.id} className="lh-leader-row" onClick={()=>onSelectPlayer&&onSelectPlayer(p)}>
+                  <span className={`lh-leader-rank ${rankClass(i)}`}>{i+1}</span>
+                  {p.avatar_data
+                    ? <img className="lh-leader-avatar" src={p.avatar_data} alt="" />
+                    : <Medal size={16} color="rgba(158,165,196,0.3)" />}
+                  <div className="lh-leader-info">
+                    <p className="lh-leader-name">{p.player_name}</p>
+                    <p className="lh-leader-sub">{p.team||'FA'} · {p.position||'--'}</p>
+                  </div>
+                  <div className="lh-leader-value-wrap">
+                    <div className="lh-leader-bar-track"><div className="lh-leader-bar-fill" style={{ width: `${Math.min(100, Math.abs(p._vals[key]||0)/maxVal*100)}%` }} /></div>
+                    <span className="lh-leader-value">{fmtVal(p._vals[key], cat.fmt)}</span>
+                  </div>
                 </div>
-                <span style={{ fontWeight:'800', color:i===0?'var(--color-cyan)':'rgba(158, 165, 196,0.7)', fontSize:'0.95rem' }}>{fmtVal(p._vals[key], cat.fmt)}</span>
-              </div>
-            ))}
-          </div>
-        );
-      })}
-      {withStats.length === 0 && <p style={{ color:'rgba(158, 165, 196,0.4)', textAlign:'center', padding:'40px 20px' }}>No players yet.</p>}
+              ))}
+            </div>
+          );
+        })}
+        {withStats.length === 0 && <div className="lh-empty">No players yet.</div>}
+      </div>
     </div>
   );
 };
 
-/* ── Shared game box-score detail (used by Schedule tab + Box Scores tab) ── */
+/* ── Shared game box-score detail ────────────────────────────── */
 const GameBoxScoreDetail = ({ game, boxScores, players, teams, cfg, onBack, backLabel = 'Back' }) => {
   const getTeamColor = (name) => teams.find(t => t.team_name === name)?.team_color || null;
   const getTeamLogo  = (name) => teams.find(t => t.team_name === name)?.logo_url || null;
   const getPlayer    = (id)   => players.find(p => p.id === id);
 
-  const thS = { padding:'7px 8px', color:'rgba(158, 165, 196,0.5)', fontSize:'0.72rem', fontWeight:'700', letterSpacing:'0.06em', textTransform:'uppercase', textAlign:'center', borderBottom:'1px solid rgba(94, 129, 244,0.08)' };
-  const tdS = { padding:'7px 8px', textAlign:'center', color:'rgba(158, 165, 196,0.85)', fontSize:'0.83rem', borderBottom:'1px solid rgba(94, 129, 244,0.04)' };
-
   const TeamTable = ({ teamName, scores, accent }) => {
     const color = getTeamColor(teamName) || accent;
     const logo  = getTeamLogo(teamName);
+    const rgb = hexToRgb(color) || accentRgbFromCfg(cfg);
     if (!scores.length) return null;
     return (
-      <div className="neon-card p-3 fx-scoretable" style={{ marginBottom:'16px', borderTop:`3px solid ${color||accent}` }}>
-        <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'12px' }}>
-          {logo ? <img src={logo} alt={teamName} style={{ width:'32px', height:'32px', objectFit:'contain', borderRadius:'4px' }} /> : <div style={{ width:'32px', height:'32px', background:color||accent, borderRadius:'4px', opacity:0.7 }} />}
-          <h4 style={{ margin:0, color:color||accent, fontWeight:'800', fontSize:'0.95rem' }}>{teamName||'Unknown Team'}</h4>
+      <div className="lh-card lh-boxtable-card" style={{ '--tc': color, '--tc-rgb': rgb }}>
+        <div className="lh-boxtable-head">
+          {logo ? <img src={logo} alt={teamName} /> : <div className="lh-boxtable-head-fallback" />}
+          <h4>{teamName || 'Unknown Team'}</h4>
         </div>
-        <div style={{ overflowX:'auto' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.82rem', minWidth:'480px' }}>
+        <div className="lh-boxtable-wrap">
+          <table className="lh-boxtable">
             <thead><tr>
-              <th style={{...thS, textAlign:'left', minWidth:'120px'}}>Player</th>
-              {cfg.boxFields.map(f=><th key={f} style={thS}>{cfg.boxLabels[f]}</th>)}
+              <th style={{ minWidth:'130px' }}>Player</th>
+              {cfg.boxFields.map(f => <th key={f}>{cfg.boxLabels[f]}</th>)}
             </tr></thead>
             <tbody>
               {scores.map((score,i) => {
                 const p = getPlayer(score.player_id);
                 return (
                   <tr key={i}>
-                    <td style={{...tdS, textAlign:'left'}}>
-                      <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
-                        {p?.avatar_data ? <img src={p.avatar_data} alt="" style={{ width:'24px', height:'24px', borderRadius:'50%', objectFit:'cover', flexShrink:0 }} /> : <div style={{ width:'24px', height:'24px', borderRadius:'50%', background:`${color||accent}22`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.65rem', flexShrink:0 }}>G</div>}
-                        <span style={{ color:color||'var(--color-cyan)', fontWeight:'600' }}>{p?.player_name||'?'}</span>
+                    <td>
+                      <div className="lh-boxplayer">
+                        {p?.avatar_data ? <img src={p.avatar_data} alt="" /> : <div className="lh-boxplayer-fallback">🎮</div>}
+                        <span style={{ color: color || 'var(--accent)', fontWeight: 600 }}>{p?.player_name||'?'}</span>
                       </div>
                     </td>
-                    {cfg.boxFields.map((f,j)=>(
-                      <td key={j} style={tdS}>{score[f]||0}</td>
-                    ))}
+                    {cfg.boxFields.map((f,j)=>(<td key={j}>{score[f]||0}</td>))}
                   </tr>
                 );
               })}
@@ -468,42 +564,42 @@ const GameBoxScoreDetail = ({ game, boxScores, players, teams, cfg, onBack, back
 
   return (
     <div>
-      {onBack && <button className="neon-button" style={{ marginBottom:'20px', fontSize:'0.9rem' }} onClick={onBack}>{backLabel}</button>}
-      <div className="neon-card p-3 fx-vscard" style={{ marginBottom:'20px' }}>
-        <h3 className="gradient-text-cyan" style={{ marginBottom:'14px' }}>{game.game_name}</h3>
-        <div className="vz-vs-grid">
-          <div style={{ textAlign:'center' }}>
-            {getTeamLogo(game.home_team) && <img src={getTeamLogo(game.home_team)} alt="" style={{ width:'40px', height:'40px', objectFit:'contain', display:'block', margin:'0 auto 8px' }} />}
-            <p style={{ margin:'0 0 4px', color:getTeamColor(game.home_team)||'var(--color-cyan)', fontWeight:'700' }}>{game.home_team||'Home'}</p>
-            <p style={{ margin:0, fontSize:homeWin?'2rem':'1.6rem', fontWeight:'800', color:homeWin?'var(--color-cyan)':'rgba(158, 165, 196,0.6)' }}>{game.home_score}</p>
-            {homeWin && <span className="fx-win-chip">WIN</span>}
+      {onBack && <button className="lh-back-btn" onClick={onBack}><ArrowLeft size={14}/> {backLabel}</button>}
+      <div className="lh-matchup-card">
+        <div className="lh-matchup-tag">{game.game_name}</div>
+        <div className="lh-matchup-grid">
+          <div className="lh-matchup-side">
+            {getTeamLogo(game.home_team) && <img className="lh-matchup-logo" src={getTeamLogo(game.home_team)} alt="" />}
+            <p className="lh-matchup-team" style={{ color: getTeamColor(game.home_team) || 'var(--accent)' }}>{game.home_team||'Home'}</p>
+            <p className={`lh-matchup-score ${homeWin?'win':''}`}>{game.home_score}</p>
+            {homeWin && <span className="lh-matchup-win-chip">WIN</span>}
           </div>
-          <div style={{ textAlign:'center' }}>
-            <span style={{ color:'rgba(158, 165, 196,0.3)', fontSize:'1.2rem' }}>-</span>
-            {game.game_date && <p style={{ margin:'6px 0 0', color:'rgba(158, 165, 196,0.4)', fontSize:'0.75rem' }}>{new Date(game.game_date).toLocaleDateString()}</p>}
+          <div className="lh-matchup-center">
+            VS
+            {game.game_date && <div className="lh-matchup-date">{new Date(game.game_date).toLocaleDateString()}</div>}
           </div>
-          <div style={{ textAlign:'center' }}>
-            {getTeamLogo(game.away_team) && <img src={getTeamLogo(game.away_team)} alt="" style={{ width:'40px', height:'40px', objectFit:'contain', display:'block', margin:'0 auto 8px' }} />}
-            <p style={{ margin:'0 0 4px', color:getTeamColor(game.away_team)||'var(--color-magenta)', fontWeight:'700' }}>{game.away_team||'Away'}</p>
-            <p style={{ margin:0, fontSize:awayWin?'2rem':'1.6rem', fontWeight:'800', color:awayWin?'var(--color-magenta)':'rgba(158, 165, 196,0.6)' }}>{game.away_score}</p>
-            {awayWin && <span className="fx-win-chip">WIN</span>}
+          <div className="lh-matchup-side">
+            {getTeamLogo(game.away_team) && <img className="lh-matchup-logo" src={getTeamLogo(game.away_team)} alt="" />}
+            <p className="lh-matchup-team" style={{ color: getTeamColor(game.away_team) || 'var(--accent)' }}>{game.away_team||'Away'}</p>
+            <p className={`lh-matchup-score ${awayWin?'win':''}`}>{game.away_score}</p>
+            {awayWin && <span className="lh-matchup-win-chip">WIN</span>}
           </div>
         </div>
       </div>
       {gameScores.length===0 ? (
-        <div className="neon-card p-3"><p style={{ color:'rgba(158, 165, 196,0.5)', textAlign:'center' }}>No player stats logged for this game</p></div>
+        <div className="lh-empty">No player stats logged for this game</div>
       ) : (
         <>
-          <TeamTable teamName={game.home_team} scores={homeScores} accent="var(--color-cyan)" />
-          <TeamTable teamName={game.away_team} scores={awayScores} accent="var(--color-magenta)" />
-          {otherScores.length>0 && <TeamTable teamName="Other" scores={otherScores} accent="rgba(158, 165, 196,0.6)" />}
+          <TeamTable teamName={game.home_team} scores={homeScores} accent="var(--accent)" />
+          <TeamTable teamName={game.away_team} scores={awayScores} accent="var(--accent)" />
+          {otherScores.length>0 && <TeamTable teamName="Other" scores={otherScores} accent="var(--accent)" />}
         </>
       )}
     </div>
   );
 };
 
-/* ── Schedule tab: pick a team → see W/L record + dates → click a game for its box score ── */
+/* ── Schedule ─────────────────────────────────────────────────── */
 const ScheduleTab = ({ sport, cfg }) => {
   const [teams, setTeams]       = useState([]);
   const [players, setPlayers]   = useState([]);
@@ -529,49 +625,46 @@ const ScheduleTab = ({ sport, cfg }) => {
       .catch(() => { setSchedule([]); setSchedLoading(false); });
   }, [selectedTeam]);
 
-  if (loading) return <p style={{ color:'rgba(158, 165, 196,0.5)', padding:'40px', textAlign:'center' }}>Loading...</p>;
+  if (loading) return <div className="lh-loading">Loading…</div>;
 
-  // ── Game box score drill-down ──
   if (selectedGame) {
     return (
       <GameBoxScoreDetail
-        game={selectedGame}
-        boxScores={boxScores}
-        players={players}
-        teams={teams}
-        cfg={cfg}
-        onBack={() => setSelectedGame(null)}
-        backLabel="Back to Schedule"
+        game={selectedGame} boxScores={boxScores} players={players} teams={teams} cfg={cfg}
+        onBack={() => setSelectedGame(null)} backLabel="Back to Schedule"
       />
     );
   }
 
-  // ── Team picker ──
   if (!selectedTeam) {
     return (
       <div>
-        <h2 className="gradient-text-cyan">Schedule</h2>
-        <p style={{ color:'rgba(158, 165, 196,0.5)', margin:'6px 0 20px', fontSize:'0.88rem' }}>Pick a team to see which games they've won, lost, and when they were played.</p>
-        <div className="card-container">
-          {teams.length === 0 && <p style={{ color:'rgba(158, 165, 196,0.5)' }}>No teams yet.</p>}
-          {teams.map(team => (
-            <div key={team.id} className="neon-card p-3 fx-teampick" style={{ cursor:'pointer', display:'flex', alignItems:'center', gap:'16px' }} onClick={() => setSelectedTeam(team)}>
-              {team.logo_url
-                ? <img src={team.logo_url} alt={team.team_name} style={{ width:'44px', height:'44px', objectFit:'contain', borderRadius:'6px' }} />
-                : <div style={{ width:'44px', height:'44px', background:team.team_color, borderRadius:'6px', flexShrink:0 }} />}
-              <div>
-                <p style={{ margin:'0 0 3px', color:'var(--color-cyan)', fontWeight:700, fontSize:'1rem' }}>{team.team_name}</p>
-                <p style={{ margin:0, fontSize:'0.8rem', color:'rgba(158, 165, 196,0.5)' }}>View schedule &amp; results →</p>
-              </div>
-            </div>
-          ))}
-        </div>
+        <div className="lh-section-head"><h2>Schedule</h2><span className="lh-section-tag">Pick a team</span></div>
+        <p style={{ color:'rgba(158,165,196,0.5)', margin:'-8px 0 20px', fontSize:'0.88rem' }}>See which games a team has won, lost, and when they were played.</p>
+        {teams.length === 0 ? (
+          <div className="lh-empty">No teams yet.</div>
+        ) : (
+          <div className="lh-team-grid">
+            {teams.map(team => {
+              const rgb = hexToRgb(team.team_color) || accentRgbFromCfg(cfg);
+              return (
+                <div key={team.id} className="lh-team-tile" style={{ '--tc': team.team_color || 'var(--accent)', '--tc-rgb': rgb }} onClick={() => setSelectedTeam(team)}>
+                  {team.logo_url
+                    ? <img className="lh-team-tile-logo" src={team.logo_url} alt={team.team_name} />
+                    : <div className="lh-team-tile-fallback" />}
+                  <span className="lh-team-tile-name">{team.team_name}</span>
+                  <span className="lh-team-tile-count">View schedule →</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   }
 
-  // ── Team schedule ──
-  const teamColor = selectedTeam.team_color || 'var(--color-cyan)';
+  const teamColor = selectedTeam.team_color || cfg.accent;
+  const teamRgb = hexToRgb(teamColor) || accentRgbFromCfg(cfg);
   const wins   = schedule.filter(e => e.result === 'W').length;
   const losses = schedule.filter(e => e.result === 'L').length;
   const ties   = schedule.filter(e => e.result === 'T').length;
@@ -587,53 +680,42 @@ const ScheduleTab = ({ sport, cfg }) => {
   };
 
   return (
-    <div>
-      <button className="neon-button" onClick={() => setSelectedTeam(null)} style={{ marginBottom:'20px' }}>Back to Teams</button>
-      <div style={{ display:'flex', alignItems:'center', gap:'14px', marginBottom:'18px', flexWrap:'wrap' }}>
+    <div style={{ '--tc': teamColor, '--tc-rgb': teamRgb }}>
+      <button className="lh-back-btn" onClick={() => setSelectedTeam(null)}><ArrowLeft size={14}/> Back to Teams</button>
+      <div className="lh-team-header">
         {selectedTeam.logo_url
-          ? <img src={selectedTeam.logo_url} alt={selectedTeam.team_name} style={{ width:'52px', height:'52px', objectFit:'contain', borderRadius:'8px' }} />
-          : <div style={{ width:'52px', height:'52px', background:teamColor, borderRadius:'8px', flexShrink:0 }} />}
-        <h2 style={{ margin:0, color:teamColor, fontWeight:900 }}>{selectedTeam.team_name}</h2>
-        <div className="fx-record-pills">
-          <span className="fx-pill fx-pill-w">{wins}W</span>
-          <span className="fx-pill fx-pill-l">{losses}L</span>
-          {ties > 0 && <span className="fx-pill fx-pill-t">{ties}T</span>}
+          ? <img className="lh-team-header-logo" src={selectedTeam.logo_url} alt={selectedTeam.team_name} />
+          : <div className="lh-team-header-fallback" />}
+        <h2 className="lh-team-header-name">{selectedTeam.team_name}</h2>
+        <div className="lh-record-pills">
+          {wins > 0 && <span className="lh-record-pill w">{wins}W</span>}
+          {losses > 0 && <span className="lh-record-pill l">{losses}L</span>}
+          {ties > 0 && <span className="lh-record-pill t">{ties}T</span>}
         </div>
       </div>
 
-      <div className="neon-card p-3">
+      <div className="lh-card">
         {schedLoading ? (
-          <p style={{ color:'rgba(158,165,196,0.4)', textAlign:'center', padding:'30px 0' }}>Loading…</p>
+          <div className="lh-loading">Loading…</div>
         ) : sorted.length === 0 ? (
-          <p style={{ color:'rgba(158,165,196,0.35)', textAlign:'center', padding:'30px 0', fontSize:'0.85rem' }}>
-            No schedule yet.<br />An admin can add games via Admin → Schedule.
-          </p>
+          <div className="lh-empty">No schedule yet.<br/>An admin can add games via Admin → Schedule.</div>
         ) : (
-          <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+          <div className="lh-game-log">
             {sorted.map(entry => {
               const hasGame = !!entry.game_id && bsGames.some(g => String(g.id) === String(entry.game_id));
               const resultColor = entry.result==='W' ? '#22c55e' : entry.result==='L' ? '#ef4444' : entry.result==='T' ? '#eab308' : 'rgba(158,165,196,0.35)';
               return (
-                <div
-                  key={entry.id}
-                  className={`fx-schedule-row ${hasGame ? 'fx-clickable' : ''}`}
-                  onClick={() => hasGame && openGame(entry)}
-                  style={{ borderLeft:`3px solid ${resultColor}` }}
-                >
-                  <div className="fx-schedule-result" style={{ color: resultColor }}>
-                    {entry.result || (entry.game_date && new Date(entry.game_date) < new Date() ? '—' : 'TBD')}
-                  </div>
-                  <div className="fx-schedule-main">
-                    <span className="fx-schedule-opp">
-                      {entry.is_home ? 'vs' : '@'} {entry.opponent || 'TBD'}
-                    </span>
-                    <span className="fx-schedule-meta">
-                      {entry.game_date ? new Date(entry.game_date).toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' }) : 'Date TBD'}
+                <div key={entry.id} className={`lh-glr ${hasGame ? 'clickable' : ''}`} onClick={() => hasGame && openGame(entry)} style={{ '--rc': resultColor }}>
+                  <div className="lh-glr-result">{entry.result || (entry.game_date && new Date(entry.game_date) < new Date() ? '—' : 'TBD')}</div>
+                  <div className="lh-glr-main">
+                    <span className="lh-glr-opp">{entry.is_home ? 'vs' : '@'} {entry.opponent || 'TBD'}</span>
+                    <span className="lh-glr-meta">
+                      {entry.game_date ? new Date(entry.game_date).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) : 'Date TBD'}
                       {entry.week ? ` · Wk ${entry.week}` : ''}
                     </span>
                   </div>
-                  <div className="fx-schedule-score">{entry.score || '—'}</div>
-                  {hasGame && <div className="fx-schedule-cta">Box Score →</div>}
+                  <div className="lh-glr-score">{entry.score || '—'}</div>
+                  {hasGame && <div className="lh-glr-cta">Box Score →</div>}
                 </div>
               );
             })}
@@ -644,6 +726,7 @@ const ScheduleTab = ({ sport, cfg }) => {
   );
 };
 
+/* ── Box Scores ───────────────────────────────────────────────── */
 const BoxScoresTab = ({ sport, cfg }) => {
   const [bsGames, setBsGames]     = useState([]);
   const [boxScores, setBoxScores] = useState([]);
@@ -661,39 +744,36 @@ const BoxScoresTab = ({ sport, cfg }) => {
   if (selectedGame) {
     return (
       <GameBoxScoreDetail
-        game={selectedGame}
-        boxScores={boxScores}
-        players={players}
-        teams={teams}
-        cfg={cfg}
-        onBack={() => setSelectedGame(null)}
-        backLabel="Back to Box Scores"
+        game={selectedGame} boxScores={boxScores} players={players} teams={teams} cfg={cfg}
+        onBack={() => setSelectedGame(null)} backLabel="Back to Box Scores"
       />
     );
   }
 
   return (
-    <div className="card-container">
-      <div className="neon-card p-3">
-        <h3 className="gradient-text-cyan">Box Scores</h3>
-        {bsGames.length===0 ? (
-          <p style={{ marginTop:'15px', color:'rgba(158, 165, 196,0.7)' }}>No box scores logged yet</p>
-        ) : (
-          <div style={{ marginTop:'15px', display:'flex', flexDirection:'column', gap:'10px' }}>
-            {[...bsGames].reverse().map(game => (
-              <div key={game.id} onClick={()=>setSelectedGame(game)} style={{ padding:'15px', background:'rgba(94, 129, 244,0.04)', border:'1px solid rgba(94, 129, 244,0.12)', borderRadius:'8px', cursor:'pointer', transition:'all 0.2s' }} onMouseEnter={e=>e.currentTarget.style.background='rgba(94, 129, 244,0.1)'} onMouseLeave={e=>e.currentTarget.style.background='rgba(94, 129, 244,0.04)'}>
-                <p style={{ margin:'0 0 6px', fontWeight:'700', color:'var(--color-cyan)' }}>{game.game_name}</p>
-                <p style={{ margin:0, color:'rgba(158, 165, 196,0.8)' }}>{game.home_team} <strong>{game.home_score}</strong> - <strong>{game.away_score}</strong> {game.away_team}</p>
-                {game.game_date && <p style={{ margin:'4px 0 0', fontSize:'0.8rem', color:'rgba(158, 165, 196,0.4)' }}>{new Date(game.game_date).toLocaleDateString()}</p>}
+    <div>
+      <div className="lh-section-head"><h2>Box Scores</h2><span className="lh-section-tag">{bsGames.length} Games</span></div>
+      {bsGames.length===0 ? (
+        <div className="lh-empty">No box scores logged yet</div>
+      ) : (
+        <div className="lh-scores-list">
+          {[...bsGames].reverse().map(game => (
+            <div key={game.id} className="lh-scores-row" onClick={()=>setSelectedGame(game)}>
+              <div>
+                <p className="lh-scores-row-name">{game.game_name}</p>
+                <p className="lh-scores-row-line">{game.home_team} <strong>{game.home_score}</strong> — <strong>{game.away_score}</strong> {game.away_team}</p>
+                {game.game_date && <p className="lh-scores-row-date">{new Date(game.game_date).toLocaleDateString()}</p>}
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+              <ChevronRight size={18} color="var(--accent)" />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
 
+/* ── Compare ──────────────────────────────────────────────────── */
 const CompareTab = ({ sport, cfg }) => {
   const [players, setPlayers] = useState([]);
   const [teams, setTeams]     = useState([]);
@@ -711,13 +791,15 @@ const CompareTab = ({ sport, cfg }) => {
       .then(([p, t]) => { setPlayers(p); setTeams(t); setLoading(false); });
   }, [sport]);
 
-  if (loading) return <p style={{ color:'rgba(158, 165, 196,0.5)', padding:'40px', textAlign:'center' }}>Loading...</p>;
+  if (loading) return <div className="lh-loading">Loading…</div>;
 
   const getTeamColor = (name) => teams.find(t=>t.team_name===name)?.team_color||null;
   const pA = players.find(p=>String(p.id)===String(idA));
   const pB = players.find(p=>String(p.id)===String(idB));
-  const colorA = (pA&&getTeamColor(pA.team))||'#5e81f4';
+  const colorA = (pA&&getTeamColor(pA.team))||cfg.accent;
   const colorB = (pB&&getTeamColor(pB.team))||'#ff9e57';
+  const rgbA = hexToRgb(colorA) || accentRgbFromCfg(cfg);
+  const rgbB = hexToRgb(colorB) || '255,158,87';
 
   const STAT_LIST = statFilter===cfg.catA.id ? cfg.compareA : cfg.compareB;
   const lowerBetter = new Set(cfg.lowerBetter);
@@ -737,7 +819,7 @@ const CompareTab = ({ sport, cfg }) => {
 
   const teamA_obj = teams.find(t=>String(t.id)===String(idA));
   const teamB_obj = teams.find(t=>String(t.id)===String(idB));
-  const colorTA = teamA_obj?.team_color||'#5e81f4';
+  const colorTA = teamA_obj?.team_color||cfg.accent;
   const colorTB = teamB_obj?.team_color||'#ff9e57';
 
   const aggregateTeam = (teamName) => {
@@ -752,89 +834,92 @@ const CompareTab = ({ sport, cfg }) => {
   const tA = compareMode==='team'?aggregateTeam(teamA_obj?.team_name):null;
   const tB = compareMode==='team'?aggregateTeam(teamB_obj?.team_name):null;
 
-  const selSty = (col) => ({ padding:'10px 12px', background:'rgba(10,10,30,0.85)', border:`1px solid ${col}55`, color:'#e2e5f0', borderRadius:'8px', fontSize:'0.88rem', width:'100%', cursor:'pointer' });
-  const btnSty = (active) => ({ padding:'7px 18px', background:active?'rgba(94, 129, 244,0.12)':'rgba(10,10,30,0.7)', border:active?'1px solid rgba(94, 129, 244,0.45)':'1px solid rgba(100,120,200,0.18)', color:active?'var(--color-cyan)':'rgba(158, 165, 196,0.45)', borderRadius:'8px', cursor:'pointer', fontWeight:'700', fontSize:'0.8rem', textTransform:'uppercase', letterSpacing:'0.08em' });
-
   return (
     <div>
-      <div style={{ display:'flex', justifyContent:'center', gap:'8px', marginBottom:'18px' }}>
-        <button style={btnSty(compareMode==='player')} onClick={()=>{setCompareMode('player');setIdA('');setIdB('');}}>Players</button>
-        <button style={btnSty(compareMode==='team')}   onClick={()=>{setCompareMode('team');setIdA('');setIdB('');}}>Teams</button>
+      <div style={{ display:'flex', justifyContent:'center', marginBottom:'20px' }}>
+        <div className="lh-toggle-group">
+          <button className={`lh-toggle-btn ${compareMode==='player'?'active':''}`} onClick={()=>{setCompareMode('player');setIdA('');setIdB('');}}>Players</button>
+          <button className={`lh-toggle-btn ${compareMode==='team'?'active':''}`} onClick={()=>{setCompareMode('team');setIdA('');setIdB('');}}>Teams</button>
+        </div>
       </div>
-      <div className="vz-vs-grid" style={{ marginBottom:'20px' }}>
-        <div>
-          <label style={{ display:'block', fontSize:'0.72rem', color:'rgba(158, 165, 196,0.5)', marginBottom:'6px', textTransform:'uppercase' }}>{compareMode==='player'?'Player A':'Team A'}</label>
+
+      <div className="lh-vs-picker">
+        <div style={{ '--side-rgb': compareMode==='player'?rgbA:hexToRgb(colorTA)||accentRgbFromCfg(cfg) }}>
+          <label className="lh-vs-label">{compareMode==='player'?'Player A':'Team A'}</label>
           {compareMode==='player' ? (
-            <select value={idA} onChange={e=>setIdA(e.target.value)} style={selSty(colorA)}>
+            <select className="lh-vs-select" value={idA} onChange={e=>setIdA(e.target.value)}>
               <option value="">Select player...</option>
               {players.map(p=><option key={p.id} value={String(p.id)}>{p.player_name}{p.team?` (${p.team})`:''} OVR {p.overall}</option>)}
             </select>
           ) : (
-            <select value={idA} onChange={e=>setIdA(e.target.value)} style={selSty(colorTA)}>
+            <select className="lh-vs-select" value={idA} onChange={e=>setIdA(e.target.value)}>
               <option value="">Select team...</option>
               {teams.map(t=><option key={t.id} value={String(t.id)}>{t.team_name}</option>)}
             </select>
           )}
         </div>
-        <span style={{ color:'rgba(158, 165, 196,0.3)', fontWeight:'800', fontSize:'1rem' }}>VS</span>
-        <div>
-          <label style={{ display:'block', fontSize:'0.72rem', color:'rgba(158, 165, 196,0.5)', marginBottom:'6px', textTransform:'uppercase' }}>{compareMode==='player'?'Player B':'Team B'}</label>
+        <span className="lh-vs-badge">VS</span>
+        <div style={{ '--side-rgb': compareMode==='player'?rgbB:hexToRgb(colorTB)||'255,158,87' }}>
+          <label className="lh-vs-label">{compareMode==='player'?'Player B':'Team B'}</label>
           {compareMode==='player' ? (
-            <select value={idB} onChange={e=>setIdB(e.target.value)} style={selSty(colorB)}>
+            <select className="lh-vs-select" value={idB} onChange={e=>setIdB(e.target.value)}>
               <option value="">Select player...</option>
               {players.map(p=><option key={p.id} value={String(p.id)}>{p.player_name}{p.team?` (${p.team})`:''} OVR {p.overall}</option>)}
             </select>
           ) : (
-            <select value={idB} onChange={e=>setIdB(e.target.value)} style={selSty(colorTB)}>
+            <select className="lh-vs-select" value={idB} onChange={e=>setIdB(e.target.value)}>
               <option value="">Select team...</option>
               {teams.map(t=><option key={t.id} value={String(t.id)}>{t.team_name}</option>)}
             </select>
           )}
         </div>
       </div>
-      <div style={{ display:'flex', justifyContent:'center', gap:'8px', marginBottom:'10px', flexWrap:'wrap' }}>
-        {['season','career'].map(m=><button key={m} style={btnSty(mode===m)} onClick={()=>setMode(m)}>{m}</button>)}
+
+      <div style={{ display:'flex', justifyContent:'center', marginBottom:'10px' }}>
+        <div className="lh-toggle-group">
+          {['season','career'].map(m=><button key={m} className={`lh-toggle-btn ${mode===m?'active':''}`} onClick={()=>setMode(m)}>{m}</button>)}
+        </div>
       </div>
       {compareMode==='player' && (
-        <div style={{ display:'flex', justifyContent:'center', gap:'8px', marginBottom:'20px' }}>
-          {[cfg.catA, cfg.catB].map(c=>(
-            <button key={c.id} style={{...btnSty(statFilter===c.id), borderColor:statFilter===c.id?'rgba(255, 158, 87,0.5)':'rgba(100,120,200,0.18)', color:statFilter===c.id?'var(--color-magenta)':'rgba(158, 165, 196,0.45)', background:statFilter===c.id?'rgba(255, 158, 87,0.1)':'rgba(10,10,30,0.7)'}} onClick={()=>setStatFilter(c.id)}>{c.label}</button>
-          ))}
+        <div style={{ display:'flex', justifyContent:'center', marginBottom:'22px' }}>
+          <div className="lh-toggle-group">
+            {[cfg.catA, cfg.catB].map(c=>(
+              <button key={c.id} className={`lh-toggle-btn ${statFilter===c.id?'active':''}`} onClick={()=>setStatFilter(c.id)}>{c.label}</button>
+            ))}
+          </div>
         </div>
       )}
+
       {compareMode==='player' && pA && pB && (
-        <div style={{ background:'rgba(10,10,30,0.8)', border:'1px solid rgba(100,120,200,0.13)', borderRadius:'10px', overflow:'hidden' }}>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 60px 1fr', background:'rgba(0,0,0,0.3)', padding:'10px 14px', borderBottom:'1px solid rgba(100,120,200,0.15)' }}>
-            <span style={{ color:colorA, fontWeight:'800', fontSize:'0.88rem' }}>{pA.player_name}</span>
-            <span style={{ color:'rgba(158, 165, 196,0.35)', fontSize:'0.7rem', textAlign:'center', alignSelf:'center' }}>STAT</span>
-            <span style={{ color:colorB, fontWeight:'800', fontSize:'0.88rem', textAlign:'right' }}>{pB.player_name}</span>
+        <div className="lh-compare-table">
+          <div className="lh-compare-head">
+            <span style={{ color: colorA }}>{pA.player_name}</span>
+            <span>STAT</span>
+            <span style={{ color: colorB }}>{pB.player_name}</span>
           </div>
           {STAT_LIST.map(([label,sKey,cKey]) => {
             const valA=getVal(pA,label,sKey,cKey), valB=getVal(pB,label,sKey,cKey);
             const aBetter=isBetter(label,valA,valB), bBetter=isBetter(label,valB,valA);
             return (
-              <div key={label} style={{ display:'grid', gridTemplateColumns:'1fr 60px 1fr', padding:'9px 14px', borderBottom:'1px solid rgba(100,120,200,0.06)', alignItems:'center' }}>
-                <span style={{ fontWeight:aBetter?'800':'400', color:aBetter?colorA:'rgba(158, 165, 196,0.55)', background:aBetter?`${colorA}22`:'transparent', padding:aBetter?'3px 8px':'0', borderRadius:'6px', display:'inline-block', fontSize:'0.93rem' }}>{valA}</span>
-                <span style={{ color:'rgba(158, 165, 196,0.3)', fontSize:'0.68rem', textTransform:'uppercase', letterSpacing:'0.07em', textAlign:'center' }}>{label}</span>
-                <div style={{ textAlign:'right' }}>
-                  <span style={{ fontWeight:bBetter?'800':'400', color:bBetter?colorB:'rgba(158, 165, 196,0.55)', background:bBetter?`${colorB}22`:'transparent', padding:bBetter?'3px 8px':'0', borderRadius:'6px', display:'inline-block', fontSize:'0.93rem' }}>{valB}</span>
+              <div key={label} className="lh-compare-row">
+                <span className={`lh-compare-val ${aBetter?'better':''}`} style={{ color: aBetter?colorA:undefined, background: aBetter?`rgba(${rgbA},0.15)`:undefined }}>{valA}</span>
+                <span className="lh-compare-label">{label}</span>
+                <div className="lh-compare-right">
+                  <span className={`lh-compare-val ${bBetter?'better':''}`} style={{ color: bBetter?colorB:undefined, background: bBetter?`rgba(${rgbB},0.15)`:undefined }}>{valB}</span>
                 </div>
               </div>
             );
           })}
         </div>
       )}
-      {compareMode==='player' && (!pA||!pB) && (
-        <div style={{ textAlign:'center', color:'rgba(158, 165, 196,0.3)', padding:'40px 20px', background:'rgba(10,10,30,0.5)', borderRadius:'10px', border:'1px dashed rgba(100,120,200,0.15)' }}>
-          <p style={{ margin:0, fontSize:'0.9rem' }}>Select two players to compare</p>
-        </div>
-      )}
+      {compareMode==='player' && (!pA||!pB) && <div className="lh-empty">Select two players to compare</div>}
+
       {compareMode==='team' && teamA_obj && teamB_obj && tA && tB && (
-        <div style={{ background:'rgba(10,10,30,0.8)', border:'1px solid rgba(100,120,200,0.13)', borderRadius:'10px', overflow:'hidden' }}>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 80px 1fr', background:'rgba(0,0,0,0.3)', padding:'10px 14px', borderBottom:'1px solid rgba(100,120,200,0.15)' }}>
-            <span style={{ color:colorTA, fontWeight:'800', fontSize:'0.88rem' }}>{teamA_obj.team_name}</span>
-            <span style={{ color:'rgba(158, 165, 196,0.35)', fontSize:'0.7rem', textAlign:'center', alignSelf:'center' }}>STAT</span>
-            <span style={{ color:colorTB, fontWeight:'800', fontSize:'0.88rem', textAlign:'right' }}>{teamB_obj.team_name}</span>
+        <div className="lh-compare-table">
+          <div className="lh-compare-head">
+            <span style={{ color: colorTA }}>{teamA_obj.team_name}</span>
+            <span>STAT</span>
+            <span style={{ color: colorTB }}>{teamB_obj.team_name}</span>
           </div>
           {Object.entries(tA).map(([key,valA]) => {
             const valB=tB[key], na=parseFloat(valA), nb=parseFloat(valB);
@@ -842,25 +927,23 @@ const CompareTab = ({ sport, cfg }) => {
             const aBetter=!isNaN(na)&&!isNaN(nb)&&na!==nb?(lk.has(key)?na<nb:na>nb):null;
             const bBetter=!isNaN(na)&&!isNaN(nb)&&na!==nb?(lk.has(key)?nb<na:nb>na):null;
             return (
-              <div key={key} style={{ display:'grid', gridTemplateColumns:'1fr 80px 1fr', padding:'9px 14px', borderBottom:'1px solid rgba(100,120,200,0.06)', alignItems:'center' }}>
-                <span style={{ fontWeight:aBetter?'800':'400', color:aBetter?colorTA:'rgba(158, 165, 196,0.55)', background:aBetter?`${colorTA}22`:'transparent', padding:aBetter?'3px 8px':'0', borderRadius:'6px', display:'inline-block', fontSize:'0.93rem' }}>{valA}</span>
-                <span style={{ color:'rgba(158, 165, 196,0.3)', fontSize:'0.68rem', textTransform:'uppercase', letterSpacing:'0.07em', textAlign:'center' }}>{key}</span>
-                <div style={{ textAlign:'right' }}>
-                  <span style={{ fontWeight:bBetter?'800':'400', color:bBetter?colorTB:'rgba(158, 165, 196,0.55)', background:bBetter?`${colorTB}22`:'transparent', padding:bBetter?'3px 8px':'0', borderRadius:'6px', display:'inline-block', fontSize:'0.93rem' }}>{valB}</span>
+              <div key={key} className="lh-compare-row">
+                <span className={`lh-compare-val ${aBetter?'better':''}`} style={{ color: aBetter?colorTA:undefined, background: aBetter?`rgba(${hexToRgb(colorTA)||accentRgbFromCfg(cfg)},0.15)`:undefined }}>{valA}</span>
+                <span className="lh-compare-label">{key}</span>
+                <div className="lh-compare-right">
+                  <span className={`lh-compare-val ${bBetter?'better':''}`} style={{ color: bBetter?colorTB:undefined, background: bBetter?`rgba(${hexToRgb(colorTB)||'255,158,87'},0.15)`:undefined }}>{valB}</span>
                 </div>
               </div>
             );
           })}
         </div>
       )}
-      {compareMode==='team' && (!teamA_obj||!teamB_obj) && (
-        <div style={{ textAlign:'center', color:'rgba(158, 165, 196,0.3)', padding:'40px', background:'rgba(10,10,30,0.5)', borderRadius:'10px', border:'1px dashed rgba(100,120,200,0.15)' }}>Select two teams to compare</div>
-      )}
+      {compareMode==='team' && (!teamA_obj||!teamB_obj) && <div className="lh-empty">Select two teams to compare</div>}
     </div>
   );
 };
 
-/* ── Prop Bets (scoped to this league's sport) ─────────────────── */
+/* ── Prop Bets (scoped to this league's sport) ──────────────────── */
 const PROPS_KEY = 'nova_prop_bets';
 const BETS_KEY  = 'nova_user_bets';
 const getAllProps = () => { try { return JSON.parse(localStorage.getItem(PROPS_KEY) || '[]'); } catch { return []; } };
@@ -911,29 +994,29 @@ const PropBetsTab = ({ cfg }) => {
 
   const Section = ({ title, items }) => (
     <>
-      <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(158,165,196,0.45)', margin: '20px 0 12px' }}>{title}</div>
+      <div className="lh-section-head" style={{ marginTop: '22px' }}><h3 style={{ fontSize:'0.85rem' }}>{title}</h3></div>
       {items.length === 0
-        ? <div className="neon-card p-3" style={{ padding: '24px', textAlign:'center', color:'rgba(158,165,196,0.4)' }}>{title === 'Open Props' ? 'No open props right now.' : 'No resolved props yet.'}</div>
+        ? <div className="lh-empty">{title === 'Open Props' ? 'No open props right now.' : 'No resolved props yet.'}</div>
         : items.map(prop => {
             const bet = myBets[prop.id];
             const result = winnings(prop);
             return (
-              <div key={prop.id} className="neon-card p-3" style={{ marginBottom: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+              <div key={prop.id} className="lh-card lh-prop-card">
+                <div className="lh-prop-top">
                   <div>
-                    <div style={{ fontWeight: 700, color: '#e2e5f0', fontSize: '1rem', marginBottom: 4 }}>{prop.question}</div>
-                    <div style={{ fontSize: '0.78rem', color: 'rgba(158,165,196,0.45)' }}>
+                    <div className="lh-prop-question">{prop.question}</div>
+                    <div className="lh-prop-meta">
                       {cfg.icon} {cfg.shortLabel} · {prop.multiplier || 2}× payout
                       {prop.deadline ? ` · Closes ${new Date(prop.deadline).toLocaleDateString()}` : ''}
                     </div>
                   </div>
                   {result && (
-                    <div style={{ padding: '4px 12px', borderRadius: 999, fontSize: '0.78rem', fontWeight: 700, background: result.win ? 'rgba(67,181,129,0.15)' : 'rgba(255,107,122,0.1)', color: result.win ? '#43b581' : 'rgba(255,107,122,0.8)', border: `1px solid ${result.win ? '#43b581' : 'rgba(255,107,122,0.3)'}`, flexShrink: 0 }}>
+                    <div className={`lh-prop-result-chip ${result.win?'win':'lose'}`}>
                       {result.win ? `+${result.amount} 🪙` : `-${result.amount} 🪙`}
                     </div>
                   )}
                 </div>
-                <div style={{ display:'flex', flexWrap:'wrap', gap:'8px', marginTop:'12px' }}>
+                <div className="lh-prop-options">
                   {(prop.options || []).map((opt, oi) => {
                     const isWinner = prop.status === 'resolved' && prop.winnerIdx === oi;
                     const isLoser  = prop.status === 'resolved' && prop.winnerIdx !== oi;
@@ -943,12 +1026,8 @@ const PropBetsTab = ({ cfg }) => {
                         key={oi}
                         onClick={() => prop.status === 'open' && !bet && placeBet(prop.id, oi)}
                         disabled={prop.status !== 'open' || !!bet}
-                        style={{
-                          padding:'8px 16px', borderRadius:8, cursor: prop.status==='open'&&!bet ? 'pointer':'default', fontWeight:700, fontSize:'0.85rem',
-                          background: isWinner ? 'rgba(67,181,129,0.15)' : isPicked ? 'rgba(94,129,244,0.15)' : 'rgba(94,129,244,0.05)',
-                          color: isWinner ? '#43b581' : isLoser && isPicked ? '#ff6b7a' : isPicked ? 'var(--color-cyan)' : 'rgba(158,165,196,0.75)',
-                          border: `1px solid ${isWinner ? '#43b581' : isPicked ? 'var(--color-cyan)' : 'rgba(94,129,244,0.2)'}`,
-                        }}
+                        className={`lh-prop-option ${isWinner?'winner':''} ${isPicked&&!isWinner?'picked':''} ${isLoser&&isPicked?'loser':''}`}
+                        style={{ cursor: prop.status==='open'&&!bet ? 'pointer':'default' }}
                       >
                         {opt}{isWinner && ' ✓'}{isPicked && !isWinner && prop.status === 'resolved' && ' ✗'}
                       </button>
@@ -956,12 +1035,11 @@ const PropBetsTab = ({ cfg }) => {
                   })}
                 </div>
                 {prop.status === 'open' && !bet && user && (
-                  <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center' }}>
+                  <div className="lh-prop-bet-row">
                     <input
-                      type="number" min={1} placeholder="Coins to bet"
+                      type="number" min={1} placeholder="Coins to bet" className="lh-prop-input"
                       value={betAmounts[prop.id] || ''}
                       onChange={e => setBetAmounts(prev => ({ ...prev, [prop.id]: e.target.value }))}
-                      style={{ width: 120, padding: '6px 10px', background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 6, fontSize: '0.85rem' }}
                     />
                     <span style={{ fontSize: '0.75rem', color: 'rgba(158,165,196,0.4)' }}>coins · pick an option above to bet</span>
                   </div>
@@ -978,10 +1056,13 @@ const PropBetsTab = ({ cfg }) => {
 
   return (
     <div>
-      <div className="neon-card p-3" style={{ marginBottom:'8px' }}>
-        <h3 className="gradient-text-cyan" style={{ margin:0 }}>{cfg.icon} {cfg.label} Prop Bets</h3>
-        <p style={{ margin:'6px 0 0', color:'rgba(158, 165, 196,0.6)', fontSize:'0.85rem' }}>Bet coins on props for this league — admin posts, you pick, coins awarded on resolve</p>
-        {user && <div style={{ marginTop: 10, fontSize: '0.88rem', color: '#ffd700', fontWeight: 700 }}>Your balance: {getCoins().toLocaleString()} 🪙</div>}
+      <div className="lh-card" style={{ marginBottom:'8px' }}>
+        <div className="lh-section-head" style={{ marginBottom: user ? '4px' : 0 }}>
+          <h3>{cfg.icon} {cfg.label} Prop Bets</h3>
+          <Target size={16} color="var(--accent)" />
+        </div>
+        <p style={{ margin:0, color:'rgba(158,165,196,0.6)', fontSize:'0.85rem' }}>Bet coins on props for this league — admin posts, you pick, coins awarded on resolve</p>
+        {user && <div className="lh-balance-chip">🪙 {getCoins().toLocaleString()} coins</div>}
       </div>
       <Section title="Open Props" items={open} />
       <Section title="Resolved" items={resolved} />
@@ -989,27 +1070,27 @@ const PropBetsTab = ({ cfg }) => {
   );
 };
 
+/* ── Hall of Fame ─────────────────────────────────────────────── */
 const HallOfFameTab = ({ sport }) => {
   const [hof, setHof] = useState([]);
   useEffect(() => { db.getHof(sport).then(setHof); }, [sport]);
   return (
-    <div className="card-container">
-      <div className="neon-card p-3">
-        <h3 className="gradient-text-magenta">Hall of Fame</h3>
-        {hof.length===0 ? (
-          <p style={{ marginTop:'15px', color:'rgba(158, 165, 196,0.7)' }}>Hall of Fame players will appear here</p>
-        ) : (
-          <div style={{ marginTop:'15px', display:'flex', flexDirection:'column', gap:'10px' }}>
-            {hof.map((entry,i) => (
-              <div key={i} style={{ padding:'15px', background:'rgba(255,215,0,0.05)', border:'1px solid rgba(255,215,0,0.2)', borderRadius:'8px' }}>
-                <p style={{ margin:0, fontWeight:'700', color:'#ffd700' }}>{entry.player_name}</p>
-                {entry.team && <p style={{ margin:'4px 0 0', color:'rgba(158, 165, 196,0.7)', fontSize:'0.85rem' }}>{entry.team}</p>}
-                {entry.description && <p style={{ margin:'8px 0 0', color:'rgba(158, 165, 196,0.8)', fontSize:'0.9rem' }}>{entry.description}</p>}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+    <div>
+      <div className="lh-section-head"><h2>Hall of Fame</h2><span className="lh-section-tag">{hof.length} Inducted</span></div>
+      {hof.length===0 ? (
+        <div className="lh-empty">Hall of Fame players will appear here</div>
+      ) : (
+        <div className="lh-hof-grid">
+          {hof.map((entry,i) => (
+            <div key={i} className="lh-hof-card" style={{ animationDelay:`${i*40}ms` }}>
+              <div className="lh-hof-icon">🏆</div>
+              <p className="lh-hof-name">{entry.player_name}</p>
+              {entry.team && <p className="lh-hof-team">{entry.team}</p>}
+              {entry.description && <p className="lh-hof-desc">{entry.description}</p>}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

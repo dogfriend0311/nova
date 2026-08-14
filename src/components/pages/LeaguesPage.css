@@ -1,5 +1,35 @@
 .leagues-page { width: 100%; }
-.leagues-switcher { display: flex; gap: 12px; padding: 16px 20px 0; border-bottom: 1px solid rgba(94, 129, 244,0.1); margin-bottom: 0; }
-.league-switch-btn { padding: 10px 28px; background: rgba(94, 129, 244,0.05); border: 2px solid rgba(94, 129, 244,0.2); color: rgba(158, 165, 196,0.6); border-radius: 8px 8px 0 0; cursor: pointer; font-size: 1rem; font-weight: 700; transition: all 0.2s; letter-spacing: 0.04em; }
-.league-switch-btn:hover { background: rgba(94, 129, 244,0.1); color: var(--color-cyan); }
-.league-switch-btn.active { background: rgba(94, 129, 244,0.15); border-color: var(--color-cyan); color: var(--color-cyan); border-bottom-color: transparent; }
+
+.leagues-switcher {
+  display: flex; gap: 10px; padding: 16px 4px 22px;
+  overflow-x: auto; scrollbar-width: none;
+}
+.leagues-switcher::-webkit-scrollbar { display: none; }
+
+.league-switch-btn {
+  --sw-accent: #5e81f4;
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  padding: 10px 22px; border-radius: 12px; cursor: pointer;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  color: rgba(158, 165, 196, 0.65);
+  font-size: 0.9rem; font-weight: 800; letter-spacing: 0.02em;
+  transition: all 0.22s ease;
+}
+.league-switch-icon { font-size: 1.05rem; line-height: 1; }
+.league-switch-btn:hover {
+  border-color: var(--sw-accent);
+  color: #e2e5f0;
+  transform: translateY(-1px);
+}
+.league-switch-btn.active {
+  background: var(--sw-accent);
+  border-color: var(--sw-accent);
+  color: #050710;
+  box-shadow: 0 6px 18px -4px var(--sw-accent);
+}
+
+@media (max-width: 600px) {
+  .leagues-switcher { padding: 10px 2px 16px; gap: 8px; }
+  .league-switch-btn { padding: 8px 16px; font-size: 0.82rem; }
+}
