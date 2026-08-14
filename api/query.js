@@ -48,6 +48,10 @@ const ALLOWED_TABLES = new Set([
   'members', 'gaming_clips', 'favorite_songs', 'sports_stats', 'scores', 'roblox_stats',
   // Added for: team following, now-playing status, XP/achievements, Roblox badge showcase
   'favorite_teams', 'now_playing', 'member_xp', 'achievements', 'member_achievements', 'roblox_badges',
+  // Added for: owner/co-owner-only audit log of dashboard edits
+  'nova_audit_log',
+  // Added for: owner-defined custom stat columns per league
+  'nova_custom_stats',
 ]);
 
 const IDENT_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
@@ -142,9 +146,39 @@ export default async function handler(req, res) {
                (SELECT count(*) FROM information_schema.columns
                  WHERE table_name = 'nova_players' AND column_name = 'season_gp') AS has_season_gp,
                (SELECT count(*) FROM information_schema.columns
-                 WHERE table_name = 'nova_players') AS nova_players_column_count
+                 WHERE table_name = 'nova_players') AS nova_players_column_count,
+               (SELECT to_regclass('public.nova_member_profiles')) AS has_nova_member_profiles_table,
+               (SELECT to_regclass('public.member_profiles')) AS has_member_profiles_table,
+               (SELECT to_regclass('public.nova_audit_log')) AS has_nova_audit_log_table
       `);
       res.status(200).json({ data: info.rows[0], error: null });
+      return;
+    }
+
+    // Call with { table: '__diag_counts__' } to check how many rows are
+    // actually in the member-profile tables after a database migration —
+    // e.g. moving from Supabase to Rivestack. Each check is independent
+    // so a missing table doesn't break the others.
+    if (table === '__diag_counts__') {
+      const pool = getPool();
+      const safeCount = async (tbl) => {
+        try {
+          const r = await pool.query(`SELECT count(*)::int AS n FROM ${quoteIdent(tbl)}`);
+          return r.rows[0].n;
+        } catch (e) {
+          return `error: ${e.message}`;
+        }
+      };
+      const [novaMemberProfiles, memberProfiles, novaUsers, novaAuditLog] = await Promise.all([
+        safeCount('nova_member_profiles'),
+        safeCount('member_profiles'),
+        safeCount('nova_users'),
+        safeCount('nova_audit_log'),
+      ]);
+      res.status(200).json({
+        data: { nova_member_profiles: novaMemberProfiles, member_profiles: memberProfiles, nova_users: novaUsers, nova_audit_log: novaAuditLog },
+        error: null,
+      });
       return;
     }
 

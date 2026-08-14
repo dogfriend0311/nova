@@ -117,10 +117,10 @@ const hockey = {
   boxLabels: { goals:'G', assists:'A', plus_minus:'+/-', points:'PTS', giveaways:'GV', minutes:'MIN', saves:'SV', goals_against:'GA', shutouts:'SHO' },
 };
 
-// ── Roblox Football League — American football (prefix 'football')
+// ── Heavenly Football League — American football (prefix 'football')
 const football = {
   key: 'football',
-  label: 'Roblox Football',
+  label: 'Heavenly Football',
   shortLabel: 'Football',
   propSport: 'football',
   icon: '🏈',
@@ -175,6 +175,30 @@ const football = {
 
 export const SPORTS = { vizta: baseball, hockey, football };
 export const SPORT_ORDER = ['vizta', 'hockey', 'football'];
-export const getSport = (key) => SPORTS[key] || SPORTS.vizta;
+
+// ── Owner-added custom stats ──────────────────────────────────
+// Populated at runtime (see App.jsx) from the nova_custom_stats table.
+// getSport() merges them in automatically, so every existing screen
+// that already reads cfg.seasonA/seasonB/careerA/careerB — the admin
+// player-edit form and the public player page — picks up new stats
+// with no further code changes anywhere else.
+const customStatsCache = { vizta: [], hockey: [], football: [] };
+
+export function setCustomStats(league, list) {
+  customStatsCache[league] = Array.isArray(list) ? list : [];
+}
+
+function withCustomStats(baseCfg, league) {
+  const extra = customStatsCache[league];
+  if (!extra || extra.length === 0) return baseCfg;
+  const cfg = { ...baseCfg };
+  ['seasonA', 'seasonB', 'careerA', 'careerB'].forEach((target) => {
+    const additions = extra.filter((s) => s.target === target).map((s) => [s.stat_key, s.label]);
+    if (additions.length) cfg[target] = [...baseCfg[target], ...additions];
+  });
+  return cfg;
+}
+
+export const getSport = (key) => withCustomStats(SPORTS[key] || SPORTS.vizta, key);
 
 export default SPORTS;

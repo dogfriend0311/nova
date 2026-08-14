@@ -13,8 +13,62 @@ const ls = {
   set: (key, val) => localStorage.setItem(key, JSON.stringify(val)),
 };
 
+/* ── Audit log ──────────────────────────────────────────────────
+   Fire-and-forget: never throws, never blocks the save/delete it's
+   logging. Reads the current user straight from localStorage (same
+   place AuthContext keeps it) since this module has no access to
+   React context. Visible only to owner/co-founder in the dashboard
+   (see AuditLogTab in OwnerDashboard.jsx). */
+async function logAudit(action, league, entityType, entityName, details) {
+  try {
+    const rawUser = localStorage.getItem('nova_user');
+    const actor = rawUser ? (JSON.parse(rawUser).username || 'unknown') : 'unknown';
+    await supabase.from('nova_audit_log').insert([{
+      actor, action, league: league || null, entity_type: entityType || null,
+      entity_name: entityName || null, details: details || null,
+    }]);
+  } catch {
+    // audit logging must never break the actual save/delete
+  }
+}
+
 /* ── League data (teams, players, games, etc.) ────────────────── */
 export const db = {
+
+  /* AUDIT LOG */
+  async getAuditLog(limitN = 200) {
+    try {
+      const { data, error } = await supabase
+        .from('nova_audit_log').select('*').order('created_at', { ascending: false }).limit(limitN);
+      if (!error && Array.isArray(data)) return data;
+    } catch { /* fall through */ }
+    return [];
+  },
+
+  /* CUSTOM STATS (owner-added stat columns per league) */
+  async getCustomStats(league) {
+    try {
+      const { data, error } = await supabase
+        .from('nova_custom_stats').select('*').eq('league', league);
+      if (!error && Array.isArray(data)) return data;
+    } catch { /* fall through */ }
+    return [];
+  },
+
+  async addCustomStat(rec) {
+    const record = { ...rec, created_at: new Date().toISOString() };
+    delete record.id;
+    const { data, error } = await supabase.from('nova_custom_stats').insert([record]).select();
+    if (error) throw new Error(error.message || 'Failed to save custom stat');
+    logAudit('stat.create', rec.league, 'custom_stat', `${rec.label} (${rec.stat_key})`);
+    return data && data[0];
+  },
+
+  async deleteCustomStat(id, league, label) {
+    const { error } = await supabase.from('nova_custom_stats').delete().eq('id', id);
+    if (error) throw new Error(error.message || 'Failed to delete custom stat');
+    logAudit('stat.delete', league, 'custom_stat', label || id);
+  },
 
   /* TEAMS */
   async getTeams(league) {
@@ -41,12 +95,20 @@ export const db = {
         if (isNew) {
           delete record.id;
           const { data, error } = await supabase.from('nova_teams').insert([record]).select();
-          if (!error && data && data[0]) { _syncLs(league, 'teams', data[0], 'add'); return data[0]; }
+          if (!error && data && data[0]) {
+            _syncLs(league, 'teams', data[0], 'add');
+            logAudit('team.create', league, 'team', data[0].team_name || data[0].name || data[0].id);
+            return data[0];
+          }
           if (error) console.error('[db.saveTeam] insert error:', error && error.message ? error.message : JSON.stringify(error));
         } else {
           const { data, error } = await supabase.from('nova_teams')
             .update({ ...record, id: undefined }).eq('id', team.id).select();
-          if (!error && data && data[0]) { _syncLs(league, 'teams', data[0], 'update'); return data[0]; }
+          if (!error && data && data[0]) {
+            _syncLs(league, 'teams', data[0], 'update');
+            logAudit('team.update', league, 'team', data[0].team_name || data[0].name || data[0].id);
+            return data[0];
+          }
           if (error) console.error('[db.saveTeam] update error:', error && error.message ? error.message : JSON.stringify(error));
         }
       } catch (err) {
@@ -57,10 +119,12 @@ export const db = {
     if (isNew) {
       const newItem = { ...record, id: Date.now().toString() };
       ls.set(`${league}_teams`, [...list, newItem]);
+      logAudit('team.create', league, 'team', newItem.team_name || newItem.name || newItem.id);
       return newItem;
     } else {
       const updated = list.map(t => t.id === team.id ? { ...t, ...record } : t);
       ls.set(`${league}_teams`, updated);
+      logAudit('team.update', league, 'team', record.team_name || record.name || team.id);
       return record;
     }
   },
@@ -75,6 +139,7 @@ export const db = {
       }
     }
     ls.set(`${league}_teams`, ls.get(`${league}_teams`).filter(t => t.id !== id));
+    logAudit('team.delete', league, 'team', id);
   },
 
   /* PLAYERS */
@@ -102,14 +167,22 @@ export const db = {
         if (isNew) {
           delete record.id;
           const { data, error } = await supabase.from('nova_players').insert([record]).select();
-          if (!error && data && data[0]) { _syncLs(league, 'players', data[0], 'add'); return data[0]; }
+          if (!error && data && data[0]) {
+            _syncLs(league, 'players', data[0], 'add');
+            logAudit('player.create', league, 'player', data[0].player_name || data[0].id);
+            return data[0];
+          }
           if (error) console.error('[db.savePlayer] insert error:', error && error.message ? error.message : JSON.stringify(error));
         } else {
           const updateRecord = { ...record };
           delete updateRecord.id;
           const { data, error } = await supabase.from('nova_players')
             .update(updateRecord).eq('id', player.id).select();
-          if (!error && data && data[0]) { _syncLs(league, 'players', data[0], 'update'); return data[0]; }
+          if (!error && data && data[0]) {
+            _syncLs(league, 'players', data[0], 'update');
+            logAudit('player.update', league, 'player', data[0].player_name || data[0].id);
+            return data[0];
+          }
           if (error) console.error('[db.savePlayer] update error:', error && error.message ? error.message : JSON.stringify(error));
         }
       } catch (err) {
@@ -120,10 +193,12 @@ export const db = {
     if (isNew) {
       const newItem = { ...record, id: Date.now().toString() };
       ls.set(`${league}_players`, [...list, newItem]);
+      logAudit('player.create', league, 'player', newItem.player_name || newItem.id);
       return newItem;
     } else {
       const updated = list.map(p => p.id === player.id ? { ...p, ...record } : p);
       ls.set(`${league}_players`, updated);
+      logAudit('player.update', league, 'player', record.player_name || player.id);
       return record;
     }
   },
@@ -138,6 +213,7 @@ export const db = {
       }
     }
     ls.set(`${league}_players`, ls.get(`${league}_players`).filter(p => p.id !== id));
+    logAudit('player.delete', league, 'player', id);
   },
 
   /* GAMES */
@@ -159,21 +235,23 @@ export const db = {
       if (isNew) {
         delete record.id;
         const { data, error } = await supabase.from('nova_games').insert([record]).select();
-        if (!error) { _syncLs(league, 'games', data[0], 'add'); return data[0]; }
+        if (!error) { _syncLs(league, 'games', data[0], 'add'); logAudit('game.create', league, 'game', data[0].id); return data[0]; }
       } else {
         const { data, error } = await supabase.from('nova_games')
           .update({ ...record, id: undefined }).eq('id', game.id).select();
-        if (!error) { _syncLs(league, 'games', data[0], 'update'); return data[0]; }
+        if (!error) { _syncLs(league, 'games', data[0], 'update'); logAudit('game.update', league, 'game', data[0].id); return data[0]; }
       }
     }
     const list = ls.get(`${league}_games`);
     if (isNew) {
       const newItem = { ...record, id: Date.now().toString() };
       ls.set(`${league}_games`, [...list, newItem]);
+      logAudit('game.create', league, 'game', newItem.id);
       return newItem;
     } else {
       const updated = list.map(g => g.id === game.id ? { ...g, ...record } : g);
       ls.set(`${league}_games`, updated);
+      logAudit('game.update', league, 'game', game.id);
       return record;
     }
   },
@@ -183,6 +261,7 @@ export const db = {
       await supabase.from('nova_games').delete().eq('id', id);
     }
     ls.set(`${league}_games`, ls.get(`${league}_games`).filter(g => g.id !== id));
+    logAudit('game.delete', league, 'game', id);
   },
 
   /* BOX SCORE GAMES */
@@ -281,11 +360,12 @@ export const db = {
     if (hasSupabase()) {
       delete record.id;
       const { data, error } = await supabase.from('nova_hof').insert([record]).select();
-      if (!error) { _syncLs(league, 'hof', data[0], 'add'); return data[0]; }
+      if (!error) { _syncLs(league, 'hof', data[0], 'add'); logAudit('hof.add', league, 'hof', data[0].player_name || data[0].id); return data[0]; }
     }
     const list = ls.get(`${league}_hof`);
     const newItem = { ...record, id: Date.now().toString() };
     ls.set(`${league}_hof`, [...list, newItem]);
+    logAudit('hof.add', league, 'hof', newItem.player_name || newItem.id);
     return newItem;
   },
 
@@ -294,6 +374,7 @@ export const db = {
       await supabase.from('nova_hof').delete().eq('id', id);
     }
     ls.set(`${league}_hof`, ls.get(`${league}_hof`).filter(m => m.id !== id));
+    logAudit('hof.delete', league, 'hof', id);
   },
 
   /* WATCHLIST */

@@ -342,6 +342,9 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
           player={player}
           hittingStats={hittingCardStats}
           pitchingStats={pitchingCardStats}
+          catALabel={cfg.catA.label}
+          catBLabel={cfg.catB.label}
+          leagueLabel={cfg.label}
           onClose={() => setShowTradingCard(false)}
         />
       )}

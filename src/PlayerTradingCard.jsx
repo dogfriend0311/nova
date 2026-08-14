@@ -180,7 +180,10 @@ function drawStatRow(ctx, stats, y, tier, monoFont, displayFont) {
   });
 }
 
-const PlayerTradingCard = ({ player, hittingStats, pitchingStats, onClose }) => {
+const PlayerTradingCard = ({ player, hittingStats, pitchingStats, catALabel, catBLabel, leagueLabel, onClose }) => {
+  const statALabel = (catALabel || 'Hitting').toUpperCase();
+  const statBLabel = (catBLabel || 'Pitching').toUpperCase();
+  const footerLabel = `NOVA \u00b7 ${(leagueLabel || 'ROBLOX BASEBALL').toUpperCase()}`;
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState(false);
 
@@ -343,7 +346,7 @@ const PlayerTradingCard = ({ player, hittingStats, pitchingStats, onClose }) => 
       ctx.textAlign = 'left';
       ctx.fillStyle = 'rgba(255,255,255,0.35)';
       ctx.font = `700 8px ${displayFont}`;
-      ctx.fillText('HITTING', 14, statsY);
+      ctx.fillText(statALabel, 14, statsY);
       statsY += 8;
       drawStatRow(ctx, hittingStats || [], statsY, tier, monoFont, displayFont);
 
@@ -352,7 +355,7 @@ const PlayerTradingCard = ({ player, hittingStats, pitchingStats, onClose }) => 
       ctx.textAlign = 'left';
       ctx.fillStyle = 'rgba(255,255,255,0.35)';
       ctx.font = `700 8px ${displayFont}`;
-      ctx.fillText('PITCHING', 14, statsY);
+      ctx.fillText(statBLabel, 14, statsY);
       statsY += 8;
       drawStatRow(ctx, pitchingStats || [], statsY, tier, monoFont, displayFont);
 
@@ -364,7 +367,7 @@ const PlayerTradingCard = ({ player, hittingStats, pitchingStats, onClose }) => 
 
       ctx.fillStyle = 'rgba(255,255,255,0.3)';
       ctx.font = `400 8px ${displayFont}`;
-      ctx.fillText('NOVA \u00b7 ROBLOX BASEBALL', CARD_W / 2, CARD_H - inset - 14);
+      ctx.fillText(footerLabel, CARD_W / 2, CARD_H - inset - 14);
 
       ctx.restore(); // undo the inner-face clip
 
@@ -507,7 +510,7 @@ const PlayerTradingCard = ({ player, hittingStats, pitchingStats, onClose }) => 
 
             {/* Hitting stats */}
             <div style={{ padding: '12px 14px 0', zIndex: 3, position: 'relative' }}>
-              <div style={{ fontSize: '8px', fontWeight: 700, color: 'rgba(255,255,255,0.35)', marginBottom: '5px', letterSpacing: '0.04em' }}>HITTING</div>
+              <div style={{ fontSize: '8px', fontWeight: 700, color: 'rgba(255,255,255,0.35)', marginBottom: '5px', letterSpacing: '0.04em' }}>{statALabel}</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
                 {(hittingStats || []).slice(0, 4).map((s) => <StatBox key={s.label} s={s} />)}
               </div>
@@ -515,7 +518,7 @@ const PlayerTradingCard = ({ player, hittingStats, pitchingStats, onClose }) => 
 
             {/* Pitching stats */}
             <div style={{ padding: '12px 14px 0', zIndex: 3, position: 'relative' }}>
-              <div style={{ fontSize: '8px', fontWeight: 700, color: 'rgba(255,255,255,0.35)', marginBottom: '5px', letterSpacing: '0.04em' }}>PITCHING</div>
+              <div style={{ fontSize: '8px', fontWeight: 700, color: 'rgba(255,255,255,0.35)', marginBottom: '5px', letterSpacing: '0.04em' }}>{statBLabel}</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
                 {(pitchingStats || []).slice(0, 4).map((s) => <StatBox key={s.label} s={s} />)}
               </div>
@@ -531,7 +534,7 @@ const PlayerTradingCard = ({ player, hittingStats, pitchingStats, onClose }) => 
                 {tier.label}
               </div>
               <div style={{ textAlign: 'center', fontSize: '8px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-                Nova &middot; Roblox Baseball
+                {footerLabel}
               </div>
             </div>
           </div>

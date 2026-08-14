@@ -151,10 +151,11 @@ export const AuthProvider = ({ children }) => {
   const hasPermission = (requiredRole) => {
     if (!user) return false;
     const permissions = {
-      owner:         ['owner', 'cofounder', 'mod', 'vizta_helper', 'member'],
-      cofounder:     ['cofounder', 'mod', 'vizta_helper', 'member'],
-      mod:           ['mod', 'vizta_helper', 'member'],
+      owner:         ['owner', 'cofounder', 'mod', 'vizta_helper', 'football_helper', 'member'],
+      cofounder:     ['cofounder', 'mod', 'vizta_helper', 'football_helper', 'member'],
+      mod:           ['mod', 'vizta_helper', 'football_helper', 'member'],
       vizta_helper:  ['vizta_helper', 'member'],
+      football_helper: ['football_helper', 'member'],
       member:        ['member'],
       guest:         [],
     };
@@ -163,7 +164,7 @@ export const AuthProvider = ({ children }) => {
 
   const canAccessDashboard = () => {
     if (!user) return false;
-    return ['owner', 'cofounder', 'mod', 'vizta_helper'].includes(user.role);
+    return ['owner', 'cofounder', 'mod', 'vizta_helper', 'football_helper'].includes(user.role);
   };
 
   return (

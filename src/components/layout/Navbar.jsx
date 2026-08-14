@@ -16,7 +16,7 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, on
     { id: 'members',     label: 'Members',     icon: 'Users' },
   ];
 
-  const staffRoles = ['owner', 'cofounder', 'mod', 'vizta_helper'];
+  const staffRoles = ['owner', 'cofounder', 'mod', 'vizta_helper', 'football_helper'];
   const isActive = (id) =>
     currentPage === id ||
     (id === 'leagues' && currentPage === 'player') ||

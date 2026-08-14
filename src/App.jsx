@@ -90,6 +90,18 @@ const StorePage = ({ user }) => {
 const AppContent = () => {
   const { user, logout } = useAuth();
 
+  // Load owner-added custom stats (per league) once on boot so getSport()
+  // in sportsConfig.js can merge them in everywhere it's used.
+  useEffect(() => {
+    import('./services/db').then(({ default: db }) => {
+      import('./data/sportsConfig').then(({ setCustomStats }) => {
+        ['vizta', 'hockey', 'football'].forEach((lg) => {
+          db.getCustomStats(lg).then((list) => setCustomStats(lg, list)).catch(() => {});
+        });
+      });
+    });
+  }, []);
+
   const [coins, setCoins] = useState(() => {
     if (!user?.username) return 0;
     return parseInt(localStorage.getItem(`nova_coins_${user?.username}`) || '0');

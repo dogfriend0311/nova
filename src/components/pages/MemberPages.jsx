@@ -8,7 +8,7 @@ import { BadgeRow } from '../BadgeDisplay';
 const SPORT_KEYS = ['mlb', 'nfl', 'nba', 'nhl', 'cfb', 'cbb'];
 
 const roleLabel = (role) => {
-  const m = { owner: 'Owner', cofounder: 'Co-Founder', mod: 'Moderator', vizta_helper: 'Roblox Baseball Helper', member: 'Member' };
+  const m = { owner: 'Owner', cofounder: 'Co-Founder', mod: 'Moderator', vizta_helper: 'Roblox Baseball Helper', football_helper: 'Heavenly Football Stat Helper', member: 'Member' };
   return m[role] || 'Member';
 };
 const roleColor = (role) => {
@@ -17,6 +17,7 @@ const roleColor = (role) => {
     cofounder:    '#ff6400',
     mod:          '#00c864',
     vizta_helper: '#cc66ff',
+    football_helper: '#ff9e57',
   };
   return m[role] || '#5e81f4';
 };
@@ -26,6 +27,7 @@ const roleGlow = (role) => {
     cofounder:    'rgba(255,100,0,0.3)',
     mod:          'rgba(0,200,100,0.3)',
     vizta_helper: 'rgba(180,0,255,0.3)',
+    football_helper: 'rgba(255,158,87,0.3)',
   };
   return m[role] || 'rgba(94,129,244,0.2)';
 };
@@ -45,6 +47,7 @@ const defaultBanner = (role) => {
     cofounder:    'linear-gradient(135deg,#1a0500 0%,#2d1200 40%,#1a0500 100%)',
     mod:          'linear-gradient(135deg,#001a0d 0%,#003319 40%,#001a0d 100%)',
     vizta_helper: 'linear-gradient(135deg,#12003d 0%,#230066 40%,#12003d 100%)',
+    football_helper: 'linear-gradient(135deg,#3d1400 0%,#66280a 40%,#3d1400 100%)',
   };
   return m[role] || 'linear-gradient(135deg,#070b1a 0%,#0d1535 40%,#070b1a 100%)';
 };

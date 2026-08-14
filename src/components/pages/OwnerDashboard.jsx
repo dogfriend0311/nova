@@ -5,7 +5,7 @@ import fantasyDb from '../../services/fantasyDb';
 import { accoladeLabel, accoladeIcon, getAccoladeTypes } from '../../data/accolades';
 import { BadgeChip } from '../BadgeDisplay';
 import { BADGES as ACHIEVEMENT_BADGES } from '../../services/achievementsService';
-import { getSport } from '../../data/sportsConfig';
+import { getSport, setCustomStats } from '../../data/sportsConfig';
 import './OwnerDashboard.css';
 
 const SI = { padding:'10px', background:'rgba(94, 129, 244,0.05)', border:'1px solid rgba(94, 129, 244,0.2)', color:'#e2e5f0', borderRadius:'4px', width:'100%' };
@@ -156,6 +156,206 @@ const MemberPagesTab = () => {
   );
 };
 
+const STAT_LEAGUES = [
+  { prefix: 'vizta',    name: 'Roblox Baseball' },
+  { prefix: 'hockey',   name: 'Roblox Hockey' },
+  { prefix: 'football', name: 'Heavenly Football' },
+];
+
+const slugify = (s) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').replace(/^(?=[0-9])/, '_');
+
+const ManageStatsTab = () => {
+  const [league, setLeague] = useState('vizta');
+  const [stats, setStats]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [label, setLabel]   = useState('');
+  const [key, setKey]       = useState('');
+  const [keyEdited, setKeyEdited] = useState(false);
+  const [target, setTarget] = useState('seasonA');
+  const [dataType, setDataType] = useState('numeric');
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
+
+  const cfg = getSport(league);
+
+  const loadStats = () => {
+    setLoading(true);
+    db.getCustomStats(league).then(list => { setStats(list); setLoading(false); });
+  };
+  useEffect(() => { loadStats(); }, [league]); // eslint-disable-line
+
+  const onLabelChange = (v) => {
+    setLabel(v);
+    if (!keyEdited) setKey(slugify(v));
+  };
+
+  const sqlType = { numeric: 'NUMERIC', integer: 'INTEGER', text: 'TEXT' }[dataType] || 'NUMERIC';
+  const alterSql = key ? `ALTER TABLE nova_players ADD COLUMN IF NOT EXISTS "${key}" ${sqlType};` : '';
+
+  const targetLabel = (t) => {
+    const map = {
+      seasonA: `Season · ${cfg.catA.label}`,
+      seasonB: `Season · ${cfg.catB.label}`,
+      careerA: `Career · ${cfg.catA.label}`,
+      careerB: `Career · ${cfg.catB.label}`,
+    };
+    return map[t] || t;
+  };
+
+  const addStat = async () => {
+    setErr(''); setMsg('');
+    if (!label.trim()) { setErr('Enter a display label (e.g. "Clutch Hits").'); return; }
+    if (!/^[a-z_][a-z0-9_]*$/.test(key)) { setErr('Column name must be lowercase letters, numbers, and underscores only, and can\'t start with a number.'); return; }
+    if (stats.some(s => s.stat_key === key)) { setErr('A stat with that column name already exists for this league.'); return; }
+    try {
+      await db.addCustomStat({ league, target, stat_key: key, label: label.trim(), data_type: dataType });
+      const fresh = await db.getCustomStats(league);
+      setStats(fresh);
+      setCustomStats(league, fresh);
+      setLabel(''); setKey(''); setKeyEdited(false);
+      setMsg(`"${label}" added. Make sure you've run the ALTER TABLE statement above against Rivestack, or the field will save as empty.`);
+    } catch (e) {
+      setErr(e.message || 'Failed to save stat.');
+    }
+  };
+
+  const removeStat = async (s) => {
+    if (!window.confirm(`Remove "${s.label}" from ${STAT_LEAGUES.find(l=>l.prefix===league)?.name}? This only hides it from the app — the database column and any data already in it are untouched.`)) return;
+    try {
+      await db.deleteCustomStat(s.id, league, s.label);
+      const fresh = await db.getCustomStats(league);
+      setStats(fresh);
+      setCustomStats(league, fresh);
+    } catch (e) {
+      setErr(e.message || 'Failed to remove stat.');
+    }
+  };
+
+  return (
+    <div className="tab-content">
+      <h2 className="gradient-text-cyan">Manage Stats</h2>
+      <p style={{ color: 'rgba(158,165,196,0.5)', fontSize: '0.85rem', marginTop: '4px', maxWidth: '640px' }}>
+        Add a brand-new stat the site doesn't track yet, for a specific league. Since stats are real database
+        columns (not free-form data), adding one takes two steps: run the generated SQL once against Rivestack,
+        then save the stat here so the app knows about it. Removing a stat here only hides it — it never touches
+        the database column or its data.
+      </p>
+
+      <div style={{ margin: '16px 0' }}>
+        <select value={league} onChange={e => setLeague(e.target.value)} style={{ ...SS, width: 'auto' }}>
+          {STAT_LEAGUES.map(l => <option key={l.prefix} value={l.prefix}>{l.name}</option>)}
+        </select>
+      </div>
+
+      <div className="neon-card p-3" style={{ marginBottom: '20px' }}>
+        <div className="edit-form" style={{ display: 'grid', gap: '12px' }}>
+          <div className="form-field">
+            <label>Display Label (shown on player pages/cards)</label>
+            <input style={SI} value={label} onChange={e => onLabelChange(e.target.value)} placeholder="e.g. Clutch Hits" maxLength={20} />
+          </div>
+          <div className="form-field">
+            <label>Database Column Name</label>
+            <input style={SI} value={key} onChange={e => { setKey(slugify(e.target.value)); setKeyEdited(true); }} placeholder="e.g. clutch_hits" />
+          </div>
+          <div className="form-field">
+            <label>Where It Appears</label>
+            <select value={target} onChange={e => setTarget(e.target.value)} style={SS}>
+              {['seasonA', 'seasonB', 'careerA', 'careerB'].map(t => <option key={t} value={t}>{targetLabel(t)}</option>)}
+            </select>
+          </div>
+          <div className="form-field">
+            <label>Data Type</label>
+            <select value={dataType} onChange={e => setDataType(e.target.value)} style={SS}>
+              <option value="numeric">Decimal number (e.g. 2.35)</option>
+              <option value="integer">Whole number (e.g. 14)</option>
+              <option value="text">Text</option>
+            </select>
+          </div>
+          {alterSql && (
+            <div className="form-field">
+              <label>1. Run this once in Rivestack</label>
+              <div style={{ ...SI, fontFamily: 'monospace', fontSize: '0.8rem', userSelect: 'all', background: 'rgba(0,0,0,0.3)' }}>{alterSql}</div>
+            </div>
+          )}
+          {err && <p style={{ color: '#ff6464', fontSize: '0.85rem' }}>{err}</p>}
+          {msg && <p style={{ color: '#5ee6a8', fontSize: '0.85rem' }}>{msg}</p>}
+          <button className="neon-button" onClick={addStat}>2. Save Stat</button>
+        </div>
+      </div>
+
+      <h3 style={{ fontSize: '1rem', color: 'rgba(158,165,196,0.7)' }}>Custom Stats — {STAT_LEAGUES.find(l=>l.prefix===league)?.name}</h3>
+      {loading && <p style={{ color: 'rgba(158,165,196,0.5)' }}>Loading…</p>}
+      {!loading && stats.length === 0 && <p style={{ color: 'rgba(158,165,196,0.5)' }}>No custom stats added for this league yet.</p>}
+      <div style={{ display: 'grid', gap: '8px', marginTop: '10px' }}>
+        {stats.map(s => (
+          <div key={s.id} className="neon-card p-3" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <span style={{ color: 'var(--color-cyan)', fontWeight: 700 }}>{s.label}</span>
+              <span style={{ color: 'rgba(158,165,196,0.5)', marginLeft: '8px', fontSize: '0.8rem' }}>{s.stat_key} · {targetLabel(s.target)}</span>
+            </div>
+            <button className="neon-button" style={{ fontSize: '0.8rem', padding: '6px 12px' }} onClick={() => removeStat(s)}>Remove</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const AuditLogTab = () => {
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filterLeague, setFilterLeague] = useState('all');
+
+  useEffect(() => {
+    db.getAuditLog(300).then(rows => { setLogs(rows); setLoading(false); });
+  }, []);
+
+  const leagueLabel = (l) => ({ vizta: 'Roblox Baseball', hockey: 'Roblox Hockey', football: 'Heavenly Football' }[l] || l || '—');
+  const actionLabel = (a) => {
+    const [entity, verb] = (a || '').split('.');
+    const verbMap = { create: 'created', update: 'edited', delete: 'deleted', add: 'added' };
+    return `${verbMap[verb] || verb || a} a ${entity || 'record'}`;
+  };
+
+  const filtered = filterLeague === 'all' ? logs : logs.filter(l => l.league === filterLeague);
+
+  return (
+    <div className="tab-content">
+      <h2 className="gradient-text-cyan">Audit Log</h2>
+      <p style={{ color: 'rgba(158,165,196,0.5)', fontSize: '0.85rem', marginTop: '4px' }}>
+        Every player/team/game/HoF add, edit, or delete across all leagues. Visible to owner and co-founder only.
+      </p>
+      <div style={{ margin: '16px 0' }}>
+        <select value={filterLeague} onChange={e => setFilterLeague(e.target.value)} style={{ ...SS, width: 'auto' }}>
+          <option value="all">All Leagues</option>
+          <option value="vizta">Roblox Baseball</option>
+          <option value="hockey">Roblox Hockey</option>
+          <option value="football">Heavenly Football</option>
+        </select>
+      </div>
+      {loading && <div className="neon-card p-3"><p style={{ color: 'rgba(158,165,196,0.5)', textAlign: 'center' }}>Loading…</p></div>}
+      {!loading && filtered.length === 0 && (
+        <div className="neon-card p-3"><p style={{ color: 'rgba(158,165,196,0.5)', textAlign: 'center' }}>
+          No log entries yet. (If this stays empty after edits are made, the <code>nova_audit_log</code> table may not exist yet in your database — run <code>supabase/nova_audit_log.sql</code> against it.)
+        </p></div>
+      )}
+      <div style={{ display: 'grid', gap: '8px' }}>
+        {filtered.map(l => (
+          <div key={l.id} className="neon-card p-3" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <div>
+              <span style={{ color: 'var(--color-cyan)', fontWeight: 700 }}>{l.actor}</span>
+              <span style={{ color: 'rgba(158,165,196,0.7)' }}> {actionLabel(l.action)}</span>
+              {l.entity_name && <span style={{ color: 'rgba(158,165,196,0.5)' }}> — {l.entity_name}</span>}
+              <div style={{ fontSize: '0.75rem', color: 'rgba(158,165,196,0.4)', marginTop: '2px' }}>{leagueLabel(l.league)}</div>
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'rgba(158,165,196,0.4)' }}>{l.created_at ? new Date(l.created_at).toLocaleString() : ''}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const UserRolesTab = () => {
   const { updateUserRole } = useAuth();
   const [users, setUsers] = useState([]);
@@ -164,8 +364,8 @@ const UserRolesTab = () => {
       db.getUsers().then(setUsers);
     });
   }, []);
-  const roles = ['member','vizta_helper','mod','cofounder','owner'];
-  const roleLabel = (r) => ({ member:'Member', vizta_helper:'Roblox Baseball Helper', mod:'Moderator', cofounder:'Co-Founder', owner:'Owner' }[r] || r);
+  const roles = ['member','vizta_helper','football_helper','mod','cofounder','owner'];
+  const roleLabel = (r) => ({ member:'Member', vizta_helper:'Roblox Baseball Helper', football_helper:'Heavenly Football Stat Helper', mod:'Moderator', cofounder:'Co-Founder', owner:'Owner' }[r] || r);
   const changeRole = (username, role) => {
     updateUserRole(username, role);
     setUsers(prev => prev.map(u => u.username === username ? { ...u, role } : u));
@@ -1371,7 +1571,7 @@ const FantasyManageTab = () => {
 const ROBLOX_LEAGUES = [
   { id: '__vizta__',    name: 'Roblox Baseball League', prefix: 'vizta',    sport: 'baseball' },
   { id: '__hockey__',   name: 'Roblox Hockey League',   prefix: 'hockey',   sport: 'hockey' },
-  { id: '__football__', name: 'Roblox Football League', prefix: 'football', sport: 'football' },
+  { id: '__football__', name: 'Heavenly Football League', prefix: 'football', sport: 'football' },
 ];
 
 const FantasyScheduleTab = () => {
@@ -1876,7 +2076,7 @@ const PropBetsAdminTab = () => {
             <option key="grp-roblox" disabled>── Roblox Leagues ──</option>,
             <option key="baseball" value="baseball">⚾ Roblox Baseball</option>,
             <option key="hockey" value="hockey">🏒 Roblox Hockey</option>,
-            <option key="football" value="football">🏈 Roblox Football</option>,
+            <option key="football" value="football">🏈 Heavenly Football</option>,
             <option key="grp-other" disabled>── Real Sports ──</option>,
             ...['nfl','nba','mlb','nhl'].map(s => <option key={s} value={s}>{s.toUpperCase()}</option>),
           ] })}
@@ -2089,16 +2289,20 @@ const OwnerDashboard = ({ onExit }) => {
   const isOwner       = role === 'owner';
   const isOwnerLevel  = ['owner','cofounder','mod'].includes(role);
   const isBadgeManager = ['owner','cofounder'].includes(role);
+  const isAuditViewer  = ['owner','cofounder'].includes(role);
   const isViztaHelper = role === 'vizta_helper';
+  const isFootballHelper = role === 'football_helper';
 
   const [activeTab, setActiveTab] = useState(
-    isOwnerLevel ? 'member-pages' : 'vizta-players'
+    isOwnerLevel ? 'member-pages' : isFootballHelper ? 'football-players' : 'vizta-players'
   );
 
   const renderContent = () => {
     switch (activeTab) {
       case 'member-pages':      return <MemberPagesTab />;
       case 'user-roles':        return <UserRolesTab />;
+      case 'audit-log':        return isAuditViewer ? <AuditLogTab /> : null;
+      case 'manage-stats':     return <ManageStatsTab />;
       case 'give-coins':        return <GiveCoinsTab />;
       case 'fantasy-manage':    return <FantasyManageTab />;
       case 'fantasy-schedule':  return <FantasyScheduleTab />;
@@ -2142,7 +2346,7 @@ const OwnerDashboard = ({ onExit }) => {
       <div className="dashboard-header">
         <h1 className="gradient-text">Owner Dashboard</h1>
         <div className="header-actions">
-          <span style={{ color:'var(--color-cyan)', marginRight:'20px', fontSize:'0.85rem' }}>{role?.toUpperCase()}</span>
+          <span style={{ color:'var(--color-cyan)', marginRight:'20px', fontSize:'0.85rem' }}>{isFootballHelper ? 'HEAVENLY FOOTBALL STAT HELPER' : isViztaHelper ? 'ROBLOX BASEBALL HELPER' : role?.toUpperCase()}</span>
           <button className="neon-button" onClick={onExit} style={{ marginRight:'10px' }}>Back to Nova</button>
           <button className="neon-button" onClick={logout}>Logout</button>
         </div>
@@ -2155,6 +2359,8 @@ const OwnerDashboard = ({ onExit }) => {
             <div className="dashboard-tabs">
               <Btn id="member-pages"     label="Member Pages" />
               <Btn id="user-roles"       label="User Roles" />
+              {isAuditViewer && <Btn id="audit-log" label="📜 Audit Log" />}
+              {isOwner && <Btn id="manage-stats" label="📊 Manage Stats" />}
               <Btn id="give-coins"       label="Give Coins" />
               {isOwner && <Btn id="admin-announcements" label="📢 Announcements" />}
               <Btn id="admin-sotd"       label="🎶 Song of Day" />
@@ -2209,9 +2415,9 @@ const OwnerDashboard = ({ onExit }) => {
             </div>
           </div>
         )}
-        {(isOwnerLevel || isViztaHelper) && (
+        {(isOwnerLevel || isViztaHelper || isFootballHelper) && (
           <div className="dashboard-section">
-            <div className="section-label">ROBLOX FOOTBALL</div>
+            <div className="section-label">HEAVENLY FOOTBALL</div>
             <div className="dashboard-tabs">
               <Btn id="football-players"   label="Players" />
               <Btn id="football-teams"     label="Teams" />
