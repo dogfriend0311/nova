@@ -39,12 +39,20 @@ export const AuthProvider = ({ children }) => {
       setUser(userData);
       localStorage.setItem('nova_user', JSON.stringify(userData));
       const memberProfiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
-      if (!memberProfiles.find(p => p.username === username)) {
-        memberProfiles.push({ username, bio: 'Nova Owner', top_banner_url: '', left_banner_url: '', right_banner_url: '', spotify_url: '', twitter_url: '', twitch_url: '', youtube_url: '', instagram_url: '' });
+      const alreadyLocal = memberProfiles.find(p => p.username === username);
+      if (!alreadyLocal) {
+        const newProfile = { username, bio: 'Nova Owner', top_banner_url: '', left_banner_url: '', right_banner_url: '', spotify_url: '', twitter_url: '', twitch_url: '', youtube_url: '', instagram_url: '' };
+        memberProfiles.push(newProfile);
         localStorage.setItem('member_profiles', JSON.stringify(memberProfiles));
       }
       import('../services/db').then(({ default: db }) => {
         db.saveUser({ username, role: 'owner' }).catch(() => {});
+        // Push the profile row to the shared DB too — not just this
+        // device's localStorage — so it shows up cross-device right away
+        // instead of only after this account visits its own profile page.
+        if (!alreadyLocal) {
+          db.saveMemberProfile({ username, bio: 'Nova Owner', top_banner_url: '', spotify_url: '', twitter_url: '', twitch_url: '', youtube_url: '', instagram_url: '' }).catch(() => {});
+        }
       }).catch(() => {});
       return { success: true };
     }
@@ -112,6 +120,11 @@ export const AuthProvider = ({ children }) => {
     // from any device — not just the one where it was created.
     import('../services/db').then(({ default: db }) => {
       db.saveUser({ username, password, role: 'member' }).catch(() => {});
+      // Also push the starter profile row to the shared DB — not just
+      // this device's localStorage — so the new member's page shows up
+      // for everyone immediately, instead of only after they visit their
+      // own profile page (which is what used to trigger the DB backfill).
+      db.saveMemberProfile({ username, bio: '', top_banner_url: '', spotify_url: '', twitter_url: '', twitch_url: '', youtube_url: '', instagram_url: '' }).catch(() => {});
     }).catch(() => {});
     const memberProfiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
     memberProfiles.push({ username, bio: '', top_banner_url: '', left_banner_url: '', right_banner_url: '', spotify_url: '', twitter_url: '', twitch_url: '', youtube_url: '', instagram_url: '' });
