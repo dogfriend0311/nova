@@ -5,6 +5,7 @@ import db from './services/db';
 import { accoladeLabel, accoladeIcon } from './data/accolades';
 import { getSport } from './data/sportsConfig';
 import PlayerComments from './components/PlayerComments';
+import { LeagueImpactMap } from './LeagueFeatures';
 
 // Converts any Spotify link to an embed URL and appends autoplay=1
 // so the song starts automatically when a player's page opens.
@@ -201,6 +202,8 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
   });
   const [showTradingCard, setShowTradingCard] = useState(false);
   const [activePanel, setActivePanel] = useState('overview');
+  const [isWatched, setIsWatched] = useState(false);
+  const [embedCopied, setEmbedCopied] = useState(false);
   const [potmAwards, setPotmAwards] = useState([]);
   const [accolades, setAccolades] = useState([]);
 
@@ -211,6 +214,19 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
     const league = leaguePrefix || 'vizta';
     db.getPotmAwards(league, player.id).then(setPotmAwards);
     db.getAccolades(league, player.id).then(setAccolades);
+  }, [player?.id, leaguePrefix]);
+
+  useEffect(() => {
+    const rawUser = localStorage.getItem('nova_user');
+    if (!player?.id || !rawUser) { setIsWatched(false); return; }
+    try {
+      const username = JSON.parse(rawUser)?.username;
+      if (!username) { setIsWatched(false); return; }
+      db.getWatchlist(username).then(list => setIsWatched((list || []).some(item =>
+        String(item.player_id || item.playerId) === String(player.id) &&
+        item.league === (leaguePrefix || 'vizta')
+      )));
+    } catch { setIsWatched(false); }
   }, [player?.id, leaguePrefix]);
 
   if (!player) {
@@ -367,6 +383,7 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
   const playerTabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'stats', label: 'Full Stats' },
+    { id: 'visuals', label: 'Spray / Shot Map' },
     { id: 'gamelog', label: 'Game Log' },
     { id: 'awards', label: 'Awards' },
   ];
@@ -408,6 +425,31 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
     navigator.clipboard.writeText(url).then(() => alert('Player link copied!')).catch(() => alert(url));
   };
 
+  const toggleWatchlist = async () => {
+    const rawUser = localStorage.getItem('nova_user');
+    if (!rawUser) { alert('Sign in to use player watchlists.'); return; }
+    try {
+      const username = JSON.parse(rawUser)?.username;
+      if (!username) return;
+      const league = leaguePrefix || 'vizta';
+      const list = await db.getWatchlist(username);
+      const watched = (list || []).some(item => String(item.player_id || item.playerId) === String(player.id) && item.league === league);
+      const next = watched
+        ? list.filter(item => !(String(item.player_id || item.playerId) === String(player.id) && item.league === league))
+        : [...list, { player_id: player.id, player_name: player.nickname || player.player_name, team: player.team || '', league }];
+      await db.saveWatchlist(username, next);
+      setIsWatched(!watched);
+    } catch { /* keep the page usable if the watchlist service is unavailable */ }
+  };
+
+  const copyEmbedCard = () => {
+    const embedUrl = `${window.location.origin}${window.location.pathname}#leagues/player/${player.id}`;
+    const snippet = `<iframe src="${embedUrl}" title="${player.nickname || player.player_name} — Nova stat card" width="420" height="260" loading="lazy" style="border:0;border-radius:16px;max-width:100%;"></iframe>`;
+    const done = () => { setEmbedCopied(true); setTimeout(() => setEmbedCopied(false), 2200); };
+    if (navigator.clipboard) navigator.clipboard.writeText(snippet).then(done).catch(() => alert(snippet));
+    else alert(snippet);
+  };
+
   return (
     <div className="league-player-page">
       {onBack && (
@@ -426,6 +468,19 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
             style={{ padding: '8px 16px', background: 'linear-gradient(135deg, rgba(94,129,244,0.15), rgba(255,158,87,0.15))', border: '1px solid rgba(255,158,87,0.35)', color: '#ff9e57', borderRadius: '8px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700 }}
           >
             View Trading Card
+          </button>
+          <button
+            onClick={toggleWatchlist}
+            style={{ padding: '8px 16px', background: isWatched ? 'rgba(94,230,168,0.12)' : 'rgba(94,129,244,0.06)', border: `1px solid ${isWatched ? 'rgba(94,230,168,0.4)' : 'rgba(94,129,244,0.25)'}`, color: isWatched ? '#5ee6a8' : 'var(--color-cyan)', borderRadius: '8px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700 }}
+            aria-pressed={isWatched}
+          >
+            {isWatched ? 'Watching Player' : 'Watch Player'}
+          </button>
+          <button
+            onClick={copyEmbedCard}
+            style={{ padding: '8px 16px', background: 'rgba(255,158,87,0.06)', border: '1px solid rgba(255,158,87,0.25)', color: '#ffb477', borderRadius: '8px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700 }}
+          >
+            {embedCopied ? 'Embed Code Copied' : 'Copy Embed Card'}
           </button>
         </div>
       )}
@@ -574,6 +629,7 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
             </>
           )}
 
+          {activePanel === 'visuals' && <LeagueImpactMap player={player} playerScores={playerScores} cfg={cfg} />}
           {activePanel === 'gamelog' && <PlayerGameLog playerScores={playerScores} cfg={cfg} />}
           {activePanel === 'awards' && <PlayerAwardsPanel player={player} potmAwards={potmAwards} accolades={accolades} />}
 

@@ -5,7 +5,15 @@ import {
   LayoutDashboard, Users, Search, Trophy, CalendarDays, ScrollText,
   GitCompare, Target, Award, ArrowLeft, ChevronRight, Medal,
   Activity, BarChart3, Database, TrendingUp,
+  Archive, BookOpen, Bookmark, Radio, Sparkles,
 } from 'lucide-react';
+import {
+  CommunityPredictionsTab,
+  LeagueRecordsTab,
+  SeasonArchiveTab,
+  TransactionsTab,
+  WatchlistsTab,
+} from './LeagueFeatures';
 import './ViztaLeague.css';
 
 const fmtVal = (v, fmt) => {
@@ -33,8 +41,13 @@ const TABS = [
   { id: 'leaders',    label: 'Leaders',     Icon: Trophy },
   { id: 'schedule',   label: 'Schedule',    Icon: CalendarDays },
   { id: 'scores',     label: 'Box Scores',  Icon: ScrollText },
-  { id: 'compare',    label: 'Compare',     Icon: GitCompare },
+  { id: 'compare',    label: 'Comparison Lab', Icon: GitCompare },
   { id: 'analytics',  label: 'Analytics',   Icon: BarChart3 },
+  { id: 'records',    label: 'Record Book', Icon: BookOpen },
+  { id: 'transactions', label: 'Transactions', Icon: Radio },
+  { id: 'predictions', label: 'Predictions', Icon: Sparkles },
+  { id: 'watchlist',  label: 'Watchlist',   Icon: Bookmark },
+  { id: 'archive',    label: 'Season Archive', Icon: Archive },
   { id: 'propbets',   label: 'Prop Bets',   Icon: Target },
   { id: 'halloffame', label: 'Hall of Fame',Icon: Award },
 ];
@@ -59,6 +72,11 @@ const ViztaLeague = ({ onSelectPlayer, sport = 'vizta' }) => {
       case 'scores':     return <BoxScoresTab sport={sport} cfg={cfg} />;
       case 'compare':    return <CompareTab sport={sport} cfg={cfg} />;
       case 'analytics':  return <AnalyticsTab sport={sport} cfg={cfg} />;
+      case 'records':    return <LeagueRecordsTab sport={sport} cfg={cfg} />;
+      case 'transactions': return <TransactionsTab sport={sport} cfg={cfg} />;
+      case 'predictions': return <CommunityPredictionsTab sport={sport} cfg={cfg} />;
+      case 'watchlist':  return <WatchlistsTab sport={sport} cfg={cfg} onSelectPlayer={onSelectPlayer} />;
+      case 'archive':    return <SeasonArchiveTab sport={sport} cfg={cfg} />;
       case 'propbets':   return <PropBetsTab sport={sport} cfg={cfg} />;
       case 'halloffame': return <HallOfFameTab sport={sport} cfg={cfg} />;
       default:           return <OverviewTab sport={sport} cfg={cfg} />;
