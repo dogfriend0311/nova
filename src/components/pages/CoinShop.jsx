@@ -133,12 +133,6 @@ const PixelIcon = ({ theme, size = 4 }) => {
 
 // All available cosmetics
 export const COSMETICS = [
-  // Name glow colors
-  { id: 'glow_cyan',    category: 'Name Glow',    emoji: '💙', name: 'Ion Blue',      desc: 'Cyan glow on your username',     price: 50,  css: { color: '#5e81f4', textShadow: '0 0 8px #5e81f4' } },
-  { id: 'glow_purple',  category: 'Name Glow',    emoji: '💜', name: 'Cosmic Purple', desc: 'Purple glow on your username',   price: 75,  css: { color: '#c864dc', textShadow: '0 0 8px #c864dc' } },
-  { id: 'glow_gold',    category: 'Name Glow',    emoji: '💛', name: 'Solar Gold',    desc: 'Gold glow on your username',     price: 100, css: { color: '#ffd700', textShadow: '0 0 8px #ffd700' } },
-  { id: 'glow_pink',    category: 'Name Glow',    emoji: '🩷', name: 'Neon Pink',     desc: 'Pink glow on your username',     price: 75,  css: { color: '#ff6ec7', textShadow: '0 0 8px #ff6ec7' } },
-  { id: 'glow_green',   category: 'Name Glow',    emoji: '💚', name: 'Matrix Green',  desc: 'Green glow on your username',    price: 50,  css: { color: '#43b581', textShadow: '0 0 8px #43b581' } },
   // Name glow — anime & artist inspired
   { id: 'glow_titan',     category: 'Name Glow', pixelIcon: 'titan',     name: 'Titan Shifter',  desc: 'Steam-red glow inspired by Attack on Titan', price: 125, css: { color: '#e2432b', textShadow: '0 0 10px #e2432b, 0 0 2px #f4c542' } },
   { id: 'glow_sharingan', category: 'Name Glow', pixelIcon: 'naruto',    name: 'Sharingan',      desc: 'Blazing red glow inspired by Naruto',         price: 125, css: { color: '#e30016', textShadow: '0 0 10px #e30016' } },
@@ -148,10 +142,6 @@ export const COSMETICS = [
   { id: 'glow_compton',   category: 'Name Glow', pixelIcon: 'kendrick',  name: 'Compton Crown',  desc: 'Green & gold glow inspired by Kendrick Lamar',price: 125, css: { color: '#2fae4e', textShadow: '0 0 10px #2fae4e, 0 0 2px #f2b632' } },
   { id: 'glow_ovo',       category: 'Name Glow', pixelIcon: 'drake',     name: 'OVO Nights',     desc: 'Owl-gold glow inspired by Drake',             price: 125, css: { color: '#d4af37', textShadow: '0 0 10px #d4af37' } },
   // Profile borders
-  { id: 'border_nebula',  category: 'Avatar Border', emoji: '🌌', name: 'Nebula',     desc: 'Purple/blue gradient ring',      price: 100, css: { border: '3px solid #6c3ce7' } },
-  { id: 'border_galaxy',  category: 'Avatar Border', emoji: '🌠', name: 'Galaxy',     desc: 'Animated rainbow border',        price: 200, css: { border: '3px solid #ff9e57' } },
-  { id: 'border_fire',    category: 'Avatar Border', emoji: '🔥', name: 'Fire',        desc: 'Orange-red fire ring',           price: 150, css: { border: '3px solid #ff6b2b' } },
-  { id: 'border_ice',     category: 'Avatar Border', emoji: '❄️', name: 'Ice',         desc: 'Icy blue ring',                  price: 150, css: { border: '3px solid #aee6ff' } },
   // Avatar borders — anime & artist inspired
   { id: 'border_survey',   category: 'Avatar Border', pixelIcon: 'titan',     name: 'Survey Corps',  desc: 'Forest-green ring inspired by Attack on Titan', price: 175, css: { border: '3px solid #2e5339' } },
   { id: 'border_leaf',     category: 'Avatar Border', pixelIcon: 'naruto',    name: 'Hidden Leaf',   desc: 'Burnt-orange ring inspired by Naruto',           price: 175, css: { border: '3px solid #e07a2f' } },
@@ -161,10 +151,6 @@ export const COSMETICS = [
   { id: 'border_tde',      category: 'Avatar Border', pixelIcon: 'kendrick',  name: 'TDE Purple',    desc: 'Deep purple ring inspired by Kendrick Lamar',    price: 175, css: { border: '3px solid #5c2d91' } },
   { id: 'border_ovoowl',   category: 'Avatar Border', pixelIcon: 'drake',     name: 'OVO Owl',       desc: 'Gold ring inspired by Drake',                    price: 175, css: { border: '3px solid #d4af37' } },
   // Chat badges
-  { id: 'badge_star',     category: 'Chat Badge',    emoji: '⭐', name: 'Star',        desc: 'Star icon next to your name',    price: 75  },
-  { id: 'badge_crown',    category: 'Chat Badge',    emoji: '👑', name: 'Crown',       desc: 'Crown icon next to your name',   price: 150 },
-  { id: 'badge_rocket',   category: 'Chat Badge',    emoji: '🚀', name: 'Rocket',      desc: 'Rocket icon next to your name',  price: 50  },
-  { id: 'badge_gem',      category: 'Chat Badge',    emoji: '💎', name: 'Gem',         desc: 'Gem icon next to your name',     price: 200 },
   // Chat badges — anime & artist inspired
   { id: 'badge_wings',    category: 'Chat Badge', pixelIcon: 'titan',     name: 'Wings of Freedom', desc: 'Attack on Titan inspired badge', price: 100 },
   { id: 'badge_headband', category: 'Chat Badge', pixelIcon: 'naruto',    name: 'Leaf Headband',    desc: 'Naruto inspired badge',          price: 100 },
@@ -176,6 +162,16 @@ export const COSMETICS = [
 ];
 
 const CATEGORIES = [...new Set(COSMETICS.map(c => c.category))];
+const COLLECTIONS = [
+  { id: 'all', label: 'All drops' },
+  { id: 'anime', label: 'Anime worlds' },
+  { id: 'artists', label: 'Artist eras' },
+];
+const ANIME_IDS = new Set(['titan', 'naruto', 'deathnote']);
+
+function getCollection(item) {
+  return ANIME_IDS.has(item.pixelIcon) ? 'anime' : 'artists';
+}
 
 export function getOwnedCosmetics(username) {
   try { return JSON.parse(localStorage.getItem(`nova_cosmetics_${username}`) || '{}'); }
@@ -196,6 +192,7 @@ const CoinShop = ({ user }) => {
   const [owned, setOwned]     = useState({});
   const [coins, setCoinsState] = useState(0);
   const [activeTab, setActiveTab] = useState(CATEGORIES[0]);
+  const [activeCollection, setActiveCollection] = useState('all');
   const [toast, setToast] = useState(null);
 
   function refreshCoins() {
@@ -241,7 +238,9 @@ const CoinShop = ({ user }) => {
     showToast(isAlreadyActive ? 'Unequipped.' : `${item.name} equipped!`);
   }
 
-  const items = COSMETICS.filter(c => c.category === activeTab);
+  const items = COSMETICS.filter(c =>
+    c.category === activeTab && (activeCollection === 'all' || getCollection(c) === activeCollection)
+  );
 
   return (
     <div className="page nf-page">
@@ -256,42 +255,52 @@ const CoinShop = ({ user }) => {
         </div>
       )}
 
-      <div className="nf-header">
-        <h1>🛍️ Coin Shop</h1>
-        <p>Spend your coins on profile cosmetics</p>
+      <div className="nf-header nf-shop-header">
+        <div className="nf-shop-collection-mark">NOVA / CULTURE PACK 01 <span>•</span> COSMETICS</div>
+        <h1>Make your name <em>recognizable.</em></h1>
+        <p>Artist eras and anime worlds, translated into the glow, border, and badge you carry through Nova.</p>
         {user
-          ? <div style={{ marginTop: 8, fontSize: '0.92rem', fontWeight: 700, color: '#ffd700' }}>Balance: {coins.toLocaleString()} 🪙</div>
-          : <div style={{ marginTop: 8, fontSize: '0.85rem', color: 'rgba(158,165,196,0.5)' }}>Sign in to purchase</div>
+          ? <div className="nf-shop-balance"><span>YOUR NOVA BALANCE</span><strong>{coins.toLocaleString()} <i>COINS</i></strong></div>
+          : <div className="nf-shop-signin">Sign in to collect a drop</div>
         }
       </div>
 
-      {/* Category tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20, overflowX: 'auto', paddingBottom: 4 }}>
+      <div className="nf-shop-intro">
+        <div><span className="nf-shop-intro-kicker">THE ARCHIVE</span><strong>No generic cosmetics.</strong><p>Every drop has a world behind it. Pick the one that feels like you.</p></div>
+        <div className="nf-shop-intro-count"><b>{COSMETICS.length}</b><span>curated drops</span></div>
+      </div>
+
+      <div className="nf-shop-filter-row">
+        <div className="nf-shop-collection-tabs">
+          {COLLECTIONS.map(collection => (
+            <button key={collection.id} className={activeCollection === collection.id ? 'active' : ''} onClick={() => setActiveCollection(collection.id)}>
+              {collection.label}
+            </button>
+          ))}
+        </div>
+        <div className="nf-shop-category-tabs">
         {CATEGORIES.map(cat => (
-          <button key={cat} onClick={() => setActiveTab(cat)} style={{
-            padding: '8px 18px', borderRadius: 999, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
-            background: activeTab === cat ? 'rgba(94,129,244,0.2)' : 'rgba(94,129,244,0.06)',
-            color: activeTab === cat ? 'var(--color-cyan)' : 'rgba(158,165,196,0.6)',
-            fontWeight: 700, fontSize: '0.82rem',
-            boxShadow: activeTab === cat ? '0 0 10px rgba(94,129,244,0.2)' : 'none',
-          }}>
+          <button key={cat} onClick={() => setActiveTab(cat)} className={activeTab === cat ? 'active' : ''}>
             {cat}
           </button>
         ))}
+        </div>
       </div>
 
       <div className="nf-shop-grid">
         {items.map(item => {
           const isOwned  = !!owned[item.id];
           const isActive = owned[`active_${item.category}`] === item.id;
+          const collectionLabel = getCollection(item) === 'anime' ? 'ANIME WORLD' : 'ARTIST ERA';
           return (
-            <div key={item.id} className={`nf-shop-item${isOwned ? ' owned' : ''}`}>
+            <div key={item.id} className={`nf-shop-item ${getCollection(item)}${isOwned ? ' owned' : ''}`} style={{ '--shop-accent': item.css?.color || '#d4af37' }}>
+              <div className="nf-shop-item-topline"><span>{collectionLabel}</span><b>{item.category}</b></div>
               <div className="nf-shop-emoji">
-                {item.pixelIcon ? <PixelIcon theme={item.pixelIcon} size={4} /> : item.emoji}
+                {item.pixelIcon ? <PixelIcon theme={item.pixelIcon} size={6} /> : item.emoji}
               </div>
               <div className="nf-shop-name" style={isActive && item.css ? item.css : {}}>{item.name}</div>
               <div className="nf-shop-desc">{item.desc}</div>
-              <div className="nf-shop-price">{item.price} 🪙</div>
+              <div className="nf-shop-price"><span>{item.price}</span> NOVA COINS</div>
               {!isOwned ? (
                 <button
                   className="nf-shop-btn"
@@ -313,6 +322,7 @@ const CoinShop = ({ user }) => {
           );
         })}
       </div>
+      {items.length === 0 && <div className="nf-shop-empty">No drops in this filter yet.</div>}
     </div>
   );
 };

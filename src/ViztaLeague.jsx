@@ -72,20 +72,35 @@ const ViztaLeague = ({ onSelectPlayer, sport = 'vizta' }) => {
       <div className="lh-hero">
         <div className="lh-hero-grid" />
         <span className="lh-hero-icon" aria-hidden="true">{cfg.icon}</span>
-        <div className="lh-hero-content">
-          <div className="lh-hero-eyebrow"><span className="lh-live-dot" /> League Central</div>
-          <h1 className="lh-hero-title">{cfg.label}</h1>
-          <p className="lh-hero-sub">Live stats, rosters, scores and standings for every {cfg.shortLabel.toLowerCase()} team in the league.</p>
-          <div className="lh-hero-meta">
-            <span><Activity size={13} /> LIVE LEAGUE FEED</span>
-            <span><Database size={13} /> RIVESTACK SYNCED</span>
-            <span><TrendingUp size={13} /> ADVANCED METRICS</span>
+        <div className="lh-hero-topline">
+          <div className="lh-hero-eyebrow"><span className="lh-live-dot" /> Nova League Desk</div>
+          <span className="lh-hero-code">NOVA / {cfg.key.toUpperCase()} / 01</span>
+        </div>
+        <div className="lh-hero-layout">
+          <div className="lh-hero-content">
+            <h1 className="lh-hero-title">{cfg.label}</h1>
+            <p className="lh-hero-sub">The numbers behind every {cfg.shortLabel.toLowerCase()} matchup.</p>
+            <div className="lh-hero-meta">
+              <span><Activity size={13} /> LIVE FEED</span>
+              <span><Database size={13} /> VERIFIED DATA</span>
+              <span><TrendingUp size={13} /> DEEP STATS</span>
+            </div>
+            <div className="lh-hero-stats">
+              <div className="lh-hero-stat"><b>{counts.teams}</b><span>Teams</span></div>
+              <div className="lh-hero-stat"><b>{counts.players}</b><span>Players</span></div>
+              <div className="lh-hero-stat"><b>{counts.games}</b><span>Games Logged</span></div>
+            </div>
           </div>
-          <div className="lh-hero-stats">
-            <div className="lh-hero-stat"><b>{counts.teams}</b><span>Teams</span></div>
-            <div className="lh-hero-stat"><b>{counts.players}</b><span>Players</span></div>
-            <div className="lh-hero-stat"><b>{counts.games}</b><span>Games Played</span></div>
-          </div>
+          <aside className="lh-hero-sidecar">
+            <div className="lh-sidecar-head"><span>SEASON MONITOR</span><b><i /> LIVE</b></div>
+            <div className="lh-sidecar-total">{counts.games.toLocaleString()}</div>
+            <div className="lh-sidecar-caption">games logged this cycle</div>
+            <div className="lh-sidecar-list">
+              <div><span>Teams in rotation</span><strong>{String(counts.teams).padStart(2, '0')}</strong></div>
+              <div><span>Player pool</span><strong>{String(counts.players).padStart(2, '0')}</strong></div>
+              <div><span>Desk status</span><strong className="ready">READY</strong></div>
+            </div>
+          </aside>
         </div>
       </div>
 
