@@ -484,7 +484,7 @@ const MemberProfileView = ({ member, onBack, badgeTypes }) => {
   const onlineData = JSON.parse(localStorage.getItem('nova_online') || '{}');
   const isOnline   = onlineData[member.username] > Date.now() - 5 * 60 * 1000;
 
-  const [viewTab, setViewTab] = useState('music');
+  const [viewTab, setViewTab] = useState('overview');
   const [copied,  setCopied]  = useState(false);
   const [bannerLoaded, setBannerLoaded] = useState(false);
 
@@ -503,6 +503,7 @@ const MemberProfileView = ({ member, onBack, badgeTypes }) => {
   ].filter(s => member[s.key]);
 
   const VTABS = [
+    { id: 'overview',    label: 'Overview'     },
     { id: 'music',       label: '🎵 Music'     },
     { id: 'favgames',    label: 'Fav Games'    },
     { id: 'robloxgames', label: 'Roblox'       },
@@ -622,6 +623,49 @@ const MemberProfileView = ({ member, onBack, badgeTypes }) => {
 
       {/* Tab content */}
       <div style={{ padding: '0 20px' }}>
+        {viewTab === 'overview' && (
+          <div className="member-profile-overview">
+            <div className="member-overview-hero">
+              <div>
+                <span className="member-overview-kicker">MEMBER DOSSIER</span>
+                <h3>{member.username}'s Nova profile</h3>
+                <p>{member.bio || 'A public member profile across Nova communities, games, and league culture.'}</p>
+              </div>
+              <div className="member-overview-presence" style={{ '--presence-color': isOnline ? presenceDot : '#747f8d' }}>
+                <span /> {presenceTxt}
+              </div>
+            </div>
+            <div className="member-overview-grid">
+              <div className="member-overview-card">
+                <span>COMMUNITY ROLE</span>
+                <strong>{roleLabel(role)}</strong>
+                <small>{member.visible_badge_ids?.length || 0} visible badges</small>
+              </div>
+              <div className="member-overview-card">
+                <span>ROBLOX PROFILE</span>
+                <strong>{member.roblox_username || 'Not linked'}</strong>
+                <small>{robloxGames.length} Roblox games listed</small>
+              </div>
+              <div className="member-overview-card">
+                <span>SPORTS IDENTITY</span>
+                <strong>{member.favorite_team || 'Open profile'}</strong>
+                <small>{member.favorite_teams?.length || 0} favorite teams</small>
+              </div>
+              <div className="member-overview-card">
+                <span>PROFILE SIGNAL</span>
+                <strong>{socials.length ? `${socials.length} linked socials` : 'Private by choice'}</strong>
+                <small>{member.lastfm_username || member.spotify_url ? 'Music connected' : 'No music service linked'}</small>
+              </div>
+            </div>
+            <div className="member-overview-links">
+              <span className="member-overview-kicker">QUICK ACCESS</span>
+              <button onClick={() => setViewTab('robloxgames')}>Roblox games <span>→</span></button>
+              <button onClick={() => setViewTab('teams')}>Favorite teams <span>→</span></button>
+              <button onClick={() => setViewTab('comments')}>Community comments <span>→</span></button>
+            </div>
+          </div>
+        )}
+
         {viewTab === 'music' && (
           <div style={{ padding: '20px 0' }}>
             {member.lastfm_username && <NowPlayingPublic lastfmUsername={member.lastfm_username} />}

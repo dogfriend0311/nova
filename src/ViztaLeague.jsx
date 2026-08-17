@@ -4,6 +4,7 @@ import { getSport } from './data/sportsConfig';
 import {
   LayoutDashboard, Users, Search, Trophy, CalendarDays, ScrollText,
   GitCompare, Target, Award, ArrowLeft, ChevronRight, Medal,
+  Activity, BarChart3, Database, TrendingUp,
 } from 'lucide-react';
 import './ViztaLeague.css';
 
@@ -33,6 +34,7 @@ const TABS = [
   { id: 'schedule',   label: 'Schedule',    Icon: CalendarDays },
   { id: 'scores',     label: 'Box Scores',  Icon: ScrollText },
   { id: 'compare',    label: 'Compare',     Icon: GitCompare },
+  { id: 'analytics',  label: 'Analytics',   Icon: BarChart3 },
   { id: 'propbets',   label: 'Prop Bets',   Icon: Target },
   { id: 'halloffame', label: 'Hall of Fame',Icon: Award },
 ];
@@ -56,6 +58,7 @@ const ViztaLeague = ({ onSelectPlayer, sport = 'vizta' }) => {
       case 'schedule':    return <ScheduleTab sport={sport} cfg={cfg} />;
       case 'scores':     return <BoxScoresTab sport={sport} cfg={cfg} />;
       case 'compare':    return <CompareTab sport={sport} cfg={cfg} />;
+      case 'analytics':  return <AnalyticsTab sport={sport} cfg={cfg} />;
       case 'propbets':   return <PropBetsTab sport={sport} cfg={cfg} />;
       case 'halloffame': return <HallOfFameTab sport={sport} cfg={cfg} />;
       default:           return <OverviewTab sport={sport} cfg={cfg} />;
@@ -73,6 +76,11 @@ const ViztaLeague = ({ onSelectPlayer, sport = 'vizta' }) => {
           <div className="lh-hero-eyebrow"><span className="lh-live-dot" /> League Central</div>
           <h1 className="lh-hero-title">{cfg.label}</h1>
           <p className="lh-hero-sub">Live stats, rosters, scores and standings for every {cfg.shortLabel.toLowerCase()} team in the league.</p>
+          <div className="lh-hero-meta">
+            <span><Activity size={13} /> LIVE LEAGUE FEED</span>
+            <span><Database size={13} /> RIVESTACK SYNCED</span>
+            <span><TrendingUp size={13} /> ADVANCED METRICS</span>
+          </div>
           <div className="lh-hero-stats">
             <div className="lh-hero-stat"><b>{counts.teams}</b><span>Teams</span></div>
             <div className="lh-hero-stat"><b>{counts.players}</b><span>Players</span></div>
@@ -939,6 +947,146 @@ const CompareTab = ({ sport, cfg }) => {
         </div>
       )}
       {compareMode==='team' && (!teamA_obj||!teamB_obj) && <div className="lh-empty">Select two teams to compare</div>}
+    </div>
+  );
+};
+
+/* ── Analytics / league intelligence ───────────────────────────── */
+const AnalyticsTab = ({ sport, cfg }) => {
+  const [players, setPlayers] = useState([]);
+  const [teams, setTeams] = useState([]);
+  const [boxScores, setBoxScores] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([db.getPlayers(sport), db.getTeams(sport), db.getBoxScores(sport)])
+      .then(([p, t, b]) => {
+        setPlayers(Array.isArray(p) ? p : []);
+        setTeams(Array.isArray(t) ? t : []);
+        setBoxScores(Array.isArray(b) ? b : []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [sport]);
+
+  if (loading) return <div className="lh-loading">Building league intelligence…</div>;
+
+  const numeric = (value) => {
+    const n = parseFloat(value);
+    return Number.isFinite(n) ? n : null;
+  };
+  const average = (values) => {
+    const clean = values.map(numeric).filter(v => v !== null);
+    return clean.length ? clean.reduce((sum, value) => sum + value, 0) / clean.length : null;
+  };
+  const formatMetric = (value, fmt = 'int') => {
+    if (value === null || value === undefined || Number.isNaN(value)) return '--';
+    if (fmt === 'avg3') return value.toFixed(3);
+    if (fmt === 'avg2') return value.toFixed(2);
+    if (fmt === 'avg1') return value.toFixed(1);
+    return Math.round(value).toLocaleString();
+  };
+
+  const rosteredPlayers = players.filter(player => player.team);
+  const ratedPlayers = players.filter(player => numeric(player.overall) !== null);
+  const statFields = [...cfg.seasonA.slice(0, 6), ...cfg.seasonB.slice(0, 6)].map(([field]) => field);
+  const coveredStatCells = players.reduce((count, player) => count + statFields.filter(field => player[field] !== '' && player[field] !== null && player[field] !== undefined).length, 0);
+  const statCoverage = players.length && statFields.length
+    ? Math.round((coveredStatCells / (players.length * statFields.length)) * 100)
+    : 0;
+
+  const teamRows = teams.map(team => {
+    const roster = players.filter(player => player.team === team.team_name);
+    return {
+      ...team,
+      rosterCount: roster.length,
+      avgOverall: average(roster.map(player => player.overall)),
+      topOverall: Math.max(0, ...roster.map(player => numeric(player.overall) || 0)),
+    };
+  }).sort((a, b) => (b.avgOverall || 0) - (a.avgOverall || 0));
+
+  const leaderGroups = [
+    { label: cfg.catA.label, stats: cfg.leadersA },
+    { label: cfg.catB.label, stats: cfg.leadersB },
+  ].map(group => ({
+    ...group,
+    rows: group.stats.map(stat => {
+      const leader = [...players]
+        .map(player => {
+          const raw = numeric(player[stat.seasonField]);
+          return raw === null ? null : { player, value: raw };
+        })
+        .filter(Boolean)
+        .sort((a, b) => stat.hi ? b.value - a.value : a.value - b.value)[0];
+      return { ...stat, leader };
+    }).filter(row => row.leader),
+  }));
+
+  return (
+    <div className="lh-analytics">
+      <div className="lh-section-head">
+        <div>
+          <h2>League Analytics</h2>
+          <p className="lh-section-note">A decision-ready view of the current {cfg.shortLabel.toLowerCase()} data set.</p>
+        </div>
+        <span className="lh-section-tag">Advanced Center</span>
+      </div>
+
+      <div className="lh-analytics-kpis">
+        <div className="lh-analytics-kpi"><span>Rated players</span><b>{ratedPlayers.length}<small> / {players.length}</small></b><em>Overall coverage</em></div>
+        <div className="lh-analytics-kpi"><span>Rostered</span><b>{rosteredPlayers.length}<small> players</small></b><em>{teams.length} teams tracked</em></div>
+        <div className="lh-analytics-kpi"><span>Box score rows</span><b>{boxScores.length.toLocaleString()}</b><em>Logged league events</em></div>
+        <div className="lh-analytics-kpi"><span>Stat coverage</span><b>{statCoverage}%</b><em>Core fields populated</em></div>
+      </div>
+
+      <div className="lh-analytics-columns">
+        <div className="lh-card lh-analytics-panel">
+          <div className="lh-analytics-panel-head">
+            <div><span className="lh-panel-kicker">POWER INDEX</span><h3>Team strength board</h3></div>
+            <TrendingUp size={17} color="var(--accent)" />
+          </div>
+          {teamRows.length === 0 ? <div className="lh-empty">Add teams and rosters to build the power index.</div> : (
+            <div className="lh-power-list">
+              {teamRows.map((team, index) => (
+                <div className="lh-power-row" key={team.id || team.team_name}>
+                  <span className={`lh-power-rank ${index < 3 ? 'top' : ''}`}>{String(index + 1).padStart(2, '0')}</span>
+                  {team.logo_url ? <img src={team.logo_url} alt="" /> : <span className="lh-power-logo" style={{ background: team.team_color || 'var(--accent)' }} />}
+                  <div className="lh-power-name"><strong>{team.team_name}</strong><small>{team.rosterCount} rostered players</small></div>
+                  <div className="lh-power-score"><b>{formatMetric(team.avgOverall, 'avg1')}</b><span>AVG OVR</span></div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="lh-card lh-analytics-panel">
+          <div className="lh-analytics-panel-head">
+            <div><span className="lh-panel-kicker">LIVE LEADERS</span><h3>Category leaders</h3></div>
+            <Trophy size={17} color="var(--accent)" />
+          </div>
+          <div className="lh-analytics-leader-groups">
+            {leaderGroups.map(group => (
+              <div key={group.label} className="lh-analytics-leader-group">
+                <span className="lh-panel-subhead">{group.label}</span>
+                {group.rows.slice(0, 5).map(row => (
+                  <div className="lh-mini-leader-row" key={row.label}>
+                    <span>{row.label}</span>
+                    <strong>{row.leader.player.player_name}</strong>
+                    <b>{formatMetric(row.leader.value, row.fmt)}</b>
+                  </div>
+                ))}
+                {group.rows.length === 0 && <small className="lh-muted">Waiting for stat entries.</small>}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="lh-card lh-analytics-signal">
+        <div className="lh-signal-icon"><Database size={18} /></div>
+        <div><span className="lh-panel-kicker">DATA SIGNAL</span><h3>{boxScores.length ? 'The league is producing usable game data.' : 'The data layer is ready for the season.'}</h3><p>{boxScores.length ? `${boxScores.length.toLocaleString()} box-score rows are available for deeper game-log analysis, player trends, and record tracking.` : 'Once box scores are logged, this panel will power game-level trends, rolling form, and record books without changing the league UI.'}</p></div>
+        <span className="lh-signal-status"><span /> {boxScores.length ? 'ACTIVE' : 'READY'}</span>
+      </div>
     </div>
   );
 };

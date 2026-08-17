@@ -69,6 +69,14 @@
   text-shadow: 0 0 40px rgba(var(--accent-rgb),0.25);
 }
 .lh-hero-sub { margin: 0 0 20px; color: rgba(158,165,196,0.75); font-size: 0.95rem; max-width: 520px; }
+.lh-hero-meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 20px; }
+.lh-hero-meta span {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px;
+  border: 1px solid rgba(var(--accent-rgb),0.18); border-radius: 999px;
+  color: rgba(200,210,240,0.65); background: rgba(5,7,13,0.28);
+  font-size: 0.62rem; font-weight: 800; letter-spacing: 0.08em;
+}
+.lh-hero-meta svg { color: var(--accent); }
 .lh-hero-stats { position: relative; z-index: 1; display: flex; gap: 10px; flex-wrap: wrap; }
 .lh-hero-stat {
   display: flex; flex-direction: column; gap: 2px; padding: 10px 18px;
@@ -122,6 +130,7 @@
   color: var(--accent); padding: 4px 10px; border-radius: 999px;
   border: 1px solid rgba(var(--accent-rgb),0.35); background: rgba(var(--accent-rgb),0.08);
 }
+.lh-section-note { margin: 5px 0 0 14px; color: rgba(158,165,196,0.5); font-size: 0.78rem; }
 
 .lh-empty {
   padding: 44px 20px; text-align: center; color: rgba(158,165,196,0.45); font-size: 0.9rem;
@@ -400,6 +409,52 @@
 .lh-compare-label { color: rgba(158,165,196,0.35); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; text-align: center; }
 .lh-compare-right { text-align: right; }
 
+/* ── Analytics center ──────────────────────────────────────────── */
+.lh-analytics { animation: lh-fade-up 0.35s ease both; }
+.lh-analytics-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+.lh-analytics-kpi {
+  padding: 15px 16px; border-radius: 14px;
+  background: linear-gradient(155deg, rgba(var(--accent-rgb),0.11), rgba(255,255,255,0.015));
+  border: 1px solid rgba(var(--accent-rgb),0.17);
+}
+.lh-analytics-kpi > span, .lh-analytics-kpi em { display: block; color: rgba(158,165,196,0.48); font-size: 0.66rem; font-style: normal; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
+.lh-analytics-kpi b { display: block; margin: 7px 0 2px; color: #fff; font-family: var(--font-display); font-size: 1.55rem; letter-spacing: -0.03em; }
+.lh-analytics-kpi b small { color: rgba(158,165,196,0.45); font-family: inherit; font-size: 0.7rem; letter-spacing: 0; }
+.lh-analytics-kpi em { font-size: 0.64rem; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.lh-analytics-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.lh-analytics-panel { min-width: 0; }
+.lh-analytics-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 15px; }
+.lh-analytics-panel-head h3 { margin: 4px 0 0; color: #eef0f9; font-size: 1rem; }
+.lh-panel-kicker, .lh-panel-subhead { display: block; color: var(--accent); font-size: 0.62rem; font-weight: 900; letter-spacing: 0.13em; text-transform: uppercase; }
+.lh-panel-subhead { color: rgba(158,165,196,0.55); margin-bottom: 7px; }
+.lh-power-list { display: flex; flex-direction: column; gap: 7px; }
+.lh-power-row { display: grid; grid-template-columns: 26px 28px minmax(0, 1fr) auto; align-items: center; gap: 9px; padding: 8px 7px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.04); background: rgba(255,255,255,0.018); }
+.lh-power-rank { color: rgba(158,165,196,0.38); font-size: 0.68rem; font-weight: 900; }
+.lh-power-rank.top { color: var(--accent); }
+.lh-power-row img, .lh-power-logo { width: 28px; height: 28px; border-radius: 8px; object-fit: contain; }
+.lh-power-logo { display: block; opacity: 0.8; }
+.lh-power-name { min-width: 0; }
+.lh-power-name strong, .lh-power-name small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lh-power-name strong { color: #e8ebf5; font-size: 0.82rem; }
+.lh-power-name small { margin-top: 2px; color: rgba(158,165,196,0.42); font-size: 0.66rem; }
+.lh-power-score { text-align: right; }
+.lh-power-score b, .lh-power-score span { display: block; }
+.lh-power-score b { color: var(--accent); font-size: 0.94rem; }
+.lh-power-score span { color: rgba(158,165,196,0.4); font-size: 0.56rem; font-weight: 800; letter-spacing: 0.08em; }
+.lh-analytics-leader-groups { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.lh-analytics-leader-group { min-width: 0; }
+.lh-mini-leader-row { display: grid; grid-template-columns: minmax(65px, 0.7fr) minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.045); }
+.lh-mini-leader-row span { color: rgba(158,165,196,0.52); font-size: 0.68rem; }
+.lh-mini-leader-row strong { overflow: hidden; color: #e8ebf5; font-size: 0.72rem; text-overflow: ellipsis; white-space: nowrap; }
+.lh-mini-leader-row b { color: var(--accent); font-size: 0.76rem; font-variant-numeric: tabular-nums; }
+.lh-muted { color: rgba(158,165,196,0.35); font-size: 0.76rem; }
+.lh-analytics-signal { display: flex; align-items: center; gap: 14px; }
+.lh-signal-icon { display: grid; place-items: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: 12px; color: var(--accent); background: rgba(var(--accent-rgb),0.1); }
+.lh-analytics-signal h3 { margin: 5px 0 4px; color: #eef0f9; font-size: 0.98rem; }
+.lh-analytics-signal p { max-width: 720px; margin: 0; color: rgba(158,165,196,0.57); font-size: 0.78rem; line-height: 1.5; }
+.lh-signal-status { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; color: #5ee6a8; font-size: 0.63rem; font-weight: 900; letter-spacing: 0.1em; }
+.lh-signal-status span { width: 7px; height: 7px; border-radius: 50%; background: #5ee6a8; box-shadow: 0 0 10px rgba(94,230,168,0.7); }
+
 /* ── Prop bets ─────────────────────────────────────────────────── */
 .lh-prop-card { margin-bottom: 12px; }
 .lh-prop-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
@@ -448,11 +503,15 @@
 }
 @media (max-width: 760px) {
   .lh-pulse-row { grid-template-columns: repeat(2, 1fr); }
+  .lh-analytics-kpis { grid-template-columns: repeat(2, 1fr); }
   .lh-hero { padding: 24px 18px; }
   .lh-hero-icon { font-size: 5.5rem; opacity: 0.08; }
 }
 @media (max-width: 480px) {
   .lh-hero-title { font-size: 1.7rem; }
   .lh-pulse-row { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .lh-analytics-columns, .lh-analytics-leader-groups { grid-template-columns: 1fr; }
+  .lh-analytics-signal { align-items: flex-start; flex-wrap: wrap; }
+  .lh-signal-status { margin-left: 54px; }
   .lh-player-grid, .lh-team-grid, .lh-hof-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
 }

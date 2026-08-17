@@ -118,6 +118,79 @@ const StatSection = ({ title, color, stats, isCareer, onToggle }) => (
   </div>
 );
 
+const PlayerGameLog = ({ playerScores, cfg }) => (
+  <div className="stats-section neon-card player-panel-card">
+    <div className="player-panel-heading">
+      <div>
+        <span className="player-panel-kicker">GAME CENTER</span>
+        <h3>Game Log</h3>
+      </div>
+      <span className="player-panel-count">{playerScores.length} logged</span>
+    </div>
+    {playerScores.length === 0 ? (
+      <div className="player-panel-empty">No game-level data has been logged for this player yet.</div>
+    ) : (
+      <div className="player-game-log-wrap">
+        <table className="player-game-log">
+          <thead>
+            <tr>
+              <th>#</th>
+              {cfg.boxFields.map(field => <th key={field}>{cfg.boxLabels[field]}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {playerScores.map((score, index) => (
+              <tr key={score.id || index}>
+                <td>{index + 1}</td>
+                {cfg.boxFields.map(field => <td key={field}>{score[field] || 0}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+  </div>
+);
+
+const PlayerAwardsPanel = ({ player, potmAwards, accolades }) => (
+  <div className="player-awards-panel">
+    <div className="player-awards-intro">
+      <span className="player-panel-kicker">CAREER ARCHIVE</span>
+      <h3>Honors & recognition</h3>
+      <p>Every award attached to this player is collected here so the stat page tells the full story.</p>
+    </div>
+    <div className="player-awards-grid">
+      <div className="player-award-list neon-card">
+        <div className="player-panel-heading">
+          <div><span className="player-panel-kicker">MONTHLY HONORS</span><h3>Player of the Month</h3></div>
+          <span className="player-panel-count">{potmAwards.length}</span>
+        </div>
+        {potmAwards.length === 0 ? <div className="player-panel-empty">No monthly honors recorded yet.</div> : (
+          <div className="player-honor-rows">
+            {potmAwards.map(award => (
+              <div className="player-honor-row" key={award.id}>
+                <span className="player-honor-mark">POTM</span>
+                <div><strong>{award.month_label || 'Monthly award'}</strong><small>{award.note || `${player.nickname || player.player_name} led the league.`}</small></div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="player-award-list neon-card">
+        <div className="player-panel-heading">
+          <div><span className="player-panel-kicker">SEASON HONORS</span><h3>Accolades</h3></div>
+          <span className="player-panel-count">{accolades.length}</span>
+        </div>
+        {accolades.length === 0 ? <div className="player-panel-empty">No season accolades recorded yet.</div> : (
+          <div className="player-accolade-list">
+            {accolades.map(award => <span className="player-accolade-chip" key={award.id}>{accoladeIcon(award)} {accoladeLabel(award)}</span>)}
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+);
+
 // ── Main Component ───────────────────────────────────────────
 const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
   const [toggles, setToggles] = useState({
@@ -127,6 +200,7 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
     pitchAdv:   false,
   });
   const [showTradingCard, setShowTradingCard] = useState(false);
+  const [activePanel, setActivePanel] = useState('overview');
   const [potmAwards, setPotmAwards] = useState([]);
   const [accolades, setAccolades] = useState([]);
 
@@ -290,6 +364,25 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
   ];
 
   const avatarSrc = player.avatar_data || null;
+  const playerTabs = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'stats', label: 'Full Stats' },
+    { id: 'gamelog', label: 'Game Log' },
+    { id: 'awards', label: 'Awards' },
+  ];
+  const snapshotStats = isBaseball
+    ? [
+        { label: 'OVR', value: player.overall || '—' },
+        { label: 'GP', value: sG || '—' },
+        { label: 'AVG', value: sAVG },
+        { label: 'OPS', value: sOPS },
+        { label: 'ERA', value: player.adv_s_era || sAdv.era },
+      ]
+    : [
+        { label: 'OVR', value: player.overall || '—' },
+        { label: 'GP', value: player.season_gp || player.season_g || '—' },
+        ...genericSeasonA.slice(1, 4),
+      ];
 
   // Featured stats for the trading card - both hitting and pitching are
   // always shown (players in this league can have both, not just one
@@ -349,6 +442,35 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
         />
       )}
 
+      <div className="player-command-header">
+        <div>
+          <span className="player-command-kicker">{cfg.label.toUpperCase()} / PLAYER PROFILE</span>
+          <h1>{player.nickname || player.player_name}</h1>
+          <p>{player.team || 'Free Agent'} <span /> {player.position || 'Multi-category player'} <span /> Official Nova stat page</p>
+        </div>
+        <div className="player-command-status"><span /> ACTIVE PROFILE</div>
+      </div>
+      <div className="player-snapshot">
+        {snapshotStats.map(stat => (
+          <div className="player-snapshot-stat" key={stat.label}>
+            <span>{stat.label}</span>
+            <strong>{stat.value}</strong>
+          </div>
+        ))}
+      </div>
+      <div className="player-panel-tabs" role="tablist" aria-label="Player page sections">
+        {playerTabs.map(tab => (
+          <button
+            key={tab.id}
+            className={activePanel === tab.id ? 'active' : ''}
+            onClick={() => setActivePanel(tab.id)}
+            role="tab"
+            aria-selected={activePanel === tab.id}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
       <div className="player-container">
         {/* LEFT — Trading Card */}
@@ -423,7 +545,39 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
 
         {/* RIGHT — Stats */}
         <div className="player-stats">
-          {potmAwards.length > 0 && (
+          {activePanel === 'overview' && (
+            <>
+              {isBaseball && <SavantCard player={player} />}
+              <div className="player-overview-grid">
+                <StatSection title={isBaseball ? 'Season Hitting' : `${cfg.catA.label} Snapshot`} color="cyan" stats={isBaseball ? hitBasicSeason.slice(0, 8) : genericSeasonA.slice(0, 8)} isCareer={false} onToggle={() => setActivePanel('stats')} />
+                <StatSection title={isBaseball ? 'Season Pitching' : `${cfg.catB.label} Snapshot`} color="magenta" stats={isBaseball ? pitchBasicSeason : genericSeasonB.slice(0, 8)} isCareer={false} onToggle={() => setActivePanel('stats')} />
+              </div>
+            </>
+          )}
+
+          {activePanel === 'stats' && (
+            <>
+              {isBaseball && <SavantCard player={player} />}
+              {isBaseball ? (
+                <>
+                  <StatSection title="Season Hitting Stats" color="cyan" stats={toggles.hitBasic ? hitBasicCareer : hitBasicSeason} isCareer={toggles.hitBasic} onToggle={() => toggle('hitBasic')} />
+                  <StatSection title="Advanced Hitting Stats" color="magenta" stats={toggles.hitAdv ? hitAdvCareer : hitAdvSeason} isCareer={toggles.hitAdv} onToggle={() => toggle('hitAdv')} />
+                  <StatSection title="Pitching Stats" color="cyan" stats={toggles.pitchBasic ? pitchBasicCareer : pitchBasicSeason} isCareer={toggles.pitchBasic} onToggle={() => toggle('pitchBasic')} />
+                  <StatSection title="Advanced Pitching Stats" color="magenta" stats={toggles.pitchAdv ? pitchAdvCareer : pitchAdvSeason} isCareer={toggles.pitchAdv} onToggle={() => toggle('pitchAdv')} />
+                </>
+              ) : (
+                <>
+                  <StatSection title={`${cfg.catA.label} Stats`} color="cyan" stats={toggles.hitBasic ? genericCareerA : genericSeasonA} isCareer={toggles.hitBasic} onToggle={() => toggle('hitBasic')} />
+                  <StatSection title={`${cfg.catB.label} Stats`} color="magenta" stats={toggles.pitchBasic ? genericCareerB : genericSeasonB} isCareer={toggles.pitchBasic} onToggle={() => toggle('pitchBasic')} />
+                </>
+              )}
+            </>
+          )}
+
+          {activePanel === 'gamelog' && <PlayerGameLog playerScores={playerScores} cfg={cfg} />}
+          {activePanel === 'awards' && <PlayerAwardsPanel player={player} potmAwards={potmAwards} accolades={accolades} />}
+
+          {activePanel === 'overview' && potmAwards.length > 0 && (
             <div className="potm-trophy-case">
               <div className="potm-trophy-header">
                 <span className="potm-trophy-title">🏆 Player of the Month</span>
@@ -442,85 +596,6 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
                     </div>
                   </div>
                 ))}
-              </div>
-            </div>
-          )}
-
-          {isBaseball && <SavantCard player={player} />}
-
-          {isBaseball ? (
-            <>
-              <StatSection
-                title="Season Hitting Stats"
-                color="cyan"
-                stats={toggles.hitBasic ? hitBasicCareer : hitBasicSeason}
-                isCareer={toggles.hitBasic}
-                onToggle={() => toggle('hitBasic')}
-              />
-              <StatSection
-                title="Advanced Hitting Stats"
-                color="magenta"
-                stats={toggles.hitAdv ? hitAdvCareer : hitAdvSeason}
-                isCareer={toggles.hitAdv}
-                onToggle={() => toggle('hitAdv')}
-              />
-              <StatSection
-                title="Pitching Stats"
-                color="cyan"
-                stats={toggles.pitchBasic ? pitchBasicCareer : pitchBasicSeason}
-                isCareer={toggles.pitchBasic}
-                onToggle={() => toggle('pitchBasic')}
-              />
-              <StatSection
-                title="Advanced Pitching Stats"
-                color="magenta"
-                stats={toggles.pitchAdv ? pitchAdvCareer : pitchAdvSeason}
-                isCareer={toggles.pitchAdv}
-                onToggle={() => toggle('pitchAdv')}
-              />
-            </>
-          ) : (
-            <>
-              <StatSection
-                title={`${cfg.catA.label} Stats`}
-                color="cyan"
-                stats={toggles.hitBasic ? genericCareerA : genericSeasonA}
-                isCareer={toggles.hitBasic}
-                onToggle={() => toggle('hitBasic')}
-              />
-              <StatSection
-                title={`${cfg.catB.label} Stats`}
-                color="magenta"
-                stats={toggles.pitchBasic ? genericCareerB : genericSeasonB}
-                isCareer={toggles.pitchBasic}
-                onToggle={() => toggle('pitchBasic')}
-              />
-            </>
-          )}
-
-          {/* Game Log */}
-          {playerScores.length > 0 && (
-            <div className="stats-section neon-card">
-              <h3 className="gradient-text-cyan" style={{ marginBottom: '15px' }}>Game Log</h3>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                  <thead>
-                    <tr>
-                      {cfg.boxFields.map(f => (
-                        <th key={f} style={{ padding: '8px', color: 'rgba(158, 165, 196,0.6)', textAlign: 'center', borderBottom: '1px solid rgba(94, 129, 244,0.1)' }}>{cfg.boxLabels[f]}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {playerScores.map((score, i) => (
-                      <tr key={i}>
-                        {cfg.boxFields.map((f, j) => (
-                          <td key={j} style={{ padding: '8px', textAlign: 'center', color: 'var(--color-cyan)', borderBottom: '1px solid rgba(94, 129, 244,0.05)' }}>{score[f] || 0}</td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               </div>
             </div>
           )}

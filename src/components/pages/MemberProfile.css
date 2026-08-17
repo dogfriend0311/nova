@@ -89,6 +89,35 @@
 .discord-section { margin-bottom:0; }
 .discord-section-title { font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:rgba(158, 165, 196,0.4); margin-bottom:10px; }
 .discord-section-title-row { display:flex; justify-content:space-between; align-items:center; }
+
+.member-profile-overview { padding: 20px 0 8px; }
+.member-overview-hero {
+  display:flex; align-items:flex-start; justify-content:space-between; gap:16px;
+  padding:18px; margin-bottom:12px; border:1px solid rgba(94,129,244,0.16);
+  border-radius:14px; background:linear-gradient(145deg, rgba(94,129,244,0.11), rgba(255,255,255,0.015));
+}
+.member-overview-kicker { display:block; color:var(--color-cyan,#5e81f4); font-size:0.61rem; font-weight:900; letter-spacing:0.14em; }
+.member-overview-hero h3 { margin:5px 0 5px; color:#f3f5ff; font-family:var(--font-display); font-size:1.08rem; }
+.member-overview-hero p { max-width:460px; margin:0; color:rgba(158,165,196,0.58); font-size:0.79rem; line-height:1.5; }
+.member-overview-presence { display:flex; align-items:center; gap:7px; flex-shrink:0; color:var(--presence-color); font-size:0.65rem; font-weight:900; letter-spacing:0.08em; text-transform:uppercase; }
+.member-overview-presence span { width:7px; height:7px; border-radius:50%; background:var(--presence-color); box-shadow:0 0 10px var(--presence-color); }
+.member-overview-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+.member-overview-card { padding:13px; border:1px solid rgba(255,255,255,0.06); border-radius:11px; background:rgba(255,255,255,0.025); }
+.member-overview-card span, .member-overview-card strong, .member-overview-card small { display:block; }
+.member-overview-card span { color:rgba(158,165,196,0.42); font-size:0.59rem; font-weight:900; letter-spacing:0.1em; }
+.member-overview-card strong { margin:6px 0 3px; overflow:hidden; color:#e7ebfa; font-size:0.82rem; text-overflow:ellipsis; white-space:nowrap; }
+.member-overview-card small { overflow:hidden; color:rgba(158,165,196,0.46); font-size:0.68rem; text-overflow:ellipsis; white-space:nowrap; }
+.member-overview-links { display:flex; align-items:center; flex-wrap:wrap; gap:7px; padding-top:16px; }
+.member-overview-links .member-overview-kicker { width:100%; margin-bottom:1px; color:rgba(158,165,196,0.42); }
+.member-overview-links button { display:flex; align-items:center; gap:11px; padding:8px 10px; border:1px solid rgba(94,129,244,0.18); border-radius:8px; background:rgba(94,129,244,0.05); color:rgba(198,208,241,0.75); cursor:pointer; font-size:0.7rem; transition:all 0.18s; }
+.member-overview-links button:hover { border-color:rgba(94,129,244,0.4); color:#fff; transform:translateY(-1px); }
+.member-overview-links button span { color:var(--color-cyan,#5e81f4); font-size:0.9rem; }
+
+@media (max-width: 500px) {
+  .member-overview-hero { flex-direction:column; }
+  .member-overview-grid { grid-template-columns:1fr; }
+  .member-overview-links button { flex:1; justify-content:space-between; }
+}
 .mp-fav-sport-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
 .mp-fav-sport-label { font-size:0.8rem; color:rgba(158, 165, 196,0.5); min-width:40px; }
 .mp-fav-teams { display:flex; gap:6px; flex-wrap:wrap; }
