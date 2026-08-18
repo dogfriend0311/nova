@@ -3,6 +3,7 @@ import { SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl } from '../../data/teams';
 import * as lfm from '../../services/lastfmService';
 import { ProfileBackground, ProfileAudioPlayer, effectiveBgList, effectiveAudioList, RobloxLinkCard, RobloxGameCard } from './MemberProfile';
 import { BadgeRow } from '../BadgeDisplay';
+import { checkRateLimit, recordAction } from '../../services/rateLimiter';
 
 // ── role helpers ──────────────────────────────────────────────
 const SPORT_KEYS = ['mlb', 'nfl', 'nba', 'nhl', 'cfb', 'cbb'];
@@ -125,6 +126,7 @@ const CommentsSection = ({ toUsername, currentUser }) => {
   const [text, setText]         = useState('');
   const [loading, setLoading]   = useState(true);
   const [posting, setPosting]   = useState(false);
+  const [limitMsg, setLimitMsg] = useState('');
 
   const loadComments = async () => {
     setLoading(true);
@@ -142,6 +144,9 @@ const CommentsSection = ({ toUsername, currentUser }) => {
 
   const handlePost = async () => {
     if (!text.trim() || !currentUser) return;
+    const verdict = checkRateLimit('comment', currentUser);
+    if (!verdict.allowed) { setLimitMsg(verdict.message); return; }
+    setLimitMsg('');
     setPosting(true);
     const nc = { id: Date.now().toString(), from_username: currentUser, to_username: toUsername, content: text.trim(), created_at: new Date().toISOString() };
     try {
@@ -154,6 +159,7 @@ const CommentsSection = ({ toUsername, currentUser }) => {
       localStorage.setItem('nova_comments', JSON.stringify(all));
       setComments(p => [nc, ...p]);
     }
+    recordAction('comment', currentUser);
     setText(''); setPosting(false);
   };
 
@@ -185,6 +191,7 @@ const CommentsSection = ({ toUsername, currentUser }) => {
             style={{ marginTop: 8, padding: '8px 20px', opacity: (!text.trim() || posting) ? 0.4 : 1 }}>
             {posting ? 'Posting...' : 'Post Comment'}
           </button>
+          {limitMsg && <p style={{ color: '#ff9e57', fontSize: '0.78rem', marginTop: 8, marginBottom: 0 }}>{limitMsg}</p>}
         </div>
       ) : (
         <p style={{ color: 'rgba(158,165,196,0.4)', fontSize: '0.85rem', marginBottom: 16 }}>Sign in to leave a comment.</p>

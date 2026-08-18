@@ -1887,6 +1887,68 @@ const AnnouncementsAdminTab = () => {
 
 /* ── SONG OF DAY ADMIN TAB ──────────────────────────────────── */
 
+/* ── SITE SETTINGS TAB (Roblox live status widget, etc.) ─────── */
+const SiteSettingsTab = () => {
+  const [games, setGames] = useState(null); // null = loading
+  const [placeId, setPlaceId] = useState('');
+  const [label, setLabel] = useState('');
+  const [msg, setMsg] = useState(null);
+
+  useEffect(() => {
+    db.getSiteSetting('roblox_games').then(val => setGames(Array.isArray(val) ? val : []));
+  }, []);
+
+  const save = async (next) => {
+    setGames(next);
+    await db.setSiteSetting('roblox_games', next);
+  };
+
+  const addGame = () => {
+    const id = placeId.trim();
+    if (!id || !/^\d+$/.test(id)) { setMsg({ ok: false, text: 'Place ID must be numeric — find it in the game\'s roblox.com URL.' }); return; }
+    save([...(games || []), { placeId: id, label: label.trim() }]);
+    setPlaceId(''); setLabel('');
+    setMsg({ ok: true, text: 'Game added to the homepage status widget.' });
+    setTimeout(() => setMsg(null), 2500);
+  };
+
+  const removeGame = (id) => save((games || []).filter(g => g.placeId !== id));
+
+  if (games === null) return <div style={{ color: 'rgba(158,165,196,0.5)' }}>Loading…</div>;
+
+  return (
+    <div>
+      <h3 style={{ color: '#e2e5f0', marginBottom: 6 }}>⚙️ Site Settings</h3>
+      <p style={{ color: 'rgba(158,165,196,0.5)', fontSize: '0.85rem', marginBottom: 18 }}>
+        Configure the Roblox games shown as a "Live Now" player-count widget on the home page.
+      </p>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+        <input value={placeId} onChange={e => setPlaceId(e.target.value)} placeholder="Roblox place ID (numeric)"
+          style={{ flex: '1 1 200px', padding: '9px 12px', background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 7, fontSize: '0.88rem' }} />
+        <input value={label} onChange={e => setLabel(e.target.value)} placeholder="Display name (optional)"
+          style={{ flex: '1 1 200px', padding: '9px 12px', background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 7, fontSize: '0.88rem' }} />
+        <button className="neon-button" onClick={addGame}>Add Game</button>
+      </div>
+      {msg && <div style={{ marginBottom: 10, padding: '8px 14px', borderRadius: 7, background: msg.ok ? 'rgba(67,181,129,0.12)' : 'rgba(255,107,122,0.12)', color: msg.ok ? '#43b581' : '#ff6b7a', fontSize: '0.85rem' }}>{msg.text}</div>}
+      {(games || []).length === 0 ? (
+        <div style={{ color: 'rgba(158,165,196,0.35)', fontSize: '0.85rem' }}>No games configured yet — the widget stays hidden on the homepage until you add one.</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
+          {games.map(g => (
+            <div key={g.placeId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'rgba(94,129,244,0.04)', border: '1px solid rgba(94,129,244,0.1)', borderRadius: 8 }}>
+              <div>
+                <div style={{ fontWeight: 700, color: '#e2e5f0', fontSize: '0.88rem' }}>{g.label || `Place ${g.placeId}`}</div>
+                <div style={{ fontSize: '0.72rem', color: 'rgba(158,165,196,0.4)' }}>ID: {g.placeId}</div>
+              </div>
+              <button className="neon-button" style={{ fontSize: '0.72rem', padding: '4px 10px', borderColor: '#ff6b7a', color: '#ff6b7a' }} onClick={() => removeGame(g.placeId)}>Remove</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const SongOfDayTab = () => {
   const { user } = useAuth();
   const [form, setForm]   = useState({ title: '', artist: '', url: '', description: '' });
@@ -2307,6 +2369,7 @@ const OwnerDashboard = ({ onExit }) => {
       case 'fantasy-manage':    return <FantasyManageTab />;
       case 'fantasy-schedule':  return <FantasyScheduleTab />;
       case 'admin-announcements': return isOwner ? <AnnouncementsAdminTab /> : null;
+      case 'site-settings':    return isOwner ? <SiteSettingsTab /> : null;
       case 'admin-sotd':       return <SongOfDayTab />;
       case 'admin-beatbattle': return <BeatBattleAdminTab />;
       case 'admin-propbets':   return <PropBetsAdminTab />;
@@ -2363,6 +2426,7 @@ const OwnerDashboard = ({ onExit }) => {
               {isOwner && <Btn id="manage-stats" label="📊 Manage Stats" />}
               <Btn id="give-coins"       label="Give Coins" />
               {isOwner && <Btn id="admin-announcements" label="📢 Announcements" />}
+              {isOwner && <Btn id="site-settings" label="⚙️ Site Settings" />}
               <Btn id="admin-sotd"       label="🎶 Song of Day" />
               <Btn id="admin-beatbattle" label="🎵 Beat Battle" />
               <Btn id="admin-propbets"   label="🎯 Prop Bets" />

@@ -202,6 +202,7 @@ const ArticlesPage = ({ initialArticleId, onArticleSelect }) => {
   const [editing,  setEditing]  = useState(null); // article being edited, when view==='edit'
   const [filter,   setFilter]   = useState('all');
   const [copied,   setCopied]   = useState(false);
+  const [query,    setQuery]    = useState('');
 
   const load = () => {
     import('../../services/db').then(({ default: db }) => {
@@ -210,7 +211,14 @@ const ArticlesPage = ({ initialArticleId, onArticleSelect }) => {
   };
   useEffect(load, []);
 
-  const filtered = filter === 'all' ? articles : articles.filter(a => a.category === filter);
+  const filtered = (filter === 'all' ? articles : articles.filter(a => a.category === filter))
+    .filter(a => {
+      const q = query.trim().toLowerCase();
+      if (!q) return true;
+      return (a.title || '').toLowerCase().includes(q)
+        || (a.body || '').toLowerCase().includes(q)
+        || (a.author || '').toLowerCase().includes(q);
+    });
   const active = initialArticleId ? articles.find(a => String(a.id) === String(initialArticleId)) : null;
 
   const goTo = (id) => { if (onArticleSelect) onArticleSelect(id); };
@@ -281,7 +289,7 @@ const ArticlesPage = ({ initialArticleId, onArticleSelect }) => {
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
         {[{ id: 'all', label: 'All' }, ...CATEGORIES].map(c => (
           <button key={c.id} onClick={() => setFilter(c.id)} style={{
             padding: '7px 14px', borderRadius: 8, cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, minHeight: 40,
@@ -292,11 +300,38 @@ const ArticlesPage = ({ initialArticleId, onArticleSelect }) => {
         ))}
       </div>
 
+      <div style={{ position: 'relative', marginBottom: 20 }}>
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search articles by title, author, or text…"
+          style={{
+            width: '100%', padding: '10px 14px', borderRadius: 10, minHeight: 42,
+            background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.2)',
+            color: '#e2e5f0', fontSize: '0.88rem', outline: 'none',
+          }}
+        />
+        {query && (
+          <button
+            onClick={() => setQuery('')}
+            aria-label="Clear search"
+            style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'rgba(158,165,196,0.5)', cursor: 'pointer', fontSize: '1rem', padding: 4 }}
+          >✕</button>
+        )}
+      </div>
+
+      {loaded && query.trim() && (
+        <div style={{ color: 'rgba(158,165,196,0.4)', fontSize: '0.78rem', marginBottom: 8, marginTop: -12 }}>
+          {filtered.length} result{filtered.length === 1 ? '' : 's'} for "{query.trim()}"
+        </div>
+      )}
+
       {!loaded ? (
         <div style={{ color: 'rgba(158,165,196,0.35)', textAlign: 'center', padding: 40 }}>Loading articles…</div>
       ) : filtered.length === 0 ? (
         <div style={{ color: 'rgba(158,165,196,0.35)', textAlign: 'center', padding: 40 }}>
-          No articles yet{canManage ? ' — write the first one!' : '.'}
+          {query.trim() ? 'No articles match your search.' : `No articles yet${canManage ? ' — write the first one!' : '.'}`}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

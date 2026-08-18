@@ -1177,6 +1177,39 @@ export const db = {
     return rows;
   },
 
+  /* ── SITE SETTINGS (generic key/value store) ────────────────
+     Small owner-configurable values that don't warrant their own
+     table — e.g. which Roblox place ID the homepage status widget
+     should track. */
+  async getSiteSetting(key) {
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_site_settings').select('value').eq('key', key).maybeSingle();
+        if (!error && data) return data.value;
+      } catch {}
+    }
+    try {
+      const all = JSON.parse(localStorage.getItem('nova_site_settings') || '{}');
+      return all[key];
+    } catch { return undefined; }
+  },
+
+  async setSiteSetting(key, value) {
+    if (hasSupabase()) {
+      try {
+        const { error } = await supabase.from('nova_site_settings')
+          .upsert([{ key, value, updated_at: new Date().toISOString() }], { onConflict: 'key' });
+        if (!error) logAudit('setting.update', null, 'site_setting', key);
+      } catch {}
+    }
+    try {
+      const all = JSON.parse(localStorage.getItem('nova_site_settings') || '{}');
+      all[key] = value;
+      localStorage.setItem('nova_site_settings', JSON.stringify(all));
+    } catch {}
+    return value;
+  },
+
 };
 
 /* ── Internal: keep localStorage in sync with Supabase ─────────── */

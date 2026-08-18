@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import db from '../services/db';
 import { useAuth } from '../context/AuthContext';
+import { checkRateLimit, recordAction } from '../services/rateLimiter';
 
 // Accepts a direct .gif link, or a Giphy/Tenor "share" page link (best-effort
 // extraction of the actual media URL so pasted share links still render).
@@ -29,6 +30,7 @@ const PlayerComments = ({ league, playerId, playerName }) => {
   const [showGif, setShowGif]   = useState(false);
   const [gifUrl, setGifUrl]     = useState('');
   const [posting, setPosting]   = useState(false);
+  const [limitMsg, setLimitMsg] = useState('');
 
   const load = () => {
     setLoading(true);
@@ -46,6 +48,9 @@ const PlayerComments = ({ league, playerId, playerName }) => {
     const content = text.trim();
     const gif = normalizeGifUrl(gifUrl);
     if (!content && !gif) return;
+    const verdict = checkRateLimit('comment', user?.username);
+    if (!verdict.allowed) { setLimitMsg(verdict.message); return; }
+    setLimitMsg('');
     setPosting(true);
     const saved = await db.addPlayerComment(league, {
       player_id: playerId,
@@ -54,6 +59,7 @@ const PlayerComments = ({ league, playerId, playerName }) => {
       content,
       gif_url: gif,
     });
+    recordAction('comment', user.username);
     setComments(prev => [saved, ...prev]);
     setText(''); setGifUrl(''); setShowGif(false);
     setPosting(false);
@@ -113,6 +119,9 @@ const PlayerComments = ({ league, playerId, playerName }) => {
               🎬 GIF
             </button>
           </div>
+          {limitMsg && (
+            <p style={{ color: '#ff9e57', fontSize: '0.78rem', marginTop: '8px', marginBottom: 0 }}>{limitMsg}</p>
+          )}
         </div>
       ) : (
         <p style={{ color: 'rgba(158, 165, 196,0.4)', fontSize: '0.85rem', marginBottom: '16px' }}>

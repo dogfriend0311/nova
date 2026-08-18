@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './Pages.css';
 import './Home.css';
+import ActivityFeed from '../ActivityFeed';
+import RobloxGameStatusWidget from '../RobloxGameStatusWidget';
 
 /* Tile icons (inline SVG - no emoji, renders identically everywhere) */
 const Icon = {
@@ -271,6 +273,8 @@ const Home = ({ onNavigate, user }) => {
         );
       })()}
 
+      <RobloxGameStatusWidget />
+
       <div className="home-section-label">Explore</div>
       <div className="home-tile-grid">
         {TILES.map((tile) => {
@@ -290,6 +294,8 @@ const Home = ({ onNavigate, user }) => {
           );
         })}
       </div>
+
+      <ActivityFeed />
     </div>
   );
 };

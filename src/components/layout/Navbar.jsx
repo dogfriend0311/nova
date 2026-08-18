@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
+import { Sun, Moon } from 'lucide-react';
+import { useTheme } from '../../services/useTheme';
+import CommandPalette from '../CommandPalette';
 import './Navbar.css';
 
 const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, onLogout, user, coins }) => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   const tabs = [
     { id: 'home',        label: 'Home',        icon: 'Home' },
@@ -41,6 +45,15 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, on
 
         {/* User section */}
         <div className="navbar-user">
+          <CommandPalette />
+          <button
+            className="user-button theme-toggle-btn"
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+          </button>
           {user ? (
             <>
               {typeof coins === 'number' && (
@@ -84,6 +97,9 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, on
             </button>
           ))}
           <div className="mobile-divider" />
+          <button className="mobile-tab" onClick={toggleTheme}>
+            {theme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode'}
+          </button>
           {user ? (
             <>
               <button className="mobile-tab" onClick={() => onPageChange('profile')}>{user.username}</button>

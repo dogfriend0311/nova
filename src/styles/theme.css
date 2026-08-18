@@ -142,6 +142,36 @@
 body {
   background-color: var(--color-bg-dark);
   color: var(--color-text-primary);
+  transition: background-color var(--transition-base), color var(--transition-base);
+}
+
+/* ── Light theme ──────────────────────────────────────────────
+   Toggled by setting data-theme="light" on <html> (see the toggle
+   button in Navbar.jsx / useTheme.js). Overrides the surface and
+   text variables only — accent colors (cyan/magenta/purple) stay
+   the same so the brand still reads as "Nova" in either theme.
+   NOTE: this flips every component that reads the CSS variables
+   below. A number of older cards/sections use hardcoded inline
+   rgba(...) colors instead of the variables (a pre-existing pattern
+   in this codebase) — those will still render with their dark-theme
+   colors until they're migrated to the variables. The app shell,
+   nav, and most panels use the variables and will switch cleanly. */
+:root[data-theme='light'] {
+  --color-bg-dark: #f4f6fc;
+  --color-bg-darker: #e7eaf5;
+  --color-bg-light: #ffffff;
+  --color-bg-elevated: #eef1fa;
+
+  --color-text-primary: #1a1d2e;
+  --color-text-secondary: #464b63;
+  --color-text-tertiary: #767c99;
+  --color-text-light: #0a0d1a;
+
+  --shadow-sm: 0 2px 8px rgba(20, 30, 70, 0.08);
+  --shadow-md: 0 4px 16px rgba(20, 30, 70, 0.1);
+  --shadow-lg: 0 12px 32px rgba(20, 30, 70, 0.12);
+  --shadow-xl: 0 20px 48px rgba(20, 30, 70, 0.14);
+  --shadow-2xl: 0 28px 64px rgba(20, 30, 70, 0.16);
 }
 
 /* ── Gradient definitions ─────────────────────────────────────── */

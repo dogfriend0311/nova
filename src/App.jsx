@@ -20,6 +20,7 @@ import RobloxTracker from './components/pages/RobloxTracker';
 import MusicHub from './components/pages/MusicHub';
 import DiamondLeague from './components/pages/baseball/DiamondLeague';
 import EmbedPlayerCard from './components/EmbedPlayerCard';
+import InstallPrompt from './components/InstallPrompt';
 import './styles/globals.css';
 import './styles/theme.css';
 import './styles/animations.css';
@@ -331,6 +332,8 @@ const AppContent = () => {
       >
         {renderPage()}
       </Layout>
+
+      <InstallPrompt />
 
       {showLoginModal && (
         <LoginModal
