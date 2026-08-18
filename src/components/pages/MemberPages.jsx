@@ -4,6 +4,7 @@ import * as lfm from '../../services/lastfmService';
 import { ProfileBackground, ProfileAudioPlayer, effectiveBgList, effectiveAudioList, RobloxLinkCard, RobloxGameCard } from './MemberProfile';
 import { BadgeRow } from '../BadgeDisplay';
 import { checkRateLimit, recordAction } from '../../services/rateLimiter';
+import { awardXP } from '../../services/reputationService';
 
 // ── role helpers ──────────────────────────────────────────────
 const SPORT_KEYS = ['mlb', 'nfl', 'nba', 'nhl', 'cfb', 'cbb'];
@@ -160,6 +161,7 @@ const CommentsSection = ({ toUsername, currentUser }) => {
       setComments(p => [nc, ...p]);
     }
     recordAction('comment', currentUser);
+    awardXP(currentUser, 5);
     setText(''); setPosting(false);
   };
 

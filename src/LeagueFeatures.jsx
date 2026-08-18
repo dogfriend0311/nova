@@ -4,6 +4,7 @@ import {
   Radio, Sparkles, Trophy, Users,
 } from 'lucide-react';
 import db from './services/db';
+import { awardXP } from './services/reputationService';
 import './ViztaLeague.css';
 
 const num = (value) => {
@@ -253,6 +254,7 @@ export const CommunityPredictionsTab = ({ sport, cfg }) => {
     const list = Object.values({ ...predictions, [game.id]: item });
     setPredictions({ ...predictions, [game.id]: item });
     writeList(storageKey, list);
+    awardXP(username, 2);
   };
 
   return (

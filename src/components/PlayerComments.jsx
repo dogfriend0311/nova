@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import db from '../services/db';
 import { useAuth } from '../context/AuthContext';
 import { checkRateLimit, recordAction } from '../services/rateLimiter';
+import { awardXP } from '../services/reputationService';
 
 // Accepts a direct .gif link, or a Giphy/Tenor "share" page link (best-effort
 // extraction of the actual media URL so pasted share links still render).
@@ -60,6 +61,7 @@ const PlayerComments = ({ league, playerId, playerName }) => {
       gif_url: gif,
     });
     recordAction('comment', user.username);
+    awardXP(user.username, 5);
     setComments(prev => [saved, ...prev]);
     setText(''); setGifUrl(''); setShowGif(false);
     setPosting(false);

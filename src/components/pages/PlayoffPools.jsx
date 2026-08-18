@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './NovaFeatures.css';
 import { awardBadge } from '../../services/achievementsService';
+import { awardXP } from '../../services/reputationService';
 
 const POOLS_KEY = 'nova_playoff_pools';
 const PICKS_KEY = 'nova_playoff_picks';
@@ -50,6 +51,7 @@ const PlayoffPools = ({ user }) => {
     const updated = { ...myPicks, [key]: team };
     setMyPicks(updated);
     saveUserPicks(user.username, updated);
+    awardXP(user.username, 3);
 
     // Check perfect first round
     const round0 = pool.rounds?.[0]?.matchups || [];

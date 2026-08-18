@@ -1210,6 +1210,53 @@ export const db = {
     return value;
   },
 
+  /* ── USER STATS (reputation/XP, login streaks) ──────────────
+     Synced (not per-browser-only like coins) so a member's level and
+     streak show correctly from any device. */
+  async getUserStats(username) {
+    if (!username) return null;
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_user_stats').select('*').eq('username', username).maybeSingle();
+        if (!error && data) return data;
+      } catch {}
+    }
+    try {
+      const all = JSON.parse(localStorage.getItem('nova_user_stats') || '{}');
+      return all[username] || { username, xp: 0, login_streak: 0, last_login_date: null };
+    } catch { return { username, xp: 0, login_streak: 0, last_login_date: null }; }
+  },
+
+  async getAllUserStats() {
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_user_stats').select('*');
+        if (!error) return data || [];
+      } catch {}
+    }
+    try {
+      const all = JSON.parse(localStorage.getItem('nova_user_stats') || '{}');
+      return Object.values(all);
+    } catch { return []; }
+  },
+
+  async updateUserStats(username, patch) {
+    if (!username) return null;
+    const merged = { username, ...patch, updated_at: new Date().toISOString() };
+    if (hasSupabase()) {
+      try {
+        const { error } = await supabase.from('nova_user_stats').upsert([merged], { onConflict: 'username' });
+        if (!error) return merged;
+      } catch {}
+    }
+    try {
+      const all = JSON.parse(localStorage.getItem('nova_user_stats') || '{}');
+      all[username] = { ...(all[username] || {}), ...merged };
+      localStorage.setItem('nova_user_stats', JSON.stringify(all));
+      return all[username];
+    } catch { return merged; }
+  },
+
 };
 
 /* ── Internal: keep localStorage in sync with Supabase ─────────── */

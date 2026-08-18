@@ -1,16 +1,27 @@
 import React, { createContext, useState, useEffect } from 'react';
+import { checkDailyLogin } from '../services/reputationService';
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [dailyReward, setDailyReward] = useState(null);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('nova_user');
     if (savedUser) setUser(JSON.parse(savedUser));
     setLoading(false);
   }, []);
+
+  // Daily login streak + coin/XP bonus — checked once per user per
+  // session; checkDailyLogin() itself is a no-op if today's reward was
+  // already claimed, so this is safe to run on every user change
+  // (fresh login AND restoring an existing session on app boot).
+  useEffect(() => {
+    if (!user || user.role === 'guest') return;
+    checkDailyLogin(user.username).then(reward => { if (reward) setDailyReward(reward); }).catch(() => {});
+  }, [user]);
 
   // Online heartbeat: update every 30s while logged in.
   // Writes to Supabase (via db.updateLastSeen) so ANY device can see who's
@@ -181,7 +192,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, loginAsGuest, signup, logout, updateUserRole, hasPermission, canAccessDashboard, loading }}>
+    <AuthContext.Provider value={{ user, login, loginAsGuest, signup, logout, updateUserRole, hasPermission, canAccessDashboard, loading, dailyReward, clearDailyReward: () => setDailyReward(null) }}>
       {children}
     </AuthContext.Provider>
   );

@@ -6,6 +6,7 @@ import { getWatchList } from '../../services/mediaService';
 import * as lfm from '../../services/lastfmService';
 import { BADGES, getEarnedBadges, syncBadges } from '../../services/achievementsService';
 import { BadgeRow } from '../BadgeDisplay';
+import { LevelBadge } from '../LevelBadge';
 import './MemberProfile.css';
 
 const roleLabel = (role) => {
@@ -1037,6 +1038,7 @@ const MemberProfile = () => {
             size={16}
           />
           <span className={`tw-role-badge ${user?.role || 'member'}`}>{roleLabel(user?.role)}</span>
+          <LevelBadge username={profile.username} size="sm" />
         </div>
         <p className="tw-handle">@{profile.username}</p>
 
