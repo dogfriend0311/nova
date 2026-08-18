@@ -443,8 +443,12 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
   };
 
   const copyEmbedCard = () => {
-    const embedUrl = `${window.location.origin}${window.location.pathname}#leagues/player/${player.id}`;
-    const snippet = `<iframe src="${embedUrl}" title="${player.nickname || player.player_name} — Nova stat card" width="420" height="260" loading="lazy" style="border:0;border-radius:16px;max-width:100%;"></iframe>`;
+    // Points at the standalone, no-login embed route (App.jsx renders
+    // EmbedPlayerCard directly for #embed/player/... instead of the full
+    // authenticated app), so this actually works when pasted into an
+    // external site rather than loading a login wall in the iframe.
+    const embedUrl = `${window.location.origin}${window.location.pathname}#embed/player/${leaguePrefix || 'vizta'}/${player.id}`;
+    const snippet = `<iframe src="${embedUrl}" title="${player.nickname || player.player_name} — Nova stat card" width="380" height="300" loading="lazy" style="border:0;border-radius:16px;max-width:100%;"></iframe>`;
     const done = () => { setEmbedCopied(true); setTimeout(() => setEmbedCopied(false), 2200); };
     if (navigator.clipboard) navigator.clipboard.writeText(snippet).then(done).catch(() => alert(snippet));
     else alert(snippet);

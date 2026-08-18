@@ -19,6 +19,7 @@ import NovaWrapped from './components/pages/NovaWrapped';
 import RobloxTracker from './components/pages/RobloxTracker';
 import MusicHub from './components/pages/MusicHub';
 import DiamondLeague from './components/pages/baseball/DiamondLeague';
+import EmbedPlayerCard from './components/EmbedPlayerCard';
 import './styles/globals.css';
 import './styles/theme.css';
 import './styles/animations.css';
@@ -341,10 +342,28 @@ const AppContent = () => {
   );
 };
 
-const App = () => (
-  <AuthProvider>
-    <AppContent />
-  </AuthProvider>
-);
+// Embeddable Stat Cards: URLs like #embed/player/<league>/<id> render a
+// standalone, chrome-free, unauthenticated card meant to live inside a
+// third-party <iframe> — so they skip AuthProvider/Layout entirely rather
+// than loading the whole authenticated app inside someone else's page.
+const isEmbedRoute = () => window.location.hash.replace(/^#\/?/, '').startsWith('embed/player/');
+
+const App = () => {
+  const [embed, setEmbed] = useState(isEmbedRoute);
+
+  useEffect(() => {
+    const handler = () => setEmbed(isEmbedRoute());
+    window.addEventListener('hashchange', handler);
+    return () => window.removeEventListener('hashchange', handler);
+  }, []);
+
+  if (embed) return <EmbedPlayerCard />;
+
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+};
 
 export default App;

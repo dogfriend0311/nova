@@ -1,0 +1,154 @@
+/* Embeddable Stat Card — self-contained, no dependency on the full
+   app shell so it renders cleanly inside a third-party <iframe>. */
+
+.epc-root {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 100vh;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+.epc-root * { box-sizing: border-box; }
+
+.epc-state {
+  color: #9ea5c4;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.epc-card {
+  width: 100%;
+  max-width: 380px;
+  background: linear-gradient(160deg, #131729 0%, #0a0d1a 100%);
+  border: 1px solid rgba(94, 129, 244, 0.28);
+  border-radius: 16px;
+  padding: 16px 18px 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(94, 129, 244, 0.06) inset;
+  color: #e2e5f0;
+}
+
+.epc-light .epc-card {
+  background: linear-gradient(160deg, #ffffff 0%, #f2f4fb 100%);
+  border-color: rgba(94, 129, 244, 0.25);
+  color: #1a1d2e;
+  box-shadow: 0 8px 24px rgba(20, 30, 70, 0.12);
+}
+
+.epc-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.epc-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--epc-accent-rgb, 94, 129, 244), 0.15);
+  border: 2px solid var(--epc-accent, #5e81f4);
+  font-weight: 800;
+  font-size: 1.2rem;
+  color: var(--epc-accent, #5e81f4);
+}
+
+.epc-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.epc-id { flex: 1; min-width: 0; }
+
+.epc-name {
+  font-size: 1.05rem;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.epc-sub {
+  margin-top: 2px;
+  font-size: 0.75rem;
+  color: #9ea5c4;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.epc-dot { width: 3px; height: 3px; border-radius: 50%; background: #5e6580; display: inline-block; }
+
+.epc-potm { font-size: 1.3rem; filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.6)); }
+
+.epc-accolades {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.epc-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255, 158, 87, 0.12);
+  border: 1px solid rgba(255, 158, 87, 0.3);
+  color: #ffb477;
+  white-space: nowrap;
+}
+
+.epc-stats {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.epc-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 4px;
+  border-radius: 10px;
+  background: rgba(94, 129, 244, 0.06);
+  border: 1px solid rgba(94, 129, 244, 0.12);
+}
+
+.epc-light .epc-stat {
+  background: rgba(94, 129, 244, 0.05);
+  border-color: rgba(94, 129, 244, 0.15);
+}
+
+.epc-stat-val {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--epc-accent, #5e81f4);
+}
+
+.epc-stat-label {
+  margin-top: 2px;
+  font-size: 0.65rem;
+  color: #9ea5c4;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.epc-footer {
+  display: block;
+  margin-top: 12px;
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #5e6580;
+  text-decoration: none;
+  letter-spacing: 0.03em;
+}
+
+.epc-footer:hover { color: var(--epc-accent, #5e81f4); }
