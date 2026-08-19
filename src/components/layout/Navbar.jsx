@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Sun, Moon } from 'lucide-react';
 import { useTheme } from '../../services/useTheme';
 import CommandPalette from '../CommandPalette';
+import NotificationBell from '../NotificationBell';
 import './Navbar.css';
 
 const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, onLogout, user, coins }) => {
@@ -46,6 +47,7 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, on
         {/* User section */}
         <div className="navbar-user">
           <CommandPalette />
+          <NotificationBell />
           <button
             className="user-button theme-toggle-btn"
             onClick={toggleTheme}

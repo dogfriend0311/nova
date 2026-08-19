@@ -681,18 +681,28 @@ export const db = {
   },
 
   async addComment(comment) {
+    let saved = null;
     if (hasSupabase()) {
       try {
         const record = { ...comment };
         delete record.id;
         const { data, error } = await supabase.from('nova_comments').insert([record]).select();
-        if (!error) return data[0];
+        if (!error) saved = data[0];
       } catch {}
     }
-    const all = JSON.parse(localStorage.getItem('nova_comments') || '{}');
-    all[comment.to_username] = [comment, ...(all[comment.to_username] || [])];
-    localStorage.setItem('nova_comments', JSON.stringify(all));
-    return comment;
+    if (!saved) {
+      const all = JSON.parse(localStorage.getItem('nova_comments') || '{}');
+      all[comment.to_username] = [comment, ...(all[comment.to_username] || [])];
+      localStorage.setItem('nova_comments', JSON.stringify(all));
+      saved = comment;
+    }
+    if (comment.to_username && comment.to_username !== comment.from_username) {
+      this.createNotification(comment.to_username, {
+        type: 'comment', title: `${comment.from_username} commented on your profile`,
+        body: (comment.content || '').slice(0, 120), link: `#members/${comment.to_username}`,
+      }).catch(() => {});
+    }
+    return saved;
   },
 
   async deleteComment(id) {
@@ -1311,16 +1321,23 @@ export const db = {
       from_username: fromUsername, to_username: toUsername, content,
       created_at: new Date().toISOString(), read_at: null,
     };
+    let saved;
     if (hasSupabase()) {
       try {
         const { data, error } = await supabase.from('nova_direct_messages').insert([record]).select();
-        if (!error && data && data[0]) return data[0];
+        if (!error && data && data[0]) saved = data[0];
       } catch {}
     }
-    const all = JSON.parse(localStorage.getItem('nova_direct_messages') || '[]');
-    const saved = { ...record, id: Date.now().toString() };
-    all.push(saved);
-    localStorage.setItem('nova_direct_messages', JSON.stringify(all));
+    if (!saved) {
+      const all = JSON.parse(localStorage.getItem('nova_direct_messages') || '[]');
+      saved = { ...record, id: Date.now().toString() };
+      all.push(saved);
+      localStorage.setItem('nova_direct_messages', JSON.stringify(all));
+    }
+    this.createNotification(toUsername, {
+      type: 'dm', title: `New message from ${fromUsername}`,
+      body: content.slice(0, 120), link: `#messages/${fromUsername}`,
+    }).catch(() => {});
     return saved;
   },
 
@@ -1345,6 +1362,91 @@ export const db = {
   async getUnreadDMCount(username) {
     const convos = await this.getConversations(username);
     return convos.filter(c => c.unread).length;
+  },
+
+  /* ── DAILY VISITS (owner analytics) ──────────────────────────
+     One row per member per day — written once daily by
+     reputationService.checkDailyLogin(). */
+  async recordDailyVisit(username, dateStr) {
+    if (!username || !dateStr) return;
+    if (hasSupabase()) {
+      try {
+        await supabase.from('nova_daily_visits')
+          .upsert([{ username, visit_date: dateStr }], { onConflict: 'username,visit_date' });
+        return;
+      } catch {}
+    }
+    const all = JSON.parse(localStorage.getItem('nova_daily_visits') || '[]');
+    if (!all.some(v => v.username === username && v.visit_date === dateStr)) {
+      all.push({ username, visit_date: dateStr });
+      localStorage.setItem('nova_daily_visits', JSON.stringify(all));
+    }
+  },
+
+  async getDailyVisitCounts(days = 14) {
+    const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+    let rows = [];
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_daily_visits').select('*').gte('visit_date', cutoff);
+        if (!error) rows = data || [];
+      } catch {}
+    }
+    if (!rows.length) {
+      const all = JSON.parse(localStorage.getItem('nova_daily_visits') || '[]');
+      rows = all.filter(v => v.visit_date >= cutoff);
+    }
+    const counts = {};
+    rows.forEach(v => { counts[v.visit_date] = (counts[v.visit_date] || 0) + 1; });
+    return counts; // { '2026-08-18': 5, ... }
+  },
+
+  /* ── NOTIFICATIONS ────────────────────────────────────────── */
+  async createNotification(username, { type, title, body, link }) {
+    if (!username) return null;
+    const record = { username, type, title, body: body || null, link: link || null, created_at: new Date().toISOString(), read_at: null };
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_notifications').insert([record]).select();
+        if (!error && data && data[0]) return data[0];
+      } catch {}
+    }
+    const all = JSON.parse(localStorage.getItem('nova_notifications') || '[]');
+    const saved = { ...record, id: Date.now().toString() };
+    all.push(saved);
+    localStorage.setItem('nova_notifications', JSON.stringify(all));
+    return saved;
+  },
+
+  async getNotifications(username, limit = 30) {
+    if (!username) return [];
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_notifications')
+          .select('*').eq('username', username).order('created_at', { ascending: false }).limit(limit);
+        if (!error) return data || [];
+      } catch {}
+    }
+    const all = JSON.parse(localStorage.getItem('nova_notifications') || '[]');
+    return all.filter(n => n.username === username).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, limit);
+  },
+
+  async getUnreadNotificationCount(username) {
+    const list = await this.getNotifications(username, 50);
+    return list.filter(n => !n.read_at).length;
+  },
+
+  async markNotificationsRead(username) {
+    if (!username) return;
+    if (hasSupabase()) {
+      try {
+        await supabase.from('nova_notifications').update({ read_at: new Date().toISOString() }).eq('username', username).is('read_at', null);
+      } catch {}
+    }
+    const all = JSON.parse(localStorage.getItem('nova_notifications') || '[]');
+    let changed = false;
+    all.forEach(n => { if (n.username === username && !n.read_at) { n.read_at = new Date().toISOString(); changed = true; } });
+    if (changed) localStorage.setItem('nova_notifications', JSON.stringify(all));
   },
 
 };

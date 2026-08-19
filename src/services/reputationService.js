@@ -82,6 +82,7 @@ export async function checkDailyLogin(username) {
     login_streak: streak,
     last_login_date: today,
   });
+  db.recordDailyVisit(username, today).catch(() => {});
 
   // Coins stay in the existing per-browser scheme.
   try {

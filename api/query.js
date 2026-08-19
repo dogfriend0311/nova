@@ -55,7 +55,8 @@ const ALLOWED_TABLES = new Set([
   // Added for: Roblox live-status widget config + other small owner
   // settings, member reputation/level + daily login streaks, and
   // direct messages between members
-  'nova_site_settings', 'nova_user_stats', 'nova_direct_messages',
+  'nova_site_settings', 'nova_user_stats', 'nova_direct_messages', 'nova_daily_visits',
+  'nova_notifications',
 ]);
 
 const IDENT_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;

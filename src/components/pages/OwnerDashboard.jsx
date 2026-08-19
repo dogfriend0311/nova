@@ -1888,6 +1888,88 @@ const AnnouncementsAdminTab = () => {
 /* ── SONG OF DAY ADMIN TAB ──────────────────────────────────── */
 
 /* ── SITE SETTINGS TAB (Roblox live status widget, etc.) ─────── */
+/* ── ANALYTICS TAB (DAU/WAU + trend) ─────────────────────────── */
+const AnalyticsTab = () => {
+  const [loading, setLoading] = useState(true);
+  const [onlineNow, setOnlineNow] = useState(0);
+  const [totalMembers, setTotalMembers] = useState(0);
+  const [dau, setDau] = useState(0);
+  const [wau, setWau] = useState(0);
+  const [newArticlesWeek, setNewArticlesWeek] = useState(0);
+  const [visitCounts, setVisitCounts] = useState({});
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      db.getOnlineUsers(),
+      db.getMemberProfiles(),
+      db.getAllUserStats(),
+      db.getArticles(),
+      db.getDailyVisitCounts(14),
+    ]).then(([online, members, stats, articles, counts]) => {
+      if (cancelled) return;
+      const today = new Date().toISOString().slice(0, 10);
+      const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+      setOnlineNow((online || []).length);
+      setTotalMembers((members || []).length);
+      setDau((stats || []).filter(s => s.last_login_date === today).length);
+      setWau((stats || []).filter(s => s.last_login_date && s.last_login_date >= weekAgo).length);
+      setNewArticlesWeek((articles || []).filter(a => a.created_at && a.created_at.slice(0, 10) >= weekAgo).length);
+      setVisitCounts(counts || {});
+      setLoading(false);
+    }).catch(() => setLoading(false));
+    return () => { cancelled = true; };
+  }, []);
+
+  const days = Array.from({ length: 14 }, (_, i) => {
+    const d = new Date(Date.now() - (13 - i) * 86400000);
+    return d.toISOString().slice(0, 10);
+  });
+  const maxCount = Math.max(1, ...days.map(d => visitCounts[d] || 0));
+
+  const StatCard = ({ label, value }) => (
+    <div style={{ flex: '1 1 140px', padding: '16px', borderRadius: 10, background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.15)' }}>
+      <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-cyan)' }}>{value}</div>
+      <div style={{ fontSize: '0.72rem', color: 'rgba(158,165,196,0.5)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 2 }}>{label}</div>
+    </div>
+  );
+
+  if (loading) return <div style={{ color: 'rgba(158,165,196,0.5)' }}>Loading analytics…</div>;
+
+  return (
+    <div>
+      <h3 style={{ color: '#e2e5f0', marginBottom: 6 }}>📈 Analytics</h3>
+      <p style={{ color: 'rgba(158,165,196,0.5)', fontSize: '0.85rem', marginBottom: 18 }}>
+        DAU/WAU are based on registered members with an account (via the daily login streak system) — this doesn't capture anonymous/guest traffic.
+      </p>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 24 }}>
+        <StatCard label="Online Now" value={onlineNow} />
+        <StatCard label="Daily Active" value={dau} />
+        <StatCard label="Weekly Active" value={wau} />
+        <StatCard label="Total Members" value={totalMembers} />
+        <StatCard label="Articles (7d)" value={newArticlesWeek} />
+      </div>
+
+      <div style={{ marginBottom: 8, fontSize: '0.78rem', fontWeight: 700, color: 'rgba(158,165,196,0.6)' }}>Daily active members — last 14 days</div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 100, padding: '8px 4px', background: 'rgba(94,129,244,0.04)', borderRadius: 8, border: '1px solid rgba(94,129,244,0.1)' }}>
+        {days.map(d => {
+          const count = visitCounts[d] || 0;
+          const h = Math.max(3, Math.round((count / maxCount) * 84));
+          return (
+            <div key={d} title={`${d}: ${count}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
+              <div style={{ width: '70%', height: h, background: count > 0 ? 'var(--color-cyan)' : 'rgba(94,129,244,0.15)', borderRadius: '3px 3px 0 0' }} />
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: 'rgba(158,165,196,0.35)', marginTop: 4 }}>
+        <span>{days[0].slice(5)}</span>
+        <span>{days[days.length - 1].slice(5)}</span>
+      </div>
+    </div>
+  );
+};
+
 const SiteSettingsTab = () => {
   const [games, setGames] = useState(null); // null = loading
   const [placeId, setPlaceId] = useState('');
@@ -2369,6 +2451,7 @@ const OwnerDashboard = ({ onExit }) => {
       case 'fantasy-manage':    return <FantasyManageTab />;
       case 'fantasy-schedule':  return <FantasyScheduleTab />;
       case 'admin-announcements': return isOwner ? <AnnouncementsAdminTab /> : null;
+      case 'analytics':        return isOwner ? <AnalyticsTab /> : null;
       case 'site-settings':    return isOwner ? <SiteSettingsTab /> : null;
       case 'admin-sotd':       return <SongOfDayTab />;
       case 'admin-beatbattle': return <BeatBattleAdminTab />;
@@ -2426,6 +2509,7 @@ const OwnerDashboard = ({ onExit }) => {
               {isOwner && <Btn id="manage-stats" label="📊 Manage Stats" />}
               <Btn id="give-coins"       label="Give Coins" />
               {isOwner && <Btn id="admin-announcements" label="📢 Announcements" />}
+              {isOwner && <Btn id="analytics" label="📈 Analytics" />}
               {isOwner && <Btn id="site-settings" label="⚙️ Site Settings" />}
               <Btn id="admin-sotd"       label="🎶 Song of Day" />
               <Btn id="admin-beatbattle" label="🎵 Beat Battle" />
