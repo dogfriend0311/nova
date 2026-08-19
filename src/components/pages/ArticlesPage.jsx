@@ -20,7 +20,104 @@ async function uploadArticlePhoto(file, username) {
 const CATEGORIES = [
   { id: 'sports', label: '⚾ Sports' },
   { id: 'music',  label: '🎵 Music' },
+  { id: 'roblox', label: '🎮 Roblox Sports' },
 ];
+
+const LEAGUE_META = {
+  vizta:    { label: 'Roblox Baseball', icon: '⚾' },
+  hockey:   { label: 'Roblox Hockey',   icon: '🏒' },
+  football: { label: 'Heavenly Football', icon: '🏈' },
+};
+
+// ── Tag picker: search + attach site player pages / teams / leagues
+// to an article while writing it. Tags are stored on the article as
+// [{ type: 'player'|'team'|'league', league, id, name }] and rendered
+// as clickable chips on the reader view.
+const TagPicker = ({ tags, onChange }) => {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+
+  useEffect(() => {
+    const q = query.trim().toLowerCase();
+    if (q.length < 2) { setResults([]); return; }
+    let cancelled = false;
+    setSearching(true);
+    import('../../services/db').then(({ default: db }) => {
+      const leagues = Object.keys(LEAGUE_META);
+      Promise.all(leagues.map(lg => Promise.all([db.getPlayers(lg), db.getTeams(lg)]).then(([players, teams]) => ({ lg, players: players || [], teams: teams || [] }))))
+        .then(perLeague => {
+          if (cancelled) return;
+          const hits = [];
+          perLeague.forEach(({ lg, players, teams }) => {
+            const leagueLabel = LEAGUE_META[lg].label;
+            if (leagueLabel.toLowerCase().includes(q)) {
+              hits.push({ type: 'league', league: lg, id: lg, name: leagueLabel });
+            }
+            players.forEach(p => {
+              const name = p.nickname || p.player_name || '';
+              if (name.toLowerCase().includes(q)) hits.push({ type: 'player', league: lg, id: p.id, name });
+            });
+            teams.forEach(t => {
+              if ((t.name || '').toLowerCase().includes(q)) hits.push({ type: 'team', league: lg, id: t.id, name: t.name });
+            });
+          });
+          setResults(hits.slice(0, 20));
+          setSearching(false);
+        });
+    });
+    return () => { cancelled = true; };
+  }, [query]);
+
+  const addTag = (tag) => {
+    const exists = tags.some(t => t.type === tag.type && t.league === tag.league && String(t.id) === String(tag.id));
+    if (!exists) onChange([...tags, tag]);
+    setQuery('');
+    setResults([]);
+  };
+  const removeTag = (tag) => {
+    onChange(tags.filter(t => !(t.type === tag.type && t.league === tag.league && String(t.id) === String(tag.id))));
+  };
+
+  const typeIcon = { player: '👤', team: '🛡️', league: LEAGUE_META[Object.keys(LEAGUE_META)[0]]?.icon || '🏆' };
+
+  return (
+    <div>
+      <div style={{ position: 'relative' }}>
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search player pages, teams, or leagues to tag…"
+          style={{ width: '100%', padding: '10px 12px', background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 8, fontSize: '0.88rem', boxSizing: 'border-box' }}
+        />
+        {query.trim().length >= 2 && (
+          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 5, background: '#12162a', border: '1px solid rgba(94,129,244,0.25)', borderRadius: 8, marginTop: 4, maxHeight: 220, overflowY: 'auto' }}>
+            {searching && <div style={{ padding: 10, fontSize: '0.8rem', color: 'rgba(158,165,196,0.5)' }}>Searching…</div>}
+            {!searching && results.length === 0 && <div style={{ padding: 10, fontSize: '0.8rem', color: 'rgba(158,165,196,0.5)' }}>No matches.</div>}
+            {results.map((r, i) => (
+              <div key={`${r.type}-${r.league}-${r.id}-${i}`} onClick={() => addTag(r)}
+                style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '0.85rem', color: '#e2e5f0', display: 'flex', gap: 8, alignItems: 'center', borderBottom: '1px solid rgba(94,129,244,0.08)' }}>
+                <span>{r.type === 'player' ? '👤' : r.type === 'team' ? '🛡️' : LEAGUE_META[r.league]?.icon}</span>
+                <span style={{ flex: 1 }}>{r.name}</span>
+                <span style={{ fontSize: '0.7rem', color: 'rgba(158,165,196,0.4)' }}>{LEAGUE_META[r.league]?.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {tags.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+          {tags.map((t, i) => (
+            <span key={`${t.type}-${t.league}-${t.id}-${i}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 14, background: 'rgba(94,129,244,0.12)', border: '1px solid rgba(94,129,244,0.3)', color: 'var(--color-cyan)', fontSize: '0.78rem', fontWeight: 600 }}>
+              {t.type === 'player' ? '👤' : t.type === 'team' ? '🛡️' : LEAGUE_META[t.league]?.icon} {t.name}
+              <button onClick={() => removeTag(t)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '0.85rem', lineHeight: 1, padding: 0 }}>✕</button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const fmt = (iso) => {
   try { return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }); }
@@ -33,6 +130,7 @@ const ArticleForm = ({ initial, username, onCancel, onSaved }) => {
   const [category, setCategory] = useState(initial?.category || 'sports');
   const [body,     setBody]     = useState(initial?.body || '');
   const [photoUrl, setPhotoUrl] = useState(initial?.photo_url || '');
+  const [tags,     setTags]     = useState(initial?.tags || []);
   const [uploading, setUploading] = useState(false);
   const [saving,    setSaving]    = useState(false);
   const [error,     setError]     = useState('');
@@ -66,6 +164,7 @@ const ArticleForm = ({ initial, username, onCancel, onSaved }) => {
         category,
         body: body.trim(),
         photo_url: photoUrl,
+        tags,
         author: initial?.author || username,
         ...(initial?.id ? {} : { created_at: new Date().toISOString() }),
       };
@@ -124,6 +223,11 @@ const ArticleForm = ({ initial, username, onCancel, onSaved }) => {
           style={{ width: '100%', padding: '10px 12px', background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 8, fontFamily: 'inherit', fontSize: '0.9rem', lineHeight: 1.6, resize: 'vertical', boxSizing: 'border-box' }} />
       </div>
 
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ display: 'block', fontSize: '0.78rem', color: 'rgba(158,165,196,0.5)', marginBottom: 5 }}>Tag player pages, teams, or leagues (optional)</label>
+        <TagPicker tags={tags} onChange={setTags} />
+      </div>
+
       {error && <div style={{ color: '#ff6b7a', fontSize: '0.82rem', marginBottom: 12 }}>⚠ {error}</div>}
 
       <div style={{ display: 'flex', gap: 10 }}>
@@ -155,6 +259,17 @@ const ArticleReader = ({ article, canManage, onBack, onEdit, onDelete }) => (
     <div style={{ color: 'rgba(226,229,240,0.85)', fontSize: '1rem', lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>
       {article.body}
     </div>
+    {article.tags?.length > 0 && (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 24, paddingTop: 20, borderTop: '1px solid rgba(94,129,244,0.12)' }}>
+        {article.tags.map((t, i) => (
+          <a key={`${t.type}-${t.league}-${t.id}-${i}`}
+            href={t.type === 'player' ? `#leagues/player/${t.id}` : t.type === 'team' ? `#leagues` : `#leagues`}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 16, background: 'rgba(94,129,244,0.1)', border: '1px solid rgba(94,129,244,0.25)', color: 'var(--color-cyan)', fontSize: '0.8rem', fontWeight: 600, textDecoration: 'none' }}>
+            {t.type === 'player' ? '👤' : t.type === 'team' ? '🛡️' : LEAGUE_META[t.league]?.icon} {t.name}
+          </a>
+        ))}
+      </div>
+    )}
     {canManage && (
       <div style={{ display: 'flex', gap: 10, marginTop: 30, paddingTop: 20, borderTop: '1px solid rgba(94,129,244,0.12)' }}>
         <button className="neon-button" onClick={onEdit}>✏️ Edit</button>
@@ -171,7 +286,7 @@ const ArticleCard = ({ article, onOpen }) => (
       <img src={article.photo_url} alt="" style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }} />
     ) : (
       <div style={{ width: 96, height: 96, borderRadius: 8, flexShrink: 0, background: 'rgba(94,129,244,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem' }}>
-        {article.category === 'music' ? '🎵' : '⚾'}
+        {article.category === 'music' ? '🎵' : article.category === 'roblox' ? '🎮' : '⚾'}
       </div>
     )}
     <div style={{ minWidth: 0, flex: 1 }}>

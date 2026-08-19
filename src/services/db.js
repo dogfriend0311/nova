@@ -181,6 +181,12 @@ export const db = {
           if (!error && data && data[0]) {
             _syncLs(league, 'players', data[0], 'update');
             logAudit('player.update', league, 'player', data[0].player_name || data[0].id);
+            this.notifyPlayerFollowers(league, data[0].id, 'notify_stats', {
+              type: 'stats',
+              title: '📊 Stats updated',
+              body: `${data[0].player_name || 'A player you follow'}'s stats were just updated.`,
+              link: `#leagues/player/${data[0].id}`,
+            });
             return data[0];
           }
           if (error) console.error('[db.savePlayer] update error:', error && error.message ? error.message : JSON.stringify(error));
@@ -357,16 +363,36 @@ export const db = {
 
   async addHof(league, member) {
     const record = { ...member, league, created_at: new Date().toISOString() };
+    let saved = null;
     if (hasSupabase()) {
       delete record.id;
       const { data, error } = await supabase.from('nova_hof').insert([record]).select();
-      if (!error) { _syncLs(league, 'hof', data[0], 'add'); logAudit('hof.add', league, 'hof', data[0].player_name || data[0].id); return data[0]; }
+      if (!error) { _syncLs(league, 'hof', data[0], 'add'); logAudit('hof.add', league, 'hof', data[0].player_name || data[0].id); saved = data[0]; }
     }
-    const list = ls.get(`${league}_hof`);
-    const newItem = { ...record, id: Date.now().toString() };
-    ls.set(`${league}_hof`, [...list, newItem]);
-    logAudit('hof.add', league, 'hof', newItem.player_name || newItem.id);
-    return newItem;
+    if (!saved) {
+      const list = ls.get(`${league}_hof`);
+      const newItem = { ...record, id: Date.now().toString() };
+      ls.set(`${league}_hof`, [...list, newItem]);
+      logAudit('hof.add', league, 'hof', newItem.player_name || newItem.id);
+      saved = newItem;
+    }
+    // HOF entries are keyed by player_name, not player_id, so resolve the
+    // matching player record in this league before fanning out follower
+    // notifications (best-effort — a name that doesn't match any current
+    // player record just means no one gets pinged for it).
+    if (record.player_name) {
+      this.getPlayers(league).then((players) => {
+        const match = (players || []).find(p => (p.player_name || '').toLowerCase() === record.player_name.toLowerCase());
+        if (!match) return;
+        this.notifyPlayerFollowers(league, match.id, 'notify_awards', {
+          type: 'award',
+          title: '⭐ Hall of Fame',
+          body: `${record.player_name} was just inducted into the Hall of Fame!`,
+          link: `#leagues/player/${match.id}`,
+        });
+      }).catch(() => {});
+    }
+    return saved;
   },
 
   async deleteHof(league, id) {
@@ -426,6 +452,9 @@ export const db = {
       for (const league of Object.keys(DEFAULT_FAV_TEAMS)) {
         if (!Array.isArray(p.fav_teams[league])) p.fav_teams[league] = [];
       }
+    }
+    if (!p.fav_team_notifs || typeof p.fav_team_notifs !== 'object' || Array.isArray(p.fav_team_notifs)) {
+      p.fav_team_notifs = {};
     }
     for (const key of ['fav_games', 'bg_media', 'audio_tracks', 'displayed_badges']) {
       if (!Array.isArray(p[key])) p[key] = [];
@@ -614,15 +643,25 @@ export const db = {
 
   async addPotmAward(league, award) {
     const record = { ...award, league, player_id: String(award.player_id), created_at: new Date().toISOString() };
+    let saved = null;
     if (hasSupabase()) {
       delete record.id;
       const { data, error } = await supabase.from('nova_potm_awards').insert([record]).select();
-      if (!error) { _syncLs(league, 'potm_awards', data[0], 'add'); return data[0]; }
+      if (!error) { _syncLs(league, 'potm_awards', data[0], 'add'); saved = data[0]; }
     }
-    const list = ls.get(`${league}_potm_awards`);
-    const newItem = { ...record, id: Date.now().toString() };
-    ls.set(`${league}_potm_awards`, [...list, newItem]);
-    return newItem;
+    if (!saved) {
+      const list = ls.get(`${league}_potm_awards`);
+      const newItem = { ...record, id: Date.now().toString() };
+      ls.set(`${league}_potm_awards`, [...list, newItem]);
+      saved = newItem;
+    }
+    this.notifyPlayerFollowers(league, record.player_id, 'notify_awards', {
+      type: 'award',
+      title: '🏆 Player of the Month',
+      body: `${record.player_name || 'A player you follow'} just won Player of the Month${record.month_label ? ` (${record.month_label})` : ''}.`,
+      link: `#leagues/player/${record.player_id}`,
+    });
+    return saved;
   },
 
   async deletePotmAward(league, id) {
@@ -646,15 +685,26 @@ export const db = {
 
   async addAccolade(league, accolade) {
     const record = { ...accolade, league, player_id: String(accolade.player_id), created_at: new Date().toISOString() };
+    let saved = null;
     if (hasSupabase()) {
       delete record.id;
       const { data, error } = await supabase.from('nova_accolades').insert([record]).select();
-      if (!error) { _syncLs(league, 'accolades', data[0], 'add'); return data[0]; }
+      if (!error) { _syncLs(league, 'accolades', data[0], 'add'); saved = data[0]; }
     }
-    const list = ls.get(`${league}_accolades`);
-    const newItem = { ...record, id: Date.now().toString() };
-    ls.set(`${league}_accolades`, [...list, newItem]);
-    return newItem;
+    if (!saved) {
+      const list = ls.get(`${league}_accolades`);
+      const newItem = { ...record, id: Date.now().toString() };
+      ls.set(`${league}_accolades`, [...list, newItem]);
+      saved = newItem;
+    }
+    const label = record.type === 'custom' ? (record.custom_label || 'Award') : record.type;
+    this.notifyPlayerFollowers(league, record.player_id, 'notify_awards', {
+      type: 'award',
+      title: '🎖️ New Accolade',
+      body: `${record.player_name || 'A player you follow'} earned ${label}.`,
+      link: `#leagues/player/${record.player_id}`,
+    });
+    return saved;
   },
 
   async deleteAccolade(league, id) {
@@ -1399,6 +1449,113 @@ export const db = {
     const counts = {};
     rows.forEach(v => { counts[v.visit_date] = (counts[v.visit_date] || 0) + 1; });
     return counts; // { '2026-08-18': 5, ... }
+  },
+
+  /* ── PLAYER FOLLOWS (per-member notification subscriptions on a
+     specific player page) ────────────────────────────────────────
+     Requires: nova_player_follows table —
+       CREATE TABLE IF NOT EXISTS nova_player_follows (
+         id BIGSERIAL PRIMARY KEY,
+         username TEXT NOT NULL,
+         league TEXT NOT NULL,
+         player_id TEXT NOT NULL,
+         player_name TEXT,
+         notify_awards BOOLEAN DEFAULT true,
+         notify_stats BOOLEAN DEFAULT true,
+         created_at TIMESTAMPTZ DEFAULT now(),
+         UNIQUE(username, league, player_id)
+       );
+       ALTER TABLE nova_player_follows ENABLE ROW LEVEL SECURITY;
+       CREATE POLICY "Public read"  ON nova_player_follows FOR SELECT USING (true);
+       CREATE POLICY "Public write" ON nova_player_follows FOR INSERT WITH CHECK (true);
+       CREATE POLICY "Public update" ON nova_player_follows FOR UPDATE USING (true);
+       CREATE POLICY "Public delete" ON nova_player_follows FOR DELETE USING (true);         */
+  async getPlayerFollows(username) {
+    if (!username) return [];
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_player_follows').select('*').eq('username', username);
+        if (!error) return data || [];
+      } catch {}
+    }
+    const all = JSON.parse(localStorage.getItem('nova_player_follows') || '[]');
+    return all.filter(f => f.username === username);
+  },
+
+  async isFollowingPlayer(username, league, playerId) {
+    const list = await this.getPlayerFollows(username);
+    return list.find(f => f.league === league && String(f.player_id) === String(playerId)) || null;
+  },
+
+  async followPlayer(username, league, playerId, playerName, prefs = {}) {
+    const record = {
+      username, league, player_id: String(playerId), player_name: playerName || null,
+      notify_awards: prefs.notify_awards !== false, notify_stats: prefs.notify_stats !== false,
+      created_at: new Date().toISOString(),
+    };
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_player_follows')
+          .upsert([record], { onConflict: 'username,league,player_id' }).select();
+        if (!error && data && data[0]) return data[0];
+      } catch {}
+    }
+    const all = JSON.parse(localStorage.getItem('nova_player_follows') || '[]');
+    const existsIdx = all.findIndex(f => f.username === username && f.league === league && String(f.player_id) === String(playerId));
+    const saved = { ...record, id: existsIdx >= 0 ? all[existsIdx].id : Date.now().toString() };
+    if (existsIdx >= 0) all[existsIdx] = saved; else all.push(saved);
+    localStorage.setItem('nova_player_follows', JSON.stringify(all));
+    return saved;
+  },
+
+  async updatePlayerFollowPrefs(username, league, playerId, patch) {
+    if (hasSupabase()) {
+      try {
+        await supabase.from('nova_player_follows').update(patch)
+          .eq('username', username).eq('league', league).eq('player_id', String(playerId));
+      } catch {}
+    }
+    const all = JSON.parse(localStorage.getItem('nova_player_follows') || '[]');
+    const idx = all.findIndex(f => f.username === username && f.league === league && String(f.player_id) === String(playerId));
+    if (idx >= 0) { all[idx] = { ...all[idx], ...patch }; localStorage.setItem('nova_player_follows', JSON.stringify(all)); }
+  },
+
+  async unfollowPlayer(username, league, playerId) {
+    if (hasSupabase()) {
+      try { await supabase.from('nova_player_follows').delete().eq('username', username).eq('league', league).eq('player_id', String(playerId)); } catch {}
+    }
+    const all = JSON.parse(localStorage.getItem('nova_player_follows') || '[]');
+    localStorage.setItem('nova_player_follows', JSON.stringify(all.filter(f => !(f.username === username && f.league === league && String(f.player_id) === String(playerId)))));
+  },
+
+  // Everyone following a given player page — used to fan out a
+  // notification when an award/accolade/stat update happens for them.
+  async getPlayerFollowers(league, playerId) {
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_player_follows')
+          .select('*').eq('league', league).eq('player_id', String(playerId));
+        if (!error) return data || [];
+      } catch {}
+    }
+    const all = JSON.parse(localStorage.getItem('nova_player_follows') || '[]');
+    return all.filter(f => f.league === league && String(f.player_id) === String(playerId));
+  },
+
+  // Fans a notification out to every follower of a player, respecting
+  // their per-follow toggle (notify_awards / notify_stats). prefKey is
+  // whichever of those two columns gates this particular event.
+  async notifyPlayerFollowers(league, playerId, prefKey, { type, title, body, link }) {
+    try {
+      const followers = await this.getPlayerFollowers(league, playerId);
+      await Promise.all(
+        followers
+          .filter(f => f[prefKey] !== false)
+          .map(f => this.createNotification(f.username, { type, title, body, link }))
+      );
+    } catch {
+      // notification fan-out must never break the underlying save
+    }
   },
 
   /* ── NOTIFICATIONS ────────────────────────────────────────── */

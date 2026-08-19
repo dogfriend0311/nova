@@ -15,6 +15,7 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, on
     { id: 'articles',    label: 'Articles',    icon: 'FileText' },
     { id: 'sports',      label: 'Sports',      icon: 'Trophy' },
     { id: 'simulations', label: 'Simulations', icon: 'Baseball' },
+    { id: 'perfectathlete', label: '🐐 Perfect Athlete', icon: 'Goat' },
     { id: 'games',       label: 'Games',       icon: 'Gamepad' },
     { id: 'music',       label: 'Music',       icon: 'Music' },
     { id: 'store',       label: 'Store',       icon: 'Store' },

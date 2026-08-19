@@ -206,6 +206,8 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
   const [embedCopied, setEmbedCopied] = useState(false);
   const [potmAwards, setPotmAwards] = useState([]);
   const [accolades, setAccolades] = useState([]);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
 
   const toggle = (key) => setToggles(prev => ({ ...prev, [key]: !prev[key] }));
 
@@ -227,6 +229,16 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
         item.league === (leaguePrefix || 'vizta')
       )));
     } catch { setIsWatched(false); }
+  }, [player?.id, leaguePrefix]);
+
+  useEffect(() => {
+    const rawUser = localStorage.getItem('nova_user');
+    if (!player?.id || !rawUser) { setIsFollowing(false); return; }
+    try {
+      const username = JSON.parse(rawUser)?.username;
+      if (!username) { setIsFollowing(false); return; }
+      db.isFollowingPlayer(username, leaguePrefix || 'vizta', player.id).then(f => setIsFollowing(!!f));
+    } catch { setIsFollowing(false); }
   }, [player?.id, leaguePrefix]);
 
   if (!player) {
@@ -442,6 +454,25 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
     } catch { /* keep the page usable if the watchlist service is unavailable */ }
   };
 
+  const toggleFollow = async () => {
+    const rawUser = localStorage.getItem('nova_user');
+    if (!rawUser) { alert('Sign in to get notified about this player.'); return; }
+    try {
+      const username = JSON.parse(rawUser)?.username;
+      if (!username) return;
+      const league = leaguePrefix || 'vizta';
+      setFollowBusy(true);
+      if (isFollowing) {
+        await db.unfollowPlayer(username, league, player.id);
+        setIsFollowing(false);
+      } else {
+        await db.followPlayer(username, league, player.id, player.nickname || player.player_name);
+        setIsFollowing(true);
+      }
+    } catch { /* keep the page usable if the follow service is unavailable */ }
+    finally { setFollowBusy(false); }
+  };
+
   const copyEmbedCard = () => {
     // Points at the standalone, no-login embed route (App.jsx renders
     // EmbedPlayerCard directly for #embed/player/... instead of the full
@@ -479,6 +510,15 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
             aria-pressed={isWatched}
           >
             {isWatched ? 'Watching Player' : 'Watch Player'}
+          </button>
+          <button
+            onClick={toggleFollow}
+            disabled={followBusy}
+            style={{ padding: '8px 16px', background: isFollowing ? 'rgba(94,129,244,0.2)' : 'rgba(94,129,244,0.06)', border: `1px solid ${isFollowing ? 'rgba(94,129,244,0.6)' : 'rgba(94,129,244,0.25)'}`, color: isFollowing ? 'var(--color-cyan)' : 'rgba(158,165,196,0.7)', borderRadius: '8px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, opacity: followBusy ? 0.6 : 1 }}
+            aria-pressed={isFollowing}
+            title="Get notified when this player wins an award or their stats update"
+          >
+            {isFollowing ? '🔔 Notifications On' : '🔕 Notify Me'}
           </button>
           <button
             onClick={copyEmbedCard}

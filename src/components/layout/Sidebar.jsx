@@ -45,6 +45,7 @@ const Sidebar = ({ currentPage, onNavigate }) => {
     { id: 'articles',    label: 'Articles',     icon: '📰' },
     { id: 'sports',      label: 'Sports',       icon: '🏆' },
     { id: 'simulations', label: 'Simulations',  icon: '⚾' },
+    { id: 'perfectathlete', label: 'Perfect Athlete', icon: '🐐' },
     { id: 'games',       label: 'Games',        icon: '🎮' },
     { id: 'music',       label: 'Music',        icon: '🎵' },
     { id: 'store',       label: 'Store',        icon: '🛍️' },

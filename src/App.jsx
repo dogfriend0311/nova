@@ -20,6 +20,9 @@ import NovaWrapped from './components/pages/NovaWrapped';
 import RobloxTracker from './components/pages/RobloxTracker';
 import MusicHub from './components/pages/MusicHub';
 import DiamondLeague from './components/pages/baseball/DiamondLeague';
+// Lazy-loaded so the Perfect Athlete game (and its player data) ships in
+// its own JS chunk — it no longer loads as part of the baseball simulation bundle.
+const BuildPerfectAthlete = React.lazy(() => import('./components/pages/baseball/BuildPerfectAthlete'));
 import EmbedPlayerCard from './components/EmbedPlayerCard';
 import InstallPrompt from './components/InstallPrompt';
 import DailyRewardToast from './components/DailyRewardToast';
@@ -304,6 +307,13 @@ const AppContent = () => {
       case 'simulations':
       case 'diamond': // backward compat
         return <DiamondLeague user={user} />;
+
+      case 'perfectathlete':
+        return (
+          <React.Suspense fallback={<div style={{ textAlign: 'center', padding: '60px', color: 'rgba(158, 165, 196,0.4)' }}>Loading…</div>}>
+            <BuildPerfectAthlete user={user} />
+          </React.Suspense>
+        );
 
       case 'player':
         if (!selectedLeaguePlayer) {

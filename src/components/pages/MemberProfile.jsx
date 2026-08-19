@@ -24,6 +24,7 @@ const DEFAULT_PROFILE = {
   bio: '', top_banner_url: '', avatar_url: '', lastfm_username: '',
   twitter_url: '', twitch_url: '', youtube_url: '', instagram_url: '',
   discord_tag: '', fav_teams: DEFAULT_FAV_TEAMS,
+  fav_team_notifs: {}, // { [sport]: { [abbr]: { finalScore: bool, news: bool } } }
   fav_games: [],
   // guns.lol-style page customization
   bg_media_url: '', bg_media_type: '', // legacy single-item fields (kept so old profiles still work)
@@ -323,13 +324,29 @@ const MultiAudioUploadField = ({ username, list, onChange, hint }) => {
   );
 };
 
-const TeamSelector = ({ favTeams, onChange }) => {
+// Default notification prefs applied to a team the moment it's favorited.
+const DEFAULT_TEAM_NOTIFS = { finalScore: true, news: true };
+
+const TeamSelector = ({ favTeams, onChange, favTeamNotifs, onNotifsChange }) => {
   const [activeSport, setActiveSport] = useState('mlb');
   const hasLogos = ['mlb', 'nfl', 'nba', 'nhl'].includes(activeSport);
+  const notifsSupported = ['mlb', 'nfl', 'nba', 'nhl'].includes(activeSport); // live score/news feed only covers the pro sports ESPN covers
   const toggle = (sport, abbr) => {
     const current = favTeams[sport] || [];
-    const next    = current.includes(abbr) ? current.filter((a) => a !== abbr) : [...current, abbr];
+    const wasSelected = current.includes(abbr);
+    const next = wasSelected ? current.filter((a) => a !== abbr) : [...current, abbr];
     onChange({ ...favTeams, [sport]: next });
+    if (!wasSelected && onNotifsChange) {
+      // newly favorited — default both notification types on
+      const sportNotifs = favTeamNotifs?.[sport] || {};
+      onNotifsChange({ ...favTeamNotifs, [sport]: { ...sportNotifs, [abbr]: { ...DEFAULT_TEAM_NOTIFS } } });
+    }
+  };
+  const toggleNotif = (sport, abbr, key) => {
+    if (!onNotifsChange) return;
+    const sportNotifs = favTeamNotifs?.[sport] || {};
+    const teamNotifs = sportNotifs[abbr] || { ...DEFAULT_TEAM_NOTIFS };
+    onNotifsChange({ ...favTeamNotifs, [sport]: { ...sportNotifs, [abbr]: { ...teamNotifs, [key]: !teamNotifs[key] } } });
   };
   return (
     <div className="mp-team-selector">
@@ -363,6 +380,32 @@ const TeamSelector = ({ favTeams, onChange }) => {
           </div>
         ))}
       </div>
+
+      {notifsSupported && (favTeams[activeSport] || []).length > 0 && (
+        <div className="mp-team-notif-prefs" style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(94,129,244,0.12)' }}>
+          <div style={{ fontSize: '0.78rem', color: 'rgba(158,165,196,0.5)', marginBottom: 8 }}>
+            🔔 Notifications for your {SPORT_SHORT[activeSport]} teams
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {(favTeams[activeSport] || []).map((abbr) => {
+              const teamNotifs = favTeamNotifs?.[activeSport]?.[abbr] || DEFAULT_TEAM_NOTIFS;
+              return (
+                <div key={abbr} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: '0.82rem', color: '#e2e5f0' }}>
+                  <strong style={{ width: 48 }}>{abbr}</strong>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', color: teamNotifs.finalScore ? 'var(--color-cyan)' : 'rgba(158,165,196,0.4)' }}>
+                    <input type="checkbox" checked={!!teamNotifs.finalScore} onChange={() => toggleNotif(activeSport, abbr, 'finalScore')} />
+                    Final scores
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', color: teamNotifs.news ? 'var(--color-cyan)' : 'rgba(158,165,196,0.4)' }}>
+                    <input type="checkbox" checked={!!teamNotifs.news} onChange={() => toggleNotif(activeSport, abbr, 'news')} />
+                    News
+                  </label>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -972,6 +1015,8 @@ const MemberProfile = () => {
             <TeamSelector
               favTeams={formData.fav_teams || DEFAULT_FAV_TEAMS}
               onChange={(ft) => setFormData({ ...formData, fav_teams: ft })}
+              favTeamNotifs={formData.fav_team_notifs || {}}
+              onNotifsChange={(fn) => setFormData({ ...formData, fav_team_notifs: fn })}
             />
             <div className="form-actions" style={{ marginTop: '20px' }}>
               <button className="neon-button" onClick={handleSave}>Save</button>

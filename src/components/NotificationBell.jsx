@@ -25,7 +25,7 @@ const timeAgo = (iso) => {
   return `${Math.floor(s / 86400)}d ago`;
 };
 
-const ICONS = { dm: '💬', comment: '📝' };
+const ICONS = { dm: '💬', comment: '📝', award: '🏆', stats: '📊', score: '⚡', news: '📰' };
 
 const NotificationBell = () => {
   const { user } = useAuth();
