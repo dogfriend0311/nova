@@ -20,9 +20,6 @@ import NovaWrapped from './components/pages/NovaWrapped';
 import RobloxTracker from './components/pages/RobloxTracker';
 import MusicHub from './components/pages/MusicHub';
 import DiamondLeague from './components/pages/baseball/DiamondLeague';
-// Lazy-loaded so the Perfect Athlete game (and its player data) ships in
-// its own JS chunk — it no longer loads as part of the baseball simulation bundle.
-const BuildPerfectAthlete = React.lazy(() => import('./components/pages/baseball/BuildPerfectAthlete'));
 import EmbedPlayerCard from './components/EmbedPlayerCard';
 import InstallPrompt from './components/InstallPrompt';
 import DailyRewardToast from './components/DailyRewardToast';
@@ -32,6 +29,10 @@ import './styles/theme.css';
 import './styles/animations.css';
 import './styles/space.css';
 import './styles/responsive.css';
+
+// Lazy-loaded so the Perfect Athlete game (and its player data) ships in
+// its own JS chunk — it no longer loads as part of the baseball simulation bundle.
+const BuildPerfectAthlete = React.lazy(() => import('./components/pages/baseball/BuildPerfectAthlete'));
 
 // ── Hash router helpers ──────────────────────────────────────
 function parseHash() {
