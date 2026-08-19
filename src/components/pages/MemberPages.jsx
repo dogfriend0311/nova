@@ -540,6 +540,12 @@ const MemberProfileView = ({ member, onBack, badgeTypes }) => {
           style={{ padding: '9px 16px', background: copied ? 'rgba(0,255,136,0.07)' : 'rgba(94,129,244,0.06)', border: `1px solid ${copied ? 'rgba(0,255,136,0.4)' : 'rgba(94,129,244,0.18)'}`, color: copied ? '#00ff88' : 'rgba(158,165,196,0.5)', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', minHeight: 40, transition: 'all 0.2s' }}>
           {copied ? '✓ Copied!' : '🔗 Share'}
         </button>
+        {currentUser && currentUser !== member.username && (
+          <button onClick={() => { window.location.hash = `#messages/${member.username}`; }}
+            style={{ padding: '9px 16px', background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.18)', color: 'rgba(158,165,196,0.8)', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', minHeight: 40 }}>
+            💬 Message
+          </button>
+        )}
       </div>
 
       {/* Banner */}

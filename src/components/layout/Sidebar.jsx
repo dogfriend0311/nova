@@ -1,10 +1,22 @@
 import React, { useState, useEffect } from 'react';
+import db from '../../services/db';
+import { useAuth } from '../../context/AuthContext';
 import './Sidebar.css';
 
 const Sidebar = ({ currentPage, onNavigate }) => {
+  const { user } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [stats, setStats] = useState({ members: 0, online: 0, clips: 0 });
   const [onlineMembers, setOnlineMembers] = useState([]);
+  const [unreadDMs, setUnreadDMs] = useState(0);
+
+  useEffect(() => {
+    if (!user || user.role === 'guest') { setUnreadDMs(0); return; }
+    const refreshDMs = () => db.getUnreadDMCount(user.username).then(setUnreadDMs).catch(() => {});
+    refreshDMs();
+    const interval = setInterval(refreshDMs, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   useEffect(() => {
     const refresh = () => {
@@ -37,6 +49,7 @@ const Sidebar = ({ currentPage, onNavigate }) => {
     { id: 'music',       label: 'Music',        icon: '🎵' },
     { id: 'store',       label: 'Store',        icon: '🛍️' },
     { id: 'members',     label: 'Member Pages', icon: '👥' },
+    { id: 'messages',    label: 'Messages',     icon: '💬' },
   ];
 
   return (
@@ -61,6 +74,13 @@ const Sidebar = ({ currentPage, onNavigate }) => {
             >
               <span className="link-icon">{link.icon}</span>
               {!isCollapsed && <span className="link-label">{link.label}</span>}
+              {link.id === 'messages' && unreadDMs > 0 && (
+                <span style={{
+                  marginLeft: isCollapsed ? 0 : 'auto', minWidth: 16, height: 16, borderRadius: 8,
+                  background: 'var(--color-magenta)', color: '#fff', fontSize: '0.6rem', fontWeight: 800,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px',
+                }}>{unreadDMs > 9 ? '9+' : unreadDMs}</span>
+              )}
             </button>
           ))}
         </div>

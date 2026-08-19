@@ -4,6 +4,7 @@ import Layout from './components/layout/Layout';
 import Home from './components/pages/Home';
 import SportsHub from './components/pages/SportsHub';
 import MemberPages from './components/pages/MemberPages';
+import MessagesPage from './components/pages/MessagesPage';
 import MemberProfile from './components/pages/MemberProfile';
 import LeaguesPage from './components/pages/LeaguesPage';
 import LeaguePlayerPage from './LeaguePlayerPage';
@@ -269,6 +270,9 @@ const AppContent = () => {
             onMemberSelect={handleMemberSelect}
           />
         );
+
+      case 'messages':
+        return <MessagesPage initialUsername={routeSub} onSignIn={() => setShowLoginModal(true)} />;
 
       case 'profile':
         return user ? <MemberProfile /> : <Home />;

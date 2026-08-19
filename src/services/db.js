@@ -1257,6 +1257,96 @@ export const db = {
     } catch { return merged; }
   },
 
+  /* ── DIRECT MESSAGES ──────────────────────────────────────── */
+  _dmConversationId(a, b) {
+    return [a, b].sort().join('::');
+  },
+
+  async getConversations(username) {
+    if (!username) return [];
+    let rows = [];
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_direct_messages')
+          .select('*').or(`from_username.eq.${username},to_username.eq.${username}`)
+          .order('created_at', { ascending: false });
+        if (!error) rows = data || [];
+      } catch {}
+    }
+    if (!rows.length) {
+      const all = JSON.parse(localStorage.getItem('nova_direct_messages') || '[]');
+      rows = all.filter(m => m.from_username === username || m.to_username === username)
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }
+    const byConvo = new Map();
+    for (const m of rows) {
+      if (!byConvo.has(m.conversation_id)) byConvo.set(m.conversation_id, m);
+    }
+    return Array.from(byConvo.values()).map(m => ({
+      conversation_id: m.conversation_id,
+      other_username: m.from_username === username ? m.to_username : m.from_username,
+      last_message: m.content,
+      last_at: m.created_at,
+      unread: m.to_username === username && !m.read_at,
+    }));
+  },
+
+  async getMessages(username, otherUsername) {
+    const conversationId = this._dmConversationId(username, otherUsername);
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_direct_messages')
+          .select('*').eq('conversation_id', conversationId).order('created_at', { ascending: true });
+        if (!error) return data || [];
+      } catch {}
+    }
+    const all = JSON.parse(localStorage.getItem('nova_direct_messages') || '[]');
+    return all.filter(m => m.conversation_id === conversationId)
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  },
+
+  async sendMessage(fromUsername, toUsername, content) {
+    const record = {
+      conversation_id: this._dmConversationId(fromUsername, toUsername),
+      from_username: fromUsername, to_username: toUsername, content,
+      created_at: new Date().toISOString(), read_at: null,
+    };
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_direct_messages').insert([record]).select();
+        if (!error && data && data[0]) return data[0];
+      } catch {}
+    }
+    const all = JSON.parse(localStorage.getItem('nova_direct_messages') || '[]');
+    const saved = { ...record, id: Date.now().toString() };
+    all.push(saved);
+    localStorage.setItem('nova_direct_messages', JSON.stringify(all));
+    return saved;
+  },
+
+  async markConversationRead(username, otherUsername) {
+    const conversationId = this._dmConversationId(username, otherUsername);
+    if (hasSupabase()) {
+      try {
+        await supabase.from('nova_direct_messages').update({ read_at: new Date().toISOString() })
+          .eq('conversation_id', conversationId).eq('to_username', username).is('read_at', null);
+      } catch {}
+    }
+    const all = JSON.parse(localStorage.getItem('nova_direct_messages') || '[]');
+    let changed = false;
+    all.forEach(m => {
+      if (m.conversation_id === conversationId && m.to_username === username && !m.read_at) {
+        m.read_at = new Date().toISOString(); changed = true;
+      }
+    });
+    if (changed) localStorage.setItem('nova_direct_messages', JSON.stringify(all));
+  },
+
+  async getUnreadDMCount(username) {
+    const convos = await this.getConversations(username);
+    return convos.filter(c => c.unread).length;
+  },
+
 };
 
 /* ── Internal: keep localStorage in sync with Supabase ─────────── */
