@@ -57,6 +57,8 @@ const ALLOWED_TABLES = new Set([
   // direct messages between members
   'nova_site_settings', 'nova_user_stats', 'nova_direct_messages', 'nova_daily_visits',
   'nova_notifications',
+  // Added for: Build the Perfect Athlete — owner/co-owner rating tweaks + saved builds
+  'nova_perfect_athlete_ratings', 'nova_perfect_athlete_builds',
 ]);
 
 const IDENT_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;

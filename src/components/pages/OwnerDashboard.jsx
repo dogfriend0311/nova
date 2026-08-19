@@ -6,6 +6,8 @@ import { accoladeLabel, accoladeIcon, getAccoladeTypes } from '../../data/accola
 import { BadgeChip } from '../BadgeDisplay';
 import { BADGES as ACHIEVEMENT_BADGES } from '../../services/achievementsService';
 import { getSport, setCustomStats } from '../../data/sportsConfig';
+import { PERFECT_ATHLETE_SPORTS } from '../../data/perfectAthleteData';
+import perfectAthleteService from '../../services/perfectAthleteService';
 import './OwnerDashboard.css';
 
 const SI = { padding:'10px', background:'rgba(94, 129, 244,0.05)', border:'1px solid rgba(94, 129, 244,0.2)', color:'#e2e5f0', borderRadius:'4px', width:'100%' };
@@ -629,6 +631,118 @@ const BadgesAdminTab = () => {
             )}
           </>
         )}
+      </div>
+    </div>
+  );
+};
+
+/* ── BUILD THE PERFECT ATHLETE: RATINGS EDITOR (owner/co-owner only) ── */
+
+const PerfectAthleteRatingsTab = () => {
+  const [sportKey, setSportKey] = useState(PERFECT_ATHLETE_SPORTS[0].key);
+  const [, forceRerender] = useState(0);
+  const [msg, setMsg] = useState('');
+  const [expandedId, setExpandedId] = useState(null);
+
+  const sport = PERFECT_ATHLETE_SPORTS.find((s) => s.key === sportKey);
+  const players = perfectAthleteService.getPlayers(sportKey);
+  const overridesForSport = perfectAthleteService.getOverrides()[sportKey] || {};
+  const hasAnyOverrides = Object.keys(overridesForSport).length > 0;
+
+  const flash = (text) => { setMsg(text); setTimeout(() => setMsg(''), 2500); };
+
+  const updateAttribute = (playerId, attrId, rawValue) => {
+    if (rawValue === '') return;
+    perfectAthleteService.setPlayerAttribute(sportKey, playerId, attrId, rawValue);
+    forceRerender((n) => n + 1);
+  };
+
+  const resetPlayer = (playerId) => {
+    perfectAthleteService.resetPlayer(sportKey, playerId);
+    forceRerender((n) => n + 1);
+    flash('Player reset to default ratings.');
+  };
+
+  const resetSport = () => {
+    if (!window.confirm(`Reset every ${sport.unit} player back to default ratings? This clears all tweaks for this sport.`)) return;
+    perfectAthleteService.resetSport(sportKey);
+    forceRerender((n) => n + 1);
+    flash(`${sport.unit} ratings reset to default.`);
+  };
+
+  return (
+    <div className="tab-content">
+      <div className="content-header">
+        <h2>🐐 Build the Perfect Athlete — Ratings</h2>
+        <span style={{ color:'rgba(158,165,196,0.6)', fontSize:'0.82rem' }}>Owners &amp; co-owners can nudge any pro's attribute rating here.</span>
+      </div>
+
+      <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'16px' }}>
+        {PERFECT_ATHLETE_SPORTS.map((s) => (
+          <button
+            key={s.key}
+            className={`neon-button ${s.key === sportKey ? 'active' : ''}`}
+            style={{ opacity: s.key === sportKey ? 1 : 0.55 }}
+            onClick={() => setSportKey(s.key)}
+          >
+            {s.emoji} {s.unit}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px' }}>
+        <span style={{ color:'rgba(158,165,196,0.6)', fontSize:'0.8rem' }}>
+          {players.length} players • {hasAnyOverrides ? `${Object.keys(overridesForSport).length} with tweaked ratings` : 'all on default ratings'}
+        </span>
+        {hasAnyOverrides && <button className="neon-button" onClick={resetSport} style={{ fontSize:'0.78rem' }}>Reset all {sport.unit} tweaks</button>}
+      </div>
+
+      {msg && <div style={{ padding:'10px', marginBottom:'12px', background:'rgba(94,230,168,0.1)', border:'1px solid rgba(94,230,168,0.3)', color:'#5ee6a8', borderRadius:'6px', fontSize:'0.82rem' }}>{msg}</div>}
+
+      <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+        {players.map((p) => {
+          const isTweaked = !!overridesForSport[p.id];
+          const isOpen = expandedId === p.id;
+          return (
+            <div key={p.id} style={{ border:'1px solid rgba(94,129,244,0.15)', borderRadius:'8px', background:'rgba(94,129,244,0.03)' }}>
+              <div
+                onClick={() => setExpandedId(isOpen ? null : p.id)}
+                style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 14px', cursor:'pointer' }}
+              >
+                <div>
+                  <strong style={{ color:'#e2e5f0' }}>{p.name}</strong>
+                  <span style={{ color:'rgba(158,165,196,0.5)', fontSize:'0.78rem', marginLeft:'10px' }}>{p.team}</span>
+                  {isTweaked && <span className="badge badge-active" style={{ marginLeft:'10px' }}>Edited</span>}
+                </div>
+                <span style={{ color:'rgba(158,165,196,0.5)' }}>{isOpen ? '▲' : '▼'}</span>
+              </div>
+
+              {isOpen && (
+                <div style={{ padding:'0 14px 14px', display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(140px, 1fr))', gap:'12px' }}>
+                  {sport.attributes.map((attr) => (
+                    <div key={attr.id} className="form-field">
+                      <label>{attr.label}</label>
+                      <input
+                        type="number"
+                        min={40}
+                        max={99}
+                        defaultValue={p.ratings[attr.id]}
+                        key={`${p.id}-${attr.id}-${p.ratings[attr.id]}`}
+                        onBlur={(e) => updateAttribute(p.id, attr.id, e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                      />
+                    </div>
+                  ))}
+                  <div style={{ display:'flex', alignItems:'flex-end' }}>
+                    <button className="neon-button" onClick={() => resetPlayer(p.id)} disabled={!isTweaked} style={{ fontSize:'0.78rem', opacity: isTweaked ? 1 : 0.4 }}>
+                      Reset player
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -2434,6 +2548,7 @@ const OwnerDashboard = ({ onExit }) => {
   const isOwnerLevel  = ['owner','cofounder','mod'].includes(role);
   const isBadgeManager = ['owner','cofounder'].includes(role);
   const isAuditViewer  = ['owner','cofounder'].includes(role);
+  const isAthleteRatingsEditor = ['owner','cofounder'].includes(role);
   const isViztaHelper = role === 'vizta_helper';
   const isFootballHelper = role === 'football_helper';
 
@@ -2458,6 +2573,7 @@ const OwnerDashboard = ({ onExit }) => {
       case 'admin-propbets':   return <PropBetsAdminTab />;
       case 'admin-playoffs':   return <PlayoffPoolsAdminTab />;
       case 'admin-badges':    return isBadgeManager ? <BadgesAdminTab /> : null;
+      case 'perfect-athlete-ratings': return isAthleteRatingsEditor ? <PerfectAthleteRatingsTab /> : null;
       case 'vizta-players':   return <LeaguePlayersTab prefix="vizta" />;
       case 'vizta-teams':     return <LeagueTeamsTab prefix="vizta" />;
       case 'vizta-rosters':   return <LeagueRostersTab prefix="vizta" />;
@@ -2516,6 +2632,7 @@ const OwnerDashboard = ({ onExit }) => {
               <Btn id="admin-propbets"   label="🎯 Prop Bets" />
               <Btn id="admin-playoffs"   label="🏆 Playoff Pools" />
               {isBadgeManager && <Btn id="admin-badges" label="🏅 Badges" />}
+              {isAthleteRatingsEditor && <Btn id="perfect-athlete-ratings" label="🐐 Perfect Athlete Ratings" />}
             </div>
           </div>
         )}

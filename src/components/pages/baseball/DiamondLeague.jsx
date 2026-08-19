@@ -16,6 +16,7 @@ import {
   validatePack,
   deletePack,
 } from '../../../services/customContentService';
+import BuildPerfectAthlete from './BuildPerfectAthlete';
 
 const DEMO_PACK = {
   ...CONTENT_PACK_TEMPLATE,
@@ -47,7 +48,7 @@ function TeamCard({ team, selected, onClick }) {
   </button>;
 }
 
-export default function DiamondLeague() {
+export default function DiamondLeague({ user } = {}) {
   const [packs, setPacks] = useState(() => listPacks());
   const [activePack, setActivePack] = useState(() => listPacks()[0] || DEMO_PACK);
   const [homeId, setHomeId] = useState(() => (listPacks()[0] || DEMO_PACK).teams?.[0]?.id);
@@ -132,7 +133,7 @@ export default function DiamondLeague() {
     </header>
 
     <nav className="sim-tabs">
-      {['game', 'teams', 'players', 'content'].map((item) => <button key={item} className={tab === item ? 'active' : ''} onClick={() => setTab(item)}>{item === 'game' ? 'Game Center' : item === 'content' ? 'Custom Content' : item[0].toUpperCase() + item.slice(1)}</button>)}
+      {['game', 'teams', 'players', 'content', 'perfect'].map((item) => <button key={item} className={tab === item ? 'active' : ''} onClick={() => setTab(item)}>{item === 'game' ? 'Game Center' : item === 'content' ? 'Custom Content' : item === 'perfect' ? '🐐 Build the Perfect Athlete' : item[0].toUpperCase() + item.slice(1)}</button>)}
     </nav>
 
     {tab === 'game' && <>
@@ -159,5 +160,7 @@ export default function DiamondLeague() {
     {tab === 'players' && <section className="content-panel"><div className="panel-heading"><div><div className="eyebrow">ROSTER DATABASE</div><h2>Player ratings</h2></div><span>{players.length} players</span></div><div className="player-table">{players.map((p) => <div className="player-row" key={`${p.teamId}-${p.id}`}><div><strong>{p.name}</strong><span>{p.teamName} • {p.position || '—'}</span></div><div className="ratings">{p.position === 'P' ? <><i>STF {p.stuff ?? 60}</i><i>CTL {p.control ?? 55}</i><i>MOV {p.movement ?? 55}</i><i>VEL {p.velocity ?? 92}</i></> : <><i>CON {p.contact ?? 60}</i><i>PWR {p.power ?? 55}</i><i>DISC {p.discipline ?? 55}</i><i>SPD {p.speed ?? 50}</i></>}</div></div>)}</div></section>}
 
     {tab === 'content' && <section className="content-panel"><div className="panel-heading"><div><div className="eyebrow">HOOP LAND STYLE CONTENT SYSTEM</div><h2>Custom Baseball Packs</h2><p>Import teams, full rosters, ratings, stadiums and league metadata from files you create yourself.</p></div><div className="content-actions"><button onClick={downloadTemplate} className="secondary-btn">Download Template</button><label className="primary-btn file-button">Import JSON Pack<input type="file" accept=".json,application/json" onChange={importPack} /></label></div></div>{importStatus && <div className="import-status">{importStatus}</div>}<div className="pack-grid">{packs.map((pack) => <div className="pack-card" key={pack.id}><div className="pack-art">⚾</div><strong>{pack.name}</strong><span>{pack.teams?.length || 0} teams • {(pack.stadiums || []).length} stadiums</span><div><button onClick={() => applyPack(pack)}>Use Pack</button><button onClick={() => { deletePack(pack.id); setPacks(listPacks()); }}>Delete</button></div></div>)}<div className="pack-card template"><div className="pack-art">＋</div><strong>Build your own universe</strong><span>Teams • rosters • ratings • logos • stadiums</span><button onClick={downloadTemplate}>Get starter file</button></div></div><details className="format-help"><summary>Content pack format</summary><pre>{JSON.stringify(CONTENT_PACK_TEMPLATE, null, 2)}</pre></details></section>}
+
+    {tab === 'perfect' && <BuildPerfectAthlete user={user} />}
   </div>;
 }
