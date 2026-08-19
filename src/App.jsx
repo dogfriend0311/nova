@@ -23,6 +23,7 @@ import DiamondLeague from './components/pages/baseball/DiamondLeague';
 import EmbedPlayerCard from './components/EmbedPlayerCard';
 import InstallPrompt from './components/InstallPrompt';
 import DailyRewardToast from './components/DailyRewardToast';
+import AllTimeLeaderboard from './components/AllTimeLeaderboard';
 import './styles/globals.css';
 import './styles/theme.css';
 import './styles/animations.css';
@@ -76,11 +77,13 @@ const GamesPage = ({ onSignIn, initialTab = 'fantasy', user: gamesUser }) => {
         {tb('pickems',  "✅ Pick'ems")}
         {tb('propbets', '🎯 Prop Bets')}
         {tb('playoffs', '🏆 Playoff Pools')}
+        {tb('alltime',  '📊 All-Time')}
       </div>
       {subTab === 'fantasy'  && <FantasyHub onSignIn={onSignIn} />}
       {subTab === 'pickems'  && <PickemsHub onSignIn={onSignIn} />}
       {subTab === 'propbets' && <PropBets user={gamesUser} />}
       {subTab === 'playoffs' && <PlayoffPools user={gamesUser} />}
+      {subTab === 'alltime'  && <AllTimeLeaderboard />}
     </div>
   );
 };

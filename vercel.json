@@ -18,5 +18,11 @@
       "source": "/players/:id",
       "destination": "/api/preview-player?id=:id"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/weekly-digest",
+      "schedule": "0 15 * * 1"
+    }
   ]
 }

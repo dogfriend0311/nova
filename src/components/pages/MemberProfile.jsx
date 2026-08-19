@@ -7,6 +7,8 @@ import * as lfm from '../../services/lastfmService';
 import { BADGES, getEarnedBadges, syncBadges } from '../../services/achievementsService';
 import { BadgeRow } from '../BadgeDisplay';
 import { LevelBadge } from '../LevelBadge';
+import db from '../../services/db';
+import { COSMETICS } from './CoinShop';
 import './MemberProfile.css';
 
 const roleLabel = (role) => {
@@ -694,7 +696,19 @@ const MemberProfile = () => {
   const [presence,     setPresence]    = useState(() => localStorage.getItem(`nova_presence_${user?.username}`) || 'online');
   const [coins,        setCoins]       = useState(() => parseInt(localStorage.getItem(`nova_coins_${user?.username}`) || '0'));
   const [copied,       setCopied]      = useState(false);
+  const [equippedTheme, setEquippedTheme] = useState(null);
   const coinsRef = useRef(null);
+
+  useEffect(() => {
+    if (!profile?.username) { setEquippedTheme(null); return; }
+    let cancelled = false;
+    db.getUserStats(profile.username).then(stats => {
+      if (cancelled) return;
+      const themeId = stats?.equipped_theme;
+      setEquippedTheme(themeId ? COSMETICS.find(c => c.id === themeId) || null : null);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [profile?.username]);
 
   // Admin-assigned profile badges (created/assigned by owners & co-founders)
   const [badgeTypes,      setBadgeTypes]      = useState([]);
@@ -989,7 +1003,7 @@ const MemberProfile = () => {
   const SI = { padding: '10px', background: 'rgba(94, 129, 244,0.05)', border: '1px solid rgba(94, 129, 244,0.2)', color: '#e2e5f0', borderRadius: '6px', width: '100%', marginBottom: '8px' };
 
   return (
-    <div className="tw-page">
+    <div className="tw-page" style={equippedTheme?.css ? { background: equippedTheme.css.cardBg, '--tw-theme-accent': equippedTheme.css.accent } : undefined}>
       {saveError && (
         <div style={{
           position: 'relative', zIndex: 10, margin: '12px', padding: '10px 14px',
@@ -1031,7 +1045,7 @@ const MemberProfile = () => {
       {/* Info */}
       <div className="tw-info">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <h2 className="tw-name">{profile.username}</h2>
+          <h2 className="tw-name" style={equippedTheme?.css?.accent ? { color: equippedTheme.css.accent } : undefined}>{profile.username}</h2>
           <BadgeRow
             badgeTypes={badgeTypes}
             ids={(profile.displayed_badges || []).filter(id => assignedBadgeIds.includes(String(id)))}

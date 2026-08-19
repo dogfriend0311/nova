@@ -52,6 +52,10 @@ const ALLOWED_TABLES = new Set([
   'nova_audit_log',
   // Added for: owner-defined custom stat columns per league
   'nova_custom_stats',
+  // Added for: Roblox live-status widget config + other small owner
+  // settings, member reputation/level + daily login streaks, and
+  // direct messages between members
+  'nova_site_settings', 'nova_user_stats', 'nova_direct_messages',
 ]);
 
 const IDENT_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;

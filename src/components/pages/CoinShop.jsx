@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './NovaFeatures.css';
 import { awardBadge } from '../../services/achievementsService';
+import db from '../../services/db';
 
 // ── Original pixel-art icons ────────────────────────────────
 // Small 8x8 grid icons, hand-drawn in-house — inspired by the vibe of
@@ -159,6 +160,15 @@ export const COSMETICS = [
   { id: 'badge_bear',     category: 'Chat Badge', pixelIcon: 'kanye',     name: 'Dropout Bear',     desc: 'Kanye West inspired badge',      price: 100 },
   { id: 'badge_kkenny',   category: 'Chat Badge', pixelIcon: 'kendrick',  name: 'Kung Fu Kenny',    desc: 'Kendrick Lamar inspired badge',  price: 100 },
   { id: 'badge_owl',      category: 'Chat Badge', pixelIcon: 'drake',     name: 'OVO Owl',          desc: 'Drake inspired badge',           price: 100 },
+  // Profile themes — reskins the whole profile page card, visible to
+  // anyone who visits (synced via nova_user_stats.equipped_theme, not
+  // just this browser's cosmetics list — see equip() below).
+  { id: 'theme_cyan',    category: 'Profile Theme', emoji: '🩵', name: 'Neon Cyan',    desc: 'The default Nova look, made official on your card', price: 60,  css: { accent: '#5e81f4', cardBg: 'linear-gradient(160deg, #131729 0%, #0a0d1a 100%)' } },
+  { id: 'theme_magenta', category: 'Profile Theme', emoji: '💜', name: 'Magenta Pulse',desc: 'Bold magenta gradient card background',              price: 150, css: { accent: '#e0339f', cardBg: 'linear-gradient(160deg, #2a1030 0%, #150a1a 100%)' } },
+  { id: 'theme_gold',    category: 'Profile Theme', emoji: '🟡', name: 'Gold Rush',    desc: 'Warm gold accent for a champion feel',                price: 150, css: { accent: '#d4af37', cardBg: 'linear-gradient(160deg, #2a2010 0%, #17120a 100%)' } },
+  { id: 'theme_ice',     category: 'Profile Theme', emoji: '🧊', name: 'Ice Blue',     desc: 'Cool blue-white gradient card',                       price: 150, css: { accent: '#7fd4ff', cardBg: 'linear-gradient(160deg, #0e1f2e 0%, #071219 100%)' } },
+  { id: 'theme_toxic',   category: 'Profile Theme', emoji: '☣️', name: 'Toxic Green',  desc: 'High-contrast green-on-black card',                   price: 150, css: { accent: '#39ff8a', cardBg: 'linear-gradient(160deg, #0f2a17 0%, #08150c 100%)' } },
+  { id: 'theme_sunset',  category: 'Profile Theme', emoji: '🌅', name: 'Sunset Orange',desc: 'Warm orange-red gradient card',                       price: 150, css: { accent: '#ff8a3d', cardBg: 'linear-gradient(160deg, #2a160a 0%, #180b05 100%)' } },
 ];
 
 const CATEGORIES = [...new Set(COSMETICS.map(c => c.category))];
@@ -235,11 +245,19 @@ const CoinShop = ({ user }) => {
     const updated = { ...owned, [catKey]: isAlreadyActive ? null : item.id };
     saveOwned(user.username, updated);
     setOwned(updated);
+    // Profile Theme is special: it needs to be visible to anyone who
+    // visits this member's profile, not just readable from this one
+    // browser's localStorage — so it also gets written to the synced
+    // nova_user_stats table (falls back to localStorage-only, same as
+    // everywhere else, if that table/route isn't set up yet).
+    if (item.category === 'Profile Theme') {
+      db.updateUserStats(user.username, { equipped_theme: isAlreadyActive ? null : item.id }).catch(() => {});
+    }
     showToast(isAlreadyActive ? 'Unequipped.' : `${item.name} equipped!`);
   }
 
   const items = COSMETICS.filter(c =>
-    c.category === activeTab && (activeCollection === 'all' || getCollection(c) === activeCollection)
+    c.category === activeTab && (c.category === 'Profile Theme' || activeCollection === 'all' || getCollection(c) === activeCollection)
   );
 
   return (

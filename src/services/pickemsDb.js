@@ -211,6 +211,25 @@ const pickemsDb = {
       }
     }
   },
+
+  /* ── ALL-TIME LEADERBOARD ────────────────────────────────────
+     Aggregates a member's pick record across every group they've ever
+     joined, not just the group currently being viewed. */
+  async getAllTimeLeaderboard() {
+    const members = await genericGet('pickems_members', {});
+    const byUser = new Map();
+    for (const m of (members || [])) {
+      const key = m.username;
+      if (!key) continue;
+      const row = byUser.get(key) || { username: key, correct_picks: 0, total_picks: 0, coins: 0, groups: 0 };
+      row.correct_picks += m.correct_picks || 0;
+      row.total_picks += m.total_picks || 0;
+      row.coins += m.coins || 0;
+      row.groups += 1;
+      byUser.set(key, row);
+    }
+    return Array.from(byUser.values()).sort((a, b) => b.correct_picks - a.correct_picks || b.coins - a.coins);
+  },
 };
 
 export default pickemsDb;

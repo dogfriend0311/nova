@@ -323,6 +323,28 @@ const fantasyDb = {
   },
 
   unsubscribe(channel) { if (channel && hasSupabase()) supabase.removeChannel(channel); },
+
+  /* ── ALL-TIME LEADERBOARD ────────────────────────────────────
+     Aggregates every team a user has ever owned across every fantasy
+     league they've played in (there's no separate "season" concept in
+     this schema — a new season is just a new league — so this sums
+     across all of them). */
+  async getAllTimeLeaderboard() {
+    const teams = await genericGet('fantasy_teams', {});
+    const byUser = new Map();
+    for (const t of (teams || [])) {
+      const key = t.owner_username;
+      if (!key) continue;
+      const row = byUser.get(key) || { username: key, wins: 0, losses: 0, ties: 0, points_for: 0, seasons: 0 };
+      row.wins += t.wins || 0;
+      row.losses += t.losses || 0;
+      row.ties += t.ties || 0;
+      row.points_for += t.points_for || 0;
+      row.seasons += 1;
+      byUser.set(key, row);
+    }
+    return Array.from(byUser.values()).sort((a, b) => (b.wins - b.losses) - (a.wins - a.losses) || b.points_for - a.points_for);
+  },
 };
 
 export default fantasyDb;
