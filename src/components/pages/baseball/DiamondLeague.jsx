@@ -47,7 +47,7 @@ function TeamCard({ team, selected, onClick }) {
   </button>;
 }
 
-export default function DiamondLeague({ user } = {}) {
+export default function DiamondLeague() {
   const [packs, setPacks] = useState(() => listPacks());
   const [activePack, setActivePack] = useState(() => listPacks()[0] || DEMO_PACK);
   const [homeId, setHomeId] = useState(() => (listPacks()[0] || DEMO_PACK).teams?.[0]?.id);

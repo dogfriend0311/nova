@@ -79,8 +79,6 @@ const TagPicker = ({ tags, onChange }) => {
     onChange(tags.filter(t => !(t.type === tag.type && t.league === tag.league && String(t.id) === String(tag.id))));
   };
 
-  const typeIcon = { player: '👤', team: '🛡️', league: LEAGUE_META[Object.keys(LEAGUE_META)[0]]?.icon || '🏆' };
-
   return (
     <div>
       <div style={{ position: 'relative' }}>
