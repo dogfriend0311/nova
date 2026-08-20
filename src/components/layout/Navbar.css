@@ -114,22 +114,12 @@
 }
 
 @media (max-width: 768px) {
-  .navbar { height: auto; min-height: 60px; }
-  .navbar-container { padding: 8px 10px; gap: 6px; flex-wrap: wrap; }
+  .navbar { height: 60px; }
+  .navbar-container { padding: 0 10px; gap: 6px; flex-wrap: nowrap; }
   .navbar-logo { flex-shrink: 0; }
   .navbar-logo h1 { font-size: 18px; letter-spacing: 2px; }
-  .navbar-tabs {
-    width: 100%; flex: none; overflow-x: auto; overflow-y: hidden;
-    scrollbar-width: none; gap: 4px; flex-wrap: nowrap; display: flex; padding-bottom: 2px;
-  }
-  .nav-tab { flex-direction: column; gap: 2px; padding: 6px 10px; flex-shrink: 0; white-space: nowrap; }
-  .tab-icon { font-size: 16px; }
-  .tab-label { display: block; font-size: 0.62rem; }
   .user-label { display: none; }
-  .navbar-user { position: absolute; top: 8px; right: 10px; gap: 4px; }
-  .navbar-tabs::-webkit-scrollbar { display: none; }
-  .navbar-user { flex-shrink: 0; }
-  .nav-tab { padding: 8px 10px; flex-shrink: 0; }
+  .navbar-user { gap: 4px; flex-shrink: 0; }
   .user-button { padding: 8px 10px; }
 }
 
@@ -157,12 +147,23 @@
 .hamburger span { display: block; width: 22px; height: 2px; background: var(--color-cyan); border-radius: 2px; transition: all 0.2s; }
 
 .mobile-menu {
-  position: fixed; top: 60px; left: 0; right: 0;
+  position: fixed; top: 70px; left: 0; right: 0;
   background: rgba(5,7,13,0.97);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(94, 129, 244,0.15);
   z-index: 9000; padding: 8px 0 16px;
   display: flex; flex-direction: column;
+  max-height: calc(100vh - 70px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .mobile-menu { top: 60px; max-height: calc(100vh - 60px); }
+}
+
+@media (max-width: 480px) {
+  .mobile-menu { top: 56px; max-height: calc(100vh - 56px); }
 }
 .mobile-tab {
   background: none; border: none; color: rgba(158, 165, 196,0.8);
@@ -183,6 +184,16 @@
   .navbar-user { gap: 6px; }
   .navbar-coins { font-size: 0.72rem; padding: 3px 7px; }
   .navbar-logo-img { height: 36px; }
+
+  /* Profile/Admin/Logout/Sign in/Sign up all already live in the
+     hamburger dropdown menu below — showing them a second time as
+     near-empty pill buttons (their text is hidden by .desk-only) in
+     the top bar just crowds the navbar and can push icons off-screen
+     on narrow phones. Keep only search, notifications, theme toggle
+     and the hamburger in the top bar on small screens. */
+  .navbar-user .user-button:not(.theme-toggle-btn) {
+    display: none;
+  }
 }
 
 @media (max-width: 480px) {

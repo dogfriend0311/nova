@@ -815,3 +815,63 @@
     padding: 14px !important;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   MID-RANGE GAP FIX (481px – 900px)
+   A few grids only had a "5 columns" desktop rule and a "phone"
+   rule below 480px, with nothing in between — so on larger
+   phones/small tablets in this range they stayed squeezed into
+   their full desktop column count. Widen them out here.
+   ───────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .player-snapshot {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+  .member-overview-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .player-overview-grid,
+  .player-awards-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .player-snapshot {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   GENERAL PHONE HYGIENE
+   Long usernames/links/game titles and desktop-sized fixed-width
+   popups/modals are the most common source of "broken" phone
+   layouts (sideways scrolling, cut-off popups). These are safe
+   on every screen size, not just phones, so no media query needed
+   for most of them — but they matter most on small viewports.
+   ───────────────────────────────────────────────────────────── */
+body, p, span, td, th, li, a {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+@media (max-width: 768px) {
+  /* Any modal/popup/card class in the app gets clamped so a
+     desktop pixel width set in its own CSS file can't push it
+     (or the page) wider than the phone screen. */
+  [class*="modal"],
+  [class*="popup"],
+  [class*="overlay"] > div {
+    max-width: calc(100vw - 24px) !important;
+  }
+
+  /* Tables that aren't already wrapped in a scroll container: make
+     the table itself scrollable horizontally instead of squeezing
+     every column or blowing out the page width. */
+  table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}

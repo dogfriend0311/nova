@@ -13,15 +13,29 @@
 .main-content::-webkit-scrollbar-thumb { background: rgba(94, 129, 244, 0.3); border-radius: 4px; }
 .main-content::-webkit-scrollbar-thumb:hover { background: rgba(94, 129, 244, 0.5); }
 
+/* Navbar switches to the hamburger menu (and the desktop Sidebar is no
+   longer usable/visible) at 1024px — see Navbar.css. The Sidebar itself
+   goes fully off-canvas at the same breakpoint (see Sidebar.css), so
+   main-content must drop its margin-left at that same point too.
+   Previously this only happened at 768px while the sidebar still took up
+   240px/70px of fixed space down to 1024px, which pushed real content
+   underneath/behind the sidebar on tablets and landscape phones. */
 @media (max-width: 1024px) {
-  .main-content { margin-left: 80px; padding: 25px 30px; }
-  .layout-wrapper { height: calc(100vh - 65px); margin-top: 65px; }
+  .main-content { margin-left: 0; padding: 25px 20px; }
+  .layout-wrapper { flex-direction: column; height: calc(100vh - 65px); margin-top: 65px; overflow-y: auto; }
 }
 
 @media (max-width: 768px) {
-  .layout-wrapper { flex-direction: column; height: calc(100vh - 60px); margin-top: 60px; }
-  .main-content { margin-left: 0; flex: 1; padding: 20px 15px; }
+  .layout-wrapper { height: calc(100vh - 60px); margin-top: 60px; }
+  .main-content { padding: 20px 15px; }
   .layout-container { height: 100vh; }
 }
 
-body { overflow-x: hidden; }
+@media (max-width: 480px) {
+  .main-content { padding: 16px 12px; }
+}
+
+html, body { overflow-x: hidden; max-width: 100vw; }
+#root { overflow-x: hidden; }
+* { box-sizing: border-box; }
+img, video, svg, canvas { max-width: 100%; height: auto; }

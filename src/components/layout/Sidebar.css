@@ -77,16 +77,20 @@
 .sidebar.collapsed .stat-label { display: none; }
 .sidebar.collapsed .stat-value { display: none; }
 
+/* Sidebar goes fully off-canvas the moment the Navbar switches to its
+   hamburger menu (1024px, see Navbar.css) instead of only at 768px.
+   It used to stay pinned at 240px/70px wide from 769-1024px while
+   main-content's margin-left was reset too early, so real page content
+   ended up hidden underneath it on tablets and landscape phones. */
 @media (max-width: 1024px) {
-  .sidebar { width: 240px; }
-  .sidebar.collapsed { width: 70px; }
-}
-
-@media (max-width: 768px) {
   .sidebar {
-    position: fixed; left: -280px; width: 280px; height: calc(100vh - 60px); top: 60px;
+    position: fixed; left: -280px; width: 280px; height: calc(100vh - 65px); top: 65px;
     transition: left 0.3s ease;
   }
   .sidebar.expanded { left: 0; box-shadow: 2px 0 20px rgba(94, 129, 244, 0.2); }
   .sidebar.collapsed { width: 280px; left: -280px; }
+}
+
+@media (max-width: 768px) {
+  .sidebar { height: calc(100vh - 60px); top: 60px; }
 }
