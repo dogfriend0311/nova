@@ -535,27 +535,45 @@ export const ProfileBackground = ({ list }) => {
 
   if (!list || list.length === 0) return null;
   const current = list[idx];
+  // position:fixed + percentage sizing can visibly jump/leave gaps on
+  // mobile browsers as the address bar shows/hides (the viewport height
+  // changes). Locking to 100dvh (with older-Safari fallback) and forcing
+  // a GPU layer keeps it steady and full-bleed on phones.
+  const fixedFullScreen = {
+    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+    width: '100%',
+    height: '100vh',
+    // @ts-ignore - progressive enhancement, ignored by browsers that don't support it
+    minHeight: '-webkit-fill-available',
+    transform: 'translateZ(0)',
+    WebkitTransform: 'translateZ(0)',
+  };
   const overlayStyle = {
-    position: 'fixed', inset: 0, zIndex: -1,
+    ...fixedFullScreen, zIndex: -1,
     background: 'linear-gradient(180deg, rgba(10,13,26,0.55) 0%, rgba(10,13,26,0.75) 60%, rgba(10,13,26,0.92) 100%)',
   };
-  const mediaWrapStyle = { position: 'fixed', inset: 0, zIndex: -2, overflow: 'hidden' };
+  const mediaWrapStyle = { ...fixedFullScreen, zIndex: -2, overflow: 'hidden' };
   return (
     <div aria-hidden="true">
-      <div style={mediaWrapStyle}>
+      <div className="nova-bg-fixed" style={mediaWrapStyle}>
         <div key={current.id} style={{ width: '100%', height: '100%', animation: 'novaBgFade 1s ease' }}>
           {current.type === 'video' ? (
             <video
               src={current.url} autoPlay muted loop playsInline
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }}
             />
           ) : (
-            <img src={current.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
+            <img src={current.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} onError={(e) => { e.target.style.display = 'none'; }} />
           )}
         </div>
       </div>
-      <div style={overlayStyle} />
-      <style>{`@keyframes novaBgFade { from { opacity: 0; } to { opacity: 1; } }`}</style>
+      <div className="nova-bg-fixed" style={overlayStyle} />
+      <style>{`
+        @keyframes novaBgFade { from { opacity: 0; } to { opacity: 1; } }
+        @supports (height: 100dvh) {
+          .nova-bg-fixed { height: 100dvh !important; min-height: 0 !important; }
+        }
+      `}</style>
     </div>
   );
 };

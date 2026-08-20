@@ -123,6 +123,7 @@
 .gradient-text {
   background: linear-gradient(135deg, var(--color-cyan), var(--color-magenta), var(--color-purple));
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.55);
 }
 
 .gradient-text-cyan {
