@@ -1,17 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import db from '../services/db';
+import fantasyDb from '../services/fantasyDb';
 import { SPORTS } from '../data/sportsConfig';
 import { accoladeLabel, accoladeIcon } from '../data/accolades';
 
 // ── Activity Feed ────────────────────────────────────────────
 // A public "what's happening" feed for Home, built entirely from data
 // that's already visible elsewhere on the site (articles, POTM awards,
-// season accolades, Hall of Fame inductions) — it deliberately does NOT
-// pull from the admin audit log (db.getAuditLog), which is intentionally
-// owner/cofounder-only in OwnerDashboard and shouldn't leak to the
-// public homepage.
+// season accolades, Hall of Fame inductions, fantasy trades, badge
+// awards) — it deliberately does NOT pull from the admin audit log
+// (db.getAuditLog), which is intentionally owner/cofounder-only in
+// OwnerDashboard and shouldn't leak to the public homepage.
 
 const LEAGUE_KEYS = Object.keys(SPORTS);
+
+// Only the most recently-created fantasy leagues are checked for trades —
+// keeps this to a bounded number of requests instead of scanning every
+// league that has ever existed.
+const MAX_LEAGUES_FOR_TRADES = 10;
 
 const timeAgo = (iso) => {
   if (!iso) return '';
@@ -30,12 +36,58 @@ const ActivityFeed = () => {
 
   useEffect(() => {
     let cancelled = false;
+
+    // Completed trades from the most recently-active fantasy leagues.
+    const loadTrades = async () => {
+      try {
+        const leagues = (await fantasyDb.getAllLeagues()).slice(0, MAX_LEAGUES_FOR_TRADES);
+        const perLeague = await Promise.all(leagues.map(async (league) => {
+          const [teams, trades] = await Promise.all([
+            fantasyDb.getTeams(league.id).catch(() => []),
+            fantasyDb.getTrades(league.id).catch(() => []),
+          ]);
+          const teamName = (id) => teams.find(t => t.id === id)?.team_name || 'a team';
+          return trades
+            .filter(t => t.status === 'completed')
+            .map(t => ({
+              kind: 'trade', ts: t.resolved_at || t.created_at, key: `trade-${t.id}`,
+              icon: '🔄', title: `${teamName(t.proposing_team_id)} traded with ${teamName(t.receiving_team_id)}`,
+              meta: `${league.name} · Fantasy Trade`,
+              onClick: () => goTo(`#fantasy/league/${league.id}`),
+            }));
+        }));
+        return perLeague.flat();
+      } catch { return []; }
+    };
+
+    // Recently-assigned member badges.
+    const loadBadges = async () => {
+      try {
+        const [assignments, types] = await Promise.all([
+          db.getMemberBadges().catch(() => []),
+          db.getBadgeTypes().catch(() => []),
+        ]);
+        const typeById = new Map((types || []).map(t => [String(t.id), t]));
+        return (assignments || []).map(a => {
+          const type = typeById.get(String(a.badge_id));
+          return {
+            kind: 'badge', ts: a.created_at, key: `badge-${a.username}-${a.badge_id}`,
+            icon: type?.icon || '🏅', title: `${a.username} earned the "${type?.name || 'a'}" badge`,
+            meta: 'Badge Earned',
+            onClick: () => goTo(`#members/${a.username}`),
+          };
+        });
+      } catch { return []; }
+    };
+
     Promise.all([
       db.getArticles().catch(() => []),
       ...LEAGUE_KEYS.map(lg => db.getPotmAwards(lg).then(list => (list || []).map(a => ({ ...a, _league: lg }))).catch(() => [])),
       ...LEAGUE_KEYS.map(lg => db.getAccolades(lg).then(list => (list || []).map(a => ({ ...a, _league: lg }))).catch(() => [])),
       ...LEAGUE_KEYS.map(lg => db.getHof(lg).then(list => (list || []).map(h => ({ ...h, _league: lg }))).catch(() => [])),
-    ]).then(([articles, potmA, potmB, potmC, accA, accB, accC, hofA, hofB, hofC]) => {
+      loadTrades(),
+      loadBadges(),
+    ]).then(([articles, potmA, potmB, potmC, accA, accB, accC, hofA, hofB, hofC, trades, badges]) => {
       if (cancelled) return;
       const feed = [
         ...articles.slice(0, 5).map(a => ({
@@ -61,10 +113,12 @@ const ActivityFeed = () => {
           meta: SPORTS[h._league]?.shortLabel || h._league,
           onClick: () => goTo(`#leagues/player/${h.player_id}`),
         })),
+        ...trades,
+        ...badges,
       ]
         .filter(i => i.ts)
         .sort((a, b) => new Date(b.ts) - new Date(a.ts))
-        .slice(0, 8);
+        .slice(0, 10);
       setItems(feed);
     });
     return () => { cancelled = true; };

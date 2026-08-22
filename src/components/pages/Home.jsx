@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './Pages.css';
 import './Home.css';
 import ActivityFeed from '../ActivityFeed';
+import LeagueLeaders from '../LeagueLeaders';
 import RobloxGameStatusWidget from '../RobloxGameStatusWidget';
 
 /* Tile icons (inline SVG - no emoji, renders identically everywhere) */
@@ -122,6 +123,9 @@ const Home = ({ onNavigate, user }) => {
   const [announcements, setAnnouncements] = useState([]);
   const [showAllUpdates, setShowAllUpdates] = useState(false);
   const [staffOfMonth, setStaffOfMonth] = useState(null);
+  const [onlinePulse, setOnlinePulse] = useState(false);
+  const prevOnlineRef = React.useRef(null); // null = first load, don't pulse yet
+  const pulseTimeoutRef = React.useRef(null);
 
   useEffect(() => {
     let active = true;
@@ -168,6 +172,7 @@ const Home = ({ onNavigate, user }) => {
           db.getOnlineUsers(),
         ]);
         if (!active) return;
+        bumpOnlinePulse(onlineUsernames.length);
         setStats({ members: profiles.length, online: onlineUsernames.length });
         setOnlineList(
           onlineUsernames
@@ -181,14 +186,27 @@ const Home = ({ onNavigate, user }) => {
         const fiveMinAgo = Date.now() - 5 * 60 * 1000;
         const online = Object.keys(onlineData).filter((u) => onlineData[u] > fiveMinAgo);
         if (!active) return;
+        bumpOnlinePulse(online.length);
         setStats({ members: users.length + 1, online: online.length });
         setOnlineList(online.slice(0, 12).map((username) => ({ username })));
       }
     };
 
+    // Briefly pulses the "online now" pill whenever the count goes up —
+    // i.e. someone new just came online — but never on the very first load.
+    const bumpOnlinePulse = (nextCount) => {
+      const prev = prevOnlineRef.current;
+      prevOnlineRef.current = nextCount;
+      if (prev !== null && nextCount > prev) {
+        setOnlinePulse(true);
+        clearTimeout(pulseTimeoutRef.current);
+        pulseTimeoutRef.current = setTimeout(() => setOnlinePulse(false), 1200);
+      }
+    };
+
     load();
     const interval = setInterval(load, 30000);
-    return () => { active = false; clearInterval(interval); };
+    return () => { active = false; clearInterval(interval); clearTimeout(pulseTimeoutRef.current); };
   }, []);
 
   useEffect(() => {
@@ -211,8 +229,8 @@ const Home = ({ onNavigate, user }) => {
         <p className="subtitle">Your hub for Roblox Baseball, Hockey & Football stats, live sports, and the community.</p>
 
         <div className="home-stat-row">
-          <span className="home-stat-pill">
-            <span className="home-stat-dot" />
+          <span className={`home-stat-pill${onlinePulse ? ' home-stat-pill--pulse' : ''}`}>
+            <span className={`home-stat-dot${onlinePulse ? ' home-stat-dot--pulse' : ''}`} />
             <strong>{stats.online}</strong>&nbsp;online now
           </span>
           <span className="home-stat-pill">
@@ -363,6 +381,7 @@ const Home = ({ onNavigate, user }) => {
       </div>
 
       <ActivityFeed />
+      <LeagueLeaders />
     </div>
   );
 };
