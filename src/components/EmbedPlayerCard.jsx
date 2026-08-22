@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import db from '../services/db';
+import db, { sortByDisplayOrder } from '../services/db';
 import { getSport } from '../data/sportsConfig';
 import { accoladeLabel, accoladeIcon } from '../data/accolades';
 import './EmbedPlayerCard.css';
@@ -100,7 +100,7 @@ const EmbedPlayerCard = () => {
 
         {accolades.length > 0 && (
           <div className="epc-accolades">
-            {accolades.slice(0, 4).map((a, i) => (
+            {sortByDisplayOrder(accolades).slice(0, 4).map((a, i) => (
               <span key={i} className="epc-badge">{accoladeIcon(a)} {accoladeLabel(a)}</span>
             ))}
           </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './LeaguePlayerPage.css';
 import PlayerTradingCard from './PlayerTradingCard';
-import db from './services/db';
+import db, { sortByDisplayOrder } from './services/db';
 import { accoladeLabel, accoladeIcon } from './data/accolades';
 import { getSport } from './data/sportsConfig';
 import PlayerComments from './components/PlayerComments';
@@ -168,7 +168,7 @@ const PlayerAwardsPanel = ({ player, potmAwards, accolades }) => (
         </div>
         {potmAwards.length === 0 ? <div className="player-panel-empty">No monthly honors recorded yet.</div> : (
           <div className="player-honor-rows">
-            {potmAwards.map(award => (
+            {sortByDisplayOrder(potmAwards).map(award => (
               <div className="player-honor-row" key={award.id}>
                 <span className="player-honor-mark">POTM</span>
                 <div><strong>{award.month_label || 'Monthly award'}</strong><small>{award.note || `${player.nickname || player.player_name} led the league.`}</small></div>
@@ -184,7 +184,7 @@ const PlayerAwardsPanel = ({ player, potmAwards, accolades }) => (
         </div>
         {accolades.length === 0 ? <div className="player-panel-empty">No season accolades recorded yet.</div> : (
           <div className="player-accolade-list">
-            {accolades.map(award => <span className="player-accolade-chip" key={award.id}>{accoladeIcon(award)} {accoladeLabel(award)}</span>)}
+            {sortByDisplayOrder(accolades).map(award => <span className="player-accolade-chip" key={award.id}>{accoladeIcon(award)} {accoladeLabel(award)}</span>)}
           </div>
         )}
       </div>
@@ -604,7 +604,7 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
 
             {accolades.length > 0 && (
               <div className="accolade-tags">
-                {accolades.map(a => (
+                {sortByDisplayOrder(accolades).map(a => (
                   <span key={a.id} className="accolade-tag">{accoladeIcon(a)} {accoladeLabel(a)}</span>
                 ))}
               </div>
@@ -684,7 +684,7 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
                 <span className="potm-trophy-count">{potmAwards.length} time{potmAwards.length !== 1 ? 's' : ''}</span>
               </div>
               <div className="potm-cards">
-                {potmAwards.map(a => (
+                {sortByDisplayOrder(potmAwards).map(a => (
                   <div key={a.id} className="potm-card">
                     <div className="potm-shine" />
                     <div className="potm-card-inner">

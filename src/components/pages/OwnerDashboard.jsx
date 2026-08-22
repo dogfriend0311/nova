@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import db from '../../services/db';
+import db, { sortByDisplayOrder } from '../../services/db';
 import fantasyDb from '../../services/fantasyDb';
 import { accoladeLabel, accoladeIcon, getAccoladeTypes } from '../../data/accolades';
 import { BadgeChip } from '../BadgeDisplay';
@@ -1470,6 +1470,21 @@ const LeagueAwardsTab = ({ prefix }) => {
   };
   const removePotm = async (id) => { await db.deletePotmAward(prefix, id); setPotmAwards(prev => prev.filter(a => a.id !== id)); };
 
+  /* Reordering assigns a fresh sequential sort_index to every award based
+     on the new order (not just the two that moved), so the trophy case
+     always has an unambiguous, fully-specified order once staff have
+     touched it at all. */
+  const movePotm = async (id, direction) => {
+    const sorted = sortByDisplayOrder(potmAwards);
+    const idx = sorted.findIndex(a => a.id === id);
+    const swapIdx = idx + direction;
+    if (idx < 0 || swapIdx < 0 || swapIdx >= sorted.length) return;
+    const reordered = [...sorted];
+    [reordered[idx], reordered[swapIdx]] = [reordered[swapIdx], reordered[idx]];
+    setPotmAwards(reordered.map((a, i) => ({ ...a, sort_index: i })));
+    await Promise.all(reordered.map((a, i) => db.reorderPotmAward(prefix, a.id, i)));
+  };
+
   const giveAccolade = async () => {
     if (!selectedPlayer || !accSeason.trim()) return;
     if (accType === 'custom' && !accCustomLabel.trim()) return;
@@ -1485,6 +1500,17 @@ const LeagueAwardsTab = ({ prefix }) => {
     setAccCustomLabel('');
   };
   const removeAccolade = async (id) => { await db.deleteAccolade(prefix, id); setAccolades(prev => prev.filter(a => a.id !== id)); };
+
+  const moveAccolade = async (id, direction) => {
+    const sorted = sortByDisplayOrder(accolades);
+    const idx = sorted.findIndex(a => a.id === id);
+    const swapIdx = idx + direction;
+    if (idx < 0 || swapIdx < 0 || swapIdx >= sorted.length) return;
+    const reordered = [...sorted];
+    [reordered[idx], reordered[swapIdx]] = [reordered[swapIdx], reordered[idx]];
+    setAccolades(reordered.map((a, i) => ({ ...a, sort_index: i })));
+    await Promise.all(reordered.map((a, i) => db.reorderAccolade(prefix, a.id, i)));
+  };
 
   return (
     <div className="tab-content">
@@ -1522,13 +1548,29 @@ const LeagueAwardsTab = ({ prefix }) => {
 
             <div style={{ marginTop:'18px', display:'grid', gap:'8px' }}>
               {potmAwards.length === 0 && <p style={{ color:'rgba(158, 165, 196,0.4)', fontSize:'0.85rem' }}>No Player of the Month awards yet.</p>}
-              {potmAwards.map(a => (
+              {sortByDisplayOrder(potmAwards).map((a, i, arr) => (
                 <div key={a.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px', background:'rgba(255,215,0,0.06)', border:'1px solid rgba(255,215,0,0.25)', borderRadius:'6px' }}>
                   <div>
                     <span style={{ color:'#ffd700', fontWeight:700 }}>{a.month_label}</span>
                     {a.note && <span style={{ marginLeft:'10px', fontSize:'0.8rem', color:'rgba(158, 165, 196,0.6)' }}>{a.note}</span>}
                   </div>
-                  <button onClick={() => removePotm(a.id)} style={{ background:'none', border:'none', color:'#ff6b7a', cursor:'pointer' }}>Remove</button>
+                  <div style={{ display:'flex', alignItems:'center', gap:'4px' }}>
+                    <button
+                      onClick={() => movePotm(a.id, -1)}
+                      disabled={i === 0}
+                      aria-label="Move up in trophy case"
+                      title="Move up"
+                      style={{ background:'none', border:'none', color: i === 0 ? 'rgba(255,215,0,0.25)' : '#ffd700', cursor: i === 0 ? 'default' : 'pointer', fontSize:'0.95rem', padding:'2px 6px' }}
+                    >▲</button>
+                    <button
+                      onClick={() => movePotm(a.id, 1)}
+                      disabled={i === arr.length - 1}
+                      aria-label="Move down in trophy case"
+                      title="Move down"
+                      style={{ background:'none', border:'none', color: i === arr.length - 1 ? 'rgba(255,215,0,0.25)' : '#ffd700', cursor: i === arr.length - 1 ? 'default' : 'pointer', fontSize:'0.95rem', padding:'2px 6px' }}
+                    >▼</button>
+                    <button onClick={() => removePotm(a.id)} style={{ background:'none', border:'none', color:'#ff6b7a', cursor:'pointer', marginLeft:'6px' }}>Remove</button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1559,10 +1601,26 @@ const LeagueAwardsTab = ({ prefix }) => {
 
             <div style={{ marginTop:'18px', display:'grid', gap:'8px' }}>
               {accolades.length === 0 && <p style={{ color:'rgba(158, 165, 196,0.4)', fontSize:'0.85rem' }}>No accolades yet.</p>}
-              {accolades.map(a => (
+              {sortByDisplayOrder(accolades).map((a, i, arr) => (
                 <div key={a.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px', background:'rgba(94, 129, 244,0.05)', border:'1px solid rgba(94, 129, 244,0.15)', borderRadius:'6px' }}>
                   <span style={{ color:'var(--color-cyan)', fontWeight:700 }}>{accoladeIcon(a)} {accoladeLabel(a)}</span>
-                  <button onClick={() => removeAccolade(a.id)} style={{ background:'none', border:'none', color:'#ff6b7a', cursor:'pointer' }}>Remove</button>
+                  <div style={{ display:'flex', alignItems:'center', gap:'4px' }}>
+                    <button
+                      onClick={() => moveAccolade(a.id, -1)}
+                      disabled={i === 0}
+                      aria-label="Move up in trophy case"
+                      title="Move up"
+                      style={{ background:'none', border:'none', color: i === 0 ? 'rgba(94,129,244,0.25)' : 'var(--color-cyan)', cursor: i === 0 ? 'default' : 'pointer', fontSize:'0.95rem', padding:'2px 6px' }}
+                    >▲</button>
+                    <button
+                      onClick={() => moveAccolade(a.id, 1)}
+                      disabled={i === arr.length - 1}
+                      aria-label="Move down in trophy case"
+                      title="Move down"
+                      style={{ background:'none', border:'none', color: i === arr.length - 1 ? 'rgba(94,129,244,0.25)' : 'var(--color-cyan)', cursor: i === arr.length - 1 ? 'default' : 'pointer', fontSize:'0.95rem', padding:'2px 6px' }}
+                    >▼</button>
+                    <button onClick={() => removeAccolade(a.id)} style={{ background:'none', border:'none', color:'#ff6b7a', cursor:'pointer', marginLeft:'6px' }}>Remove</button>
+                  </div>
                 </div>
               ))}
             </div>

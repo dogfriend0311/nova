@@ -714,6 +714,32 @@ export const db = {
     ls.set(`${league}_accolades`, ls.get(`${league}_accolades`).filter(a => a.id !== id));
   },
 
+  /* ── AWARD / TROPHY CASE ORDERING ─────────────────────────────
+     Both nova_potm_awards and nova_accolades support an optional
+     sort_index column (see supabase/awards_and_depth_order.sql) so staff
+     can manually reorder a player's trophy case in the Owner Dashboard
+     instead of always seeing awards newest-first. Awards without a
+     sort_index yet (pre-migration, or still localStorage-only) simply
+     fall back to their existing created_at order — see
+     sortByDisplayOrder() below, used wherever these lists are rendered. */
+  async reorderPotmAward(league, id, sort_index) {
+    if (hasSupabase()) {
+      try {
+        await supabase.from('nova_potm_awards').update({ sort_index }).eq('id', id);
+      } catch {}
+    }
+    ls.set(`${league}_potm_awards`, ls.get(`${league}_potm_awards`).map(a => (a.id === id ? { ...a, sort_index } : a)));
+  },
+
+  async reorderAccolade(league, id, sort_index) {
+    if (hasSupabase()) {
+      try {
+        await supabase.from('nova_accolades').update({ sort_index }).eq('id', id);
+      } catch {}
+    }
+    ls.set(`${league}_accolades`, ls.get(`${league}_accolades`).map(a => (a.id === id ? { ...a, sort_index } : a)));
+  },
+
   /* ── COMMENTS (member profile comments) ──────────────────────── */
   async getComments(toUsername) {
     if (hasSupabase()) {
@@ -1738,6 +1764,27 @@ function _syncLs(league, table, record, op) {
   if (op === 'add') ls.set(key, [...list, record]);
   else if (op === 'update') ls.set(key, list.map(i => i.id === record.id ? record : i));
   else if (op === 'delete') ls.set(key, list.filter(i => i.id !== record.id));
+}
+
+/* ── Shared: stable sort respecting a manual sort_index ────────────
+   Items with a numeric sort_index sort by it (ascending — lower shows
+   first, i.e. "closer to the front of the trophy case"). Items without
+   one (undefined/null) keep their original relative order and sort
+   after every explicitly-ordered item. Used by the Owner Dashboard
+   awards admin panel and the player page's trophy case/awards display
+   so both agree on the same order. */
+export function sortByDisplayOrder(list) {
+  return list
+    .map((item, i) => ({ item, i }))
+    .sort((a, b) => {
+      const ai = typeof a.item.sort_index === 'number' ? a.item.sort_index : null;
+      const bi = typeof b.item.sort_index === 'number' ? b.item.sort_index : null;
+      if (ai === null && bi === null) return a.i - b.i;
+      if (ai === null) return 1;
+      if (bi === null) return -1;
+      return ai - bi;
+    })
+    .map(({ item }) => item);
 }
 
 export default db;

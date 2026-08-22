@@ -9,6 +9,7 @@ import OnThisDay from '../OnThisDay';
 import ContinueTiles from '../ContinueTiles';
 import AnniversaryShoutouts from '../AnniversaryShoutouts';
 import RobloxGameStatusWidget from '../RobloxGameStatusWidget';
+import HomeHeroBanner from '../HomeHeroBanner';
 
 /* Tile icons (inline SVG - no emoji, renders identically everywhere) */
 const Icon = {
@@ -240,22 +241,16 @@ const Home = ({ onNavigate, user }) => {
 
   return (
     <div className="page home-page">
-      <div className="home-hero">
-        <h1 className="gradient-text">
-          {user?.username ? `Welcome back, ${user.username}` : 'Welcome to Nova'}
-        </h1>
-        <p className="subtitle">Your hub for Roblox Baseball, Hockey & Football stats, live sports, and the community.</p>
-
-        <div className="home-stat-row">
-          <span className={`home-stat-pill${onlinePulse ? ' home-stat-pill--pulse' : ''}`}>
-            <span className={`home-stat-dot${onlinePulse ? ' home-stat-dot--pulse' : ''}`} />
-            <strong>{stats.online}</strong>&nbsp;online now
-          </span>
-          <span className="home-stat-pill">
-            <strong>{stats.members}</strong>&nbsp;members
-          </span>
-        </div>
-      </div>
+      <HomeHeroBanner
+        user={user}
+        stats={stats}
+        onlinePulse={onlinePulse}
+        staffOfMonth={staffOfMonth}
+        songOfDay={songOfDay}
+        latestAnnouncement={announcements[0]}
+        discordUrl={DISCORD_INVITE_URL}
+        onNavigate={onNavigate}
+      />
 
       <ContinueTiles />
 

@@ -15,6 +15,7 @@ import {
   WatchlistsTab,
 } from './LeagueFeatures';
 import RadarChart from './components/RadarChart';
+import TeamDepthChart from './components/pages/TeamDepthChart';
 import {
   currentUsername,
   getFavoritePlayers,
@@ -60,6 +61,7 @@ const hexToRgb = (hex) => {
 const TABS = [
   { id: 'overview',   label: 'Overview',    Icon: LayoutDashboard },
   { id: 'rosters',    label: 'Rosters',     Icon: Users },
+  { id: 'depthchart', label: 'Depth Chart', Icon: TrendingUp },
   { id: 'players',    label: 'Players',     Icon: Search },
   { id: 'leaders',    label: 'Leaders',     Icon: Trophy },
   { id: 'schedule',   label: 'Schedule',    Icon: CalendarDays },
@@ -89,6 +91,7 @@ const ViztaLeague = ({ onSelectPlayer, sport = 'vizta', initialTab = 'overview',
     switch (activeTab) {
       case 'overview':   return <OverviewTab sport={sport} cfg={cfg} />;
       case 'rosters':    return <RostersTab sport={sport} cfg={cfg} onSelectPlayer={onSelectPlayer} initialTeam={initialTab === 'rosters' ? initialTeam : null} />;
+      case 'depthchart': return <TeamDepthChart league={sport} />;
       case 'players':    return <PlayersTab sport={sport} cfg={cfg} onSelectPlayer={onSelectPlayer} />;
       case 'leaders':    return <LeagueLeadersTab sport={sport} cfg={cfg} onSelectPlayer={onSelectPlayer} />;
       case 'schedule':    return <ScheduleTab sport={sport} cfg={cfg} />;
