@@ -3,6 +3,8 @@ import './Pages.css';
 import './Home.css';
 import ActivityFeed from '../ActivityFeed';
 import LeagueLeaders from '../LeagueLeaders';
+import DiscordWidget from '../DiscordWidget';
+import ThisWeekDigest from '../ThisWeekDigest';
 import RobloxGameStatusWidget from '../RobloxGameStatusWidget';
 
 /* Tile icons (inline SVG - no emoji, renders identically everywhere) */
@@ -66,6 +68,12 @@ const Icon = {
       <path d="M7.5 8.5h9M7.5 12h9M7.5 15.5h5.5" />
     </svg>
   ),
+  staff: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3z" />
+      <path d="M9 12.2l2 2 4-4.4" />
+    </svg>
+  ),
 };
 
 /* Official Nova Discord invite */
@@ -88,6 +96,7 @@ const TILES = [
   { id: 'leagues',   icon: 'league',  title: 'Roblox Leagues', desc: 'Baseball, Hockey & Football — rosters, box scores, and player stat pages', accent: 'blue'   },
   { id: 'sports',    icon: 'sports',  title: 'Sports Hub',    desc: 'Live scores across MLB, NFL, NBA, and NHL',               accent: 'amber'  },
   { id: 'members',   icon: 'members', title: 'Members',       desc: 'Browse profiles and leave a comment',                     accent: 'blue'   },
+  { id: 'staff',     icon: 'staff',   title: 'Staff Directory', desc: 'Meet the mods, co-founders & helpers running Nova',     accent: 'blue'   },
   { id: 'games',     icon: 'games',   title: 'Games',         desc: 'Fantasy, Pick\'ems, Beat Battle, Prop Bets & more',       accent: 'amber'  },
   { id: 'music',     icon: 'music',   title: 'Music',         desc: '🎧 Last.fm scrobbles & Beat Battle',                       accent: 'violet' },
   { id: 'articles',  icon: 'articles',title: 'Articles',      desc: '📰 Sports & music writeups from the staff',                accent: 'blue'   },
@@ -253,6 +262,10 @@ const Home = ({ onNavigate, user }) => {
         </span>
         <span className="home-discord-banner-cta">Join Server &#8599;</span>
       </a>
+
+      <DiscordWidget />
+
+      <ThisWeekDigest />
 
       {staffOfMonth && (
         <div style={{ marginBottom: 20 }}>

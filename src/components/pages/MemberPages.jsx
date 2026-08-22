@@ -13,6 +13,7 @@ const roleLabel = (role) => {
   const m = { owner: 'Owner', cofounder: 'Co-Founder', mod: 'Moderator', vizta_helper: 'Roblox Baseball Helper', football_helper: 'Heavenly Football Stat Helper', member: 'Member' };
   return m[role] || 'Member';
 };
+export { roleLabel };
 const roleColor = (role) => {
   const m = {
     owner:        '#ffd700',
@@ -23,6 +24,7 @@ const roleColor = (role) => {
   };
   return m[role] || '#5e81f4';
 };
+export { roleColor };
 const roleGlow = (role) => {
   const m = {
     owner:        'rgba(255,215,0,0.3)',
@@ -33,6 +35,7 @@ const roleGlow = (role) => {
   };
   return m[role] || 'rgba(94,129,244,0.2)';
 };
+export { roleGlow };
 
 function copyToClipboard(text, setCopied) {
   navigator.clipboard.writeText(text).then(() => {

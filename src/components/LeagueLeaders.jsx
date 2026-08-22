@@ -10,8 +10,10 @@ import { SPORTS, SPORT_ORDER } from '../data/sportsConfig';
 // every stat) — it's a teaser so leaders are visible without digging
 // into a league's Records tab first.
 
-// The single "top scorer" stat to headline per league.
-const HEADLINE_STAT = {
+// The single "top scorer" stat to headline per league. Exported so other
+// "what's happening" surfaces (e.g. the This Week digest) can point at the
+// same top performer for a game without redefining this mapping.
+export const HEADLINE_STAT = {
   vizta:    { label: 'Home Runs', field: 'season_home_runs' },
   hockey:   { label: 'Goals',     field: 'season_goals' },
   football: { label: 'Total TDs', field: 'season_total_td' },
