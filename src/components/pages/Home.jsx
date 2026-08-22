@@ -6,6 +6,8 @@ import LeagueLeaders from '../LeagueLeaders';
 import DiscordWidget from '../DiscordWidget';
 import ThisWeekDigest from '../ThisWeekDigest';
 import OnThisDay from '../OnThisDay';
+import ContinueTiles from '../ContinueTiles';
+import AnniversaryShoutouts from '../AnniversaryShoutouts';
 import RobloxGameStatusWidget from '../RobloxGameStatusWidget';
 
 /* Tile icons (inline SVG - no emoji, renders identically everywhere) */
@@ -249,6 +251,8 @@ const Home = ({ onNavigate, user }) => {
         </div>
       </div>
 
+      <ContinueTiles />
+
       <a
         href={DISCORD_INVITE_URL}
         target="_blank"
@@ -269,6 +273,8 @@ const Home = ({ onNavigate, user }) => {
       <ThisWeekDigest />
 
       <OnThisDay />
+
+      <AnniversaryShoutouts />
 
       {staffOfMonth && (
         <div style={{ marginBottom: 20 }}>

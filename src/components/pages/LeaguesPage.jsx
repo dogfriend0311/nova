@@ -56,7 +56,18 @@ const FavoritesStrip = ({ league, onJumpToTeam, onSelectPlayer }) => {
 };
 
 const LeaguesPage = ({ onSelectPlayer }) => {
-  const [league, setLeague] = useState('vizta');
+  const [league, setLeagueState] = useState(() => {
+    try {
+      const last = localStorage.getItem('nova_last_league_sport');
+      return (last && SPORTS[last]) ? last : 'vizta';
+    } catch { return 'vizta'; }
+  });
+  // Wraps setLeague so every switch (tab click or deep link) also updates
+  // the "continue where you left off" record read by Home's quick-launch tile.
+  const setLeague = (id) => {
+    setLeagueState(id);
+    try { localStorage.setItem('nova_last_league_sport', id); } catch {}
+  };
   const [jumpTeam, setJumpTeam] = useState(null);
   const [jumpCounter, setJumpCounter] = useState(0);
   const activeSport = SPORTS[league];

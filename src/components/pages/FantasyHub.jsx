@@ -18,11 +18,35 @@ const FantasyHub = ({ initialSport, onSignIn }) => {
   const load = async () => {
     if (!user) { setLoading(false); return; }
     setLoading(true);
-    setLeagues(await fantasyDb.getLeaguesForUser(user.username));
+    const list = await fantasyDb.getLeaguesForUser(user.username);
+    setLeagues(list);
     setLoading(false);
+    return list;
   };
 
   useEffect(() => { load(); }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // "Continue where you left off" — auto-resume the last fantasy league
+  // this user opened (see openLeague below), as long as it's still one
+  // of their leagues. Runs once the initial league list has loaded.
+  useEffect(() => {
+    if (!user || loading || activeLeagueId) return;
+    try {
+      const last = JSON.parse(localStorage.getItem(`nova_last_fantasy_league_${user.username}`) || 'null');
+      if (last?.id && leagues.some(l => l.id === last.id)) {
+        setSport(last.sport || sport);
+        setActiveLeagueId(last.id);
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
+  const openLeague = (league) => {
+    if (user) {
+      localStorage.setItem(`nova_last_fantasy_league_${user.username}`, JSON.stringify({ id: league.id, name: league.name, sport: league.sport }));
+    }
+    setActiveLeagueId(league.id);
+  };
 
   if (!user) {
     return (
@@ -52,14 +76,14 @@ const FantasyHub = ({ initialSport, onSignIn }) => {
     const { league } = await fantasyDb.createLeague(settings, user.username, teamName);
     setShowCreate(false);
     await load();
-    setActiveLeagueId(league.id);
+    openLeague(league);
   };
 
   const handleJoin = async (code, teamName) => {
     const { league } = await fantasyDb.joinLeague(code, user.username, teamName);
     setShowJoin(false);
     await load();
-    setActiveLeagueId(league.id);
+    openLeague(league);
   };
 
   return (
@@ -91,7 +115,7 @@ const FantasyHub = ({ initialSport, onSignIn }) => {
       ) : (
         <div className="league-grid">
           {visibleLeagues.map(l => (
-            <div key={l.id} className="neon-card league-card" onClick={() => setActiveLeagueId(l.id)}>
+            <div key={l.id} className="neon-card league-card" onClick={() => openLeague(l)}>
               <span className={`status-badge status-${l.status}`}>{l.status}</span>
               <h3>{sportIcon(l.sport)} {l.name}</h3>
               <div className="meta">

@@ -1145,6 +1145,58 @@ export const db = {
     ls.set('nova_member_badges', ls.get('nova_member_badges').filter(a => !(a.username === username && String(a.badge_id) === String(badgeId))));
   },
 
+  /* ── ACTIVITY STREAKS ──────────────────────────────────────────
+     Requires: nova_activity_log table (see supabase/activity_streaks.sql).
+     One row per member per calendar day they opened the site — used to
+     compute a live "N day streak" shown next to their badges. Nothing
+     to configure beyond running that migration; App.jsx calls
+     recordDailyActivity() once per session automatically. */
+  async recordDailyActivity(username) {
+    if (!username) return;
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD, local calendar day
+    if (hasSupabase()) {
+      try {
+        const { error } = await supabase
+          .from('nova_activity_log')
+          .upsert([{ username, activity_date: today }], { onConflict: 'username,activity_date', ignoreDuplicates: true });
+        if (!error) return;
+      } catch {}
+    }
+    const key = `nova_activity_${username}`;
+    const days = new Set(ls.get(key));
+    days.add(today);
+    ls.set(key, Array.from(days));
+  },
+
+  async getActivityStreak(username) {
+    if (!username) return 0;
+    let days = [];
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase
+          .from('nova_activity_log')
+          .select('activity_date')
+          .eq('username', username)
+          .order('activity_date', { ascending: false })
+          .limit(400); // ~13 months is plenty for any realistic streak
+        if (!error) days = (data || []).map(r => r.activity_date);
+      } catch {}
+    }
+    if (days.length === 0) days = ls.get(`nova_activity_${username}`) || [];
+    const daySet = new Set(days.map(d => String(d).slice(0, 10)));
+    const cursor = new Date();
+    const iso = () => cursor.toISOString().slice(0, 10);
+    // An ongoing streak still counts if today just hasn't logged in yet —
+    // start counting from yesterday in that case instead of resetting to 0.
+    if (!daySet.has(iso())) cursor.setDate(cursor.getDate() - 1);
+    let streak = 0;
+    while (daySet.has(iso())) {
+      streak += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return streak;
+  },
+
   /* ── FAVORITE TEAMS (sports team-following) ──────────────────
      Requires: favorite_teams table (see nova-migrations.sql).      */
   async getFavoriteTeams(username) {

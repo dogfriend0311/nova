@@ -507,6 +507,22 @@ const MemberProfileView = ({ member, onBack, badgeTypes }) => {
 
   const [viewTab, setViewTab] = useState('overview');
   const [copied,  setCopied]  = useState(false);
+  const [streak,  setStreak]  = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    import('../../services/db').then(({ default: db }) => {
+      db.getActivityStreak(member.username).then((n) => { if (!cancelled) setStreak(n); }).catch(() => {});
+    });
+    return () => { cancelled = true; };
+  }, [member.username]);
+
+  const joinedDate = member.created_at ? new Date(member.created_at) : null;
+  const isAnniversaryToday = !!joinedDate
+    && joinedDate.getMonth() === new Date().getMonth()
+    && joinedDate.getDate() === new Date().getDate()
+    && joinedDate.getFullYear() < new Date().getFullYear();
+  const anniversaryYears = joinedDate ? (new Date().getFullYear() - joinedDate.getFullYear()) : 0;
 
   const favGames       = member.fav_games || [];
   const presenceStatus = localStorage.getItem(`nova_presence_${member.username}`) || 'online';
@@ -587,7 +603,7 @@ const MemberProfileView = ({ member, onBack, badgeTypes }) => {
             </div>
           </div>
 
-          {(member.is_staff_of_month || (member.visible_badge_ids && member.visible_badge_ids.length > 0)) && (
+          {(member.is_staff_of_month || (member.visible_badge_ids && member.visible_badge_ids.length > 0) || streak >= 2) && (
             <div className="gl-public-badges">
               {member.is_staff_of_month && (
                 <span title="Staff of the Month" style={{
@@ -597,7 +613,25 @@ const MemberProfileView = ({ member, onBack, badgeTypes }) => {
                   color: '#ffd700', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em',
                 }}>🌟 Staff of the Month</span>
               )}
+              {streak >= 2 && (
+                <span title={`Active ${streak} days in a row`} style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 3,
+                  padding: '3px 10px', borderRadius: 20,
+                  background: 'rgba(255,100,0,0.12)', border: '1px solid rgba(255,100,0,0.35)',
+                  color: '#ff9e57', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em',
+                }}>🔥 {streak} Day Streak</span>
+              )}
               <BadgeRow badgeTypes={badgeTypes} ids={member.visible_badge_ids} size={16} />
+            </div>
+          )}
+
+          {isAnniversaryToday && (
+            <div style={{
+              marginTop: 10, padding: '8px 14px', borderRadius: 10,
+              background: 'rgba(255,215,0,0.08)', border: '1px solid rgba(255,215,0,0.3)',
+              color: '#ffd700', fontSize: '0.8rem', fontWeight: 700, textAlign: 'center',
+            }}>
+              🎉 Joined Nova {anniversaryYears} year{anniversaryYears === 1 ? '' : 's'} ago today!
             </div>
           )}
 
