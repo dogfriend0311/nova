@@ -32,6 +32,8 @@ const DEFAULT_PROFILE = {
   bg_media: [],     // [{ id, url, type: 'video'|'image' }] — cycles through, each video loops
   audio_tracks: [], // [{ id, url, title, artist }] — mini radio playlist, loops
   displayed_badges: [], // badge ids (from nova_badge_types) this member has chosen to show next to their name
+  // guns.lol-style color customization — hex strings, empty = use role default
+  accent_color: '', bg_color: '', text_color: '',
 };
 
 // Old profiles only have the single bg_media_url/audio_url fields. New profiles
@@ -113,10 +115,11 @@ export const RobloxGameCard = ({ placeId, title, note, onRemove }) => {
 // table) — a major contributor to slow page loads. Now it uploads to
 // Supabase Storage like the background/audio fields do, and only a
 // small URL is stored on the profile.
-const ImageField = ({ label, fieldKey, value, onChange, username }) => {
+const ImageField = ({ label, fieldKey, value, onChange, username, aspect }) => {
   const inputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [showUrlInput, setShowUrlInput] = useState(false);
 
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
@@ -143,33 +146,90 @@ const ImageField = ({ label, fieldKey, value, onChange, username }) => {
 
   const isBase64 = value && value.startsWith('data:');
   const hasImage = !!value;
+
   return (
     <div className="form-group mp-image-field">
       <label>{label}</label>
-      <div className="mp-image-upload-row">
-        <input type="text" value={isBase64 ? '' : (value || '')} onChange={(e) => onChange(fieldKey, e.target.value)} placeholder={isBase64 ? '(uploaded file)' : 'Paste image URL…'} style={{ flex: 1 }} />
-        <label className="mp-upload-btn" title="Upload from device" style={{ opacity: uploading ? 0.6 : 1 }}>
-          {uploading ? 'Uploading…' : '📁 Upload'}
-          <input ref={inputRef} type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} disabled={uploading} />
-        </label>
-        {hasImage && !uploading && <button className="mp-upload-clear" onClick={() => onChange(fieldKey, '')} title="Remove image">✕</button>}
+      <div
+        className={`gl-upload-tile${hasImage ? ' has-media' : ''}`}
+        style={{ aspectRatio: aspect || '16/9', opacity: uploading ? 0.6 : 1, position: 'relative' }}
+        onClick={() => !uploading && inputRef.current?.click()}
+      >
+        {hasImage && !isBase64 && (
+          <img src={value} alt="preview" onError={(e) => { e.target.style.display = 'none'; }} />
+        )}
+        {!hasImage && (
+          <>
+            <span className="gl-upload-tile-icon">🖼️</span>
+            <span className="gl-upload-tile-label">{uploading ? 'Uploading…' : 'Click to upload a file'}</span>
+          </>
+        )}
+        {hasImage && (
+          <button
+            className="gl-upload-tile-remove"
+            onClick={(e) => { e.stopPropagation(); onChange(fieldKey, ''); }}
+            title="Remove image"
+          >✕</button>
+        )}
+        <input ref={inputRef} type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} disabled={uploading} />
       </div>
+
+      <button
+        type="button"
+        onClick={() => setShowUrlInput(s => !s)}
+        style={{ background: 'none', border: 'none', color: 'var(--gl-accent, #6c5ce7)', fontSize: '0.72rem', cursor: 'pointer', padding: '6px 0 0', fontWeight: 700 }}
+      >
+        {showUrlInput ? '– Hide URL field' : '+ Paste a URL instead'}
+      </button>
+      {showUrlInput && (
+        <input
+          type="text"
+          value={isBase64 ? '' : (value || '')}
+          onChange={(e) => onChange(fieldKey, e.target.value)}
+          placeholder={isBase64 ? '(uploaded file)' : 'Paste image URL…'}
+          style={{ marginTop: 6 }}
+        />
+      )}
+
       {error && <div style={{ color: '#ff6b7a', fontSize: '0.75rem', marginTop: 4 }}>⚠ {error}</div>}
       {isBase64 && (
         <div style={{ fontSize: '0.72rem', color: 'rgba(255,180,80,0.7)', marginTop: 4 }}>
           This image is stored the old (slower) way — re-upload it to speed up your page for visitors.
         </div>
       )}
-      {hasImage && (
-        <div className="mp-image-preview-wrap">
-          <img src={value} alt="preview" className="mp-image-preview" onError={(e) => { e.target.style.display = 'none'; }} />
-        </div>
-      )}
     </div>
   );
 };
 
-// ── Shared upload helper (guns.lol-style backgrounds/audio) ───
+// ── Color customization field (guns.lol-style swatch + hex row) ──
+const ColorField = ({ label, fieldKey, value, onChange, defaultSwatch }) => {
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(value || '') ? value : (defaultSwatch || '#000000');
+  return (
+    <div className="gl-color-row">
+      <div>
+        <div className="gl-color-row-label">{label}</div>
+        <div className="gl-color-row-hint">{value ? value.toUpperCase() : 'Using default'}</div>
+      </div>
+      <div className="gl-color-row-controls">
+        <label className="gl-color-swatch" style={{ background: hex }}>
+          <input type="color" value={hex} onChange={(e) => onChange(fieldKey, e.target.value)} />
+        </label>
+        <input
+          type="text"
+          className="gl-color-hex-input"
+          value={value || ''}
+          onChange={(e) => onChange(fieldKey, e.target.value)}
+          placeholder={defaultSwatch || '#000000'}
+        />
+        {value && (
+          <button className="gl-upload-tile-remove" style={{ position: 'static' }} onClick={() => onChange(fieldKey, '')} title="Reset to default">✕</button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+
 // These files can be large, so they upload straight to Vercel Blob
 // storage (browser → Blob directly, bypassing serverless body limits)
 // and only the resulting URL is saved on the profile.
@@ -237,29 +297,32 @@ const MultiBgUploadField = ({ username, list, onChange, hint }) => {
     <div className="form-group mp-image-field">
       <label>Page Backgrounds (video or image — add as many as you want)</label>
       {hint && <small style={{ color: 'rgba(158,165,196,0.4)', fontSize: '0.75rem', display: 'block', marginBottom: 6 }}>{hint}</small>}
-      <div className="mp-image-upload-row">
-        <label className="mp-upload-btn" title="Add a background" style={{ opacity: uploading ? 0.6 : 1 }}>
-          {uploading ? 'Uploading…' : '📁 Add Background'}
+
+      <div className="gl-upload-grid">
+        {list.map((b, i) => (
+          <div key={b.id} className="gl-upload-tile has-media" style={{ position: 'relative' }}>
+            {b.type === 'video'
+              ? <video src={b.url} muted loop playsInline />
+              : <img src={b.url} alt={`Background ${i + 1}`} onError={(e) => { e.target.style.display = 'none'; }} />}
+            <button className="gl-upload-tile-remove" onClick={() => remove(b.id)} title="Remove">✕</button>
+            <span style={{
+              position: 'absolute', bottom: 6, left: 6, padding: '2px 8px', borderRadius: 20,
+              background: 'rgba(0,0,0,0.65)', fontSize: '0.65rem', fontWeight: 700, color: '#e4defc',
+            }}>{b.type === 'video' ? '🎬 video' : '🖼️ image'}</span>
+          </div>
+        ))}
+
+        <label className="gl-upload-tile" style={{ opacity: uploading ? 0.6 : 1 }}>
+          <span className="gl-upload-tile-icon">＋</span>
+          <span className="gl-upload-tile-label">{uploading ? 'Uploading…' : 'Add Background'}</span>
           <input ref={inputRef} type="file" accept="video/*,image/*" onChange={handleFile} style={{ display: 'none' }} disabled={uploading} />
         </label>
       </div>
-      {error && <div style={{ color: '#ff6b7a', fontSize: '0.75rem', marginTop: 4 }}>⚠ {error}</div>}
-      {list.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
-          {list.map((b, i) => (
-            <div key={b.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.15)', borderRadius: 6 }}>
-              <span style={{ fontSize: '0.9rem' }}>{b.type === 'video' ? '🎬' : '🖼️'}</span>
-              <span style={{ flex: 1, fontSize: '0.78rem', color: 'rgba(158,165,196,0.6)' }}>
-                Background {i + 1} ({b.type})
-              </span>
-              <button onClick={() => remove(b.id)} style={{ background: 'none', border: 'none', color: '#ff6b7a', cursor: 'pointer', fontSize: '0.85rem' }}>✕ Remove</button>
-            </div>
-          ))}
-          {list.length > 1 && (
-            <div style={{ fontSize: '0.72rem', color: 'rgba(158,165,196,0.4)' }}>
-              These will cycle on your page, looping through each one.
-            </div>
-          )}
+
+      {error && <div style={{ color: '#ff6b7a', fontSize: '0.75rem', marginTop: 8 }}>⚠ {error}</div>}
+      {list.length > 1 && (
+        <div style={{ fontSize: '0.72rem', color: 'rgba(158,165,196,0.4)', marginTop: 8 }}>
+          These will cycle on your page, looping through each one.
         </div>
       )}
     </div>
@@ -296,25 +359,26 @@ const MultiAudioUploadField = ({ username, list, onChange, hint }) => {
     <div className="form-group mp-image-field">
       <label>Profile Audio (add as many tracks as you want — they'll loop like a mini radio)</label>
       {hint && <small style={{ color: 'rgba(158,165,196,0.4)', fontSize: '0.75rem', display: 'block', marginBottom: 6 }}>{hint}</small>}
-      <div className="mp-image-upload-row">
-        <label className="mp-upload-btn" title="Add a track" style={{ opacity: uploading ? 0.6 : 1 }}>
-          {uploading ? 'Uploading…' : '📁 Add Track'}
-          <input ref={inputRef} type="file" accept="audio/*" onChange={handleFile} style={{ display: 'none' }} disabled={uploading} />
-        </label>
-      </div>
-      {error && <div style={{ color: '#ff6b7a', fontSize: '0.75rem', marginTop: 4 }}>⚠ {error}</div>}
+
+      <label className="gl-upload-tile" style={{ minHeight: 80, opacity: uploading ? 0.6 : 1, flexDirection: 'row', gap: 10 }}>
+        <span className="gl-upload-tile-icon" style={{ fontSize: '1.2rem' }}>🎵</span>
+        <span className="gl-upload-tile-label">{uploading ? 'Uploading…' : 'Click to open audio manager'}</span>
+        <input ref={inputRef} type="file" accept="audio/*" onChange={handleFile} style={{ display: 'none' }} disabled={uploading} />
+      </label>
+
+      {error && <div style={{ color: '#ff6b7a', fontSize: '0.75rem', marginTop: 8 }}>⚠ {error}</div>}
       {list.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
           {list.map((t, i) => (
-            <div key={t.id} style={{ padding: '8px 10px', background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.15)', borderRadius: 6 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <span style={{ fontSize: '0.72rem', color: 'rgba(158,165,196,0.35)', width: 16 }}>{i + 1}.</span>
-                <span style={{ flex: 1, fontSize: '0.78rem', color: 'rgba(158,165,196,0.5)' }}>🎵 Uploaded</span>
+            <div key={t.id} style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--gl-line, rgba(255,255,255,0.07))', borderRadius: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span className="gl-social-icon-circle" style={{ width: 26, height: 26, fontSize: '0.7rem' }}>{i + 1}</span>
+                <span style={{ flex: 1, fontSize: '0.78rem', color: 'rgba(220,215,240,0.55)' }}>🎵 Uploaded track</span>
                 <button onClick={() => remove(t.id)} style={{ background: 'none', border: 'none', color: '#ff6b7a', cursor: 'pointer', fontSize: '0.85rem' }}>✕ Remove</button>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
-                <input value={t.title} onChange={(e) => updateField(t.id, 'title', e.target.value)} placeholder="Song title" style={{ flex: 1, padding: '5px 8px', fontSize: '0.78rem', background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 5 }} />
-                <input value={t.artist} onChange={(e) => updateField(t.id, 'artist', e.target.value)} placeholder="Artist" style={{ flex: 1, padding: '5px 8px', fontSize: '0.78rem', background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 5 }} />
+                <input value={t.title} onChange={(e) => updateField(t.id, 'title', e.target.value)} placeholder="Song title" style={{ flex: 1, padding: '5px 8px', fontSize: '0.78rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--gl-line, rgba(255,255,255,0.1))', color: '#e2e5f0', borderRadius: 5 }} />
+                <input value={t.artist} onChange={(e) => updateField(t.id, 'artist', e.target.value)} placeholder="Artist" style={{ flex: 1, padding: '5px 8px', fontSize: '0.78rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--gl-line, rgba(255,255,255,0.1))', color: '#e2e5f0', borderRadius: 5 }} />
               </div>
             </div>
           ))}
@@ -753,7 +817,7 @@ const MemberProfile = () => {
   const [editing,      setEditing]     = useState(false);
   const [activeTab,    setActiveTab]   = useState('badges');
   const [formData,     setFormData]    = useState({});
-  const [favTab,       setFavTab]      = useState(false);
+  const [favTab,       setFavTab]      = useState('overview'); // active edit-dashboard section id
   const [presence,     setPresence]    = useState(() => localStorage.getItem(`nova_presence_${user?.username}`) || 'online');
   const [coins,        setCoins]       = useState(() => parseInt(localStorage.getItem(`nova_coins_${user?.username}`) || '0'));
   const [copied,       setCopied]      = useState(false);
@@ -928,126 +992,285 @@ const MemberProfile = () => {
   if (!profile) return <div style={{ padding: '40px', textAlign: 'center', color: 'rgba(158, 165, 196,0.4)' }}>Loading…</div>;
 
   if (editing) {
+    const NAV = [
+      { id: 'overview',  icon: '◆', label: 'Overview'   },
+      { id: 'profile',   icon: '👤', label: 'Profile'    },
+      { id: 'customize', icon: '🎨', label: 'Customize'  },
+      { id: 'colors',    icon: '🌈', label: 'Colors'     },
+      { id: 'music',     icon: '🎵', label: 'Music'      },
+      { id: 'links',     icon: '🔗', label: 'Links'      },
+      { id: 'badges',    icon: '🏅', label: 'Badges'     },
+      { id: 'teams',     icon: '★', label: 'Teams'      },
+    ];
+    const section = favTab; // reused as a string section id now
+    const linkedSocialsCount = ['twitter_url','twitch_url','youtube_url','instagram_url'].filter(k => formData[k]).length;
+
     return (
-      <div className="page discord-edit-page">
+      <div className="page discord-edit-page gl-scope">
         <div className="page-header">
           <h1 className="gradient-text">Edit Profile</h1>
-          <button className="neon-button" onClick={() => { setEditing(false); setFavTab(false); }}>Cancel</button>
+          <button className="neon-button" onClick={() => { setEditing(false); setFavTab('overview'); }}>Done</button>
         </div>
-        <div className="mp-edit-tabs">
-          <button className={`sh-sub-tab ${!favTab ? 'active' : ''}`} onClick={() => setFavTab(false)}>👤 Profile</button>
-          <button className={`sh-sub-tab ${favTab ? 'active' : ''}`} onClick={() => setFavTab(true)}>★ Favorite Teams</button>
-        </div>
-        {!favTab ? (
-          <div className="neon-card p-3">
-            <ImageField label="Banner Image"          fieldKey="top_banner_url" value={formData.top_banner_url || ''} onChange={handleField} username={user?.username} />
-            <ImageField label="Avatar / Profile Pic"  fieldKey="avatar_url"     value={formData.avatar_url || ''}     onChange={handleField} username={user?.username} />
 
-            <h4 className="gradient-text-cyan" style={{ margin: '20px 0 10px' }}>Badges</h4>
-            {assignedBadgeIds.length === 0 ? (
-              <p style={{ color: 'rgba(158, 165, 196,0.4)', fontSize: '0.82rem', marginBottom: '16px' }}>
-                No badges have been assigned to you yet. Owners and co-founders can assign badges from the dashboard.
-              </p>
-            ) : (
-              <div style={{ marginBottom: '16px' }}>
-                <p style={{ color: 'rgba(158, 165, 196,0.5)', fontSize: '0.82rem', marginBottom: '10px' }}>
-                  Pick which of your badges show up next to your name.
-                </p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-                  {badgeTypes.filter(b => assignedBadgeIds.includes(String(b.id))).map(b => {
-                    const checked = (formData.displayed_badges || []).map(String).includes(String(b.id));
-                    return (
-                      <label key={b.id} style={{
-                        display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer',
-                        padding: '6px 12px', borderRadius: '20px',
-                        border: `1px solid ${checked ? (b.color || '#5e81f4') : 'rgba(94,129,244,0.2)'}`,
-                        background: checked ? `${b.color || '#5e81f4'}18` : 'transparent',
-                        fontSize: '0.82rem', color: checked ? (b.color || '#5e81f4') : 'rgba(158,165,196,0.6)',
-                      }}>
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={(e) => {
-                            const cur = (formData.displayed_badges || []).map(String);
-                            const next = e.target.checked
-                              ? [...cur, String(b.id)]
-                              : cur.filter(id => id !== String(b.id));
-                            setFormData({ ...formData, displayed_badges: next });
-                          }}
-                          style={{ margin: 0 }}
-                        />
-                        <span>{b.icon}</span> {b.name}
-                      </label>
-                    );
-                  })}
+        <div className="gl-dash">
+          {/* ── Sidebar nav, guns.lol style ── */}
+          <div className="gl-dash-sidebar">
+            {NAV.map(n => (
+              <button key={n.id} className={`gl-nav-item ${section === n.id ? 'active' : ''}`} onClick={() => setFavTab(n.id)}>
+                <span className="gl-nav-icon">{n.icon}</span> {n.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="gl-dash-main">
+            {saveError && (
+              <div style={{ padding: '10px 14px', background: 'rgba(255,107,122,0.1)', border: '1px solid rgba(255,107,122,0.35)', borderRadius: 10, color: '#ff8a96', fontSize: '0.82rem', lineHeight: 1.5 }}>
+                ⚠ {saveError}
+                <button onClick={() => setSaveError('')} style={{ marginLeft: 10, background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', textDecoration: 'underline' }}>Dismiss</button>
+              </div>
+            )}
+
+            {/* OVERVIEW */}
+            {section === 'overview' && (
+              <>
+                <div className="gl-panel">
+                  <div className="gl-panel-title">Account Overview</div>
+                  <div className="gl-panel-sub">A quick look at your Nova member page.</div>
+                  <div className="gl-stat-grid">
+                    <div className="gl-stat-card">
+                      <span className="gl-stat-icon">👤</span>
+                      <div className="gl-stat-label">Username</div>
+                      <div className="gl-stat-value" style={{ fontSize: '1rem' }}>{user?.username}</div>
+                      <div className="gl-stat-sub">{roleLabel(user?.role)}</div>
+                    </div>
+                    <div className="gl-stat-card">
+                      <span className="gl-stat-icon">🪙</span>
+                      <div className="gl-stat-label">Coins</div>
+                      <div className="gl-stat-value">{coins.toLocaleString()}</div>
+                      <div className="gl-stat-sub">+1 every 2 minutes online</div>
+                    </div>
+                    <div className="gl-stat-card">
+                      <span className="gl-stat-icon">🏅</span>
+                      <div className="gl-stat-label">Badges</div>
+                      <div className="gl-stat-value">{assignedBadgeIds.length}</div>
+                      <div className="gl-stat-sub">{(formData.displayed_badges || []).length} shown on profile</div>
+                    </div>
+                    <div className="gl-stat-card">
+                      <span className="gl-stat-icon">🔗</span>
+                      <div className="gl-stat-label">Socials</div>
+                      <div className="gl-stat-value">{linkedSocialsCount}/4</div>
+                      <div className="gl-stat-sub">linked accounts</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="gl-panel">
+                  <div className="gl-panel-title">Manage your page</div>
+                  <div className="gl-panel-sub">Jump to a section to customize how your profile looks.</div>
+                  <div className="gl-social-grid">
+                    {NAV.filter(n => n.id !== 'overview').map(n => (
+                      <button key={n.id} className="gl-social-tile" onClick={() => setFavTab(n.id)} style={{ cursor: 'pointer' }}>
+                        <span className="gl-social-icon-circle">{n.icon}</span>
+                        {n.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* PROFILE */}
+            {section === 'profile' && (
+              <div className="gl-panel">
+                <div className="gl-panel-title">Profile</div>
+                <div className="gl-panel-sub">Your name, avatar and about-me text.</div>
+                <ImageField label="Avatar / Profile Pic" fieldKey="avatar_url" value={formData.avatar_url || ''} onChange={handleField} username={user?.username} />
+                <div className="form-group">
+                  <label>About Me</label>
+                  <textarea rows="4" value={formData.bio || ''} onChange={(e) => setFormData({ ...formData, bio: e.target.value })} placeholder="Tell us about yourself…" />
+                </div>
+                <div className="form-group">
+                  <label>Discord Tag</label>
+                  <input type="text" value={formData.discord_tag || ''} onChange={(e) => setFormData({ ...formData, discord_tag: e.target.value })} placeholder="username#0000" />
+                </div>
+                <div className="form-actions">
+                  <button className="neon-button" onClick={handleSave}>Save Profile</button>
                 </div>
               </div>
             )}
 
-            <h4 className="gradient-text-cyan" style={{ margin: '20px 0 10px' }}>Page Customization</h4>
-            <MultiBgUploadField
-              username={user?.username}
-              list={formData.bg_media || []}
-              onChange={(list) => setFormData(prev => ({ ...prev, bg_media: list }))}
-              hint="Shows behind your whole profile, like a guns.lol page. Video loops muted; under 40MB each."
-            />
-            <MultiAudioUploadField
-              username={user?.username}
-              list={formData.audio_tracks || []}
-              onChange={(list) => setFormData(prev => ({ ...prev, audio_tracks: list }))}
-              hint="Plays for visitors to your page like a mini radio. Under 15MB each. Admins can remove tracks from the Owner Dashboard if something's inappropriate."
-            />
-            <div className="form-group">
-              <label>About Me</label>
-              <textarea rows="4" value={formData.bio || ''} onChange={(e) => setFormData({ ...formData, bio: e.target.value })} placeholder="Tell us about yourself…" />
-            </div>
-            <div className="form-group">
-              <label>Discord Tag</label>
-              <input type="text" value={formData.discord_tag || ''} onChange={(e) => setFormData({ ...formData, discord_tag: e.target.value })} placeholder="username#0000" />
-            </div>
-            <div className="form-group">
-              <label>Last.fm Username</label>
-              <input type="text" value={formData.lastfm_username || ''} onChange={(e) => setFormData({ ...formData, lastfm_username: e.target.value })} placeholder="your-lastfm-username" />
-              <small style={{ color: 'rgba(158, 165, 196,0.4)', fontSize: '0.75rem' }}>Shows your now-playing track. Free at last.fm</small>
-            </div>
-            <div className="form-group">
-              <label>Spotify URL</label>
-              <input type="text" value={formData.spotify_url || ''} onChange={(e) => setFormData({ ...formData, spotify_url: e.target.value })} placeholder="https://open.spotify.com/track/..." />
-            </div>
-            <h4 className="gradient-text-cyan" style={{ margin: '20px 0 10px' }}>Socials</h4>
-            {[
-              { key: 'twitter_url',   label: 'Twitter URL'   },
-              { key: 'twitch_url',    label: 'Twitch URL'    },
-              { key: 'youtube_url',   label: 'YouTube URL'   },
-              { key: 'instagram_url', label: 'Instagram URL' },
-            ].map(({ key, label }) => (
-              <div className="form-group" key={key}>
-                <label>{label}</label>
-                <input type="text" value={formData[key] || ''} onChange={(e) => setFormData({ ...formData, [key]: e.target.value })} placeholder="https://…" />
+            {/* CUSTOMIZE — assets uploader, guns.lol style */}
+            {section === 'customize' && (
+              <div className="gl-panel">
+                <div className="gl-panel-title">Assets Uploader</div>
+                <div className="gl-panel-sub">Your page banner and background media — the first thing visitors see.</div>
+                <ImageField label="Banner Image" fieldKey="top_banner_url" value={formData.top_banner_url || ''} onChange={handleField} username={user?.username} />
+                <div style={{ marginTop: 16 }}>
+                  <MultiBgUploadField
+                    username={user?.username}
+                    list={formData.bg_media || []}
+                    onChange={(list) => setFormData(prev => ({ ...prev, bg_media: list }))}
+                    hint="Shows behind your whole profile, like a guns.lol page. Video loops muted; under 40MB each."
+                  />
+                </div>
+                <div className="form-actions">
+                  <button className="neon-button" onClick={handleSave}>Save Profile</button>
+                </div>
               </div>
-            ))}
-            <div className="form-actions">
-              <button className="neon-button" onClick={handleSave}>Save Profile</button>
-              <button className="neon-button" onClick={() => { setEditing(false); setFavTab(false); }}>Cancel</button>
-            </div>
+            )}
+
+            {/* COLORS — guns.lol-style color customization */}
+            {section === 'colors' && (
+              <div className="gl-panel">
+                <div className="gl-panel-title">Color Customization</div>
+                <div className="gl-panel-sub">Override the default role color on your profile card. Leave blank to use the default.</div>
+
+                <ColorField label="Accent Color"     fieldKey="accent_color" value={formData.accent_color} onChange={handleField} defaultSwatch="#6c5ce7" />
+                <ColorField label="Background Color" fieldKey="bg_color"     value={formData.bg_color}     onChange={handleField} defaultSwatch="#09070f" />
+                <ColorField label="Text Color"       fieldKey="text_color"   value={formData.text_color}   onChange={handleField} defaultSwatch="#f5f2ff" />
+
+                {/* Live preview, mirrors the floating public card */}
+                <div
+                  className="gl-color-preview-bar"
+                  style={{
+                    background: formData.bg_color || 'rgba(9,7,16,0.72)',
+                    border: `1px solid ${(formData.accent_color || '#6c5ce7')}55`,
+                    boxShadow: `0 0 30px -8px ${(formData.accent_color || '#6c5ce7')}88`,
+                  }}
+                >
+                  <div style={{
+                    width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
+                    background: `linear-gradient(135deg, ${formData.accent_color || '#6c5ce7'}, rgba(10,8,18,0.9))`,
+                    border: `2px solid ${formData.accent_color || '#6c5ce7'}`,
+                  }} />
+                  <div>
+                    <div style={{ fontWeight: 800, color: formData.text_color || '#f5f2ff', fontFamily: 'var(--font-display)' }}>
+                      {user?.username}
+                    </div>
+                    <div style={{ fontSize: '0.76rem', color: formData.text_color ? `${formData.text_color}99` : 'rgba(220,215,240,0.55)' }}>
+                      Live preview
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-actions">
+                  <button className="neon-button" onClick={handleSave}>Save Profile</button>
+                  <button className="neon-button" onClick={() => setFormData(prev => ({ ...prev, accent_color: '', bg_color: '', text_color: '' }))}>Reset Colors</button>
+                </div>
+              </div>
+            )}
+
+            {/* MUSIC */}
+            {section === 'music' && (
+              <div className="gl-panel">
+                <div className="gl-panel-title">Music</div>
+                <div className="gl-panel-sub">A mini radio that plays for visitors, plus your live now-playing status.</div>
+                <MultiAudioUploadField
+                  username={user?.username}
+                  list={formData.audio_tracks || []}
+                  onChange={(list) => setFormData(prev => ({ ...prev, audio_tracks: list }))}
+                  hint="Plays for visitors to your page like a mini radio. Under 15MB each. Admins can remove tracks from the Owner Dashboard if something's inappropriate."
+                />
+                <div className="form-group" style={{ marginTop: 16 }}>
+                  <label>Last.fm Username</label>
+                  <input type="text" value={formData.lastfm_username || ''} onChange={(e) => setFormData({ ...formData, lastfm_username: e.target.value })} placeholder="your-lastfm-username" />
+                  <small style={{ color: 'rgba(158, 165, 196,0.4)', fontSize: '0.75rem' }}>Shows your now-playing track. Free at last.fm</small>
+                </div>
+                <div className="form-group">
+                  <label>Spotify URL</label>
+                  <input type="text" value={formData.spotify_url || ''} onChange={(e) => setFormData({ ...formData, spotify_url: e.target.value })} placeholder="https://open.spotify.com/track/..." />
+                </div>
+                <div className="form-actions">
+                  <button className="neon-button" onClick={handleSave}>Save Profile</button>
+                </div>
+              </div>
+            )}
+
+            {/* LINKS / SOCIALS */}
+            {section === 'links' && (
+              <div className="gl-panel">
+                <div className="gl-panel-title">Link your social media profiles</div>
+                <div className="gl-panel-sub">Pick a social to add to your profile.</div>
+                {[
+                  { key: 'twitter_url',   label: 'Twitter'   },
+                  { key: 'twitch_url',    label: 'Twitch'    },
+                  { key: 'youtube_url',   label: 'YouTube'   },
+                  { key: 'instagram_url', label: 'Instagram' },
+                ].map(({ key, label }) => (
+                  <div className="form-group" key={key}>
+                    <label>{label} URL</label>
+                    <input type="text" value={formData[key] || ''} onChange={(e) => setFormData({ ...formData, [key]: e.target.value })} placeholder="https://…" />
+                  </div>
+                ))}
+                <div className="form-actions">
+                  <button className="neon-button" onClick={handleSave}>Save Profile</button>
+                </div>
+              </div>
+            )}
+
+            {/* BADGES */}
+            {section === 'badges' && (
+              <div className="gl-panel">
+                <div className="gl-panel-title">Badges</div>
+                <div className="gl-panel-sub">Pick which of your earned badges show up next to your name.</div>
+                {assignedBadgeIds.length === 0 ? (
+                  <p style={{ color: 'rgba(158, 165, 196,0.4)', fontSize: '0.82rem' }}>
+                    No badges have been assigned to you yet. Owners and co-founders can assign badges from the dashboard.
+                  </p>
+                ) : (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                    {badgeTypes.filter(b => assignedBadgeIds.includes(String(b.id))).map(b => {
+                      const checked = (formData.displayed_badges || []).map(String).includes(String(b.id));
+                      return (
+                        <label key={b.id} style={{
+                          display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer',
+                          padding: '6px 12px', borderRadius: '20px',
+                          border: `1px solid ${checked ? (b.color || '#6c5ce7') : 'rgba(255,255,255,0.12)'}`,
+                          background: checked ? `${b.color || '#6c5ce7'}18` : 'transparent',
+                          fontSize: '0.82rem', color: checked ? (b.color || '#6c5ce7') : 'rgba(220,215,240,0.55)',
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              const cur = (formData.displayed_badges || []).map(String);
+                              const next = e.target.checked
+                                ? [...cur, String(b.id)]
+                                : cur.filter(id => id !== String(b.id));
+                              setFormData({ ...formData, displayed_badges: next });
+                            }}
+                            style={{ margin: 0 }}
+                          />
+                          <span>{b.icon}</span> {b.name}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                <div className="form-actions">
+                  <button className="neon-button" onClick={handleSave}>Save Profile</button>
+                </div>
+              </div>
+            )}
+
+            {/* TEAMS */}
+            {section === 'teams' && (
+              <div className="gl-panel">
+                <div className="gl-panel-title">Favorite Teams</div>
+                <div className="gl-panel-sub">Pick your favorite teams. You can select multiple per sport.</div>
+                <TeamSelector
+                  favTeams={formData.fav_teams || DEFAULT_FAV_TEAMS}
+                  onChange={(ft) => setFormData({ ...formData, fav_teams: ft })}
+                  favTeamNotifs={formData.fav_team_notifs || {}}
+                  onNotifsChange={(fn) => setFormData({ ...formData, fav_team_notifs: fn })}
+                />
+                <div className="form-actions" style={{ marginTop: '20px' }}>
+                  <button className="neon-button" onClick={handleSave}>Save</button>
+                </div>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="neon-card p-3">
-            <p style={{ color: 'rgba(158, 165, 196,0.5)', fontSize: '0.85rem', marginBottom: '16px' }}>
-              Pick your favorite teams. You can select multiple per sport.
-            </p>
-            <TeamSelector
-              favTeams={formData.fav_teams || DEFAULT_FAV_TEAMS}
-              onChange={(ft) => setFormData({ ...formData, fav_teams: ft })}
-              favTeamNotifs={formData.fav_team_notifs || {}}
-              onNotifsChange={(fn) => setFormData({ ...formData, fav_team_notifs: fn })}
-            />
-            <div className="form-actions" style={{ marginTop: '20px' }}>
-              <button className="neon-button" onClick={handleSave}>Save</button>
-              <button className="neon-button" onClick={() => { setEditing(false); setFavTab(false); }}>Cancel</button>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
     );
   }
@@ -1071,8 +1294,12 @@ const MemberProfile = () => {
 
   const SI = { padding: '10px', background: 'rgba(94, 129, 244,0.05)', border: '1px solid rgba(94, 129, 244,0.2)', color: '#e2e5f0', borderRadius: '6px', width: '100%', marginBottom: '8px' };
 
+  const presenceMap = { online: { label: 'Online', color: '#43b581' }, idle: { label: 'Do Not Disturb', color: '#f04747' }, offline: { label: 'Invisible', color: '#747f8d' } };
+  const rc = profile.accent_color || equippedTheme?.css?.accent || '#6c5ce7';
+  const rg = `${rc}77`;
+
   return (
-    <div className="tw-page" style={equippedTheme?.css ? { background: equippedTheme.css.cardBg, '--tw-theme-accent': equippedTheme.css.accent } : undefined}>
+    <div className="tw-page gl-scope" style={equippedTheme?.css ? { background: equippedTheme.css.cardBg, '--tw-theme-accent': equippedTheme.css.accent } : undefined}>
       {saveError && (
         <div style={{
           position: 'relative', zIndex: 10, margin: '12px', padding: '10px 14px',
@@ -1090,71 +1317,87 @@ const MemberProfile = () => {
       <ProfileBackground list={effectiveBgList(profile)} />
       <ProfileAudioPlayer list={effectiveAudioList(profile)} />
 
-      {/* Banner */}
-      <div className="tw-banner" style={{ backgroundImage: profile.top_banner_url ? `url(${profile.top_banner_url})` : undefined }}>
-        <div className="tw-avatar-wrap">
-          <div className="tw-avatar">
-            {profile.avatar_url ? <img src={profile.avatar_url} alt="avatar" /> : '🚀'}
-          </div>
-        </div>
-      </div>
-
       {/* Actions */}
-      <div className="tw-action-row">
+      <div className="tw-action-row" style={{ paddingTop: 16 }}>
         <button className="neon-button" onClick={() => setEditing(true)}>Edit Profile</button>
         <button
           className="neon-button"
           onClick={shareProfile}
-          style={{ fontSize: '0.82rem', padding: '8px 14px', borderColor: copied ? '#00ff88' : 'rgba(94, 129, 244,0.3)', color: copied ? '#00ff88' : 'rgba(158, 165, 196,0.7)' }}
+          style={{ fontSize: '0.82rem', padding: '8px 14px', borderColor: copied ? '#00ff88' : 'rgba(108,92,231,0.35)', color: copied ? '#00ff88' : 'rgba(220,215,240,0.7)' }}
         >
           {copied ? '✓ Copied!' : '🔗 Share Profile'}
         </button>
       </div>
 
-      {/* Info */}
-      <div className="tw-info">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <h2 className="tw-name" style={equippedTheme?.css?.accent ? { color: equippedTheme.css.accent } : undefined}>{profile.username}</h2>
-          {isStaffOfMonth && (
-            <span title="Staff of the Month" style={{
-              display: 'inline-flex', alignItems: 'center', gap: 3,
-              padding: '3px 10px', borderRadius: 20,
-              background: 'rgba(255,158,87,0.15)', border: '1px solid rgba(255,158,87,0.4)',
-              color: '#ffd700', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em',
-            }}>🌟 Staff of the Month</span>
-          )}
-          <BadgeRow
-            badgeTypes={badgeTypes}
-            ids={(profile.displayed_badges || []).filter(id => assignedBadgeIds.includes(String(id)))}
-            size={16}
-          />
-          <span className={`tw-role-badge ${user?.role || 'member'}`}>{roleLabel(user?.role)}</span>
-          <LevelBadge username={profile.username} size="sm" />
-        </div>
-        <p className="tw-handle">@{profile.username}</p>
+      {/* Floating glow profile card, guns.lol style */}
+      <div className="gl-public-card-wrap" style={{ paddingTop: 20 }}>
+        <div
+          className="gl-public-card"
+          style={{
+            '--gl-role-color': rc, '--gl-role-glow': rg, '--gl-role-border': `${rc}55`,
+            width: '100%',
+            background: profile.bg_color || undefined,
+          }}
+        >
+          <div className="gl-public-avatar-row">
+            <div className="gl-public-avatar">
+              {profile.avatar_url ? <img src={profile.avatar_url} alt="avatar" /> : '🚀'}
+            </div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div className="gl-public-name-row">
+                <span className="gl-public-name" style={{ color: profile.text_color || equippedTheme?.css?.accent || undefined }}>{profile.username}</span>
+                <span className="gl-public-diamond">◆</span>
+                <LevelBadge username={profile.username} size="sm" />
+              </div>
+              <div className="gl-public-sub" style={{ color: profile.text_color ? `${profile.text_color}99` : undefined }}>@{profile.username} · {roleLabel(user?.role)}</div>
+              <div className="gl-public-joined">
+                <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', marginRight: 5, background: presenceMap[presence]?.color, boxShadow: `0 0 6px ${presenceMap[presence]?.color}` }} />
+                {presenceMap[presence]?.label}
+              </div>
+            </div>
+          </div>
 
-        {/* Presence toggle */}
-        <div className="tw-status-row">
-          {[
-            { key: 'online',  label: 'Online',          color: '#43b581' },
-            { key: 'idle',    label: 'Do Not Disturb',  color: '#f04747' },
-            { key: 'offline', label: 'Invisible',        color: '#747f8d' },
-          ].map(({ key, label, color }) => (
-            <button key={key} className="tw-presence-btn"
-              onClick={() => changePresence(key)}
-              style={{ borderColor: presence === key ? color : 'rgba(100,120,200,0.2)', color: presence === key ? color : 'rgba(158, 165, 196,0.4)', background: presence === key ? `${color}18` : 'transparent' }}>
-              <span className="tw-presence-dot" style={{ background: presence === key ? color : 'rgba(100,120,200,0.3)' }} />
-              {label}
-            </button>
-          ))}
-          <div className="tw-coins">
-            <span>Coins:</span>
-            <span>{coins.toLocaleString()}</span>
+          <div className="gl-public-badges">
+            {isStaffOfMonth && (
+              <span title="Staff of the Month" style={{
+                display: 'inline-flex', alignItems: 'center', gap: 3,
+                padding: '3px 10px', borderRadius: 20,
+                background: 'rgba(255,158,87,0.15)', border: '1px solid rgba(255,158,87,0.4)',
+                color: '#ffd700', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em',
+              }}>🌟 Staff of the Month</span>
+            )}
+            <BadgeRow
+              badgeTypes={badgeTypes}
+              ids={(profile.displayed_badges || []).filter(id => assignedBadgeIds.includes(String(id)))}
+              size={16}
+            />
+          </div>
+
+          {profile.bio && <p className="gl-public-bio" style={{ color: profile.text_color ? `${profile.text_color}cc` : undefined }}>{profile.bio}</p>}
+
+          {/* Presence toggle */}
+          <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+            <div className="gl-panel-sub" style={{ marginBottom: 8 }}>Status</div>
+            <div className="tw-status-row" style={{ margin: 0 }}>
+              {Object.entries(presenceMap).map(([key, { label, color }]) => (
+                <button key={key} className="tw-presence-btn"
+                  onClick={() => changePresence(key)}
+                  style={{ borderColor: presence === key ? color : 'rgba(255,255,255,0.12)', color: presence === key ? color : 'rgba(220,215,240,0.4)', background: presence === key ? `${color}18` : 'transparent' }}>
+                  <span className="tw-presence-dot" style={{ background: presence === key ? color : 'rgba(255,255,255,0.2)' }} />
+                  {label}
+                </button>
+              ))}
+              <div className="tw-coins">
+                <span>Coins:</span>
+                <span>{coins.toLocaleString()}</span>
+              </div>
+            </div>
           </div>
         </div>
+      </div>
 
-        {profile.bio && <p className="tw-bio">{profile.bio}</p>}
-
+      {/* Info */}
+      <div className="tw-info" style={{ padding: '0 20px' }}>
         {profile.roblox_username && <RobloxLinkCard username={profile.roblox_username} />}
 
         {socials.length > 0 && (

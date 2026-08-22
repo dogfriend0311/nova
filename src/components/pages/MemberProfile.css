@@ -138,3 +138,163 @@
   0%,100% { opacity:1; transform:scale(1); }
   50% { opacity:0.4; transform:scale(0.8); }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   guns.lol-inspired layer — glowing violet dashboard + floating
+   profile card. Scoped under .gl-* so it never touches the rest
+   of the app. Uses the site's existing --color-purple accent.
+══════════════════════════════════════════════════════════════ */
+.gl-scope {
+  --gl-accent: var(--color-purple, #6c5ce7);
+  --gl-accent-soft: rgba(108, 92, 231, 0.14);
+  --gl-accent-border: rgba(108, 92, 231, 0.35);
+  --gl-panel-bg: #0d0a17;
+  --gl-panel-bg-2: #120c1f;
+  --gl-line: rgba(255,255,255,0.07);
+  --gl-text-dim: rgba(190, 185, 210, 0.55);
+}
+
+/* ── Dashboard shell: sidebar + content, like guns.lol settings ── */
+.gl-dash { display:flex; gap:22px; align-items:flex-start; }
+.gl-dash-sidebar {
+  width:196px; flex-shrink:0; display:flex; flex-direction:column; gap:4px;
+  background:var(--gl-panel-bg); border:1px solid var(--gl-line); border-radius:14px;
+  padding:10px; position:sticky; top:12px;
+}
+.gl-nav-item {
+  display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+  padding:10px 12px; border-radius:9px; border:1px solid transparent; background:none;
+  color:rgba(210,205,230,0.65); font-size:0.85rem; font-weight:600; cursor:pointer;
+  transition:all 0.15s;
+}
+.gl-nav-item:hover { background:rgba(255,255,255,0.04); color:#f1eef9; }
+.gl-nav-item.active {
+  background:linear-gradient(90deg, var(--gl-accent-soft), rgba(108,92,231,0.03));
+  border-color:var(--gl-accent-border); color:#e4defc;
+  box-shadow: inset 2px 0 0 var(--gl-accent);
+}
+.gl-nav-icon { font-size:1rem; width:20px; text-align:center; flex-shrink:0; }
+.gl-dash-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:18px; }
+
+@media (max-width: 720px) {
+  .gl-dash { flex-direction:column; }
+  .gl-dash-sidebar { width:100%; flex-direction:row; overflow-x:auto; position:static; scrollbar-width:none; }
+  .gl-dash-sidebar::-webkit-scrollbar { display:none; }
+  .gl-nav-item { flex-shrink:0; white-space:nowrap; }
+  .gl-nav-item.active { box-shadow: inset 0 -2px 0 var(--gl-accent); }
+}
+
+/* ── Stat cards (guns.lol "Account Overview") ── */
+.gl-stat-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(130px,1fr)); gap:10px; }
+.gl-stat-card {
+  background:linear-gradient(160deg, rgba(108,92,231,0.13), rgba(108,92,231,0.03));
+  border:1px solid var(--gl-accent-border); border-radius:13px; padding:14px 16px;
+  position:relative; overflow:hidden;
+}
+.gl-stat-card .gl-stat-icon { position:absolute; top:12px; right:14px; opacity:0.55; font-size:0.95rem; }
+.gl-stat-label { font-size:0.68rem; font-weight:800; letter-spacing:0.07em; text-transform:uppercase; color:rgba(220,215,240,0.55); margin:0 0 6px; }
+.gl-stat-value { font-size:1.3rem; font-weight:900; color:#f4f1fb; margin:0 0 2px; letter-spacing:-0.01em; }
+.gl-stat-sub { font-size:0.72rem; color:var(--gl-text-dim); margin:0; }
+
+/* ── Panels ── */
+.gl-panel { background:var(--gl-panel-bg); border:1px solid var(--gl-line); border-radius:14px; padding:20px; }
+.gl-panel-title { font-size:0.98rem; font-weight:800; color:#f1eef9; margin:0 0 4px; }
+.gl-panel-sub { font-size:0.78rem; color:var(--gl-text-dim); margin:0 0 16px; }
+.gl-panel + .gl-panel { margin-top:0; }
+
+/* ── Upload tiles (Assets Uploader look) ── */
+.gl-upload-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:14px; }
+.gl-upload-tile {
+  border:1px dashed rgba(255,255,255,0.14); border-radius:12px; background:rgba(255,255,255,0.02);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+  min-height:120px; padding:14px; cursor:pointer; transition:all 0.15s; text-align:center;
+}
+.gl-upload-tile:hover { border-color:var(--gl-accent-border); background:var(--gl-accent-soft); }
+.gl-upload-tile-label { font-size:0.65rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:rgba(220,215,240,0.5); }
+.gl-upload-tile-icon { font-size:1.4rem; opacity:0.7; }
+.gl-upload-tile-hint { font-size:0.74rem; color:rgba(220,215,240,0.4); }
+.gl-upload-tile.has-media { border-style:solid; border-color:var(--gl-accent-border); padding:0; overflow:hidden; aspect-ratio:16/9; min-height:0; }
+.gl-upload-tile.has-media img, .gl-upload-tile.has-media video { width:100%; height:100%; object-fit:cover; display:block; }
+.gl-upload-tile-remove {
+  position:absolute; top:6px; right:6px; width:22px; height:22px; border-radius:6px;
+  background:rgba(0,0,0,0.65); border:1px solid rgba(255,80,90,0.5); color:#ff8a96;
+  font-size:0.72rem; cursor:pointer; display:flex; align-items:center; justify-content:center;
+}
+
+/* ── Section list rows (Links / socials grid) ── */
+.gl-social-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(78px,1fr)); gap:10px; }
+.gl-social-tile {
+  display:flex; flex-direction:column; align-items:center; gap:6px; padding:12px 6px;
+  border-radius:11px; border:1px solid var(--gl-line); background:rgba(255,255,255,0.02);
+  font-size:0.68rem; font-weight:700; color:rgba(220,215,240,0.55); transition:all 0.15s;
+}
+.gl-social-tile.linked { border-color:var(--gl-accent-border); background:var(--gl-accent-soft); color:#e4defc; }
+.gl-social-icon-circle {
+  width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-size:1.05rem; background:rgba(255,255,255,0.06);
+}
+
+/* ── Toggle-style pill switches (presence, style) ── */
+.gl-toggle-row { display:flex; align-items:center; justify-content:space-between; padding:11px 0; border-bottom:1px solid var(--gl-line); gap:14px; }
+.gl-toggle-row:last-child { border-bottom:none; }
+.gl-toggle-label { font-size:0.85rem; font-weight:700; color:#e9e6f4; }
+.gl-toggle-desc { font-size:0.74rem; color:var(--gl-text-dim); margin-top:2px; }
+.gl-switch { position:relative; width:42px; height:24px; border-radius:999px; border:none; cursor:pointer; background:rgba(255,255,255,0.12); transition:background 0.18s; flex-shrink:0; }
+.gl-switch.on { background:var(--gl-accent); }
+.gl-switch::after { content:''; position:absolute; top:3px; left:3px; width:18px; height:18px; border-radius:50%; background:#fff; transition:transform 0.18s; box-shadow:0 1px 3px rgba(0,0,0,0.4); }
+.gl-switch.on::after { transform:translateX(18px); }
+
+/* ── Floating public profile card (guns.lol live-page look) ── */
+.gl-public-card-wrap { padding:36px 14px 60px; display:flex; justify-content:center; }
+.gl-public-card {
+  width:100%; max-width:460px; border-radius:22px; padding:26px 24px 22px;
+  background:rgba(9,7,16,0.72); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border:1px solid var(--gl-role-border, var(--gl-accent-border));
+  box-shadow:0 0 0 1px rgba(255,255,255,0.03), 0 20px 60px -12px rgba(0,0,0,0.7), 0 0 46px -12px var(--gl-role-glow, rgba(108,92,231,0.55));
+  position:relative;
+}
+.gl-public-avatar-row { display:flex; align-items:center; gap:16px; }
+.gl-public-avatar {
+  width:74px; height:74px; border-radius:50%; flex-shrink:0; overflow:hidden;
+  display:flex; align-items:center; justify-content:center; font-weight:900; font-size:1.6rem;
+  background:linear-gradient(135deg, var(--gl-role-color, var(--gl-accent)) , rgba(10,8,18,0.9));
+  border:2.5px solid var(--gl-role-color, var(--gl-accent));
+  box-shadow:0 0 0 3px rgba(9,7,16,0.9), 0 0 22px -2px var(--gl-role-glow, rgba(108,92,231,0.65));
+}
+.gl-public-avatar img { width:100%; height:100%; object-fit:cover; }
+.gl-public-name-row { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+.gl-public-name { font-family:var(--font-display); font-size:1.28rem; font-weight:800; color:#f5f2ff; letter-spacing:0.01em; text-shadow:0 0 18px var(--gl-role-glow, rgba(108,92,231,0.5)); }
+.gl-public-diamond { color:var(--gl-role-color, var(--gl-accent)); filter:drop-shadow(0 0 6px var(--gl-role-glow, rgba(108,92,231,0.7))); font-size:1rem; }
+.gl-public-sub { font-size:0.83rem; color:rgba(220,215,240,0.55); margin-top:2px; }
+.gl-public-joined { font-size:0.72rem; color:rgba(220,215,240,0.35); margin-top:1px; }
+.gl-public-bio { margin:14px 0 0; font-size:0.86rem; line-height:1.55; color:rgba(228,224,246,0.82); }
+.gl-public-meta-row { display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-top:16px; padding-top:14px; border-top:1px solid rgba(255,255,255,0.07); }
+.gl-public-meta-item { display:flex; align-items:center; gap:6px; font-size:0.76rem; color:rgba(220,215,240,0.45); font-weight:600; }
+.gl-public-badges { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:10px; }
+
+@media (max-width:520px) {
+  .gl-public-card { padding:20px 18px 18px; border-radius:18px; }
+  .gl-public-avatar { width:64px; height:64px; }
+}
+
+/* ── Color customization rows (guns.lol Color Customization panel) ── */
+.gl-color-row { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:13px 0; border-bottom:1px solid var(--gl-line); }
+.gl-color-row:last-child { border-bottom:none; }
+.gl-color-row-label { font-size:0.85rem; font-weight:700; color:#e9e6f4; }
+.gl-color-row-hint { font-size:0.72rem; color:var(--gl-text-dim); margin-top:2px; font-family:monospace; letter-spacing:0.02em; }
+.gl-color-row-controls { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.gl-color-swatch { position:relative; width:34px; height:34px; border-radius:9px; border:1px solid rgba(255,255,255,0.18); cursor:pointer; overflow:hidden; flex-shrink:0; box-shadow:inset 0 0 0 2px rgba(0,0,0,0.25); }
+.gl-color-swatch input[type="color"] { position:absolute; inset:-4px; width:calc(100% + 8px); height:calc(100% + 8px); border:none; padding:0; cursor:pointer; opacity:0; }
+.gl-color-hex-input { width:96px; padding:8px 10px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.14); border-radius:8px; color:#e7e9ea; font-size:0.8rem; font-family:monospace; outline:none; }
+.gl-color-hex-input:focus { border-color:var(--gl-accent); }
+.gl-color-preview-bar { margin-top:16px; padding:16px; border-radius:12px; display:flex; align-items:center; gap:12px; }
+
+/* ── Recolor shared .tw-* chrome to the violet accent when nested
+   inside the guns.lol-styled scope, without touching it elsewhere ── */
+.gl-scope .tw-tab.active { color:#f1eef9; border-bottom-color:var(--gl-accent); }
+.gl-scope .tw-tab:hover { color:rgba(230,225,250,0.85); }
+.gl-scope .tw-section-title { color:rgba(220,215,240,0.45); }
+.gl-scope .tw-social-link:hover { color:var(--gl-accent-light, #8b7ff0); }
+.gl-scope .tw-np-live, .gl-scope .tw-np-pulse { color:var(--gl-accent); background:var(--gl-accent); }
+.gl-scope .neon-button { border-color:rgba(108,92,231,0.35); }
+.gl-scope .neon-button:hover { border-color:var(--gl-accent); box-shadow:0 0 16px -4px rgba(108,92,231,0.6); }

@@ -493,8 +493,8 @@ const MemberProfileView = ({ member, onBack, badgeTypes }) => {
   const users      = JSON.parse(localStorage.getItem('nova_users') || '[]');
   const userRecord = users.find(u => u.username === member.username);
   const role       = userRecord?.role || member.role || 'member';
-  const rc         = roleColor(role);
-  const rg         = roleGlow(role);
+  const rc         = member.accent_color || roleColor(role);
+  const rg         = member.accent_color ? `${member.accent_color}77` : roleGlow(role);
 
   const savedUser   = JSON.parse(localStorage.getItem('nova_user') || 'null');
   const currentUser = savedUser?.username || null;
@@ -504,7 +504,6 @@ const MemberProfileView = ({ member, onBack, badgeTypes }) => {
 
   const [viewTab, setViewTab] = useState('overview');
   const [copied,  setCopied]  = useState(false);
-  const [bannerLoaded, setBannerLoaded] = useState(false);
 
   const favGames       = member.fav_games || [];
   const presenceStatus = localStorage.getItem(`nova_presence_${member.username}`) || 'online';
@@ -535,111 +534,81 @@ const MemberProfileView = ({ member, onBack, badgeTypes }) => {
   const sportsGames = favGames.filter(g => !g.placeId);
 
   return (
-    <div style={{ maxWidth: 680, margin: '0 auto', paddingBottom: 60 }}>
+    <div className="gl-scope" style={{ maxWidth: 680, margin: '0 auto', paddingBottom: 60 }}>
       <ProfileBackground list={effectiveBgList(member)} />
       <ProfileAudioPlayer list={effectiveAudioList(member)} />
 
       {/* Back + share row */}
-      <div style={{ display: 'flex', gap: 10, padding: '0 12px 16px', flexWrap: 'wrap', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 10, padding: '16px 12px 0', flexWrap: 'wrap', alignItems: 'center' }}>
         <button onClick={onBack}
-          style={{ padding: '9px 18px', background: 'rgba(94,129,244,0.08)', border: '1px solid rgba(94,129,244,0.25)', color: 'rgba(158,165,196,0.8)', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.83rem', minHeight: 40 }}>
+          style={{ padding: '9px 18px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(220,215,240,0.8)', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.83rem', minHeight: 40 }}>
           ← Back
         </button>
         <button onClick={() => copyToClipboard(shareUrl, setCopied)}
-          style={{ padding: '9px 16px', background: copied ? 'rgba(0,255,136,0.07)' : 'rgba(94,129,244,0.06)', border: `1px solid ${copied ? 'rgba(0,255,136,0.4)' : 'rgba(94,129,244,0.18)'}`, color: copied ? '#00ff88' : 'rgba(158,165,196,0.5)', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', minHeight: 40, transition: 'all 0.2s' }}>
+          style={{ padding: '9px 16px', background: copied ? 'rgba(0,255,136,0.07)' : 'rgba(108,92,231,0.08)', border: `1px solid ${copied ? 'rgba(0,255,136,0.4)' : 'rgba(108,92,231,0.3)'}`, color: copied ? '#00ff88' : 'rgba(220,215,240,0.7)', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', minHeight: 40, transition: 'all 0.2s' }}>
           {copied ? '✓ Copied!' : '🔗 Share'}
         </button>
         {currentUser && currentUser !== member.username && (
           <button onClick={() => { window.location.hash = `#messages/${member.username}`; }}
-            style={{ padding: '9px 16px', background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.18)', color: 'rgba(158,165,196,0.8)', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', minHeight: 40 }}>
+            style={{ padding: '9px 16px', background: 'rgba(108,92,231,0.08)', border: '1px solid rgba(108,92,231,0.3)', color: 'rgba(220,215,240,0.8)', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', minHeight: 40 }}>
             💬 Message
           </button>
         )}
       </div>
 
-      {/* Banner */}
-      <div style={{
-        width: '100%', height: 200, position: 'relative', overflow: 'hidden',
-        background: member.top_banner_url ? (bannerLoaded ? `url(${member.top_banner_url}) center/cover no-repeat` : defaultBanner(role)) : defaultBanner(role),
-      }}>
-        {member.top_banner_url && (
-          <img src={member.top_banner_url} alt="" style={{ display: 'none' }} onLoad={() => setBannerLoaded(true)} />
-        )}
-        {/* Bottom fade */}
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 40%, #0a0d1a 100%)' }} />
-        {/* Subtle scanlines */}
-        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.08), rgba(0,0,0,0.08) 1px, transparent 1px, transparent 3px)', pointerEvents: 'none' }} />
-      </div>
-
-      {/* Avatar area */}
-      <div style={{ padding: '0 20px', position: 'relative' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-          <div style={{
-            width: 96, height: 96, borderRadius: '50%',
-            border: `4px solid ${rc}`,
-            boxShadow: `0 0 0 3px #0a0d1a, 0 0 20px ${rg}`,
-            background: `linear-gradient(135deg, ${rc}33, rgba(10,13,26,0.9))`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            overflow: 'hidden', marginTop: -48, flexShrink: 0, position: 'relative', zIndex: 1,
-          }}>
-            {member.avatar_url
-              ? <img src={member.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              : <span style={{ color: rc, fontWeight: 900, fontSize: '2rem', fontFamily: 'var(--font-display)' }}>
-                  {(member.username?.[0] || '?').toUpperCase()}
-                </span>
-            }
+      {/* Floating glow profile card, guns.lol style */}
+      <div className="gl-public-card-wrap">
+        <div
+          className="gl-public-card"
+          style={{
+            '--gl-role-color': rc, '--gl-role-glow': rg, '--gl-role-border': `${rc}55`,
+            background: member.bg_color || undefined,
+          }}
+        >
+          <div className="gl-public-avatar-row">
+            <div className="gl-public-avatar">
+              {member.avatar_url
+                ? <img src={member.avatar_url} alt="" />
+                : (member.username?.[0] || '?').toUpperCase()}
+            </div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div className="gl-public-name-row">
+                <span className="gl-public-name" style={{ color: member.text_color || undefined }}>{member.username}</span>
+                <span className="gl-public-diamond">◆</span>
+              </div>
+              <div className="gl-public-sub" style={{ color: member.text_color ? `${member.text_color}99` : undefined }}>{roleLabel(role)}{member.bio ? ` · ${member.bio.slice(0, 40)}${member.bio.length > 40 ? '…' : ''}` : ''}</div>
+              <div className="gl-public-joined">
+                <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', marginRight: 5, background: isOnline ? presenceDot : 'rgba(220,215,240,0.3)', boxShadow: isOnline ? `0 0 6px ${presenceDot}` : 'none' }} />
+                {presenceTxt}
+              </div>
+            </div>
           </div>
 
-          {/* Social links top-right */}
-          {socials.length > 0 && (
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingBottom: 4 }}>
-              {socials.map(s => (
-                <a key={s.key} href={member[s.key]} target="_blank" rel="noreferrer"
-                  style={{ width: 36, height: 36, borderRadius: 8, background: `${s.color}14`, border: `1px solid ${s.color}35`, color: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', fontSize: '0.9rem', transition: 'all 0.15s' }}>
-                  {s.icon}
-                </a>
-              ))}
+          {(member.is_staff_of_month || (member.visible_badge_ids && member.visible_badge_ids.length > 0)) && (
+            <div className="gl-public-badges">
+              {member.is_staff_of_month && (
+                <span title="Staff of the Month" style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 3,
+                  padding: '3px 10px', borderRadius: 20,
+                  background: 'rgba(255,158,87,0.15)', border: '1px solid rgba(255,158,87,0.4)',
+                  color: '#ffd700', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em',
+                }}>🌟 Staff of the Month</span>
+              )}
+              <BadgeRow badgeTypes={badgeTypes} ids={member.visible_badge_ids} size={16} />
             </div>
           )}
-        </div>
 
-        {/* Name / role / presence */}
-        <div style={{ marginTop: 14, marginBottom: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 900, color: '#ffffff', margin: 0, letterSpacing: '-0.01em' }}>
-              {member.username}
-            </h2>
-            {member.is_staff_of_month && (
-              <span title="Staff of the Month" style={{
-                display: 'inline-flex', alignItems: 'center', gap: 3,
-                padding: '3px 10px', borderRadius: 20,
-                background: 'rgba(255,158,87,0.15)', border: '1px solid rgba(255,158,87,0.4)',
-                color: '#ffd700', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em',
-              }}>🌟 Staff of the Month</span>
-            )}
-            <BadgeRow badgeTypes={badgeTypes} ids={member.visible_badge_ids} size={16} />
-            <span style={{
-              padding: '3px 10px', borderRadius: 20,
-              background: `${rc}15`, border: `1px solid ${rc}50`,
-              color: rc, fontSize: '0.65rem', fontWeight: 800,
-              textTransform: 'uppercase', letterSpacing: '0.1em',
-            }}>
-              {roleLabel(role)}
-            </span>
+          {member.bio && <p className="gl-public-bio" style={{ color: member.text_color ? `${member.text_color}cc` : undefined }}>{member.bio}</p>}
+
+          {member.roblox_username && <div style={{ marginTop: 12 }}><RobloxLinkCard username={member.roblox_username} /></div>}
+
+          <div className="gl-public-meta-row">
+            {socials.map(s => (
+              <a key={s.key} href={member[s.key]} target="_blank" rel="noreferrer" className="gl-public-meta-item" style={{ textDecoration: 'none' }}>
+                <span style={{ color: s.color }}>{s.icon}</span> {s.label}
+              </a>
+            ))}
           </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: isOnline ? presenceDot : 'rgba(158,165,196,0.25)', display: 'inline-block', flexShrink: 0 }} />
-            <span style={{ color: 'rgba(158,165,196,0.45)', fontSize: '0.78rem' }}>{presenceTxt}</span>
-          </div>
-
-          {member.bio && (
-            <p style={{ color: 'rgba(210,220,245,0.85)', fontSize: '0.93rem', lineHeight: 1.6, margin: '0 0 12px' }}>
-              {member.bio}
-            </p>
-          )}
-
-          {member.roblox_username && <RobloxLinkCard username={member.roblox_username} />}
         </div>
       </div>
 
@@ -647,7 +616,7 @@ const MemberProfileView = ({ member, onBack, badgeTypes }) => {
       <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)', overflowX: 'auto', scrollbarWidth: 'none', margin: '4px 0 0' }}>
         {VTABS.map(t => (
           <button key={t.id} onClick={() => setViewTab(t.id)}
-            style={{ flex: 1, minWidth: 70, padding: '13px 8px', background: 'none', border: 'none', borderBottom: viewTab === t.id ? `2px solid ${rc}` : '2px solid transparent', color: viewTab === t.id ? '#e7e9ea' : 'rgba(158,165,196,0.45)', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.18s', minHeight: 44 }}>
+            style={{ flex: 1, minWidth: 70, padding: '13px 8px', background: 'none', border: 'none', borderBottom: viewTab === t.id ? `2px solid ${rc}` : '2px solid transparent', color: viewTab === t.id ? '#f1eef9' : 'rgba(220,215,240,0.4)', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.18s', minHeight: 44 }}>
             {t.label}
           </button>
         ))}
