@@ -238,6 +238,19 @@
 .lh-team-tile-fallback { width: 56px; height: 56px; border-radius: 12px; background: var(--tc, var(--accent)); }
 .lh-team-tile-name { font-weight: 800; font-size: 0.95rem; color: #eef0f9; }
 .lh-team-tile-count { font-size: 0.72rem; color: rgba(158,165,196,0.5); font-weight: 600; }
+.lh-team-tile.favorited { border-color: rgba(255,215,0,0.5); box-shadow: 0 0 0 1px rgba(255,215,0,0.15); }
+
+/* ── Star toggle (favorite players/teams) ─────────────────────── */
+.lh-star-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; flex-shrink: 0; border-radius: 50%;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(158,165,196,0.2);
+  color: rgba(158,165,196,0.55); cursor: pointer; padding: 0;
+  transition: all 0.16s ease;
+}
+.lh-star-btn:hover { color: #ffd700; border-color: rgba(255,215,0,0.4); background: rgba(255,215,0,0.08); }
+.lh-star-btn.active { color: #ffd700; border-color: rgba(255,215,0,0.5); background: rgba(255,215,0,0.12); }
+.lh-team-tile .lh-star-btn { position: absolute; top: 10px; right: 10px; }
 
 /* ── Back button ──────────────────────────────────────────────── */
 .lh-back-btn {
@@ -339,6 +352,8 @@
   animation: lh-fade-up 0.32s ease both;
 }
 .lh-player-card:hover { transform: translateY(-4px); border-color: rgba(var(--accent-rgb),0.5); box-shadow: 0 14px 26px rgba(var(--accent-rgb),0.18); }
+.lh-player-card.favorited { border-color: rgba(255,215,0,0.5); box-shadow: 0 0 0 1px rgba(255,215,0,0.15); }
+.lh-player-card .lh-star-btn { position: absolute; top: 10px; right: 10px; z-index: 1; }
 .lh-player-card-top { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .lh-player-avatar { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent); flex-shrink: 0; }
 .lh-player-avatar-fallback { width: 46px; height: 46px; border-radius: 50%; background: rgba(var(--accent-rgb),0.18); border: 2px solid rgba(var(--accent-rgb),0.4); display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--accent); flex-shrink: 0; }

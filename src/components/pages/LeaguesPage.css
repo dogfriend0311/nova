@@ -113,6 +113,44 @@
 .league-context-spacer { flex: 1; }
 .league-context-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.67rem; }
 
+/* ── Favorites quick-access strip ────────────────────────────── */
+.leagues-favorites-strip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  margin: 0 4px 16px;
+  border-radius: 12px;
+  background: rgba(255,215,0,0.05);
+  border: 1px solid rgba(255,215,0,0.2);
+}
+.leagues-favorites-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  color: #ffd700;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.leagues-favorites-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.leagues-fav-chip {
+  padding: 6px 13px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,215,0,0.25);
+  color: #e2e5f0;
+  transition: all 0.16s ease;
+}
+.leagues-fav-chip:hover { background: rgba(255,215,0,0.12); border-color: rgba(255,215,0,0.5); }
+.leagues-fav-chip.team { color: #ffd700; }
+
 @media (max-width: 600px) {
   .leagues-network-header { align-items: flex-start; flex-direction: column; gap: 14px; padding-top: 12px; }
   .leagues-network-signal { align-self: stretch; justify-content: center; }
@@ -120,4 +158,5 @@
   .league-switch-btn { padding: 9px 12px; font-size: 0.82rem; }
   .league-context-strip { margin-left: 2px; margin-right: 2px; gap: 8px; }
   .league-context-divider, .league-context-strip > span:nth-of-type(2) { display: none; }
+  .leagues-favorites-strip { margin-left: 2px; margin-right: 2px; }
 }

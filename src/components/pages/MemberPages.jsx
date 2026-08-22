@@ -314,6 +314,14 @@ const MemberCard = ({ member, badgeTypes, onClick }) => {
             {member.username}
             {member.role === 'owner' && <span style={{ fontSize: '0.75rem' }}>👑</span>}
             {member.role === 'mod'   && <span style={{ fontSize: '0.75rem' }}>🛡️</span>}
+            {member.is_staff_of_month && (
+              <span title="Staff of the Month" style={{
+                display: 'inline-flex', alignItems: 'center', gap: 3,
+                padding: '2px 8px', borderRadius: 20,
+                background: 'rgba(255,158,87,0.15)', border: '1px solid rgba(255,158,87,0.4)',
+                color: '#ffd700', fontSize: '0.62rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em',
+              }}>🌟 Staff of the Month</span>
+            )}
             <BadgeRow badgeTypes={badgeTypes} ids={member.visible_badge_ids} size={14} />
           </div>
           {member.bio ? (
@@ -355,10 +363,11 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
 
   useEffect(() => {
     import('../../services/db').then(({ default: db }) => {
-      Promise.all([db.getMemberProfiles(), db.getUsers(), db.getBadgeTypes(), db.getMemberBadges()]).then(([profiles, users, badges, assignments]) => {
+      Promise.all([db.getMemberProfiles(), db.getUsers(), db.getBadgeTypes(), db.getMemberBadges(), db.getStaffOfMonth()]).then(([profiles, users, badges, assignments, sotm]) => {
         const enriched = withVisibleBadges(profiles.map(p => ({
           ...p,
           role: users.find(u => u.username === p.username)?.role || p.role || 'member',
+          is_staff_of_month: !!sotm?.username && sotm.username === p.username,
         })), assignments || []);
         // Sort: owner first, then cofounder, mod, vizta_helper, member
         const ORDER = { owner: 0, cofounder: 1, mod: 2, vizta_helper: 3, member: 4 };
@@ -600,6 +609,14 @@ const MemberProfileView = ({ member, onBack, badgeTypes }) => {
             <h2 style={{ fontSize: '1.4rem', fontWeight: 900, color: '#ffffff', margin: 0, letterSpacing: '-0.01em' }}>
               {member.username}
             </h2>
+            {member.is_staff_of_month && (
+              <span title="Staff of the Month" style={{
+                display: 'inline-flex', alignItems: 'center', gap: 3,
+                padding: '3px 10px', borderRadius: 20,
+                background: 'rgba(255,158,87,0.15)', border: '1px solid rgba(255,158,87,0.4)',
+                color: '#ffd700', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em',
+              }}>🌟 Staff of the Month</span>
+            )}
             <BadgeRow badgeTypes={badgeTypes} ids={member.visible_badge_ids} size={16} />
             <span style={{
               padding: '3px 10px', borderRadius: 20,

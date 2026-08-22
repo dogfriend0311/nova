@@ -67,6 +67,15 @@ const Icon = {
   ),
 };
 
+/* Official Nova Discord invite */
+const DISCORD_INVITE_URL = 'https://discord.gg/B2c7Gsks9p';
+
+const DiscordMark = () => (
+  <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor">
+    <path d="M20.32 4.87A19.8 19.8 0 0 0 15.66 3.4a.07.07 0 0 0-.08.04c-.2.36-.43.83-.59 1.2a18.3 18.3 0 0 0-5.5 0 12 12 0 0 0-.6-1.2.08.08 0 0 0-.08-.04 19.7 19.7 0 0 0-4.66 1.47.07.07 0 0 0-.03.03C1.2 9.1.44 13.19.81 17.23a.08.08 0 0 0 .03.06 19.9 19.9 0 0 0 6 3.04.08.08 0 0 0 .08-.03c.46-.63.87-1.3 1.23-2a.08.08 0 0 0-.04-.11 13.1 13.1 0 0 1-1.87-.9.08.08 0 0 1 0-.13c.13-.09.25-.19.37-.29a.07.07 0 0 1 .08 0c3.93 1.8 8.18 1.8 12.06 0a.07.07 0 0 1 .08 0c.12.1.24.2.37.3a.08.08 0 0 1 0 .12c-.6.35-1.22.65-1.87.9a.08.08 0 0 0-.04.1c.37.72.78 1.39 1.23 2.01a.08.08 0 0 0 .08.03 19.8 19.8 0 0 0 6.01-3.04.08.08 0 0 0 .03-.06c.44-4.67-.74-8.72-3.14-12.33a.06.06 0 0 0-.03-.03ZM8.68 14.8c-1.18 0-2.15-1.08-2.15-2.4 0-1.33.95-2.41 2.15-2.41 1.21 0 2.17 1.09 2.15 2.41 0 1.32-.94 2.4-2.15 2.4Zm6.65 0c-1.18 0-2.15-1.08-2.15-2.4 0-1.33.95-2.41 2.15-2.41 1.21 0 2.17 1.09 2.15 2.41 0 1.32-.93 2.4-2.15 2.4Z" />
+  </svg>
+);
+
 /* Accent RGB triples matched to theme.css palette */
 const ACCENTS = {
   blue:   '94, 129, 244',   // ion blue (primary)
@@ -112,6 +121,7 @@ const Home = ({ onNavigate, user }) => {
   const [songOfDay, setSongOfDay] = useState(getSongOfDay);
   const [announcements, setAnnouncements] = useState([]);
   const [showAllUpdates, setShowAllUpdates] = useState(false);
+  const [staffOfMonth, setStaffOfMonth] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -124,6 +134,26 @@ const Home = ({ onNavigate, user }) => {
     };
     loadAnnouncements();
     const id = setInterval(loadAnnouncements, 60000);
+    return () => { active = false; clearInterval(id); };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadStaffOfMonth = async () => {
+      try {
+        const { default: db } = await import('../../services/db');
+        const [sotm, profiles] = await Promise.all([db.getStaffOfMonth(), db.getMemberProfiles()]);
+        if (!active) return;
+        if (sotm?.username) {
+          const profile = profiles.find((p) => p.username === sotm.username);
+          setStaffOfMonth({ ...sotm, avatar_url: profile?.avatar_url, bio: profile?.bio });
+        } else {
+          setStaffOfMonth(null);
+        }
+      } catch {}
+    };
+    loadStaffOfMonth();
+    const id = setInterval(loadStaffOfMonth, 60000);
     return () => { active = false; clearInterval(id); };
   }, []);
 
@@ -168,8 +198,8 @@ const Home = ({ onNavigate, user }) => {
     return () => clearInterval(id);
   }, []);
 
-  const go = (pageId) => {
-    if (onNavigate) onNavigate(pageId);
+  const go = (pageId, sub) => {
+    if (onNavigate) onNavigate(pageId, sub);
   };
 
   return (
@@ -190,6 +220,43 @@ const Home = ({ onNavigate, user }) => {
           </span>
         </div>
       </div>
+
+      <a
+        href={DISCORD_INVITE_URL}
+        target="_blank"
+        rel="noreferrer"
+        className="home-discord-banner"
+        aria-label="Join the Nova Discord server"
+      >
+        <span className="home-discord-banner-icon"><DiscordMark /></span>
+        <span className="home-discord-banner-copy">
+          <strong>Join the Nova Discord</strong>
+          <span>Chat with the community, get live league updates &amp; more</span>
+        </span>
+        <span className="home-discord-banner-cta">Join Server &#8599;</span>
+      </a>
+
+      {staffOfMonth && (
+        <div style={{ marginBottom: 20 }}>
+          <div className="home-section-label">Staff of the Month</div>
+          <div
+            className="home-sotm-card"
+            onClick={() => go('members', staffOfMonth.username)}
+          >
+            <div className="home-sotm-avatar">
+              {staffOfMonth.avatar_url
+                ? <img src={staffOfMonth.avatar_url} alt="" />
+                : (staffOfMonth.username?.[0]?.toUpperCase() || '★')}
+            </div>
+            <div style={{ flex: 1, minWidth: 160 }}>
+              <div className="home-sotm-kicker">🌟 Staff of the Month{staffOfMonth.month_label ? ` — ${staffOfMonth.month_label}` : ''}</div>
+              <div className="home-sotm-name">{staffOfMonth.username}</div>
+              {staffOfMonth.note && <div className="home-sotm-note">{staffOfMonth.note}</div>}
+            </div>
+            <span className="home-sotm-arrow">&#8599;</span>
+          </div>
+        </div>
+      )}
 
       {announcements.length > 0 && (
         <div className="neon-card p-3" style={{ marginBottom: 20 }}>
@@ -221,7 +288,7 @@ const Home = ({ onNavigate, user }) => {
           <div className="home-section-label">Online Now</div>
           <div className="home-online-strip">
             {onlineList.map((p) => (
-              <div key={p.username} className="home-online-chip" onClick={() => go('members')}>
+              <div key={p.username} className="home-online-chip" onClick={() => go('members', p.username)}>
                 <div className="home-online-avatar">
                   {p.avatar_url
                     ? <img src={p.avatar_url} alt="" />

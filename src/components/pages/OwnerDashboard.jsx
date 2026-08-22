@@ -2215,6 +2215,93 @@ const SongOfDayTab = () => {
   );
 };
 
+const StaffOfMonthTab = () => {
+  const { user } = useAuth();
+  const [profiles, setProfiles] = useState([]);
+  const [current, setCurrent] = useState(null);
+  const [form, setForm] = useState({ username: '', note: '', month_label: '' });
+  const [msg, setMsg] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([db.getMemberProfiles(), db.getStaffOfMonth()]).then(([p, sotm]) => {
+      setProfiles((p || []).slice().sort((a, b) => a.username.localeCompare(b.username)));
+      setCurrent(sotm || null);
+      if (sotm) setForm({ username: sotm.username || '', note: sotm.note || '', month_label: sotm.month_label || '' });
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+
+  const defaultMonthLabel = () => new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+
+  async function post() {
+    if (!form.username) { setMsg({ ok: false, text: 'Pick a member first.' }); return; }
+    const saved = await db.setStaffOfMonth({
+      username: form.username,
+      note: form.note,
+      month_label: form.month_label || defaultMonthLabel(),
+      set_by: user?.username,
+    });
+    setCurrent(saved);
+    setMsg({ ok: true, text: 'Staff of the Month set! It will appear on the home page.' });
+    setTimeout(() => setMsg(null), 3000);
+  }
+
+  async function remove() {
+    await db.clearStaffOfMonth();
+    setCurrent(null);
+    setForm({ username: '', note: '', month_label: '' });
+    setMsg({ ok: true, text: 'Staff of the Month removed from home page.' });
+    setTimeout(() => setMsg(null), 2000);
+  }
+
+  const inputStyle = { width: '100%', padding: '9px 12px', background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 7, fontSize: '0.88rem', boxSizing: 'border-box' };
+
+  if (loading) return <div style={{ color: 'rgba(158,165,196,0.5)' }}>Loading…</div>;
+
+  return (
+    <div>
+      <h3 style={{ color: '#e2e5f0', marginBottom: 6 }}>🌟 Staff of the Month</h3>
+      <p style={{ color: 'rgba(158,165,196,0.5)', fontSize: '0.85rem', marginBottom: 18 }}>
+        Spotlight a member on the home page and with a badge on their profile / member card.
+      </p>
+
+      {current && (
+        <div style={{ marginBottom: 18, padding: '10px 14px', background: 'rgba(255,158,87,0.08)', border: '1px solid rgba(255,158,87,0.25)', borderRadius: 8, fontSize: '0.85rem', color: '#e2e5f0' }}>
+          Currently: <strong>{current.username}</strong>{current.month_label ? ` — ${current.month_label}` : ''}
+        </div>
+      )}
+
+      <div style={{ marginBottom: 10 }}>
+        <label style={{ display: 'block', fontSize: '0.78rem', color: 'rgba(158,165,196,0.5)', marginBottom: 4 }}>Member</label>
+        <select value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} style={inputStyle}>
+          <option value="">Select a member…</option>
+          {profiles.map(p => <option key={p.username} value={p.username}>{p.username}</option>)}
+        </select>
+      </div>
+      <div style={{ marginBottom: 10 }}>
+        <label style={{ display: 'block', fontSize: '0.78rem', color: 'rgba(158,165,196,0.5)', marginBottom: 4 }}>Month label (optional)</label>
+        <input value={form.month_label} onChange={e => setForm(f => ({ ...f, month_label: e.target.value }))}
+          placeholder={defaultMonthLabel()} style={inputStyle} />
+      </div>
+      <div style={{ marginBottom: 10 }}>
+        <label style={{ display: 'block', fontSize: '0.78rem', color: 'rgba(158,165,196,0.5)', marginBottom: 4 }}>Note (optional)</label>
+        <input value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
+          placeholder="Why they earned it" style={inputStyle} />
+      </div>
+
+      {msg && <div style={{ marginBottom: 10, padding: '8px 14px', borderRadius: 7, background: msg.ok ? 'rgba(67,181,129,0.12)' : 'rgba(255,107,122,0.12)', color: msg.ok ? '#43b581' : '#ff6b7a', fontSize: '0.85rem' }}>{msg.text}</div>}
+
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button className="neon-button" onClick={post}>Set as Staff of the Month</button>
+        {current && (
+          <button className="neon-button" onClick={remove} style={{ borderColor: '#ff6b7a', color: '#ff6b7a' }}>Remove</button>
+        )}
+      </div>
+    </div>
+  );
+};
+
 /* ── BEAT BATTLE ADMIN TAB ──────────────────────────────────── */
 
 const BeatBattleAdminTab = () => {
@@ -2569,6 +2656,7 @@ const OwnerDashboard = ({ onExit }) => {
       case 'analytics':        return isOwner ? <AnalyticsTab /> : null;
       case 'site-settings':    return isOwner ? <SiteSettingsTab /> : null;
       case 'admin-sotd':       return <SongOfDayTab />;
+      case 'admin-sotm':       return isBadgeManager ? <StaffOfMonthTab /> : null;
       case 'admin-beatbattle': return <BeatBattleAdminTab />;
       case 'admin-propbets':   return <PropBetsAdminTab />;
       case 'admin-playoffs':   return <PlayoffPoolsAdminTab />;
@@ -2632,6 +2720,7 @@ const OwnerDashboard = ({ onExit }) => {
               <Btn id="admin-propbets"   label="🎯 Prop Bets" />
               <Btn id="admin-playoffs"   label="🏆 Playoff Pools" />
               {isBadgeManager && <Btn id="admin-badges" label="🏅 Badges" />}
+              {isBadgeManager && <Btn id="admin-sotm" label="🌟 Staff of the Month" />}
               {isAthleteRatingsEditor && <Btn id="perfect-athlete-ratings" label="🐐 Perfect Athlete Ratings" />}
             </div>
           </div>

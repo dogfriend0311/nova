@@ -758,7 +758,13 @@ const MemberProfile = () => {
   const [coins,        setCoins]       = useState(() => parseInt(localStorage.getItem(`nova_coins_${user?.username}`) || '0'));
   const [copied,       setCopied]      = useState(false);
   const [equippedTheme, setEquippedTheme] = useState(null);
+  const [isStaffOfMonth, setIsStaffOfMonth] = useState(false);
   const coinsRef = useRef(null);
+
+  useEffect(() => {
+    if (!user?.username) return;
+    db.getStaffOfMonth().then(sotm => setIsStaffOfMonth(!!sotm?.username && sotm.username === user.username)).catch(() => {});
+  }, [user]);
 
   useEffect(() => {
     if (!profile?.username) { setEquippedTheme(null); return; }
@@ -1109,6 +1115,14 @@ const MemberProfile = () => {
       <div className="tw-info">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <h2 className="tw-name" style={equippedTheme?.css?.accent ? { color: equippedTheme.css.accent } : undefined}>{profile.username}</h2>
+          {isStaffOfMonth && (
+            <span title="Staff of the Month" style={{
+              display: 'inline-flex', alignItems: 'center', gap: 3,
+              padding: '3px 10px', borderRadius: 20,
+              background: 'rgba(255,158,87,0.15)', border: '1px solid rgba(255,158,87,0.4)',
+              color: '#ffd700', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em',
+            }}>🌟 Staff of the Month</span>
+          )}
           <BadgeRow
             badgeTypes={badgeTypes}
             ids={(profile.displayed_badges || []).filter(id => assignedBadgeIds.includes(String(id)))}

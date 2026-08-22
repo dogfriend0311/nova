@@ -924,6 +924,71 @@ export const db = {
     ls.set('nova_announcements', ls.get('nova_announcements').filter(a => a.id !== id));
   },
 
+  /* ── STAFF OF THE MONTH ──────────────────────────────────────
+     A single spotlighted member set by an owner/co-founder — shown
+     as a featured card on the home page and as a small badge next
+     to their name on Member Pages / their profile. Everyone reads
+     it; only owner/co-founder can set it (enforced client-side,
+     same pattern as the rest of the admin dashboard). Run this SQL
+     once in Supabase:
+
+       CREATE TABLE IF NOT EXISTS nova_staff_of_month (
+         id          TEXT PRIMARY KEY DEFAULT 'current',
+         username    TEXT NOT NULL,
+         note        TEXT,
+         month_label TEXT,
+         set_by      TEXT,
+         created_at  TIMESTAMPTZ DEFAULT now()
+       );
+       ALTER TABLE nova_staff_of_month ENABLE ROW LEVEL SECURITY;
+       CREATE POLICY "Public read"  ON nova_staff_of_month FOR SELECT USING (true);
+       CREATE POLICY "Public write" ON nova_staff_of_month FOR ALL USING (true) WITH CHECK (true);
+
+     Until that migration is run, this still works — it just falls
+     back to localStorage (so only the browser that set it will see
+     it) instead of syncing to every visitor. */
+
+  async getStaffOfMonth() {
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase
+          .from('nova_staff_of_month').select('*').eq('id', 'current').maybeSingle();
+        if (!error && data) return data;
+      } catch {}
+    }
+    try { return JSON.parse(localStorage.getItem('nova_staff_of_month') || 'null'); }
+    catch { return null; }
+  },
+
+  async setStaffOfMonth(entry) {
+    const record = {
+      id: 'current',
+      username: entry.username,
+      note: entry.note || '',
+      month_label: entry.month_label || '',
+      set_by: entry.set_by || null,
+      created_at: new Date().toISOString(),
+    };
+    if (hasSupabase()) {
+      try { await supabase.from('nova_staff_of_month').upsert([record], { onConflict: 'id' }); } catch {}
+    }
+    localStorage.setItem('nova_staff_of_month', JSON.stringify(record));
+    return record;
+  },
+
+  async clearStaffOfMonth() {
+    if (hasSupabase()) {
+      try { await supabase.from('nova_staff_of_month').delete().eq('id', 'current'); } catch {}
+    }
+    localStorage.removeItem('nova_staff_of_month');
+  },
+
+  /* Note: favorite *league* teams (starring a Roblox league team so
+     it surfaces first when opening Leagues) reuse the existing
+     getFavoriteTeams / addFavoriteTeam / removeFavoriteTeam trio
+     further down (search "FAVORITE TEAMS (sports team-following)")
+     rather than a second table — see favoritesService.js. */
+
   /* ── ARTICLES ─────────────────────────────────────────────────
      Owner/cofounders write these (photo + title + body); everyone can
      read them on the Articles tab. Enforced client-side like the rest

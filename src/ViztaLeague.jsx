@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Users, Search, Trophy, CalendarDays, ScrollText,
   GitCompare, Target, Award, ArrowLeft, ChevronRight, Medal,
   Activity, BarChart3, Database, TrendingUp,
-  Archive, BookOpen, Bookmark, Radio, Sparkles,
+  Archive, BookOpen, Bookmark, Radio, Sparkles, Star,
 } from 'lucide-react';
 import {
   CommunityPredictionsTab,
@@ -14,7 +14,29 @@ import {
   TransactionsTab,
   WatchlistsTab,
 } from './LeagueFeatures';
+import {
+  currentUsername,
+  getFavoritePlayers,
+  getFavoriteTeams,
+  toggleFavoritePlayer,
+  toggleFavoriteTeam,
+} from './services/favoritesService';
 import './ViztaLeague.css';
+
+/* Small starred/unstarred toggle used next to players and teams
+   throughout the league tabs. Stops click propagation so it never
+   also triggers the row/card/tile's own onClick navigation. */
+const StarButton = ({ active, onToggle, size = 15, title }) => (
+  <button
+    type="button"
+    className={`lh-star-btn ${active ? 'active' : ''}`}
+    onClick={(e) => { e.stopPropagation(); onToggle(); }}
+    title={title || (active ? 'Remove from favorites' : 'Add to favorites')}
+    aria-pressed={active}
+  >
+    <Star size={size} fill={active ? 'currentColor' : 'none'} />
+  </button>
+);
 
 const fmtVal = (v, fmt) => {
   const n = parseFloat(v);
@@ -52,9 +74,9 @@ const TABS = [
   { id: 'halloffame', label: 'Hall of Fame',Icon: Award },
 ];
 
-const ViztaLeague = ({ onSelectPlayer, sport = 'vizta' }) => {
+const ViztaLeague = ({ onSelectPlayer, sport = 'vizta', initialTab = 'overview', initialTeam = null }) => {
   const cfg = getSport(sport);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [counts, setCounts] = useState({ teams: 0, players: 0, games: 0 });
 
   useEffect(() => {
@@ -65,7 +87,7 @@ const ViztaLeague = ({ onSelectPlayer, sport = 'vizta' }) => {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'overview':   return <OverviewTab sport={sport} cfg={cfg} />;
-      case 'rosters':    return <RostersTab sport={sport} cfg={cfg} onSelectPlayer={onSelectPlayer} />;
+      case 'rosters':    return <RostersTab sport={sport} cfg={cfg} onSelectPlayer={onSelectPlayer} initialTeam={initialTab === 'rosters' ? initialTeam : null} />;
       case 'players':    return <PlayersTab sport={sport} cfg={cfg} onSelectPlayer={onSelectPlayer} />;
       case 'leaders':    return <LeagueLeadersTab sport={sport} cfg={cfg} onSelectPlayer={onSelectPlayer} />;
       case 'schedule':    return <ScheduleTab sport={sport} cfg={cfg} />;
@@ -145,12 +167,26 @@ const OverviewTab = ({ sport, cfg }) => {
   const [teams, setTeams] = useState([]);
   const [players, setPlayers] = useState([]);
   const [bsGames, setBsGames] = useState([]);
+  const [favTeamNames, setFavTeamNames] = useState(new Set());
+  const username = currentUsername();
   useEffect(() => {
     db.getTeams(sport).then(setTeams);
     db.getPlayers(sport).then(setPlayers);
     db.getBsGames(sport).then(setBsGames);
-  }, [sport]);
+    if (username) getFavoriteTeams(username, sport).then(list => setFavTeamNames(new Set(list.map(t => t.team_name))));
+    else setFavTeamNames(new Set());
+  }, [sport, username]);
   const recentGames = [...bsGames].reverse().slice(0, 8);
+
+  const toggleTeamFav = async (team) => {
+    if (!username) return;
+    const nowFav = await toggleFavoriteTeam(username, sport, team);
+    setFavTeamNames(prev => {
+      const next = new Set(prev);
+      if (nowFav) next.add(team.team_name); else next.delete(team.team_name);
+      return next;
+    });
+  };
 
   const getTeamColor = (name) => teams.find(t => t.team_name === name)?.team_color || null;
   const getTeamLogo  = (name) => teams.find(t => t.team_name === name)?.logo_url || null;
@@ -225,6 +261,14 @@ const OverviewTab = ({ sport, cfg }) => {
                 ? <img src={team.logo_url} alt="" />
                 : <div className="lh-team-chip-fallback" style={{ '--tc': team.team_color || 'var(--accent)' }} />}
               <span>{team.team_name}</span>
+              {username && (
+                <StarButton
+                  active={favTeamNames.has(team.team_name)}
+                  onToggle={() => toggleTeamFav(team)}
+                  size={13}
+                  title={favTeamNames.has(team.team_name) ? 'Remove from favorite teams' : 'Star as a favorite team'}
+                />
+              )}
             </div>
           ))}
         </div>
@@ -234,7 +278,7 @@ const OverviewTab = ({ sport, cfg }) => {
 };
 
 /* ── Rosters ──────────────────────────────────────────────────── */
-const RostersTab = ({ sport, cfg, onSelectPlayer }) => {
+const RostersTab = ({ sport, cfg, onSelectPlayer, initialTeam }) => {
   const [teams, setTeams]         = useState([]);
   const [players, setPlayers]     = useState([]);
   const [selectedTeam, setSelectedTeam] = useState(null);
@@ -242,11 +286,26 @@ const RostersTab = ({ sport, cfg, onSelectPlayer }) => {
   const [rightPanel, setRightPanel] = useState('stats');
   const [schedule, setSchedule]   = useState([]);
   const [schedLoading, setSchedLoading] = useState(false);
+  const [favTeamNames, setFavTeamNames] = useState(new Set());
+  const [favPlayerIds, setFavPlayerIds] = useState(new Set());
+  const username = currentUsername();
 
   useEffect(() => {
     Promise.all([db.getTeams(sport), db.getPlayers(sport)])
-      .then(([t, p]) => { setTeams(t); setPlayers(p); setLoading(false); });
-  }, [sport]);
+      .then(([t, p]) => {
+        setTeams(t); setPlayers(p); setLoading(false);
+        if (initialTeam) {
+          const match = t.find(team => team.team_name === initialTeam);
+          if (match) setSelectedTeam(match);
+        }
+      });
+  }, [sport, initialTeam]);
+
+  useEffect(() => {
+    if (!username) { setFavTeamNames(new Set()); setFavPlayerIds(new Set()); return; }
+    getFavoriteTeams(username, sport).then(list => setFavTeamNames(new Set(list.map(t => t.team_name))));
+    getFavoritePlayers(username, sport).then(list => setFavPlayerIds(new Set(list.map(p => String(p.player_id || p.playerId)))));
+  }, [sport, username]);
 
   useEffect(() => {
     if (!selectedTeam) return;
@@ -256,36 +315,72 @@ const RostersTab = ({ sport, cfg, onSelectPlayer }) => {
       .catch(() => { setSchedule([]); setSchedLoading(false); });
   }, [selectedTeam]);
 
+  const toggleTeamFav = async (team) => {
+    if (!username) return;
+    const nowFav = await toggleFavoriteTeam(username, sport, team);
+    setFavTeamNames(prev => {
+      const next = new Set(prev);
+      if (nowFav) next.add(team.team_name); else next.delete(team.team_name);
+      return next;
+    });
+  };
+
+  const togglePlayerFav = async (player) => {
+    if (!username) return;
+    const nowFav = await toggleFavoritePlayer(username, sport, player);
+    setFavPlayerIds(prev => {
+      const next = new Set(prev);
+      if (nowFav) next.add(String(player.id)); else next.delete(String(player.id));
+      return next;
+    });
+  };
+
   if (loading) return <div className="lh-loading">Loading…</div>;
 
-  if (!selectedTeam) return (
-    <div>
-      <div className="lh-section-head"><h2>Rosters</h2><span className="lh-section-tag">Pick a team</span></div>
-      {teams.length === 0 ? (
-        <div className="lh-empty">No teams yet.</div>
-      ) : (
-        <div className="lh-team-grid">
-          {teams.map(team => {
-            const rgb = hexToRgb(team.team_color) || accentRgbFromCfg(cfg);
-            return (
-              <div
-                key={team.id}
-                className="lh-team-tile"
-                style={{ '--tc': team.team_color || 'var(--accent)', '--tc-rgb': rgb }}
-                onClick={() => setSelectedTeam(team)}
-              >
-                {team.logo_url
-                  ? <img className="lh-team-tile-logo" src={team.logo_url} alt={team.team_name} />
-                  : <div className="lh-team-tile-fallback" />}
-                <span className="lh-team-tile-name">{team.team_name}</span>
-                <span className="lh-team-tile-count">{players.filter(p => p.team === team.team_name).length} players</span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
+  if (!selectedTeam) {
+    // Favorited teams surface first so they're easy to find every time
+    // the Rosters tab is opened, instead of scrolling the full list.
+    const favTeams = teams.filter(t => favTeamNames.has(t.team_name));
+    const restTeams = teams.filter(t => !favTeamNames.has(t.team_name));
+    const orderedTeams = username ? [...favTeams, ...restTeams] : teams;
+
+    return (
+      <div>
+        <div className="lh-section-head"><h2>Rosters</h2><span className="lh-section-tag">Pick a team</span></div>
+        {teams.length === 0 ? (
+          <div className="lh-empty">No teams yet.</div>
+        ) : (
+          <div className="lh-team-grid">
+            {orderedTeams.map(team => {
+              const rgb = hexToRgb(team.team_color) || accentRgbFromCfg(cfg);
+              const isFav = favTeamNames.has(team.team_name);
+              return (
+                <div
+                  key={team.id}
+                  className={`lh-team-tile ${isFav ? 'favorited' : ''}`}
+                  style={{ '--tc': team.team_color || 'var(--accent)', '--tc-rgb': rgb }}
+                  onClick={() => setSelectedTeam(team)}
+                >
+                  {username && (
+                    <StarButton
+                      active={isFav}
+                      onToggle={() => toggleTeamFav(team)}
+                      title={isFav ? 'Remove from favorite teams' : 'Star as a favorite team'}
+                    />
+                  )}
+                  {team.logo_url
+                    ? <img className="lh-team-tile-logo" src={team.logo_url} alt={team.team_name} />
+                    : <div className="lh-team-tile-fallback" />}
+                  <span className="lh-team-tile-name">{team.team_name}</span>
+                  <span className="lh-team-tile-count">{players.filter(p => p.team === team.team_name).length} players</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const teamPlayers = players.filter(p => p.team === selectedTeam.team_name);
   const sum = (key) => teamPlayers.reduce((s,p) => s + (parseFloat(p[key])||0), 0);
@@ -326,22 +421,32 @@ const RostersTab = ({ sport, cfg, onSelectPlayer }) => {
             <div className="lh-empty">No players assigned</div>
           ) : (
             <div className="lh-roster-list">
-              {teamPlayers.map(p => (
-                <div
-                  key={p.id}
-                  className={`lh-roster-row ${onSelectPlayer ? 'clickable' : ''}`}
-                  onClick={() => onSelectPlayer && onSelectPlayer(p)}
-                >
-                  {p.avatar_data
-                    ? <img className="lh-roster-avatar" src={p.avatar_data} alt={p.player_name} />
-                    : <div className="lh-roster-avatar-fallback">🎮</div>}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p className="lh-roster-name">{p.player_name}</p>
-                    <p className="lh-roster-meta">{p.position||'--'} · OVR {p.overall||'?'}</p>
+              {teamPlayers.map(p => {
+                const isFav = favPlayerIds.has(String(p.id));
+                return (
+                  <div
+                    key={p.id}
+                    className={`lh-roster-row ${onSelectPlayer ? 'clickable' : ''}`}
+                    onClick={() => onSelectPlayer && onSelectPlayer(p)}
+                  >
+                    {p.avatar_data
+                      ? <img className="lh-roster-avatar" src={p.avatar_data} alt={p.player_name} />
+                      : <div className="lh-roster-avatar-fallback">🎮</div>}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p className="lh-roster-name">{p.player_name}</p>
+                      <p className="lh-roster-meta">{p.position||'--'} · OVR {p.overall||'?'}</p>
+                    </div>
+                    {username && (
+                      <StarButton
+                        active={isFav}
+                        onToggle={() => togglePlayerFav(p)}
+                        title={isFav ? 'Remove from favorite players' : 'Star as a favorite player'}
+                      />
+                    )}
+                    {onSelectPlayer && <ChevronRight size={15} color={`rgba(${teamRgb},0.6)`} />}
                   </div>
-                  {onSelectPlayer && <ChevronRight size={15} color={`rgba(${teamRgb},0.6)`} />}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -420,12 +525,33 @@ const accentRgbFromCfg = (cfg) => hexToRgb(cfg.accent) || '94,129,244';
 const PlayersTab = ({ sport, onSelectPlayer }) => {
   const [players, setPlayers] = useState([]);
   const [search, setSearch] = useState('');
+  const [favPlayerIds, setFavPlayerIds] = useState(new Set());
+  const username = currentUsername();
   useEffect(() => { db.getPlayers(sport).then(setPlayers); }, [sport]);
+  useEffect(() => {
+    if (!username) { setFavPlayerIds(new Set()); return; }
+    getFavoritePlayers(username, sport).then(list => setFavPlayerIds(new Set(list.map(p => String(p.player_id || p.playerId)))));
+  }, [sport, username]);
+
+  const togglePlayerFav = async (player) => {
+    if (!username) return;
+    const nowFav = await toggleFavoritePlayer(username, sport, player);
+    setFavPlayerIds(prev => {
+      const next = new Set(prev);
+      if (nowFav) next.add(String(player.id)); else next.delete(String(player.id));
+      return next;
+    });
+  };
 
   const filtered = players.filter(p =>
     p.player_name?.toLowerCase().includes(search.toLowerCase()) ||
     p.team?.toLowerCase().includes(search.toLowerCase())
   );
+  // Favorited players surface first so it's easy to jump straight to
+  // them instead of searching every time the Players tab is opened.
+  const orderedFiltered = username
+    ? [...filtered.filter(p => favPlayerIds.has(String(p.id))), ...filtered.filter(p => !favPlayerIds.has(String(p.id)))]
+    : filtered;
 
   return (
     <div>
@@ -441,25 +567,35 @@ const PlayersTab = ({ sport, onSelectPlayer }) => {
         <div className="lh-empty">{players.length === 0 ? 'No players added yet' : 'No players match your search'}</div>
       ) : (
         <div className="lh-player-grid">
-          {filtered.map((player, i) => (
-            <div key={player.id} className="lh-player-card" style={{ animationDelay:`${Math.min(i,20)*25}ms` }} onClick={() => onSelectPlayer && onSelectPlayer(player)}>
-              <div className="lh-player-card-top">
-                {player.avatar_data
-                  ? <img className="lh-player-avatar" src={player.avatar_data} alt={player.player_name} />
-                  : <div className="lh-player-avatar-fallback">{(player.player_name||'?')[0]}</div>}
-                <div style={{ minWidth: 0 }}>
-                  <p className="lh-player-name">{player.player_name}</p>
-                  <p className="lh-player-team">{player.team || 'Free Agent'}</p>
+          {orderedFiltered.map((player, i) => {
+            const isFav = favPlayerIds.has(String(player.id));
+            return (
+              <div key={player.id} className={`lh-player-card ${isFav ? 'favorited' : ''}`} style={{ animationDelay:`${Math.min(i,20)*25}ms` }} onClick={() => onSelectPlayer && onSelectPlayer(player)}>
+                {username && (
+                  <StarButton
+                    active={isFav}
+                    onToggle={() => togglePlayerFav(player)}
+                    title={isFav ? 'Remove from favorite players' : 'Star as a favorite player'}
+                  />
+                )}
+                <div className="lh-player-card-top">
+                  {player.avatar_data
+                    ? <img className="lh-player-avatar" src={player.avatar_data} alt={player.player_name} />
+                    : <div className="lh-player-avatar-fallback">{(player.player_name||'?')[0]}</div>}
+                  <div style={{ minWidth: 0 }}>
+                    <p className="lh-player-name">{player.player_name}</p>
+                    <p className="lh-player-team">{player.team || 'Free Agent'}</p>
+                  </div>
+                  {player.number && <span className="lh-player-num">#{player.number}</span>}
                 </div>
-                {player.number && <span className="lh-player-num">#{player.number}</span>}
+                <div className="lh-player-badges">
+                  <span className="lh-player-badge">{player.position || '--'}</span>
+                  <span className="lh-player-badge">OVR {player.overall || '--'}</span>
+                </div>
+                <p className="lh-player-cta">View Stat Page →</p>
               </div>
-              <div className="lh-player-badges">
-                <span className="lh-player-badge">{player.position || '--'}</span>
-                <span className="lh-player-badge">OVR {player.overall || '--'}</span>
-              </div>
-              <p className="lh-player-cta">View Stat Page →</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
