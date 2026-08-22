@@ -5,8 +5,9 @@ import { TEAMS, SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl } from '../../data/team
 import { getWatchList } from '../../services/mediaService';
 import * as lfm from '../../services/lastfmService';
 import { BADGES, getEarnedBadges, syncBadges } from '../../services/achievementsService';
-import { BadgeRow } from '../BadgeDisplay';
+import { BadgeRow, DiscordVerifiedChip } from '../BadgeDisplay';
 import { LevelBadge } from '../LevelBadge';
+import { checkAndAwardDiscordBadges } from '../../services/discordBadgeCheck';
 import db from '../../services/db';
 import { COSMETICS } from './CoinShop';
 import './MemberProfile.css';
@@ -920,6 +921,18 @@ const MemberProfile = () => {
     });
   }, [user]);
 
+  // ── Check for a fresh Discord-join match (best-effort, see
+  // discordBadgeCheck.js) whenever this profile has a Discord Tag set but
+  // hasn't been verified yet.
+  useEffect(() => {
+    if (!profile?.username || !profile?.discord_tag || profile?.discord_verified_at) return;
+    checkAndAwardDiscordBadges([profile]).then(newlyVerified => {
+      if (!newlyVerified.length) return;
+      const verified_at = new Date().toISOString();
+      setProfile(p => (p ? { ...p, discord_verified_at: verified_at } : p));
+    }).catch(() => {});
+  }, [profile?.username, profile?.discord_tag, profile?.discord_verified_at]);
+
   // ── Save helpers ──────────────────────────────────────────
   const handleField = (key, val) => setFormData((prev) => ({ ...prev, [key]: val }));
 
@@ -1353,6 +1366,7 @@ const MemberProfile = () => {
                 <span className="gl-public-name" style={{ color: profile.text_color || equippedTheme?.css?.accent || undefined }}>{profile.username}</span>
                 <span className="gl-public-diamond">◆</span>
                 <LevelBadge username={profile.username} size="sm" />
+                <DiscordVerifiedChip verifiedAt={profile.discord_verified_at} size="sm" />
               </div>
               <div className="gl-public-sub" style={{ color: profile.text_color ? `${profile.text_color}99` : undefined }}>@{profile.username} · {roleLabel(user?.role)}</div>
               <div className="gl-public-joined">

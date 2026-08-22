@@ -18,6 +18,7 @@ export const BADGES = [
   { id: 'shop_buyer',       emoji: '🛍️', name: 'Shopaholic',          desc: 'Purchased from the Coin Shop',          color: '#ffd700' },
   { id: 'bracket_perfect',  emoji: '✨', name: 'Oracle',               desc: 'Perfect first-round bracket picks',     color: '#c864dc' },
   { id: 'veteran_30',       emoji: '⭐', name: 'Veteran',              desc: 'Account older than 30 days',            color: '#747f8d' },
+  { id: 'discord_verified', emoji: '💬', name: 'Discord Regular',      desc: 'Confirmed member of the Discord server', color: '#5865F2' },
 ];
 
 const BADGE_MAP = Object.fromEntries(BADGES.map(b => [b.id, b]));
@@ -55,6 +56,12 @@ export function syncBadges(username, { profile = {}, coins = 0, joinDate = null 
 
   // Last.fm
   if (profile.lastfm_username) awardBadge(username, 'music_fan');
+
+  // Discord — mirrors profile.discord_verified_at (set by
+  // discordBadgeCheck.js once their Discord Tag is matched in the
+  // server's widget), so this tab stays in sync with the "In Discord"
+  // flair shown elsewhere.
+  if (profile.discord_verified_at) awardBadge(username, 'discord_verified');
 
   // Roblox
   if (localStorage.getItem(`nova_roblox_${username}`)) awardBadge(username, 'roblox_linked');

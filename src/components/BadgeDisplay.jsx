@@ -63,4 +63,28 @@ export const BadgeRow = ({ badgeTypes = [], ids = [], size = 15, gap = 5 }) => {
   );
 };
 
+/**
+ * Small "✅ In Discord" flair for a member confirmed to be in the Discord
+ * server (see src/services/discordBadgeCheck.js). Pass the ISO timestamp
+ * from profile.discord_verified_at — renders nothing if falsy.
+ */
+export const DiscordVerifiedChip = ({ verifiedAt, size = 'sm' }) => {
+  if (!verifiedAt) return null;
+  const small = size === 'sm';
+  return (
+    <span
+      title="Confirmed member of the Discord server"
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 4,
+        padding: small ? '2px 8px' : '3px 10px', borderRadius: 999,
+        background: 'rgba(88,101,242,0.15)', border: '1px solid rgba(88,101,242,0.4)',
+        color: '#5865F2', fontSize: small ? '0.62rem' : '0.65rem',
+        fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em',
+      }}
+    >
+      💬 In Discord
+    </span>
+  );
+};
+
 export default BadgeRow;

@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl } from '../../data/teams';
 import * as lfm from '../../services/lastfmService';
 import { ProfileBackground, ProfileAudioPlayer, effectiveBgList, effectiveAudioList, RobloxLinkCard, RobloxGameCard } from './MemberProfile';
-import { BadgeRow } from '../BadgeDisplay';
+import { BadgeRow, DiscordVerifiedChip } from '../BadgeDisplay';
+import { checkAndAwardDiscordBadges } from '../../services/discordBadgeCheck';
 import { checkRateLimit, recordAction } from '../../services/rateLimiter';
 import { awardXP } from '../../services/reputationService';
 import { currentUsername } from '../../services/favoritesService';
@@ -327,6 +328,7 @@ const MemberCard = ({ member, badgeTypes, onClick }) => {
               }}>🌟 Staff of the Month</span>
             )}
             <BadgeRow badgeTypes={badgeTypes} ids={member.visible_badge_ids} size={14} />
+            <DiscordVerifiedChip verifiedAt={member.discord_verified_at} size="sm" />
           </div>
           {member.bio ? (
             <p style={{
@@ -386,6 +388,11 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
         enriched.sort((a, b) => (ORDER[a.role] ?? 5) - (ORDER[b.role] ?? 5));
         setMembers(enriched);
         setBadgeTypes(badges || []);
+        checkAndAwardDiscordBadges(enriched).then(newlyVerified => {
+          if (!newlyVerified.length) return;
+          const now = new Date().toISOString();
+          setMembers(prev => prev.map(m => newlyVerified.includes(m.username) ? { ...m, discord_verified_at: now } : m));
+        }).catch(() => {});
         const teamMap = {};
         (favTeams || []).forEach(t => {
           if (!t.member_username || !t.team_name) return;
@@ -667,7 +674,7 @@ const MemberProfileView = ({ member, onBack, badgeTypes }) => {
             </div>
           </div>
 
-          {(member.is_staff_of_month || (member.visible_badge_ids && member.visible_badge_ids.length > 0) || streak >= 2) && (
+          {(member.is_staff_of_month || (member.visible_badge_ids && member.visible_badge_ids.length > 0) || streak >= 2 || member.discord_verified_at) && (
             <div className="gl-public-badges">
               {member.is_staff_of_month && (
                 <span title="Staff of the Month" style={{
@@ -685,6 +692,7 @@ const MemberProfileView = ({ member, onBack, badgeTypes }) => {
                   color: '#ff9e57', fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em',
                 }}>🔥 {streak} Day Streak</span>
               )}
+              <DiscordVerifiedChip verifiedAt={member.discord_verified_at} size="lg" />
               <BadgeRow badgeTypes={badgeTypes} ids={member.visible_badge_ids} size={16} />
             </div>
           )}

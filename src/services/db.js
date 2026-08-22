@@ -539,6 +539,21 @@ export const db = {
     return profile;
   },
 
+  // Marks a member as a confirmed Discord member (sticky — once set, stays
+  // set even if they later show as offline in the widget). See
+  // src/services/discordBadgeCheck.js for the matching logic that calls this.
+  async setDiscordVerified(username) {
+    if (!username) return;
+    const verified_at = new Date().toISOString();
+    if (hasSupabase()) {
+      try { await supabase.from('nova_member_profiles').update({ discord_verified_at: verified_at }).eq('username', username); } catch {}
+    }
+    const list = ls.get('member_profiles');
+    const idx = list.findIndex(p => p.username === username);
+    if (idx >= 0) list[idx] = { ...list[idx], discord_verified_at: verified_at };
+    ls.set('member_profiles', list);
+  },
+
   /* USERS / ROLES */
   async getUsers() {
     try {
