@@ -5,6 +5,7 @@ import ActivityFeed from '../ActivityFeed';
 import LeagueLeaders from '../LeagueLeaders';
 import DiscordWidget from '../DiscordWidget';
 import ThisWeekDigest from '../ThisWeekDigest';
+import OnThisDay from '../OnThisDay';
 import RobloxGameStatusWidget from '../RobloxGameStatusWidget';
 
 /* Tile icons (inline SVG - no emoji, renders identically everywhere) */
@@ -266,6 +267,8 @@ const Home = ({ onNavigate, user }) => {
       <DiscordWidget />
 
       <ThisWeekDigest />
+
+      <OnThisDay />
 
       {staffOfMonth && (
         <div style={{ marginBottom: 20 }}>

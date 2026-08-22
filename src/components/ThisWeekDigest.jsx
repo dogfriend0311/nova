@@ -3,6 +3,7 @@ import db from '../services/db';
 import { SPORTS, SPORT_ORDER } from '../data/sportsConfig';
 import { HEADLINE_STAT } from './LeagueLeaders';
 import { accoladeLabel, accoladeIcon } from '../data/accolades';
+import { CardShell, ScrollRow } from './ScrollCards';
 
 // ── This Week in Nova ────────────────────────────────────────
 // A single horizontally-scrolling digest mixing three things that
@@ -20,20 +21,6 @@ const goTo = (hash) => { window.location.hash = hash; };
 
 const getPlayerLabel = (player) => player?.nickname || player?.player_name || 'Unknown player';
 
-const CardShell = ({ kicker, onClick, children }) => (
-  <button
-    onClick={onClick}
-    disabled={!onClick}
-    style={{
-      flex: '0 0 240px', scrollSnapAlign: 'start', textAlign: 'left', cursor: onClick ? 'pointer' : 'default',
-      background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.14)',
-      borderRadius: 12, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 6,
-    }}
-  >
-    <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'rgba(158,165,196,0.4)' }}>{kicker}</span>
-    {children}
-  </button>
-);
 
 const ThisWeekDigest = () => {
   const [cards, setCards] = useState(null); // null = loading
@@ -113,7 +100,7 @@ const ThisWeekDigest = () => {
   return (
     <>
       <div className="home-section-label">This Week in Nova</div>
-      <div style={{ display: 'flex', gap: 12, overflowX: 'auto', scrollSnapType: 'x mandatory', paddingBottom: 8, marginBottom: 12 }}>
+      <ScrollRow>
         {cards.map((c) => {
           if (c.kind === 'game') {
             const { game, league, topPerformer } = c;
@@ -163,7 +150,7 @@ const ThisWeekDigest = () => {
             </CardShell>
           );
         })}
-      </div>
+      </ScrollRow>
     </>
   );
 };

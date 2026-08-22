@@ -14,6 +14,7 @@ import {
   TransactionsTab,
   WatchlistsTab,
 } from './LeagueFeatures';
+import RadarChart from './components/RadarChart';
 import {
   currentUsername,
   getFavoritePlayers,
@@ -979,7 +980,26 @@ const CompareTab = ({ sport, cfg }) => {
   const rgbB = hexToRgb(colorB) || '255,158,87';
 
   const STAT_LIST = statFilter===cfg.catA.id ? cfg.compareA : cfg.compareB;
+  const LEADER_LIST = statFilter===cfg.catA.id ? cfg.leadersA : cfg.leadersB;
   const lowerBetter = new Set(cfg.lowerBetter);
+
+  // League-wide max for each headline stat (in the current season/career
+  // mode) — used to scale the radar chart so it shows absolute standing,
+  // not just how the two selected players stack up against each other.
+  const leagueMaxFor = (field) => players.reduce((max, p) => {
+    const v = parseFloat(p[field]);
+    return Number.isFinite(v) && v > max ? v : max;
+  }, 0);
+  const radarAxes = (pA && pB) ? LEADER_LIST.map((l) => {
+    const field = mode === 'season' ? l.seasonField : l.careerField;
+    return {
+      label: l.label,
+      a: parseFloat(pA[field]) || 0,
+      b: parseFloat(pB[field]) || 0,
+      max: leagueMaxFor(field),
+      lowerBetter: !l.hi,
+    };
+  }) : null;
 
   const getVal = (p, label, sKey, cKey) => {
     if (!p) return null;
@@ -1068,26 +1088,33 @@ const CompareTab = ({ sport, cfg }) => {
       )}
 
       {compareMode==='player' && pA && pB && (
-        <div className="lh-compare-table">
-          <div className="lh-compare-head">
-            <span style={{ color: colorA }}>{pA.player_name}</span>
-            <span>STAT</span>
-            <span style={{ color: colorB }}>{pB.player_name}</span>
-          </div>
-          {STAT_LIST.map(([label,sKey,cKey]) => {
-            const valA=getVal(pA,label,sKey,cKey), valB=getVal(pB,label,sKey,cKey);
-            const aBetter=isBetter(label,valA,valB), bBetter=isBetter(label,valB,valA);
-            return (
-              <div key={label} className="lh-compare-row">
-                <span className={`lh-compare-val ${aBetter?'better':''}`} style={{ color: aBetter?colorA:undefined, background: aBetter?`rgba(${rgbA},0.15)`:undefined }}>{valA}</span>
-                <span className="lh-compare-label">{label}</span>
-                <div className="lh-compare-right">
-                  <span className={`lh-compare-val ${bBetter?'better':''}`} style={{ color: bBetter?colorB:undefined, background: bBetter?`rgba(${rgbB},0.15)`:undefined }}>{valB}</span>
+        <>
+          {radarAxes && (
+            <div style={{ marginBottom: 20 }}>
+              <RadarChart axes={radarAxes} colorA={colorA} colorB={colorB} nameA={pA.player_name} nameB={pB.player_name} />
+            </div>
+          )}
+          <div className="lh-compare-table">
+            <div className="lh-compare-head">
+              <span style={{ color: colorA }}>{pA.player_name}</span>
+              <span>STAT</span>
+              <span style={{ color: colorB }}>{pB.player_name}</span>
+            </div>
+            {STAT_LIST.map(([label,sKey,cKey]) => {
+              const valA=getVal(pA,label,sKey,cKey), valB=getVal(pB,label,sKey,cKey);
+              const aBetter=isBetter(label,valA,valB), bBetter=isBetter(label,valB,valA);
+              return (
+                <div key={label} className="lh-compare-row">
+                  <span className={`lh-compare-val ${aBetter?'better':''}`} style={{ color: aBetter?colorA:undefined, background: aBetter?`rgba(${rgbA},0.15)`:undefined }}>{valA}</span>
+                  <span className="lh-compare-label">{label}</span>
+                  <div className="lh-compare-right">
+                    <span className={`lh-compare-val ${bBetter?'better':''}`} style={{ color: bBetter?colorB:undefined, background: bBetter?`rgba(${rgbB},0.15)`:undefined }}>{valB}</span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </>
       )}
       {compareMode==='player' && (!pA||!pB) && <div className="lh-empty">Select two players to compare</div>}
 
@@ -1103,10 +1130,22 @@ const CompareTab = ({ sport, cfg }) => {
             const lk=new Set(cfg.teamStats.filter(ts=>cfg.lowerBetter.some(lb=>ts.label.endsWith(lb))).map(ts=>ts.label));
             const aBetter=!isNaN(na)&&!isNaN(nb)&&na!==nb?(lk.has(key)?na<nb:na>nb):null;
             const bBetter=!isNaN(na)&&!isNaN(nb)&&na!==nb?(lk.has(key)?nb<na:nb>na):null;
+            const hasDiff = !isNaN(na) && !isNaN(nb);
+            const diff = hasDiff ? na - nb : null;
+            const diffLabel = hasDiff
+              ? `${diff === 0 ? '±' : diff > 0 ? '+' : ''}${Number.isInteger(diff) ? diff : diff.toFixed(2)}`
+              : null;
             return (
               <div key={key} className="lh-compare-row">
                 <span className={`lh-compare-val ${aBetter?'better':''}`} style={{ color: aBetter?colorTA:undefined, background: aBetter?`rgba(${hexToRgb(colorTA)||accentRgbFromCfg(cfg)},0.15)`:undefined }}>{valA}</span>
-                <span className="lh-compare-label">{key}</span>
+                <span className="lh-compare-label">
+                  {key}
+                  {diffLabel !== null && (
+                    <span style={{ display: 'block', fontSize: '0.68rem', color: aBetter ? colorTA : bBetter ? colorTB : 'rgba(158,165,196,0.5)' }}>
+                      diff {diffLabel}
+                    </span>
+                  )}
+                </span>
                 <div className="lh-compare-right">
                   <span className={`lh-compare-val ${bBetter?'better':''}`} style={{ color: bBetter?colorTB:undefined, background: bBetter?`rgba(${hexToRgb(colorTB)||'255,158,87'},0.15)`:undefined }}>{valB}</span>
                 </div>
