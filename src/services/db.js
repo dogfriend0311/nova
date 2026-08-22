@@ -4,6 +4,7 @@
  * Supabase isn't configured yet so the site still works locally.
  */
 import { supabase } from './supabaseClient';
+import { notifyDiscordEvent } from './discordEventNotify';
 
 const hasSupabase = () => true; // Rivestack via /api/query — no client-side env vars needed
 
@@ -392,6 +393,7 @@ export const db = {
         });
       }).catch(() => {});
     }
+    notifyDiscordEvent('hof', { player_name: record.player_name, league });
     return saved;
   },
 
@@ -661,6 +663,7 @@ export const db = {
       body: `${record.player_name || 'A player you follow'} just won Player of the Month${record.month_label ? ` (${record.month_label})` : ''}.`,
       link: `#leagues/player/${record.player_id}`,
     });
+    notifyDiscordEvent('potm', { player_name: record.player_name, league, month_label: record.month_label });
     return saved;
   },
 
@@ -704,6 +707,7 @@ export const db = {
       body: `${record.player_name || 'A player you follow'} earned ${label}.`,
       link: `#leagues/player/${record.player_id}`,
     });
+    notifyDiscordEvent('accolade', { player_name: record.player_name, league, label });
     return saved;
   },
 
@@ -1052,6 +1056,7 @@ export const db = {
   },
 
   async saveArticle(article) {
+    const isNew = !article.id;
     if (hasSupabase()) {
       try {
         if (article.id) {
@@ -1059,7 +1064,10 @@ export const db = {
           if (!error && data?.[0]) return data[0];
         } else {
           const { data, error } = await supabase.from('nova_articles').insert([article]).select();
-          if (!error && data?.[0]) return data[0];
+          if (!error && data?.[0]) {
+            if (isNew) notifyDiscordEvent('article', { title: data[0].title, author: data[0].author });
+            return data[0];
+          }
         }
       } catch {}
     }
@@ -1070,6 +1078,7 @@ export const db = {
     }
     const local = { ...article, id: Date.now().toString() };
     ls.set('nova_articles', [...list, local]);
+    if (isNew) notifyDiscordEvent('article', { title: local.title, author: local.author });
     return local;
   },
 

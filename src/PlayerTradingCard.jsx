@@ -194,20 +194,22 @@ const PlayerTradingCard = ({ player, hittingStats, pitchingStats, catALabel, cat
   const avatarSrc = player.avatar_data || null;
   const initial = (player.player_name || '?').trim()[0]?.toUpperCase() || '?';
 
+  const [sharing, setSharing] = useState(false);
+  const [shareUnsupported, setShareUnsupported] = useState(false);
+
   /* Draws the entire card from scratch using plain Canvas 2D primitives -
      no SVG, no foreignObject, no DOM snapshotting. That approach can
      silently fail (or "taint" the canvas so export is blocked) depending
      on the browser; drawing directly like this works the same way
-     everywhere. */
-  const handleDownload = async () => {
-    setDownloading(true);
-    setError(false);
-    try {
-      if (document.fonts && document.fonts.ready) {
-        await document.fonts.ready;
-      }
+     everywhere. Both the download button and the native-share button
+     below reuse this same renderer so the exported/shared image is always
+     identical to the preview. */
+  const renderCardCanvas = async () => {
+    if (document.fonts && document.fonts.ready) {
+      await document.fonts.ready;
+    }
 
-      const scale = 2; // export at 2x for a crisp, print-quality PNG
+    const scale = 2; // export at 2x for a crisp, print-quality PNG
       const canvas = document.createElement('canvas');
       canvas.width = CARD_W * scale;
       canvas.height = CARD_H * scale;
@@ -371,23 +373,70 @@ const PlayerTradingCard = ({ player, hittingStats, pitchingStats, catALabel, cat
 
       ctx.restore(); // undo the inner-face clip
 
-      // Export
-      canvas.toBlob((blob) => {
-        if (!blob) { setError(true); setDownloading(false); return; }
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        const safeName = (player.player_name || 'player').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
-        a.href = url;
-        a.download = `nova-${safeName}-card.png`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-        setDownloading(false);
-      }, 'image/png');
+      return canvas;
+  };
+
+  const canvasToBlob = (canvas) => new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    setError(false);
+    try {
+      const canvas = await renderCardCanvas();
+      const blob = await canvasToBlob(canvas);
+      if (!blob) { setError(true); setDownloading(false); return; }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const safeName = (player.player_name || 'player').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+      a.href = url;
+      a.download = `nova-${safeName}-card.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setDownloading(false);
     } catch (e) {
       setError(true);
       setDownloading(false);
+    }
+  };
+
+  /* Native share sheet (mobile Safari/Chrome, some desktop browsers) — lets
+     someone share the card image directly to Discord, Messages, Instagram,
+     etc. without a separate download-then-attach step. Falls back to the
+     regular download when the Web Share API or file sharing isn't
+     supported (older browsers, most desktop Chrome/Firefox). */
+  const handleShare = async () => {
+    const safeName = (player.player_name || 'player').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+    const canShareFiles = typeof navigator.share === 'function' && typeof navigator.canShare === 'function';
+    if (!canShareFiles) { setShareUnsupported(true); handleDownload(); return; }
+
+    setSharing(true);
+    setError(false);
+    try {
+      const canvas = await renderCardCanvas();
+      const blob = await canvasToBlob(canvas);
+      if (!blob) { setError(true); setSharing(false); return; }
+      const file = new File([blob], `nova-${safeName}-card.png`, { type: 'image/png' });
+
+      if (!navigator.canShare({ files: [file] })) {
+        setShareUnsupported(true);
+        setSharing(false);
+        handleDownload();
+        return;
+      }
+
+      await navigator.share({
+        files: [file],
+        title: `${name} — Nova trading card`,
+        text: `Check out ${name}'s Nova stat card!`,
+      });
+      setSharing(false);
+    } catch (e) {
+      setSharing(false);
+      // AbortError just means the user closed the native share sheet —
+      // that's not a real failure, don't show an error for it.
+      if (e && e.name !== 'AbortError') setError(true);
     }
   };
 
@@ -541,7 +590,21 @@ const PlayerTradingCard = ({ player, hittingStats, pitchingStats, catALabel, cat
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '10px' }}>
+      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
+        {typeof navigator !== 'undefined' && typeof navigator.share === 'function' && (
+          <button
+            onClick={handleShare}
+            disabled={sharing}
+            style={{
+              padding: '10px 22px', borderRadius: '10px',
+              border: '1px solid rgba(94,129,244,0.4)', background: 'rgba(94,129,244,0.1)',
+              color: '#e2e5f0', fontWeight: 700, fontSize: '0.9rem',
+              cursor: sharing ? 'default' : 'pointer', opacity: sharing ? 0.7 : 1,
+            }}
+          >
+            {sharing ? 'Preparing...' : '\u2197 Share Card'}
+          </button>
+        )}
         <button
           onClick={handleDownload}
           disabled={downloading}
@@ -568,6 +631,11 @@ const PlayerTradingCard = ({ player, hittingStats, pitchingStats, catALabel, cat
       {error && (
         <p style={{ color: '#ff8f9e', fontSize: '0.82rem' }}>
           Couldn't generate the download. Try again in a moment.
+        </p>
+      )}
+      {!error && shareUnsupported && (
+        <p style={{ color: 'rgba(226,229,240,0.5)', fontSize: '0.78rem' }}>
+          Sharing isn't supported in this browser — downloaded the card instead.
         </p>
       )}
     </div>
