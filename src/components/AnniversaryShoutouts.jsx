@@ -2,11 +2,14 @@ import React, { useEffect, useState } from 'react';
 import db from '../services/db';
 import { CardShell, ScrollRow } from './ScrollCards';
 
-// ── Anniversary Shoutouts ────────────────────────────────────
-// "Joined Nova N years ago today" — built entirely from
-// member_profiles.created_at, no extra data entry required. Only
-// shows members whose join date is exactly a whole number of years
-// before today (so brand-new signups don't show up as "0 years ago").
+// ── Anniversary & Birthday Shoutouts ─────────────────────────
+// Two independent "today" checks, shown together in one scroll:
+//  - Nova anniversary: member_profiles.created_at (signup date) —
+//    automatic, nothing for the member to set.
+//  - Birthday: member_profiles.birthday, an optional field the member
+//    fills in themselves on their profile (Profile tab). Only the
+//    month/day are ever compared or shown — the year, and therefore
+//    age, is never surfaced here even if they entered one.
 
 const isAnniversaryToday = (createdAt) => {
   if (!createdAt) return false;
@@ -17,39 +20,56 @@ const isAnniversaryToday = (createdAt) => {
     && joined.getFullYear() < now.getFullYear();
 };
 
-const yearsSince = (createdAt) => new Date().getFullYear() - new Date(createdAt).getFullYear();
+const isBirthdayToday = (birthday) => {
+  if (!birthday) return false;
+  const bday = new Date(`${birthday}T00:00:00`);
+  const now = new Date();
+  return bday.getMonth() === now.getMonth() && bday.getDate() === now.getDate();
+};
+
+const yearsSince = (dateStr) => new Date().getFullYear() - new Date(dateStr).getFullYear();
 
 const goToMember = (username) => { window.location.hash = `#members/${username}`; };
 
 const AnniversaryShoutouts = () => {
-  const [members, setMembers] = useState(null); // null = loading
+  const [cards, setCards] = useState(null); // null = loading
 
   useEffect(() => {
     let cancelled = false;
     db.getMemberProfiles().then((profiles) => {
       if (cancelled) return;
-      setMembers((profiles || []).filter(p => isAnniversaryToday(p.created_at)));
-    }).catch(() => { if (!cancelled) setMembers([]); });
+      const list = [];
+      (profiles || []).forEach((p) => {
+        if (isAnniversaryToday(p.created_at)) {
+          const years = yearsSince(p.created_at);
+          list.push({ key: `anniv-${p.username}`, username: p.username, kicker: `${years} year${years === 1 ? '' : 's'} on Nova`, icon: '🎉', label: 'Nova anniversary' });
+        }
+        if (isBirthdayToday(p.birthday)) {
+          list.push({ key: `bday-${p.username}`, username: p.username, kicker: 'Birthday today', icon: '🎂', label: 'Happy birthday' });
+        }
+      });
+      setCards(list);
+    }).catch(() => { if (!cancelled) setCards([]); });
     return () => { cancelled = true; };
   }, []);
 
-  if (members === null || members.length === 0) return null;
+  if (cards === null || cards.length === 0) return null;
 
   return (
     <>
-      <div className="home-section-label">🎉 Nova Anniversaries Today</div>
+      <div className="home-section-label">🎉 Shoutouts Today</div>
       <ScrollRow>
-        {members.map((m) => {
-          const years = yearsSince(m.created_at);
-          return (
-            <CardShell key={m.username} kicker={`${years} year${years === 1 ? '' : 's'} on Nova`} onClick={() => goToMember(m.username)}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: '1.2rem' }}>🎂</span>
-                <span style={{ color: '#e2e5f0', fontWeight: 700, fontSize: '0.92rem' }}>{m.username}</span>
+        {cards.map((c) => (
+          <CardShell key={c.key} kicker={c.kicker} onClick={() => goToMember(c.username)}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: '1.2rem' }}>{c.icon}</span>
+              <div>
+                <div style={{ color: '#e2e5f0', fontWeight: 700, fontSize: '0.92rem' }}>{c.username}</div>
+                <div style={{ color: 'rgba(158,165,196,0.5)', fontSize: '0.72rem' }}>{c.label}</div>
               </div>
-            </CardShell>
-          );
-        })}
+            </div>
+          </CardShell>
+        ))}
       </ScrollRow>
     </>
   );

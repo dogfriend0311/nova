@@ -51,6 +51,7 @@ const Sidebar = ({ currentPage, onNavigate }) => {
     { id: 'store',       label: 'Store',        icon: '🛍️' },
     { id: 'members',     label: 'Member Pages', icon: '👥' },
     { id: 'staff',       label: 'Staff Directory', icon: '🛡️' },
+    { id: 'streaks',     label: 'Activity Streaks', icon: '🔥' },
     { id: 'messages',    label: 'Messages',     icon: '💬' },
   ];
 

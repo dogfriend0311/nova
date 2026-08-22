@@ -1145,58 +1145,6 @@ export const db = {
     ls.set('nova_member_badges', ls.get('nova_member_badges').filter(a => !(a.username === username && String(a.badge_id) === String(badgeId))));
   },
 
-  /* ── ACTIVITY STREAKS ──────────────────────────────────────────
-     Requires: nova_activity_log table (see supabase/activity_streaks.sql).
-     One row per member per calendar day they opened the site — used to
-     compute a live "N day streak" shown next to their badges. Nothing
-     to configure beyond running that migration; App.jsx calls
-     recordDailyActivity() once per session automatically. */
-  async recordDailyActivity(username) {
-    if (!username) return;
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD, local calendar day
-    if (hasSupabase()) {
-      try {
-        const { error } = await supabase
-          .from('nova_activity_log')
-          .upsert([{ username, activity_date: today }], { onConflict: 'username,activity_date', ignoreDuplicates: true });
-        if (!error) return;
-      } catch {}
-    }
-    const key = `nova_activity_${username}`;
-    const days = new Set(ls.get(key));
-    days.add(today);
-    ls.set(key, Array.from(days));
-  },
-
-  async getActivityStreak(username) {
-    if (!username) return 0;
-    let days = [];
-    if (hasSupabase()) {
-      try {
-        const { data, error } = await supabase
-          .from('nova_activity_log')
-          .select('activity_date')
-          .eq('username', username)
-          .order('activity_date', { ascending: false })
-          .limit(400); // ~13 months is plenty for any realistic streak
-        if (!error) days = (data || []).map(r => r.activity_date);
-      } catch {}
-    }
-    if (days.length === 0) days = ls.get(`nova_activity_${username}`) || [];
-    const daySet = new Set(days.map(d => String(d).slice(0, 10)));
-    const cursor = new Date();
-    const iso = () => cursor.toISOString().slice(0, 10);
-    // An ongoing streak still counts if today just hasn't logged in yet —
-    // start counting from yesterday in that case instead of resetting to 0.
-    if (!daySet.has(iso())) cursor.setDate(cursor.getDate() - 1);
-    let streak = 0;
-    while (daySet.has(iso())) {
-      streak += 1;
-      cursor.setDate(cursor.getDate() - 1);
-    }
-    return streak;
-  },
-
   /* ── FAVORITE TEAMS (sports team-following) ──────────────────
      Requires: favorite_teams table (see nova-migrations.sql).      */
   async getFavoriteTeams(username) {
@@ -1208,6 +1156,64 @@ export const db = {
       } catch {}
     }
     return ls.get('favorite_teams').filter(t => t.member_username === username);
+  },
+
+  // Unfiltered read of the whole table — used by the Member Directory's
+  // "favorite team" filter, which needs every member's picks at once
+  // rather than one member at a time.
+  async getAllFavoriteTeams() {
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('favorite_teams').select('*');
+        if (!error) return data || [];
+      } catch {}
+    }
+    return ls.get('favorite_teams');
+  },
+
+  /* ── KUDOS (member-to-member endorsements) ────────────────────
+     Requires: nova_kudos table (see supabase/kudos.sql). One row per
+     kudos given — a lightweight "thanks" with an optional note, shown
+     on the receiving member's profile. Spam control is the same
+     client-side rateLimiter already used for comments (kind: 'kudos'),
+     not a server-side rule, matching this app's existing pattern. */
+  async giveKudos(fromUsername, toUsername, note) {
+    if (!fromUsername || !toUsername || fromUsername === toUsername) return null;
+    const record = { from_username: fromUsername, to_username: toUsername, note: (note || '').slice(0, 200), created_at: new Date().toISOString() };
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_kudos').insert([record]).select();
+        if (!error && data?.[0]) return data[0];
+      } catch {}
+    }
+    const all = ls.get('nova_kudos');
+    const local = { ...record, id: `local-${Date.now()}` };
+    ls.set('nova_kudos', [...all, local]);
+    return local;
+  },
+
+  async getKudosReceived(username) {
+    if (!username) return [];
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase
+          .from('nova_kudos').select('*').eq('to_username', username).order('created_at', { ascending: false });
+        if (!error) return data || [];
+      } catch {}
+    }
+    return ls.get('nova_kudos').filter(k => k.to_username === username).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  },
+
+  // Unfiltered read of the whole table — used for a site-wide "most
+  // kudos received" leaderboard, same pattern as getAllFavoriteTeams.
+  async getAllKudos() {
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_kudos').select('*');
+        if (!error) return data || [];
+      } catch {}
+    }
+    return ls.get('nova_kudos');
   },
 
   async addFavoriteTeam(username, league, teamId, teamName) {

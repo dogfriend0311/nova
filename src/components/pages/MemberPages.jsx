@@ -5,6 +5,7 @@ import { ProfileBackground, ProfileAudioPlayer, effectiveBgList, effectiveAudioL
 import { BadgeRow } from '../BadgeDisplay';
 import { checkRateLimit, recordAction } from '../../services/rateLimiter';
 import { awardXP } from '../../services/reputationService';
+import { currentUsername } from '../../services/favoritesService';
 
 // ── role helpers ──────────────────────────────────────────────
 const SPORT_KEYS = ['mlb', 'nfl', 'nba', 'nhl', 'cfb', 'cbb'];
@@ -341,6 +342,11 @@ const MemberCard = ({ member, badgeTypes, onClick }) => {
               No bio set
             </p>
           )}
+          {member.created_at && (
+            <p style={{ margin: '6px 0 0', color: 'rgba(158,165,196,0.35)', fontSize: '0.7rem' }}>
+              Joined {new Date(member.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -353,8 +359,11 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
   const [selectedMember, setSelectedMember] = useState(null);
   const [search,         setSearch]         = useState('');
   const [roleFilter,     setRoleFilter]     = useState('all');
+  const [badgeFilter,    setBadgeFilter]    = useState('all');
+  const [teamFilter,     setTeamFilter]     = useState('all');
   const [loading,        setLoading]        = useState(true);
   const [badgeTypes,     setBadgeTypes]     = useState([]);
+  const [teamsByMember,  setTeamsByMember]  = useState({}); // username -> ["Team A", "Team B", ...]
 
   // Attach the badge ids each member has both been assigned AND chosen to
   // display, so a revoked or hidden badge never shows up stale.
@@ -366,7 +375,7 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
 
   useEffect(() => {
     import('../../services/db').then(({ default: db }) => {
-      Promise.all([db.getMemberProfiles(), db.getUsers(), db.getBadgeTypes(), db.getMemberBadges(), db.getStaffOfMonth()]).then(([profiles, users, badges, assignments, sotm]) => {
+      Promise.all([db.getMemberProfiles(), db.getUsers(), db.getBadgeTypes(), db.getMemberBadges(), db.getStaffOfMonth(), db.getAllFavoriteTeams()]).then(([profiles, users, badges, assignments, sotm, favTeams]) => {
         const enriched = withVisibleBadges(profiles.map(p => ({
           ...p,
           role: users.find(u => u.username === p.username)?.role || p.role || 'member',
@@ -377,6 +386,12 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
         enriched.sort((a, b) => (ORDER[a.role] ?? 5) - (ORDER[b.role] ?? 5));
         setMembers(enriched);
         setBadgeTypes(badges || []);
+        const teamMap = {};
+        (favTeams || []).forEach(t => {
+          if (!t.member_username || !t.team_name) return;
+          (teamMap[t.member_username] ||= []).push(t.team_name);
+        });
+        setTeamsByMember(teamMap);
         setLoading(false);
         if (targetUsername) {
           const found = enriched.find(m => m.username === targetUsername);
@@ -411,8 +426,13 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
   const filtered = members.filter(m => {
     const ms = m.username?.toLowerCase().includes(search.toLowerCase());
     const mr = roleFilter === 'all' || (m.role || 'member') === roleFilter;
-    return ms && mr;
+    const mb = badgeFilter === 'all' || (m.visible_badge_ids || []).map(String).includes(String(badgeFilter));
+    const mt = teamFilter === 'all' || (teamsByMember[m.username] || []).includes(teamFilter);
+    return ms && mr && mb && mt;
   });
+
+  // Every distinct team any member has favorited, for the team filter dropdown.
+  const allFavoriteTeamNames = Array.from(new Set(Object.values(teamsByMember).flat())).sort();
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 12px' }}>
@@ -461,6 +481,22 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
             </button>
           ))}
         </div>
+        <select
+          value={badgeFilter}
+          onChange={e => setBadgeFilter(e.target.value)}
+          style={{ padding: '8px 12px', borderRadius: 20, background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.15)', color: badgeFilter === 'all' ? 'rgba(158,165,196,0.45)' : '#e2e5f0', fontSize: '0.78rem', minHeight: 36, cursor: 'pointer' }}
+        >
+          <option value="all">Any badge</option>
+          {badgeTypes.map(b => <option key={b.id} value={b.id}>{b.icon ? `${b.icon} ` : ''}{b.name}</option>)}
+        </select>
+        <select
+          value={teamFilter}
+          onChange={e => setTeamFilter(e.target.value)}
+          style={{ padding: '8px 12px', borderRadius: 20, background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.15)', color: teamFilter === 'all' ? 'rgba(158,165,196,0.45)' : '#e2e5f0', fontSize: '0.78rem', minHeight: 36, cursor: 'pointer' }}
+        >
+          <option value="all">Any favorite team</option>
+          {allFavoriteTeamNames.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
       </div>
 
       {/* Grid */}
@@ -508,14 +544,42 @@ const MemberProfileView = ({ member, onBack, badgeTypes }) => {
   const [viewTab, setViewTab] = useState('overview');
   const [copied,  setCopied]  = useState(false);
   const [streak,  setStreak]  = useState(0);
+  const [kudos,        setKudos]        = useState([]);
+  const [kudosNote,    setKudosNote]    = useState('');
+  const [givingKudos,  setGivingKudos]  = useState(false);
+  const [kudosMessage, setKudosMessage] = useState('');
+  const me = currentUsername();
 
   useEffect(() => {
     let cancelled = false;
     import('../../services/db').then(({ default: db }) => {
-      db.getActivityStreak(member.username).then((n) => { if (!cancelled) setStreak(n); }).catch(() => {});
+      db.getUserStats(member.username).then((s) => { if (!cancelled) setStreak(s?.login_streak || 0); }).catch(() => {});
+      db.getKudosReceived(member.username).then((list) => { if (!cancelled) setKudos(list || []); }).catch(() => {});
     });
     return () => { cancelled = true; };
   }, [member.username]);
+
+  const handleGiveKudos = async () => {
+    if (!me || me === member.username) return;
+    const verdict = checkRateLimit('kudos', me);
+    if (!verdict.allowed) { setKudosMessage(verdict.message); return; }
+    setGivingKudos(true);
+    setKudosMessage('');
+    try {
+      const { default: db } = await import('../../services/db');
+      await db.giveKudos(me, member.username, kudosNote);
+      recordAction('kudos', me);
+      awardXP(member.username, 5).catch(() => {});
+      const fresh = await db.getKudosReceived(member.username);
+      setKudos(fresh || []);
+      setKudosNote('');
+      setKudosMessage('Kudos sent! 👍');
+    } catch {
+      setKudosMessage("Couldn't send kudos — try again in a moment.");
+    } finally {
+      setGivingKudos(false);
+    }
+  };
 
   const joinedDate = member.created_at ? new Date(member.created_at) : null;
   const isAnniversaryToday = !!joinedDate
@@ -635,7 +699,56 @@ const MemberProfileView = ({ member, onBack, badgeTypes }) => {
             </div>
           )}
 
+          {joinedDate && (
+            <p style={{ margin: '8px 0 0', color: 'rgba(158,165,196,0.4)', fontSize: '0.76rem', textAlign: 'center' }}>
+              Member since {joinedDate.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
+              {member.birthday && (
+                <> · 🎂 {new Date(`${member.birthday}T00:00:00`).toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}</>
+              )}
+            </p>
+          )}
+
           {member.bio && <p className="gl-public-bio" style={{ color: member.text_color ? `${member.text_color}cc` : undefined }}>{member.bio}</p>}
+
+          {/* Kudos — member-to-member endorsements. Anyone signed in
+              except the profile owner can send one, with an optional
+              short note. */}
+          <div style={{ marginTop: 14, padding: '12px 16px', borderRadius: 12, background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.14)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: 700, color: '#e2e5f0', fontSize: '0.88rem' }}>👍 {kudos.length} Kudos</span>
+              {me && me !== member.username && (
+                <div style={{ display: 'flex', gap: 6, flex: '1 1 240px' }}>
+                  <input
+                    type="text"
+                    value={kudosNote}
+                    onChange={(e) => setKudosNote(e.target.value)}
+                    placeholder="Optional note…"
+                    maxLength={200}
+                    style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(94,129,244,0.15)', color: '#e2e5f0', fontSize: '0.8rem' }}
+                  />
+                  <button
+                    onClick={handleGiveKudos}
+                    disabled={givingKudos}
+                    className="neon-button"
+                    style={{ padding: '6px 14px', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                  >
+                    {givingKudos ? 'Sending…' : 'Give Kudos'}
+                  </button>
+                </div>
+              )}
+            </div>
+            {kudosMessage && <div style={{ marginTop: 6, fontSize: '0.75rem', color: 'var(--color-cyan)' }}>{kudosMessage}</div>}
+            {kudos.length > 0 && (
+              <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {kudos.slice(0, 5).map((k) => (
+                  <div key={k.id} style={{ fontSize: '0.78rem', color: 'rgba(200,210,240,0.65)' }}>
+                    <strong style={{ color: '#e2e5f0' }}>{k.from_username}</strong>
+                    {k.note ? <> — {k.note}</> : null}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {member.roblox_username && <div style={{ marginTop: 12 }}><RobloxLinkCard username={member.roblox_username} /></div>}
 

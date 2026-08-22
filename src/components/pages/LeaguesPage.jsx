@@ -68,9 +68,30 @@ const LeaguesPage = ({ onSelectPlayer }) => {
     setLeagueState(id);
     try { localStorage.setItem('nova_last_league_sport', id); } catch {}
   };
-  const [jumpTeam, setJumpTeam] = useState(null);
+  const [jumpTeam, setJumpTeam] = useState(() => {
+    try {
+      const pending = JSON.parse(localStorage.getItem('nova_pending_team_jump') || 'null');
+      return pending?.teamName || null;
+    } catch { return null; }
+  });
   const [jumpCounter, setJumpCounter] = useState(0);
   const activeSport = SPORTS[league];
+
+  // Consume the "jump to this team" handoff left by CommandPalette's global
+  // search (a team result can't set this component's local state directly,
+  // so it drops a breadcrumb in localStorage instead — read once, then
+  // cleared so it doesn't re-trigger on a later unrelated visit).
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('nova_pending_team_jump');
+      if (!raw) return;
+      localStorage.removeItem('nova_pending_team_jump');
+      const pending = JSON.parse(raw);
+      if (pending?.sport && SPORTS[pending.sport]) setLeague(pending.sport);
+      if (pending?.teamName) { setJumpTeam(pending.teamName); setJumpCounter(c => c + 1); }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const jumpToTeam = (teamName) => {
     setJumpTeam(teamName);

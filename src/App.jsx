@@ -5,6 +5,7 @@ import Home from './components/pages/Home';
 import SportsHub from './components/pages/SportsHub';
 import MemberPages from './components/pages/MemberPages';
 import StaffDirectory from './components/pages/StaffDirectory';
+import StreakLeaderboard from './components/pages/StreakLeaderboard';
 import MessagesPage from './components/pages/MessagesPage';
 import MemberProfile from './components/pages/MemberProfile';
 import LeaguesPage from './components/pages/LeaguesPage';
@@ -124,17 +125,6 @@ const AppContent = () => {
       setCoins(parseInt(localStorage.getItem(`nova_coins_${user.username}`) || '0'));
     }
   }, [user]);
-
-  // Mark today as an active day for this member (idempotent — see
-  // db.recordDailyActivity) so the "activity streak" badge on their
-  // profile stays current every time they open the site.
-  useEffect(() => {
-    if (user?.username) {
-      import('./services/db').then(({ default: db }) => {
-        db.recordDailyActivity(user.username).catch(() => {});
-      });
-    }
-  }, [user?.username]);
 
   // ── Route state — driven by URL hash ──────────────────────
   const [currentPage, setCurrentPage] = useState(() => {
@@ -292,6 +282,9 @@ const AppContent = () => {
 
       case 'staff':
         return <StaffDirectory onSelectMember={(username) => handlePageChange('members', username)} />;
+
+      case 'streaks':
+        return <StreakLeaderboard onSelectMember={(username) => handlePageChange('members', username)} />;
 
       case 'messages':
         return <MessagesPage initialUsername={routeSub} onSignIn={() => setShowLoginModal(true)} />;

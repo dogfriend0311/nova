@@ -1,14 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, User, FileText, X } from 'lucide-react';
+import { Search, User, FileText, X, Shield, CalendarDays } from 'lucide-react';
 import db from '../services/db';
 import { SPORTS } from '../data/sportsConfig';
 
 // ── Global search / command palette ────────────────────────────
 // Opens with Cmd+K / Ctrl+K anywhere in the app, or by tapping the
-// search icon in the navbar. Searches players (across every league),
-// member profiles, and articles, then jumps straight to the matching
-// page via the same hash-router the rest of the app already uses —
-// so this component needs zero wiring into App.jsx's state.
+// search icon in the navbar. Searches players, teams, games, member
+// profiles, and articles across every league, then jumps straight to
+// the matching page via the same hash-router the rest of the app
+// already uses — so this component needs zero wiring into App.jsx's
+// state. Team/game results use a small localStorage handoff (see
+// LeaguesPage.jsx's "pending jump" effect) since league/roster
+// selection there is local React state, not part of the URL.
 
 const LEAGUE_KEYS = Object.keys(SPORTS); // ['vizta', 'hockey', 'football']
 
@@ -17,7 +20,7 @@ const goTo = (hash) => { window.location.hash = hash; };
 const CommandPalette = () => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState({ players: [], members: [], articles: [] });
+  const [results, setResults] = useState({ players: [], teams: [], games: [], members: [], articles: [] });
   const [activeIndex, setActiveIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef(null);
@@ -40,18 +43,20 @@ const CommandPalette = () => {
 
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 30);
-    else { setQuery(''); setResults({ players: [], members: [], articles: [] }); setActiveIndex(0); }
+    else { setQuery(''); setResults({ players: [], teams: [], games: [], members: [], articles: [] }); setActiveIndex(0); }
   }, [open]);
 
   useEffect(() => {
     clearTimeout(debounceRef.current);
     const q = query.trim().toLowerCase();
-    if (q.length < 2) { setResults({ players: [], members: [], articles: [] }); return; }
+    if (q.length < 2) { setResults({ players: [], teams: [], games: [], members: [], articles: [] }); return; }
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
       try {
-        const [playerLists, members, articles] = await Promise.all([
+        const [playerLists, teamLists, gameLists, members, articles] = await Promise.all([
           Promise.all(LEAGUE_KEYS.map(lg => db.getPlayers(lg).then(list => (Array.isArray(list) ? list : []).map(p => ({ ...p, _league: lg }))).catch(() => []))),
+          Promise.all(LEAGUE_KEYS.map(lg => db.getTeams(lg).then(list => (Array.isArray(list) ? list : []).map(t => ({ ...t, _league: lg }))).catch(() => []))),
+          Promise.all(LEAGUE_KEYS.map(lg => db.getBsGames(lg).then(list => (Array.isArray(list) ? list : []).map(g => ({ ...g, _league: lg }))).catch(() => []))),
           db.getMemberProfiles().catch(() => []),
           db.getArticles().catch(() => []),
         ]);
@@ -59,13 +64,21 @@ const CommandPalette = () => {
         const players = allPlayers.filter(p =>
           (p.nickname || '').toLowerCase().includes(q) || (p.player_name || '').toLowerCase().includes(q)
         ).slice(0, 6);
+        const allTeams = teamLists.flat();
+        const teams = allTeams.filter(t => (t.team_name || '').toLowerCase().includes(q)).slice(0, 5);
+        const allGames = gameLists.flat();
+        const games = allGames.filter(g =>
+          (g.game_name || '').toLowerCase().includes(q)
+          || (g.home_team || '').toLowerCase().includes(q)
+          || (g.away_team || '').toLowerCase().includes(q)
+        ).slice(0, 5);
         const memberMatches = (Array.isArray(members) ? members : []).filter(m =>
           (m.username || '').toLowerCase().includes(q) || (m.display_name || '').toLowerCase().includes(q)
         ).slice(0, 5);
         const articleMatches = (Array.isArray(articles) ? articles : []).filter(a =>
           (a.title || '').toLowerCase().includes(q)
         ).slice(0, 5);
-        setResults({ players, members: memberMatches, articles: articleMatches });
+        setResults({ players, teams, games, members: memberMatches, articles: articleMatches });
         setActiveIndex(0);
       } finally {
         setLoading(false);
@@ -77,6 +90,8 @@ const CommandPalette = () => {
   const flat = useMemo(() => {
     const list = [];
     results.players.forEach(p => list.push({ type: 'player', item: p }));
+    results.teams.forEach(t => list.push({ type: 'team', item: t }));
+    results.games.forEach(g => list.push({ type: 'game', item: g }));
     results.members.forEach(m => list.push({ type: 'member', item: m }));
     results.articles.forEach(a => list.push({ type: 'article', item: a }));
     return list;
@@ -85,10 +100,23 @@ const CommandPalette = () => {
   const select = (entry) => {
     if (!entry) return;
     if (entry.type === 'player') goTo(`#leagues/player/${entry.item.id}`);
+    else if (entry.type === 'team') {
+      // LeaguesPage reads+clears this on mount to jump straight to the
+      // team's roster tab, since its own team-selection state is local
+      // to that component (see LeaguesPage.jsx).
+      try { localStorage.setItem('nova_pending_team_jump', JSON.stringify({ sport: entry.item._league, teamName: entry.item.team_name })); } catch {}
+      try { localStorage.setItem('nova_last_league_sport', entry.item._league); } catch {}
+      goTo('#leagues');
+    }
+    else if (entry.type === 'game') {
+      try { localStorage.setItem('nova_last_league_sport', entry.item._league); } catch {}
+      goTo('#leagues');
+    }
     else if (entry.type === 'member') goTo(`#members/${entry.item.username}`);
     else if (entry.type === 'article') goTo(`#articles/${entry.item.id}`);
     setOpen(false);
   };
+
 
   const onInputKeyDown = (e) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIndex(i => Math.min(i + 1, flat.length - 1)); }
@@ -133,7 +161,7 @@ const CommandPalette = () => {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={onInputKeyDown}
-                placeholder="Search players, members, articles…"
+                placeholder="Search players, teams, games, members, articles…"
                 style={{
                   flex: 1, background: 'none', border: 'none', outline: 'none',
                   color: '#e2e5f0', fontSize: '0.95rem', padding: '6px 0',
@@ -164,6 +192,28 @@ const CommandPalette = () => {
                       title={p.nickname || p.player_name}
                       subtitle={`${SPORTS[p._league]?.label || p._league}${p.team ? ` · ${p.team}` : ''}`}
                       onClick={() => select({ type: 'player', item: p })}
+                    />
+                  ))}
+                  {results.teams.length > 0 && <SectionLabel label="Teams" />}
+                  {results.teams.map((t) => (
+                    <ResultRow
+                      key={`t-${t._league}-${t.id}`}
+                      active={flat[activeIndex]?.item === t}
+                      icon={<Shield size={15} />}
+                      title={t.team_name}
+                      subtitle={SPORTS[t._league]?.label || t._league}
+                      onClick={() => select({ type: 'team', item: t })}
+                    />
+                  ))}
+                  {results.games.length > 0 && <SectionLabel label="Games" />}
+                  {results.games.map((g) => (
+                    <ResultRow
+                      key={`g-${g._league}-${g.id}`}
+                      active={flat[activeIndex]?.item === g}
+                      icon={<CalendarDays size={15} />}
+                      title={g.game_name || `${g.away_team || 'Away'} @ ${g.home_team || 'Home'}`}
+                      subtitle={`${SPORTS[g._league]?.label || g._league}${g.game_date ? ` · ${new Date(g.game_date).toLocaleDateString()}` : ''}`}
+                      onClick={() => select({ type: 'game', item: g })}
                     />
                   ))}
                   {results.members.length > 0 && <SectionLabel label="Members" />}

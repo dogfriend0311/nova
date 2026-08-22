@@ -24,6 +24,7 @@ const DEFAULT_PROFILE = {
   bio: '', top_banner_url: '', avatar_url: '', lastfm_username: '',
   twitter_url: '', twitch_url: '', youtube_url: '', instagram_url: '',
   discord_tag: '', fav_teams: DEFAULT_FAV_TEAMS,
+  birthday: '', // optional, YYYY-MM-DD — shown as month/day only (see below), never the year, and only if the member sets it
   fav_team_notifs: {}, // { [sport]: { [abbr]: { finalScore: bool, news: bool } } }
   fav_games: [],
   // guns.lol-style page customization
@@ -1092,6 +1093,10 @@ const MemberProfile = () => {
                 <div className="form-group">
                   <label>Discord Tag</label>
                   <input type="text" value={formData.discord_tag || ''} onChange={(e) => setFormData({ ...formData, discord_tag: e.target.value })} placeholder="username#0000" />
+                </div>
+                <div className="form-group">
+                  <label>Birthday <span style={{ fontWeight: 400, opacity: 0.6 }}>(optional — shown as month &amp; day only, never your age or birth year)</span></label>
+                  <input type="date" value={formData.birthday || ''} onChange={(e) => setFormData({ ...formData, birthday: e.target.value })} />
                 </div>
                 <div className="form-actions">
                   <button className="neon-button" onClick={handleSave}>Save Profile</button>

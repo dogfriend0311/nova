@@ -77,6 +77,11 @@ const Icon = {
       <path d="M9 12.2l2 2 4-4.4" />
     </svg>
   ),
+  streak: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22c4.5 0 7.5-3 7.5-6.8 0-3-2-5.3-3.3-7.2-.3 1.6-1.2 2.6-2 2.6-.6-3-2-5.4-4-6.6.3 2.2-.6 4-2 5.4C6.5 10.7 4.5 12.7 4.5 15.2 4.5 19 7.5 22 12 22z" />
+    </svg>
+  ),
 };
 
 /* Official Nova Discord invite */
@@ -100,6 +105,7 @@ const TILES = [
   { id: 'sports',    icon: 'sports',  title: 'Sports Hub',    desc: 'Live scores across MLB, NFL, NBA, and NHL',               accent: 'amber'  },
   { id: 'members',   icon: 'members', title: 'Members',       desc: 'Browse profiles and leave a comment',                     accent: 'blue'   },
   { id: 'staff',     icon: 'staff',   title: 'Staff Directory', desc: 'Meet the mods, co-founders & helpers running Nova',     accent: 'blue'   },
+  { id: 'streaks',   icon: 'streak',  title: 'Activity Streaks', desc: 'See who has the longest login streak on Nova',        accent: 'amber'  },
   { id: 'games',     icon: 'games',   title: 'Games',         desc: 'Fantasy, Pick\'ems, Beat Battle, Prop Bets & more',       accent: 'amber'  },
   { id: 'music',     icon: 'music',   title: 'Music',         desc: '🎧 Last.fm scrobbles & Beat Battle',                       accent: 'violet' },
   { id: 'articles',  icon: 'articles',title: 'Articles',      desc: '📰 Sports & music writeups from the staff',                accent: 'blue'   },
