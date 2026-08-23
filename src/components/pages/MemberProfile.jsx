@@ -923,10 +923,14 @@ const MemberProfile = () => {
 
   // ── Check for a fresh Discord-join match (best-effort, see
   // discordBadgeCheck.js) whenever this profile has a Discord Tag set but
-  // hasn't been verified yet.
+  // hasn't been verified yet. Passes a minimal object built from the
+  // primitives already in the dep array (rather than closing over the
+  // whole `profile` object) so the deps array stays exhaustive.
   useEffect(() => {
-    if (!profile?.username || !profile?.discord_tag || profile?.discord_verified_at) return;
-    checkAndAwardDiscordBadges([profile]).then(newlyVerified => {
+    const username = profile?.username;
+    const discord_tag = profile?.discord_tag;
+    if (!username || !discord_tag || profile?.discord_verified_at) return;
+    checkAndAwardDiscordBadges([{ username, discord_tag }]).then(newlyVerified => {
       if (!newlyVerified.length) return;
       const verified_at = new Date().toISOString();
       setProfile(p => (p ? { ...p, discord_verified_at: verified_at } : p));
