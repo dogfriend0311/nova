@@ -24,7 +24,7 @@ import MusicHub from './components/pages/MusicHub';
 import DiamondLeague from './components/pages/baseball/DiamondLeague';
 import EmbedPlayerCard from './components/EmbedPlayerCard';
 import InstallPrompt from './components/InstallPrompt';
-import DailyRewardToast from './components/DailyRewardToast';
+import OfflineBanner from './components/OfflineBanner';import DailyRewardToast from './components/DailyRewardToast';
 import AllTimeLeaderboard from './components/AllTimeLeaderboard';
 import './styles/globals.css';
 import './styles/theme.css';
@@ -361,6 +361,7 @@ const AppContent = () => {
       </Layout>
 
       <InstallPrompt />
+      <OfflineBanner />
       <DailyRewardToast />
 
       {showLoginModal && (

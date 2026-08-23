@@ -24,6 +24,7 @@ import {
   toggleFavoriteTeam,
 } from './services/favoritesService';
 import './ViztaLeague.css';
+import { RowsSkeleton } from './components/Skeleton';
 
 /* Small starred/unstarred toggle used next to players and teams
    throughout the league tabs. Stops click propagation so it never
@@ -339,7 +340,7 @@ const RostersTab = ({ sport, cfg, onSelectPlayer, initialTeam }) => {
     });
   };
 
-  if (loading) return <div className="lh-loading">Loading…</div>;
+  if (loading) return <RowsSkeleton rows={5} />;
 
   if (!selectedTeam) {
     // Favorited teams surface first so they're easy to find every time
@@ -491,7 +492,7 @@ const RostersTab = ({ sport, cfg, onSelectPlayer, initialTeam }) => {
                 )}
               </div>
               {schedLoading ? (
-                <div className="lh-loading">Loading…</div>
+                <RowsSkeleton rows={3} />
               ) : schedule.length === 0 ? (
                 <div className="lh-empty">No schedule yet.<br/>An admin can add games via Admin → Fantasy Schedule.</div>
               ) : (
@@ -621,7 +622,7 @@ const LeagueLeadersTab = ({ sport, cfg, onSelectPlayer }) => {
       .then(([p, b]) => { setPlayers(p); setBoxScores(Array.isArray(b)?b:[]); setLoading(false); });
   }, [sport]);
 
-  if (loading) return <div className="lh-loading">Loading…</div>;
+  if (loading) return <RowsSkeleton rows={6} />;
 
   const CATS = statType === cfg.catA.id ? cfg.leadersA : cfg.leadersB;
 
@@ -806,7 +807,7 @@ const ScheduleTab = ({ sport, cfg }) => {
       .catch(() => { setSchedule([]); setSchedLoading(false); });
   }, [selectedTeam]);
 
-  if (loading) return <div className="lh-loading">Loading…</div>;
+  if (loading) return <RowsSkeleton rows={6} />;
 
   if (selectedGame) {
     return (
@@ -877,7 +878,7 @@ const ScheduleTab = ({ sport, cfg }) => {
 
       <div className="lh-card">
         {schedLoading ? (
-          <div className="lh-loading">Loading…</div>
+          <RowsSkeleton rows={4} />
         ) : sorted.length === 0 ? (
           <div className="lh-empty">No schedule yet.<br/>An admin can add games via Admin → Schedule.</div>
         ) : (
@@ -972,7 +973,7 @@ const CompareTab = ({ sport, cfg }) => {
       .then(([p, t]) => { setPlayers(p); setTeams(t); setLoading(false); });
   }, [sport]);
 
-  if (loading) return <div className="lh-loading">Loading…</div>;
+  if (loading) return <RowsSkeleton rows={6} />;
 
   const getTeamColor = (name) => teams.find(t=>t.team_name===name)?.team_color||null;
   const pA = players.find(p=>String(p.id)===String(idA));
@@ -1180,7 +1181,7 @@ const AnalyticsTab = ({ sport, cfg }) => {
       .catch(() => setLoading(false));
   }, [sport]);
 
-  if (loading) return <div className="lh-loading">Building league intelligence…</div>;
+  if (loading) return <RowsSkeleton rows={7} />;
 
   const numeric = (value) => {
     const n = parseFloat(value);

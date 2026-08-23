@@ -4,6 +4,7 @@ import * as lfm from '../../services/lastfmService';
 import { ProfileBackground, ProfileAudioPlayer, effectiveBgList, effectiveAudioList, RobloxLinkCard, RobloxGameCard } from './MemberProfile';
 import { BadgeRow, DiscordVerifiedChip } from '../BadgeDisplay';
 import { checkAndAwardDiscordBadges } from '../../services/discordBadgeCheck';
+import { MemberGridSkeleton } from '../Skeleton';
 import { checkRateLimit, recordAction } from '../../services/rateLimiter';
 import { awardXP } from '../../services/reputationService';
 import { currentUsername } from '../../services/favoritesService';
@@ -508,10 +509,7 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
 
       {/* Grid */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '60px 0' }}>
-          <div style={{ width: 36, height: 36, border: '3px solid rgba(94,129,244,0.2)', borderTopColor: 'var(--color-cyan)', borderRadius: '50%', animation: 'rotate 1s linear infinite', margin: '0 auto 12px' }} />
-          <div style={{ color: 'rgba(158,165,196,0.35)', fontSize: '0.88rem' }}>Loading members…</div>
-        </div>
+        <MemberGridSkeleton />
       ) : filtered.length === 0 ? (
         <div className="neon-card" style={{ textAlign: 'center', padding: '48px 24px' }}>
           <div style={{ fontSize: '2rem', marginBottom: 10 }}>👤</div>

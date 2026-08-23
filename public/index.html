@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#0a0a23" />
+    <meta name="theme-color" content="#07091a" />
     <meta
       name="description"
       content="Nova Sports - Your home for all things sports and music"
@@ -17,8 +17,16 @@
     <!-- Favicon -->
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
 
-    <!-- Apple Touch Icon -->
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    <!-- Apple Touch Icon (opaque — iOS renders transparent PNG pixels as black) -->
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/apple-touch-icon.png" />
+
+    <!-- iOS "Add to Home Screen" standalone-mode support. Safari ignores
+         the web manifest's display/name for this — these meta tags are
+         the only way to get a chromeless standalone window and a decent
+         status bar on iOS once the app is added to the home screen. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Nova" />
 
     <!-- Web App Manifest -->
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />

@@ -7,6 +7,7 @@ import {
 } from '../../services/sportsDataService';
 import './SportsHub.css';
 import PlayByPlay from './PlayByPlay';
+import { ScoresGridSkeleton, StandingsSkeleton, NewsGridSkeleton } from '../Skeleton';
 
 const SPORTS = [
   { id:'mlb',          label:'MLB',              icon:'B' },
@@ -252,7 +253,7 @@ const ScoresPanel = ({ sport, refreshKey, onSelectGame, selectedDate }) => {
 
   useEffect(() => { load(); }, [load, refreshKey]);
 
-  if (loading) return <div className="sh-loading"><div className="sh-spinner" /></div>;
+  if (loading) return <ScoresGridSkeleton />;
   if (error)   return <div className="sh-error">Could not load scores: {error}</div>;
 
   const live      = games.filter(g=>g.status==='in');
@@ -390,7 +391,7 @@ const MiLBScoresPanel = ({ sport, refreshKey, selectedDate }) => {
 
   useEffect(() => { load(); }, [load, refreshKey]);
 
-  if (loading) return <div className="sh-loading"><div className="sh-spinner" /></div>;
+  if (loading) return <ScoresGridSkeleton />;
   if (error)   return <div className="sh-error">Could not load scores: {error}</div>;
   if (selectedGame) return <MiLBGameDetailView game={selectedGame} onBack={()=>setSelectedGame(null)} />;
 
@@ -717,7 +718,7 @@ const StandingsPanel = ({ sport }) => {
     fetchStandings(sport).then(raw=>setGroups(normalizeStandings(raw))).catch(e=>setError(e.message)).finally(()=>setLoading(false));
   }, [sport]);
 
-  if (loading) return <div className="sh-loading"><div className="sh-spinner" /></div>;
+  if (loading) return <StandingsSkeleton />;
   if (error)   return <div className="sh-error">Standings unavailable: {error}</div>;
   if (!groups?.length) return <div className="sh-empty">No standings data available.</div>;
 
@@ -772,7 +773,7 @@ const NewsPanel = ({ sport }) => {
     fetchNews(sport).then(raw=>setArticles(normalizeNews(raw))).catch(e=>setError(e.message)).finally(()=>setLoading(false));
   }, [sport]);
 
-  if (loading) return <div className="sh-loading"><div className="sh-spinner" /></div>;
+  if (loading) return <NewsGridSkeleton />;
   if (error)   return <div className="sh-error">Could not load news: {error}</div>;
   if (!articles?.length) return <div className="sh-empty">No news available right now.</div>;
 
