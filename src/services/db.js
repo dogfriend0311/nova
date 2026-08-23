@@ -1041,11 +1041,13 @@ export const db = {
     localStorage.removeItem('nova_staff_of_month');
   },
 
-  /* Note: favorite *league* teams (starring a Roblox league team so
+  /* Note: followed *league* teams (starring a Roblox league team so
      it surfaces first when opening Leagues) reuse the existing
-     getFavoriteTeams / addFavoriteTeam / removeFavoriteTeam trio
-     further down (search "FAVORITE TEAMS (sports team-following)")
-     rather than a second table — see favoritesService.js. */
+     getFollowedTeams / addFollowedTeam / removeFollowedTeam trio
+     further down (search "FOLLOWED TEAMS (Roblox league team-following)")
+     rather than a second table — see favoritesService.js. This is a
+     different concept from a member's real-world "Favorite Teams" on
+     their profile (fav_teams, below). */
 
   /* ── ARTICLES ─────────────────────────────────────────────────
      Owner/cofounders write these (photo + title + body); everyone can
@@ -1208,9 +1210,16 @@ export const db = {
     ls.set('nova_member_badges', ls.get('nova_member_badges').filter(a => !(a.username === username && String(a.badge_id) === String(badgeId))));
   },
 
-  /* ── FAVORITE TEAMS (sports team-following) ──────────────────
-     Requires: favorite_teams table (see nova-migrations.sql).      */
-  async getFavoriteTeams(username) {
+  /* ── FOLLOWED TEAMS (Roblox league team-following) ────────────
+     Not to be confused with a member's real-world "Favorite Teams" on
+     their profile (see fav_teams in saveMemberProfile/getMemberProfiles
+     above) — that's pro-sports fandom shown on their public page. This
+     is a separate concept: starring an in-league Roblox team so it
+     surfaces first when opening Leagues. Storage layer (Supabase table
+     + localStorage key) is still named favorite_teams for now — only
+     the JS-facing names changed, to avoid a data migration.
+     Requires: favorite_teams table (see nova-migrations.sql). */
+  async getFollowedTeams(username) {
     if (hasSupabase()) {
       try {
         const { data, error } = await supabase
@@ -1222,9 +1231,9 @@ export const db = {
   },
 
   // Unfiltered read of the whole table — used by the Member Directory's
-  // "favorite team" filter, which needs every member's picks at once
+  // "followed team" filter, which needs every member's picks at once
   // rather than one member at a time.
-  async getAllFavoriteTeams() {
+  async getAllFollowedTeams() {
     if (hasSupabase()) {
       try {
         const { data, error } = await supabase.from('favorite_teams').select('*');
@@ -1268,7 +1277,7 @@ export const db = {
   },
 
   // Unfiltered read of the whole table — used for a site-wide "most
-  // kudos received" leaderboard, same pattern as getAllFavoriteTeams.
+  // kudos received" leaderboard, same pattern as getAllFollowedTeams.
   async getAllKudos() {
     if (hasSupabase()) {
       try {
@@ -1279,7 +1288,7 @@ export const db = {
     return ls.get('nova_kudos');
   },
 
-  async addFavoriteTeam(username, league, teamId, teamName) {
+  async addFollowedTeam(username, league, teamId, teamName) {
     const record = { member_username: username, league, team_id: teamId, team_name: teamName, created_at: new Date().toISOString() };
     if (hasSupabase()) {
       try {
@@ -1295,7 +1304,7 @@ export const db = {
     return local;
   },
 
-  async removeFavoriteTeam(id) {
+  async removeFollowedTeam(id) {
     if (hasSupabase()) {
       try { await supabase.from('favorite_teams').delete().eq('id', id); } catch {}
     }

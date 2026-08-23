@@ -19,9 +19,9 @@ import TeamDepthChart from './components/pages/TeamDepthChart';
 import {
   currentUsername,
   getFavoritePlayers,
-  getFavoriteTeams,
+  getFollowedTeams,
   toggleFavoritePlayer,
-  toggleFavoriteTeam,
+  toggleFollowedTeam,
 } from './services/favoritesService';
 import './ViztaLeague.css';
 import { RowsSkeleton } from './components/Skeleton';
@@ -178,14 +178,14 @@ const OverviewTab = ({ sport, cfg }) => {
     db.getTeams(sport).then(setTeams);
     db.getPlayers(sport).then(setPlayers);
     db.getBsGames(sport).then(setBsGames);
-    if (username) getFavoriteTeams(username, sport).then(list => setFavTeamNames(new Set(list.map(t => t.team_name))));
+    if (username) getFollowedTeams(username, sport).then(list => setFavTeamNames(new Set(list.map(t => t.team_name))));
     else setFavTeamNames(new Set());
   }, [sport, username]);
   const recentGames = [...bsGames].reverse().slice(0, 8);
 
   const toggleTeamFav = async (team) => {
     if (!username) return;
-    const nowFav = await toggleFavoriteTeam(username, sport, team);
+    const nowFav = await toggleFollowedTeam(username, sport, team);
     setFavTeamNames(prev => {
       const next = new Set(prev);
       if (nowFav) next.add(team.team_name); else next.delete(team.team_name);
@@ -271,7 +271,7 @@ const OverviewTab = ({ sport, cfg }) => {
                   active={favTeamNames.has(team.team_name)}
                   onToggle={() => toggleTeamFav(team)}
                   size={13}
-                  title={favTeamNames.has(team.team_name) ? 'Remove from favorite teams' : 'Star as a favorite team'}
+                  title={favTeamNames.has(team.team_name) ? 'Unfollow this team' : 'Follow this team'}
                 />
               )}
             </div>
@@ -308,7 +308,7 @@ const RostersTab = ({ sport, cfg, onSelectPlayer, initialTeam }) => {
 
   useEffect(() => {
     if (!username) { setFavTeamNames(new Set()); setFavPlayerIds(new Set()); return; }
-    getFavoriteTeams(username, sport).then(list => setFavTeamNames(new Set(list.map(t => t.team_name))));
+    getFollowedTeams(username, sport).then(list => setFavTeamNames(new Set(list.map(t => t.team_name))));
     getFavoritePlayers(username, sport).then(list => setFavPlayerIds(new Set(list.map(p => String(p.player_id || p.playerId)))));
   }, [sport, username]);
 
@@ -322,7 +322,7 @@ const RostersTab = ({ sport, cfg, onSelectPlayer, initialTeam }) => {
 
   const toggleTeamFav = async (team) => {
     if (!username) return;
-    const nowFav = await toggleFavoriteTeam(username, sport, team);
+    const nowFav = await toggleFollowedTeam(username, sport, team);
     setFavTeamNames(prev => {
       const next = new Set(prev);
       if (nowFav) next.add(team.team_name); else next.delete(team.team_name);
@@ -343,7 +343,7 @@ const RostersTab = ({ sport, cfg, onSelectPlayer, initialTeam }) => {
   if (loading) return <RowsSkeleton rows={5} />;
 
   if (!selectedTeam) {
-    // Favorited teams surface first so they're easy to find every time
+    // Followed teams surface first so they're easy to find every time
     // the Rosters tab is opened, instead of scrolling the full list.
     const favTeams = teams.filter(t => favTeamNames.has(t.team_name));
     const restTeams = teams.filter(t => !favTeamNames.has(t.team_name));
@@ -370,7 +370,7 @@ const RostersTab = ({ sport, cfg, onSelectPlayer, initialTeam }) => {
                     <StarButton
                       active={isFav}
                       onToggle={() => toggleTeamFav(team)}
-                      title={isFav ? 'Remove from favorite teams' : 'Star as a favorite team'}
+                      title={isFav ? 'Unfollow this team' : 'Follow this team'}
                     />
                   )}
                   {team.logo_url

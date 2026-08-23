@@ -366,7 +366,7 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
   const [teamFilter,     setTeamFilter]     = useState('all');
   const [loading,        setLoading]        = useState(true);
   const [badgeTypes,     setBadgeTypes]     = useState([]);
-  const [teamsByMember,  setTeamsByMember]  = useState({}); // username -> ["Team A", "Team B", ...]
+  const [followedTeamsByMember, setFollowedTeamsByMember]  = useState({}); // username -> ["Team A", "Team B", ...] of ROBLOX LEAGUE teams followed (not profile fav_teams)
 
   // Attach the badge ids each member has both been assigned AND chosen to
   // display, so a revoked or hidden badge never shows up stale.
@@ -378,7 +378,7 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
 
   useEffect(() => {
     import('../../services/db').then(({ default: db }) => {
-      Promise.all([db.getMemberProfiles(), db.getUsers(), db.getBadgeTypes(), db.getMemberBadges(), db.getStaffOfMonth(), db.getAllFavoriteTeams()]).then(([profiles, users, badges, assignments, sotm, favTeams]) => {
+      Promise.all([db.getMemberProfiles(), db.getUsers(), db.getBadgeTypes(), db.getMemberBadges(), db.getStaffOfMonth(), db.getAllFollowedTeams()]).then(([profiles, users, badges, assignments, sotm, followedTeams]) => {
         const enriched = withVisibleBadges(profiles.map(p => ({
           ...p,
           role: users.find(u => u.username === p.username)?.role || p.role || 'member',
@@ -395,11 +395,11 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
           setMembers(prev => prev.map(m => newlyVerified.includes(m.username) ? { ...m, discord_verified_at: now } : m));
         }).catch(() => {});
         const teamMap = {};
-        (favTeams || []).forEach(t => {
+        (followedTeams || []).forEach(t => {
           if (!t.member_username || !t.team_name) return;
           (teamMap[t.member_username] ||= []).push(t.team_name);
         });
-        setTeamsByMember(teamMap);
+        setFollowedTeamsByMember(teamMap);
         setLoading(false);
         if (targetUsername) {
           const found = enriched.find(m => m.username === targetUsername);
@@ -435,12 +435,14 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
     const ms = m.username?.toLowerCase().includes(search.toLowerCase());
     const mr = roleFilter === 'all' || (m.role || 'member') === roleFilter;
     const mb = badgeFilter === 'all' || (m.visible_badge_ids || []).map(String).includes(String(badgeFilter));
-    const mt = teamFilter === 'all' || (teamsByMember[m.username] || []).includes(teamFilter);
+    const mt = teamFilter === 'all' || (followedTeamsByMember[m.username] || []).includes(teamFilter);
     return ms && mr && mb && mt;
   });
 
-  // Every distinct team any member has favorited, for the team filter dropdown.
-  const allFavoriteTeamNames = Array.from(new Set(Object.values(teamsByMember).flat())).sort();
+  // Every distinct Roblox league team any member follows (see favoritesService.js) —
+  // NOT the same as the real-world "Favorite Teams" shown on each card below,
+  // which comes from profile.fav_teams instead. Used for the team filter dropdown.
+  const allFollowedTeamNames = Array.from(new Set(Object.values(followedTeamsByMember).flat())).sort();
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 12px' }}>
@@ -502,8 +504,8 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
           onChange={e => setTeamFilter(e.target.value)}
           style={{ padding: '8px 12px', borderRadius: 20, background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.15)', color: teamFilter === 'all' ? 'rgba(158,165,196,0.45)' : '#e2e5f0', fontSize: '0.78rem', minHeight: 36, cursor: 'pointer' }}
         >
-          <option value="all">Any favorite team</option>
-          {allFavoriteTeamNames.map(t => <option key={t} value={t}>{t}</option>)}
+          <option value="all">Any followed team</option>
+          {allFollowedTeamNames.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
       </div>
 

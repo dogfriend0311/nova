@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Activity, ChevronRight, Radio, Star } from 'lucide-react';
 import ViztaLeague from '../../ViztaLeague';
 import db from '../../services/db';
-import { currentUsername, getFavoriteTeams, getFavoritePlayers, onFavoritesChange } from '../../services/favoritesService';
+import { currentUsername, getFollowedTeams, getFavoritePlayers, onFavoritesChange } from '../../services/favoritesService';
 import { SPORTS, SPORT_ORDER } from '../../data/sportsConfig';
 import './LeaguesPage.css';
 
@@ -19,7 +19,7 @@ const FavoritesStrip = ({ league, onJumpToTeam, onSelectPlayer }) => {
     let active = true;
     const load = () => {
       Promise.all([
-        getFavoriteTeams(username, league),
+        getFollowedTeams(username, league),
         getFavoritePlayers(username, league),
         db.getPlayers(league),
       ]).then(([teams, players, allPlayers]) => {
