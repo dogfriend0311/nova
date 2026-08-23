@@ -554,6 +554,19 @@ export const db = {
     ls.set('member_profiles', list);
   },
 
+  // Manual admin override to remove a Discord-verified flair (e.g. it was
+  // assigned by mistake, or the member left the server).
+  async clearDiscordVerified(username) {
+    if (!username) return;
+    if (hasSupabase()) {
+      try { await supabase.from('nova_member_profiles').update({ discord_verified_at: null }).eq('username', username); } catch {}
+    }
+    const list = ls.get('member_profiles');
+    const idx = list.findIndex(p => p.username === username);
+    if (idx >= 0) list[idx] = { ...list[idx], discord_verified_at: null };
+    ls.set('member_profiles', list);
+  },
+
   /* USERS / ROLES */
   async getUsers() {
     try {

@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import db, { sortByDisplayOrder } from '../../services/db';
 import fantasyDb from '../../services/fantasyDb';
 import { accoladeLabel, accoladeIcon, getAccoladeTypes } from '../../data/accolades';
-import { BadgeChip } from '../BadgeDisplay';
+import { BadgeChip, DiscordVerifiedChip } from '../BadgeDisplay';
 import { BADGES as ACHIEVEMENT_BADGES } from '../../services/achievementsService';
 import { getSport, setCustomStats } from '../../data/sportsConfig';
 import { PERFECT_ATHLETE_SPORTS } from '../../data/perfectAthleteData';
@@ -450,11 +450,16 @@ const BadgesAdminTab = () => {
   const [assignBadgeId,  setAssignBadgeId]  = useState('');
   const [memberBadges,   setMemberBadges]   = useState([]); // assignments for assignUsername
 
+  // Discord verification override — reuses the same member picker above.
+  const [memberProfiles,     setMemberProfiles]     = useState([]); // for looking up discord_verified_at
+  const [discordBusy,        setDiscordBusy]        = useState(false);
+
   const loadAll = () => {
     setLoading(true);
-    Promise.all([db.getBadgeTypes(), db.getUsers()]).then(([badges, u]) => {
+    Promise.all([db.getBadgeTypes(), db.getUsers(), db.getMemberProfiles()]).then(([badges, u, profiles]) => {
       setBadgeTypes(badges || []);
       setUsers(u || []);
+      setMemberProfiles(profiles || []);
       setLoading(false);
     });
   };
@@ -510,6 +515,26 @@ const BadgesAdminTab = () => {
     db.unassignBadge(assignUsername, badgeId).then(() => {
       setMemberBadges(prev => prev.filter(a => String(a.badge_id) !== String(badgeId)));
     });
+  };
+
+  const assignedProfile = memberProfiles.find(p => p.username === assignUsername);
+
+  const markDiscordVerified = () => {
+    if (!assignUsername) { flash('Pick a member first.'); return; }
+    setDiscordBusy(true);
+    db.setDiscordVerified(assignUsername).then(() => {
+      setMemberProfiles(prev => prev.map(p => p.username === assignUsername ? { ...p, discord_verified_at: new Date().toISOString() } : p));
+      flash('Marked as verified in Discord.');
+    }).catch(() => flash('Failed to update.')).finally(() => setDiscordBusy(false));
+  };
+
+  const clearDiscordVerified = () => {
+    if (!assignUsername) return;
+    setDiscordBusy(true);
+    db.clearDiscordVerified(assignUsername).then(() => {
+      setMemberProfiles(prev => prev.map(p => p.username === assignUsername ? { ...p, discord_verified_at: null } : p));
+      flash('Removed Discord verification.');
+    }).catch(() => flash('Failed to update.')).finally(() => setDiscordBusy(false));
   };
 
   const badgeById = (id) => badgeTypes.find(b => String(b.id) === String(id));
@@ -630,6 +655,35 @@ const BadgesAdminTab = () => {
               </div>
             )}
           </>
+        )}
+      </div>
+
+      {/* Discord verification override */}
+      <div className="neon-card p-3" style={{ marginTop: '24px' }}>
+        <h4 className="gradient-text-cyan" style={{ marginTop: 0 }}>Discord Verification</h4>
+        <p style={{ color: 'rgba(158,165,196,0.5)', fontSize: '0.8rem', margin: '0 0 14px' }}>
+          The "💬 In Discord" flair is normally auto-detected by matching a member's Discord Tag against who's
+          online in the server — which can miss members who weren't online when the check ran. Use this to
+          mark or remove it by hand for whoever's picked in the member dropdown above.
+        </p>
+        {!assignUsername ? (
+          <p style={{ color: 'rgba(158,165,196,0.35)', fontSize: '0.82rem' }}>Pick a member above to manage this.</p>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <span style={{ color: 'rgba(158,165,196,0.5)', fontSize: '0.8rem' }}>{assignUsername}:</span>
+            {assignedProfile?.discord_verified_at
+              ? <DiscordVerifiedChip verifiedAt={assignedProfile.discord_verified_at} size="lg" />
+              : <span style={{ color: 'rgba(158,165,196,0.35)', fontSize: '0.82rem' }}>Not verified</span>}
+            {assignedProfile?.discord_verified_at ? (
+              <button className="neon-button" disabled={discordBusy} onClick={clearDiscordVerified} style={{ fontSize: '0.78rem', padding: '6px 12px' }}>
+                Remove Verification
+              </button>
+            ) : (
+              <button className="neon-button" disabled={discordBusy} onClick={markDiscordVerified} style={{ fontSize: '0.78rem', padding: '6px 12px' }}>
+                Mark Verified
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>
