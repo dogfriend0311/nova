@@ -162,8 +162,9 @@ const CommandPalette = () => {
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={onInputKeyDown}
                 placeholder="Search players, teams, games, members, articles…"
+                className="focus-ring"
                 style={{
-                  flex: 1, background: 'none', border: 'none', outline: 'none',
+                  flex: 1, background: 'none', border: 'none',
                   color: '#e2e5f0', fontSize: '0.95rem', padding: '6px 0',
                 }}
               />

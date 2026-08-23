@@ -8,6 +8,7 @@ import { BADGES as ACHIEVEMENT_BADGES } from '../../services/achievementsService
 import { getSport, setCustomStats } from '../../data/sportsConfig';
 import { PERFECT_ATHLETE_SPORTS } from '../../data/perfectAthleteData';
 import perfectAthleteService from '../../services/perfectAthleteService';
+import { addCoins as addCoinsBalance } from '../../services/coinsStorage';
 import './OwnerDashboard.css';
 
 const SI = { padding:'10px', background:'rgba(94, 129, 244,0.05)', border:'1px solid rgba(94, 129, 244,0.2)', color:'#e2e5f0', borderRadius:'4px', width:'100%' };
@@ -401,10 +402,8 @@ const GiveCoinsTab = () => {
   const SI2 = { padding:'10px', background:'rgba(94, 129, 244,0.05)', border:'1px solid rgba(94, 129, 244,0.2)', color:'#e2e5f0', borderRadius:'4px', width:'100%' };
   const give = () => {
     if (!username) { setMsg('Select a user first.'); return; }
-    const key = `nova_coins_${username}`;
-    const current = parseInt(localStorage.getItem(key) || '0');
-    localStorage.setItem(key, current + amount);
-    setMsg(`Gave ${amount} coins to ${username}. New total: ${current + amount}`);
+    const next = addCoinsBalance(username, amount);
+    setMsg(`Gave ${amount} coins to ${username}. New total: ${next}`);
     setTimeout(() => setMsg(''), 3000);
   };
   return (

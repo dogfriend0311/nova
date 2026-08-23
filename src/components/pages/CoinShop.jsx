@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './NovaFeatures.css';
 import { awardBadge } from '../../services/achievementsService';
 import db from '../../services/db';
+import { getCoins as getCoinsBalance, setCoins as setCoinsBalance } from '../../services/coinsStorage';
 
 // ── Original pixel-art icons ────────────────────────────────
 // Small 8x8 grid icons, hand-drawn in-house — inspired by the vibe of
@@ -207,7 +208,7 @@ const CoinShop = ({ user }) => {
 
   function refreshCoins() {
     if (!user?.username) return;
-    setCoinsState(parseInt(localStorage.getItem(`nova_coins_${user.username}`) || '0'));
+    setCoinsState(getCoinsBalance(user.username));
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -228,7 +229,7 @@ const CoinShop = ({ user }) => {
     if (!user) { alert('Sign in first!'); return; }
     if (coins < item.price) { showToast('Not enough coins! 🪙', false); return; }
     const newCoins = coins - item.price;
-    localStorage.setItem(`nova_coins_${user.username}`, String(newCoins));
+    setCoinsBalance(user.username, newCoins);
     setCoinsState(newCoins);
 
     const updated = { ...owned, [item.id]: true };

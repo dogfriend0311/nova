@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import db from './services/db';
+import { getCoins as getCoinsBalance, setCoins as setCoinsBalance } from './services/coinsStorage';
 import { getSport } from './data/sportsConfig';
 import {
   LayoutDashboard, Users, Search, Trophy, CalendarDays, ScrollText,
@@ -1325,8 +1326,8 @@ const PropBetsTab = ({ cfg }) => {
     setProps(getAllProps());
   }, []);
 
-  const getCoins = () => user?.username ? parseInt(localStorage.getItem(`nova_coins_${user.username}`) || '0') : 0;
-  const setCoins = (n) => { if (user?.username) localStorage.setItem(`nova_coins_${user.username}`, String(Math.max(0, n))); };
+  const getCoins = () => getCoinsBalance(user?.username);
+  const setCoins = (n) => setCoinsBalance(user?.username, n);
 
   function placeBet(propId, optionIdx) {
     if (!user) { alert('Sign in to bet!'); return; }

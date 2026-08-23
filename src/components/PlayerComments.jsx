@@ -84,7 +84,8 @@ const PlayerComments = ({ league, playerId, playerName }) => {
             placeholder={`Leave a comment on ${playerName || 'this player'}'s stat page...`}
             value={text}
             onChange={e => setText(e.target.value)}
-            style={{ width: '100%', padding: '10px 12px', background: 'rgba(94, 129, 244,0.05)', border: '1px solid rgba(94, 129, 244,0.2)', color: '#e2e5f0', borderRadius: '8px', fontFamily: 'inherit', fontSize: '0.9rem', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
+            className="focus-ring"
+            style={{ width: '100%', padding: '10px 12px', background: 'rgba(94, 129, 244,0.05)', border: '1px solid rgba(94, 129, 244,0.2)', color: '#e2e5f0', borderRadius: '8px', fontFamily: 'inherit', fontSize: '0.9rem', resize: 'vertical', boxSizing: 'border-box' }}
           />
 
           {showGif && (
@@ -94,7 +95,8 @@ const PlayerComments = ({ league, playerId, playerName }) => {
                 placeholder="Paste a GIF link (Giphy, Tenor, or any .gif URL)"
                 value={gifUrl}
                 onChange={e => setGifUrl(e.target.value)}
-                style={{ width: '100%', padding: '9px 12px', background: 'rgba(94, 129, 244,0.05)', border: '1px solid rgba(94, 129, 244,0.2)', color: '#e2e5f0', borderRadius: '8px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+                className="focus-ring"
+                style={{ width: '100%', padding: '9px 12px', background: 'rgba(94, 129, 244,0.05)', border: '1px solid rgba(94, 129, 244,0.2)', color: '#e2e5f0', borderRadius: '8px', fontSize: '0.85rem', boxSizing: 'border-box' }}
               />
               {gifUrl.trim() && (
                 <div style={{ marginTop: '8px' }}>

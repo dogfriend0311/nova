@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './NovaFeatures.css';
 import { awardBadge } from '../../services/achievementsService';
+import { getCoins as getCoinsBalance, setCoins as setCoinsBalance } from '../../services/coinsStorage';
 
 const PROPS_KEY = 'nova_prop_bets';
 const BETS_KEY  = 'nova_user_bets';
@@ -30,12 +31,11 @@ const PropBets = ({ user }) => {
   }, [user]);
 
   function getCoins() {
-    if (!user?.username) return 0;
-    return parseInt(localStorage.getItem(`nova_coins_${user.username}`) || '0');
+    return getCoinsBalance(user?.username);
   }
 
   function setCoins(n) {
-    localStorage.setItem(`nova_coins_${user.username}`, String(Math.max(0, n)));
+    setCoinsBalance(user?.username, n);
   }
 
   function placeBet(propId, optionIdx) {

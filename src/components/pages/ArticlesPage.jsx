@@ -419,10 +419,11 @@ const ArticlesPage = ({ initialArticleId, onArticleSelect }) => {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search articles by title, author, or text…"
+          className="focus-ring"
           style={{
             width: '100%', padding: '10px 14px', borderRadius: 10, minHeight: 42,
             background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.2)',
-            color: '#e2e5f0', fontSize: '0.88rem', outline: 'none',
+            color: '#e2e5f0', fontSize: '0.88rem',
           }}
         />
         {query && (

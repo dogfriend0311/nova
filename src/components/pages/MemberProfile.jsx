@@ -8,6 +8,7 @@ import { BADGES, getEarnedBadges, syncBadges } from '../../services/achievements
 import { BadgeRow, DiscordVerifiedChip } from '../BadgeDisplay';
 import { LevelBadge } from '../LevelBadge';
 import { checkAndAwardDiscordBadges } from '../../services/discordBadgeCheck';
+import { getCoins as getCoinsBalance, addCoins as addCoinsBalance } from '../../services/coinsStorage';
 import db from '../../services/db';
 import { COSMETICS } from './CoinShop';
 import './MemberProfile.css';
@@ -821,7 +822,7 @@ const MemberProfile = () => {
   const [formData,     setFormData]    = useState({});
   const [favTab,       setFavTab]      = useState('overview'); // active edit-dashboard section id
   const [presence,     setPresence]    = useState(() => localStorage.getItem(`nova_presence_${user?.username}`) || 'online');
-  const [coins,        setCoins]       = useState(() => parseInt(localStorage.getItem(`nova_coins_${user?.username}`) || '0'));
+  const [coins,        setCoins]       = useState(() => getCoinsBalance(user?.username));
   const [copied,       setCopied]      = useState(false);
   const [equippedTheme, setEquippedTheme] = useState(null);
   const [isStaffOfMonth, setIsStaffOfMonth] = useState(false);
@@ -857,11 +858,7 @@ const MemberProfile = () => {
   useEffect(() => {
     if (!user?.username) return;
     coinsRef.current = setInterval(() => {
-      setCoins(prev => {
-        const next = prev + 1;
-        localStorage.setItem(`nova_coins_${user.username}`, next);
-        return next;
-      });
+      setCoins(addCoinsBalance(user.username, 1));
     }, 120000);
     return () => clearInterval(coinsRef.current);
   }, [user]);

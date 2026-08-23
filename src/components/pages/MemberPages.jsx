@@ -194,7 +194,8 @@ const CommentsSection = ({ toUsername, currentUser }) => {
         <div style={{ marginBottom: 20 }}>
           <textarea rows={2} placeholder={`Leave a comment on ${toUsername}'s profile...`} value={text}
             onChange={e => setText(e.target.value)}
-            style={{ width: '100%', padding: '10px 12px', background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 8, fontFamily: 'inherit', fontSize: '0.9rem', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }} />
+            className="focus-ring"
+            style={{ width: '100%', padding: '10px 12px', background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 8, fontFamily: 'inherit', fontSize: '0.9rem', resize: 'vertical', boxSizing: 'border-box' }} />
           <button className="neon-button" onClick={handlePost} disabled={posting || !text.trim()}
             style={{ marginTop: 8, padding: '8px 20px', opacity: (!text.trim() || posting) ? 0.4 : 1 }}>
             {posting ? 'Posting...' : 'Post Comment'}
@@ -470,7 +471,8 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
             placeholder="Search members…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{ width: '100%', paddingLeft: 36, paddingRight: 12, paddingTop: 10, paddingBottom: 10, background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.15)', color: '#e2e5f0', borderRadius: 10, fontSize: '0.88rem', outline: 'none', boxSizing: 'border-box' }}
+            className="focus-ring"
+            style={{ width: '100%', paddingLeft: 36, paddingRight: 12, paddingTop: 10, paddingBottom: 10, background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.15)', color: '#e2e5f0', borderRadius: 10, fontSize: '0.88rem', boxSizing: 'border-box' }}
           />
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>

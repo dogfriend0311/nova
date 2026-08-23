@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './NovaFeatures.css';
+import { getCoins } from '../../services/coinsStorage';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -7,7 +8,7 @@ function pad(n) { return String(n).padStart(2,'0'); }
 
 function buildWrapped(username, year, month) {
   // Coins
-  const coins = parseInt(localStorage.getItem(`nova_coins_${username}`) || '0');
+  const coins = getCoins(username);
 
   // Pick'ems record from localStorage
   const picks = JSON.parse(localStorage.getItem(`nova_pickems_picks_${username}`) || '[]');

@@ -1,12 +1,13 @@
 import db from './db';
+import { addCoins } from './coinsStorage';
 
 // ── Member reputation / level system ────────────────────────────
 // XP is synced via db.getUserStats/updateUserStats (nova_user_stats
 // table) so a member's level shows correctly from any device. Coins
 // stay in their existing per-browser localStorage scheme (matching
-// CoinShop.jsx and everywhere else that already reads/writes
-// `nova_coins_${username}`) — this only adds a small streak bonus on
-// top of that existing system, it doesn't change how coins work.
+// CoinShop.jsx and everywhere else that already reads/writes coins
+// via coinsStorage.js) — this only adds a small streak bonus on top
+// of that existing system, it doesn't change how coins work.
 
 const LEVEL_TITLES = [
   'Rookie', 'Prospect', 'Regular', 'Veteran', 'Star', 'All-Star',
@@ -86,8 +87,7 @@ export async function checkDailyLogin(username) {
 
   // Coins stay in the existing per-browser scheme.
   try {
-    const current = parseInt(localStorage.getItem(`nova_coins_${username}`) || '0', 10);
-    localStorage.setItem(`nova_coins_${username}`, String(current + coinReward));
+    addCoins(username, coinReward);
   } catch { /* ignore */ }
 
   return { streak, coinReward, xpReward };

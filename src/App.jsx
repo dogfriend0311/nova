@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { getCoins } from './services/coinsStorage';
 import Layout from './components/layout/Layout';
 import Home from './components/pages/Home';
 import SportsHub from './components/pages/SportsHub';
@@ -115,14 +116,11 @@ const AppContent = () => {
     });
   }, []);
 
-  const [coins, setCoins] = useState(() => {
-    if (!user?.username) return 0;
-    return parseInt(localStorage.getItem(`nova_coins_${user?.username}`) || '0');
-  });
+  const [coins, setCoins] = useState(() => getCoins(user?.username));
 
   useEffect(() => {
     if (user?.username) {
-      setCoins(parseInt(localStorage.getItem(`nova_coins_${user.username}`) || '0'));
+      setCoins(getCoins(user.username));
     }
   }, [user]);
 

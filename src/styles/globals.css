@@ -221,3 +221,14 @@ tr:hover {
 .cursor-pointer { cursor: pointer; }
 .hidden { display: none; }
 .visible { display: block; }
+
+/* Focus-visible ring for form fields that suppress the default
+   outline. Pairs a visible border color with a soft box-shadow glow,
+   matching the :focus treatment already used elsewhere in the app
+   (e.g. ViztaLeague.css, SportsHub.css) — keeps keyboard-focus
+   visible without changing the mouse-click appearance. */
+.focus-ring:focus {
+  outline: none;
+  border-color: var(--color-cyan);
+  box-shadow: 0 0 0 3px rgba(94, 129, 244, 0.25);
+}
