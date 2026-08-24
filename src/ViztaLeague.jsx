@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import db from './services/db';
 import { getCoins as getCoinsBalance, setCoins as setCoinsBalance } from './services/coinsStorage';
+import { getAllProps, getUserBets, saveUserBets, tryPlaceBet } from './services/propBetsStorage';
 import { getSport } from './data/sportsConfig';
 import {
   LayoutDashboard, Users, Search, Trophy, CalendarDays, ScrollText,
@@ -1305,12 +1306,6 @@ const AnalyticsTab = ({ sport, cfg }) => {
 };
 
 /* ── Prop Bets (scoped to this league's sport) ──────────────────── */
-const PROPS_KEY = 'nova_prop_bets';
-const BETS_KEY  = 'nova_user_bets';
-const getAllProps = () => { try { return JSON.parse(localStorage.getItem(PROPS_KEY) || '[]'); } catch { return []; } };
-const getUserBets = (username) => { try { return JSON.parse(localStorage.getItem(`${BETS_KEY}_${username}`) || '{}'); } catch { return {}; } };
-const saveUserBets = (username, bets) => localStorage.setItem(`${BETS_KEY}_${username}`, JSON.stringify(bets));
-
 const PropBetsTab = ({ cfg }) => {
   const [user, setUser] = useState(null);
   const [props, setProps] = useState(getAllProps);
@@ -1331,15 +1326,11 @@ const PropBetsTab = ({ cfg }) => {
 
   function placeBet(propId, optionIdx) {
     if (!user) { alert('Sign in to bet!'); return; }
-    if (myBets[propId] !== undefined) { alert('Already placed a bet on this prop.'); return; }
-    const amount = parseInt(betAmounts[propId] || '10');
-    if (isNaN(amount) || amount < 1) { alert('Enter a valid bet amount.'); return; }
-    const coins = getCoins();
-    if (coins < amount) { alert(`Not enough coins! You have ${coins}.`); return; }
-    setCoins(coins - amount);
-    const updated = { ...myBets, [propId]: { optionIdx, amount } };
-    setMyBets(updated);
-    saveUserBets(user.username, updated);
+    const result = tryPlaceBet({ myBets, propId, optionIdx, rawAmount: betAmounts[propId], coinsBalance: getCoins() });
+    if (!result.ok) { alert(result.error); return; }
+    setCoins(getCoins() - result.amount);
+    setMyBets(result.updatedBets);
+    saveUserBets(user.username, result.updatedBets);
   }
 
   const sportProps = props.filter(p => p.sport === cfg.propSport);

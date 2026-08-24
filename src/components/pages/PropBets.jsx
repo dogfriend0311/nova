@@ -2,32 +2,16 @@ import React, { useState, useEffect } from 'react';
 import './NovaFeatures.css';
 import { awardBadge } from '../../services/achievementsService';
 import { getCoins as getCoinsBalance, setCoins as setCoinsBalance } from '../../services/coinsStorage';
-
-const PROPS_KEY = 'nova_prop_bets';
-const BETS_KEY  = 'nova_user_bets';
-
-function getProps() {
-  try { return JSON.parse(localStorage.getItem(PROPS_KEY) || '[]'); }
-  catch { return []; }
-}
-
-function getUserBets(username) {
-  try { return JSON.parse(localStorage.getItem(`${BETS_KEY}_${username}`) || '{}'); }
-  catch { return {}; }
-}
-
-function saveUserBets(username, bets) {
-  localStorage.setItem(`${BETS_KEY}_${username}`, JSON.stringify(bets));
-}
+import { getAllProps, getUserBets, saveUserBets, tryPlaceBet } from '../../services/propBetsStorage';
 
 const PropBets = ({ user }) => {
-  const [props, setProps] = useState(getProps);
+  const [props, setProps] = useState(getAllProps);
   const [myBets, setMyBets] = useState({});
   const [betAmounts, setBetAmounts] = useState({});
 
   useEffect(() => {
     if (user?.username) setMyBets(getUserBets(user.username));
-    setProps(getProps());
+    setProps(getAllProps());
   }, [user]);
 
   function getCoins() {
@@ -40,16 +24,11 @@ const PropBets = ({ user }) => {
 
   function placeBet(propId, optionIdx) {
     if (!user) { alert('Sign in to bet!'); return; }
-    if (myBets[propId] !== undefined) { alert('Already placed a bet on this prop.'); return; }
-    const amount = parseInt(betAmounts[propId] || '10');
-    if (isNaN(amount) || amount < 1) { alert('Enter a valid bet amount.'); return; }
-    const coins = getCoins();
-    if (coins < amount) { alert(`Not enough coins! You have ${coins}.`); return; }
-
-    setCoins(coins - amount);
-    const updated = { ...myBets, [propId]: { optionIdx, amount } };
-    setMyBets(updated);
-    saveUserBets(user.username, updated);
+    const result = tryPlaceBet({ myBets, propId, optionIdx, rawAmount: betAmounts[propId], coinsBalance: getCoins() });
+    if (!result.ok) { alert(result.error); return; }
+    setCoins(getCoins() - result.amount);
+    setMyBets(result.updatedBets);
+    saveUserBets(user.username, result.updatedBets);
   }
 
   const open     = props.filter(p => p.status === 'open');

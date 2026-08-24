@@ -8,19 +8,22 @@ import {
 import './SportsHub.css';
 import PlayByPlay from './PlayByPlay';
 import { ScoresGridSkeleton, StandingsSkeleton, NewsGridSkeleton } from '../Skeleton';
+import { getCurrentUsername, isGameStarred, addFavGame as addFavGameLS, removeFavGameByGameId } from '../../services/favGamesStorage';
 
 const SPORTS = [
-  { id:'mlb',          label:'MLB',              icon:'B' },
-  { id:'nfl',          label:'NFL',              icon:'F' },
-  { id:'nba',          label:'NBA',              icon:'B' },
-  { id:'nhl',          label:'NHL',              icon:'H' },
-  { id:'cfb',          label:'College Football', icon:'F' },
-  { id:'cbb',          label:'College Baseball', icon:'B' },
-  { id:'milb_aaa',     label:'Triple-A',         icon:'B' },
-  { id:'milb_aa',      label:'Double-A',         icon:'B' },
-  { id:'milb_highA',   label:'High-A',           icon:'B' },
-  { id:'milb_singleA', label:'Single-A',         icon:'B' },
+  { id:'mlb',          label:'MLB',              icon:'⚾' },
+  { id:'nfl',          label:'NFL',              icon:'🏈' },
+  { id:'nba',          label:'NBA',              icon:'🏀' },
+  { id:'nhl',          label:'NHL',              icon:'🏒' },
+  { id:'cfb',          label:'College Football', icon:'🏈' },
+  { id:'cbb',          label:'College Baseball', icon:'⚾' },
+  { id:'milb_aaa',     label:'Triple-A',         icon:'⚾' },
+  { id:'milb_aa',      label:'Double-A',         icon:'⚾' },
+  { id:'milb_highA',   label:'High-A',           icon:'⚾' },
+  { id:'milb_singleA', label:'Single-A',         icon:'⚾' },
 ];
+
+const LAST_SPORT_KEY = 'nova_last_sport';
 
 const isMiLB = (sport) => sport.startsWith('milb_');
 
@@ -41,14 +44,40 @@ const timeSince = (iso) => {
 };
 
 /* ── Highlights Panel ────────────────────────────────────────── */
+// Cached per gamePk in-memory (module scope) so replaying the same
+// game's highlights within a session doesn't refetch statsapi.mlb.com,
+// plus a sessionStorage layer so it survives a tab-switch/remount.
+const highlightsMemCache = new Map();
+const highlightsCacheKey = (gamePk) => `nova_highlights_cache_${gamePk}`;
+
 const HighlightsPanel = ({ gamePk }) => {
   const [clips, setClips]     = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
   const [playing, setPlaying] = useState(null);
+  const [videoError, setVideoError] = useState(false);
 
   useEffect(() => {
     if (!gamePk) return;
+
+    if (highlightsMemCache.has(gamePk)) {
+      setClips(highlightsMemCache.get(gamePk));
+      setLoading(false);
+      setError(null);
+      return;
+    }
+    try {
+      const cached = sessionStorage.getItem(highlightsCacheKey(gamePk));
+      if (cached) {
+        const parsedCache = JSON.parse(cached);
+        highlightsMemCache.set(gamePk, parsedCache);
+        setClips(parsedCache);
+        setLoading(false);
+        setError(null);
+        return;
+      }
+    } catch { /* sessionStorage unavailable or corrupt — fall through to fetch */ }
+
     setLoading(true);
     setError(null);
     const mlbBase = process.env.NODE_ENV === 'production' ? '/mlb-proxy' : 'https://statsapi.mlb.com/api/v1';
@@ -73,10 +102,23 @@ const HighlightsPanel = ({ gamePk }) => {
           })
           .filter(c => c.videoUrl);
         setClips(parsed);
+        highlightsMemCache.set(gamePk, parsed);
+        try { sessionStorage.setItem(highlightsCacheKey(gamePk), JSON.stringify(parsed)); } catch { /* storage full/unavailable — non-fatal */ }
       })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, [gamePk]);
+
+  // Reset the "video failed mid-playback" flag whenever a new clip starts playing.
+  useEffect(() => { setVideoError(false); }, [playing]);
+
+  // Close the video modal on Escape, in addition to the existing outer-click handler.
+  useEffect(() => {
+    if (!playing) return;
+    const onKeyDown = (e) => { if (e.key === 'Escape') setPlaying(null); };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [playing]);
 
   if (loading) return <div className="sh-loading"><div className="sh-spinner" /></div>;
   if (error)   return <div className="sh-error">Could not load highlights: {error}</div>;
@@ -87,7 +129,13 @@ const HighlightsPanel = ({ gamePk }) => {
       {playing && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.88)', zIndex:2000, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }} onClick={() => setPlaying(null)}>
           <div style={{ maxWidth:'900px', width:'100%' }} onClick={e => e.stopPropagation()}>
-            <video src={playing.videoUrl} controls autoPlay style={{ width:'100%', borderRadius:'10px', background:'#000' }} />
+            {videoError ? (
+              <div style={{ width:'100%', aspectRatio:'16/9', borderRadius:'10px', background:'#000', display:'flex', alignItems:'center', justifyContent:'center', color:'rgba(158, 165, 196,0.6)', fontSize:'0.9rem', textAlign:'center', padding:'20px' }}>
+                This clip couldn't be played right now. It may have expired or moved.
+              </div>
+            ) : (
+              <video src={playing.videoUrl} controls autoPlay style={{ width:'100%', borderRadius:'10px', background:'#000' }} onError={() => setVideoError(true)} />
+            )}
             <div style={{ marginTop:'10px', color:'#e0e8ff', fontWeight:700 }}>{playing.title}</div>
             {playing.description && <div style={{ marginTop:'4px', fontSize:'0.85rem', color:'rgba(158, 165, 196,0.55)' }}>{playing.description}</div>}
             <button onClick={() => setPlaying(null)} style={{ marginTop:'14px', background:'none', border:'1px solid rgba(158, 165, 196,0.3)', color:'rgba(158, 165, 196,0.6)', borderRadius:'6px', padding:'6px 16px', cursor:'pointer', fontSize:'0.82rem' }}>Close</button>
@@ -137,25 +185,20 @@ const ScoreCard = ({ game, onSelectGame }) => {
   const awayWins = isFinal && +game.awayTeam.score > +game.homeTeam.score;
   const homeWins = isFinal && +game.homeTeam.score > +game.awayTeam.score;
 
-  const getStarred = () => {
-    const u = localStorage.getItem('nova_user');
-    if (!u) return false;
-    const username = JSON.parse(u).username;
-    return JSON.parse(localStorage.getItem(`nova_favgames_${username}`) || '[]').some(g => g.gameId === game.id);
-  };
+  const getStarred = () => isGameStarred(getCurrentUsername(), game.id);
+  // Lazy-init only runs once per mount (React never re-invokes the useState
+  // initializer on re-render), so this doesn't re-parse localStorage on every
+  // render — no extra memoization needed here.
   const [starred, setStarred] = useState(getStarred);
   const [showNote, setShowNote] = useState(false);
   const [noteText, setNoteText] = useState('');
 
   const handleStarClick = (e) => {
     e.stopPropagation();
-    const u = localStorage.getItem('nova_user');
-    if (!u) return;
-    const username = JSON.parse(u).username;
-    const key = `nova_favgames_${username}`;
-    const stored = JSON.parse(localStorage.getItem(key) || '[]');
+    const username = getCurrentUsername();
+    if (!username) return;
     if (starred) {
-      localStorage.setItem(key, JSON.stringify(stored.filter(g => g.gameId !== game.id)));
+      removeFavGameByGameId(username, game.id);
       setStarred(false);
     } else {
       setShowNote(true);
@@ -164,16 +207,13 @@ const ScoreCard = ({ game, onSelectGame }) => {
 
   const confirmStar = (e) => {
     e.stopPropagation();
-    const u = localStorage.getItem('nova_user');
-    if (!u) return;
-    const username = JSON.parse(u).username;
-    const key = `nova_favgames_${username}`;
-    const stored = JSON.parse(localStorage.getItem(key) || '[]');
-    localStorage.setItem(key, JSON.stringify([...stored, {
+    const username = getCurrentUsername();
+    if (!username) return;
+    addFavGameLS(username, {
       id: Date.now().toString(), gameId: game.id,
       text: `${game.awayTeam?.abbr || ''} vs ${game.homeTeam?.abbr || ''}`,
       note: noteText, date: new Date().toLocaleDateString(),
-    }]));
+    });
     setStarred(true); setShowNote(false); setNoteText('');
   };
 
@@ -806,7 +846,12 @@ const NewsPanel = ({ sport }) => {
 const SportsHub = ({ initialSport }) => {
   const [activeSport, setActiveSport] = useState(() => {
     const valid = ['mlb','nfl','nba','nhl','cfb','cbb','milb_aaa','milb_aa','milb_highA','milb_singleA'];
-    return (initialSport && valid.includes(initialSport)) ? initialSport : 'mlb';
+    if (initialSport && valid.includes(initialSport)) return initialSport;
+    // Fall back to whatever sport the user last viewed (beyond just the URL
+    // hash), so a user who always checks e.g. NFL isn't dropped back to MLB.
+    const lastSport = localStorage.getItem(LAST_SPORT_KEY);
+    if (lastSport && valid.includes(lastSport)) return lastSport;
+    return 'mlb';
   });
   const [activeTab,   setActiveTab]   = useState('scores');
   const [lastUpdated, setLastUpdated] = useState(new Date());
@@ -814,20 +859,56 @@ const SportsHub = ({ initialSport }) => {
   const [refreshKey,  setRefreshKey]  = useState(0);
   const [selectedGame, setSelectedGame] = useState(null);
 
+  // Only poll the scoreboard while the user is actually looking at Scores
+  // (not Standings/News/Players), and pause entirely while the browser tab
+  // is backgrounded, to avoid wasted requests/battery.
   useEffect(() => {
-    const iv = setInterval(()=>{ setLastUpdated(new Date()); setRefreshKey(k=>k+1); }, 30000);
-    return () => clearInterval(iv);
-  }, []);
+    if (activeTab !== 'scores') return;
+    let iv = null;
+    const tick = () => { setLastUpdated(new Date()); setRefreshKey(k => k + 1); };
+    const start = () => { if (!iv) iv = setInterval(tick, 30000); };
+    const stop  = () => { if (iv) { clearInterval(iv); iv = null; } };
+
+    if (document.visibilityState === 'visible') start();
+    const onVisibility = () => { if (document.visibilityState === 'visible') start(); else stop(); };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => { stop(); document.removeEventListener('visibilitychange', onVisibility); };
+  }, [activeTab]);
 
   const handleSportChange = (id) => {
     setActiveSport(id);
     setActiveTab('scores');
     setSelectedGame(null);
+    localStorage.setItem(LAST_SPORT_KEY, id);
     // Update URL so users can share direct sport links (e.g. #sports/nfl)
     const next = '#sports/' + id;
     if (window.location.hash !== next) window.location.hash = next;
   };
   const handleTabChange   = (id) => { setActiveTab(id); setSelectedGame(null); };
+
+  const stepDate = useCallback((deltaDays) => {
+    setSelectedDate(prevDate => {
+      const base = prevDate ? new Date(prevDate + 'T12:00:00') : new Date();
+      base.setDate(base.getDate() + deltaDays);
+      return `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, '0')}-${String(base.getDate()).padStart(2, '0')}`;
+    });
+    setRefreshKey(k => k + 1);
+  }, []);
+
+  // Arrow-key date stepping while on the Scores tab (cheap a11y win) — only
+  // fires when focus isn't inside a text input/date field.
+  useEffect(() => {
+    if (activeTab !== 'scores') return;
+    const onKeyDown = (e) => {
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (e.key === 'ArrowLeft')  stepDate(-1);
+      if (e.key === 'ArrowRight') stepDate(1);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [activeTab, stepDate]);
 
   return (
     <div className="page sh-page">
@@ -843,6 +924,7 @@ const SportsHub = ({ initialSport }) => {
       <div className="sh-sport-tabs">
         {SPORTS.map(s=>(
           <button key={s.id} className={`sh-sport-tab ${activeSport===s.id?'active':''}`} onClick={()=>handleSportChange(s.id)}>
+            <span className="sh-sport-icon" aria-hidden="true">{s.icon}</span>
             <span className="sh-sport-label">{s.label}</span>
           </button>
         ))}
@@ -850,17 +932,11 @@ const SportsHub = ({ initialSport }) => {
 
       {activeTab==='scores' && (
         <div style={{ display:'flex', alignItems:'center', gap:'8px', margin:'8px 0 4px', flexWrap:'wrap' }}>
-          <button className="neon-button" style={{ padding:'5px 12px' }} onClick={()=>{
-            const base=selectedDate?new Date(selectedDate+'T12:00:00'):new Date(); base.setDate(base.getDate()-1);
-            setSelectedDate(`${base.getFullYear()}-${String(base.getMonth()+1).padStart(2,'0')}-${String(base.getDate()).padStart(2,'0')}`); setRefreshKey(k=>k+1);
-          }}>Prev</button>
+          <button className="neon-button" style={{ padding:'5px 12px' }} onClick={()=>stepDate(-1)} title="Previous day (or press ←)">Prev</button>
           <span style={{ color:'var(--color-cyan)', fontWeight:700, minWidth:'110px', textAlign:'center', fontSize:'0.88rem' }}>
             {selectedDate ? new Date(selectedDate+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) : 'Today'}
           </span>
-          <button className="neon-button" style={{ padding:'5px 12px' }} onClick={()=>{
-            const base=selectedDate?new Date(selectedDate+'T12:00:00'):new Date(); base.setDate(base.getDate()+1);
-            setSelectedDate(`${base.getFullYear()}-${String(base.getMonth()+1).padStart(2,'0')}-${String(base.getDate()).padStart(2,'0')}`); setRefreshKey(k=>k+1);
-          }}>Next</button>
+          <button className="neon-button" style={{ padding:'5px 12px' }} onClick={()=>stepDate(1)} title="Next day (or press →)">Next</button>
           {selectedDate && <button className="neon-button" style={{ padding:'5px 12px', fontSize:'0.8rem' }} onClick={()=>{setSelectedDate('');setRefreshKey(k=>k+1);}}>Today</button>}
           <input type="date" value={selectedDate} onChange={e=>{setSelectedDate(e.target.value);setRefreshKey(k=>k+1);}}
             style={{ padding:'5px 8px', background:'rgba(94, 129, 244,0.05)', border:'1px solid rgba(94, 129, 244,0.2)', color:'#e2e5f0', borderRadius:'6px', fontSize:'0.82rem' }} />
@@ -880,8 +956,12 @@ const SportsHub = ({ initialSport }) => {
           <GameDetailView game={selectedGame} sport={activeSport} onBack={()=>setSelectedGame(null)} />
         ) : (
           <>
-            {activeTab==='scores' && isMiLB(activeSport) && <MiLBScoresPanel key={`${activeSport}-milb-${selectedDate}`} sport={activeSport} refreshKey={refreshKey} selectedDate={selectedDate} />}
-            {activeTab==='scores' && !isMiLB(activeSport) && <ScoresPanel key={`${activeSport}-scores-${selectedDate}`} sport={activeSport} refreshKey={refreshKey} onSelectGame={setSelectedGame} selectedDate={selectedDate} />}
+            {/* Note: key intentionally omits selectedDate — ScoresPanel/MiLBScoresPanel
+                already refetch internally when selectedDate changes (see their own
+                useEffect deps). Remounting on every date click was resetting scroll
+                position for anyone flipping through several days of scores. */}
+            {activeTab==='scores' && isMiLB(activeSport) && <MiLBScoresPanel key={`${activeSport}-milb`} sport={activeSport} refreshKey={refreshKey} selectedDate={selectedDate} />}
+            {activeTab==='scores' && !isMiLB(activeSport) && <ScoresPanel key={`${activeSport}-scores`} sport={activeSport} refreshKey={refreshKey} onSelectGame={setSelectedGame} selectedDate={selectedDate} />}
             {activeTab==='standings' && <StandingsPanel key={`${activeSport}-standings`} sport={activeSport} />}
             {activeTab==='news'      && <NewsPanel key={`${activeSport}-news`} sport={activeSport} />}
             {activeTab==='players'   && <PlayerSearchPanel key={`${activeSport}-players`} sport={activeSport} />}

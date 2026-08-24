@@ -26,6 +26,7 @@ import DiamondLeague from './components/pages/baseball/DiamondLeague';
 import EmbedPlayerCard from './components/EmbedPlayerCard';
 import InstallPrompt from './components/InstallPrompt';
 import OfflineBanner from './components/OfflineBanner';import DailyRewardToast from './components/DailyRewardToast';
+import ErrorBoundary from './components/ErrorBoundary';
 import AllTimeLeaderboard from './components/AllTimeLeaderboard';
 import './styles/globals.css';
 import './styles/theme.css';
@@ -391,7 +392,9 @@ const App = () => {
 
   return (
     <AuthProvider>
-      <AppContent />
+      <ErrorBoundary>
+        <AppContent />
+      </ErrorBoundary>
     </AuthProvider>
   );
 };

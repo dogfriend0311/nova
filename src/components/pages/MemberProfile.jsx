@@ -9,6 +9,7 @@ import { BadgeRow, DiscordVerifiedChip } from '../BadgeDisplay';
 import { LevelBadge } from '../LevelBadge';
 import { checkAndAwardDiscordBadges } from '../../services/discordBadgeCheck';
 import { getCoins as getCoinsBalance, addCoins as addCoinsBalance } from '../../services/coinsStorage';
+import { getFavGames, setFavGames as persistFavGamesLS } from '../../services/favGamesStorage';
 import db from '../../services/db';
 import { COSMETICS } from './CoinShop';
 import './MemberProfile.css';
@@ -894,7 +895,7 @@ const MemberProfile = () => {
           p.bg_media = effectiveBgList(p); p.audio_tracks = effectiveAudioList(p);
           setProfile(p); setFormData(p);
           // Seed fav_games from localStorage
-          const lsGames = JSON.parse(localStorage.getItem(`nova_favgames_${user.username}`) || '[]');
+          const lsGames = getFavGames(user.username);
           setFavGames(p.fav_games.length > 0 ? p.fav_games : lsGames);
           if (lsFound) db.saveMemberProfile(p).catch(() => {});
         } else {
@@ -903,7 +904,7 @@ const MemberProfile = () => {
           setProfile(p); setFormData(p);
           // Prefer Supabase fav_games; fall back to localStorage
           const supaGames = found.fav_games || [];
-          const lsGames   = JSON.parse(localStorage.getItem(`nova_favgames_${user.username}`) || '[]');
+          const lsGames   = getFavGames(user.username);
           setFavGames(supaGames.length > 0 ? supaGames : lsGames);
         }
       }).catch(() => {
@@ -912,7 +913,7 @@ const MemberProfile = () => {
         const p = { ...DEFAULT_PROFILE, username: user.username, ...(found || {}), fav_teams: { ...DEFAULT_FAV_TEAMS, ...(found?.fav_teams || {}) }, fav_games: found?.fav_games || [] };
           p.bg_media = effectiveBgList(p); p.audio_tracks = effectiveAudioList(p);
         setProfile(p); setFormData(p);
-        const lsGames = JSON.parse(localStorage.getItem(`nova_favgames_${user.username}`) || '[]');
+        const lsGames = getFavGames(user.username);
         setFavGames(p.fav_games.length > 0 ? p.fav_games : lsGames);
       });
     });
@@ -962,7 +963,7 @@ const MemberProfile = () => {
   // ── Fav games helpers ─────────────────────────────────────
   const persistFavGames = (updated) => {
     setFavGames(updated);
-    localStorage.setItem(`nova_favgames_${user?.username}`, JSON.stringify(updated));
+    persistFavGamesLS(user?.username, updated);
     // Sync to Supabase profile for cross-device visibility
     const cur = profile || { username: user?.username };
     import('../../services/db').then(({ default: db }) => {
