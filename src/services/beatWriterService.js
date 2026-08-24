@@ -110,4 +110,6 @@ export function generateBeatPost({ league, game }) {
   };
 }
 
-export default { generateBeatPost, classifyGame };
+const beatWriterService = { generateBeatPost, classifyGame };
+
+export default beatWriterService;
