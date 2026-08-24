@@ -1,10 +1,11 @@
 // api/discord-notify.js
 //
 // Real-time Discord auto-posting for site events (POTM, accolades, Hall of
-// Fame, new articles, ...) — a live companion to api/weekly-digest.js's
-// weekly summary. Called from the client the instant one of these events
-// is created (see src/services/discordEventNotify.js + the call sites in
-// src/services/db.js: addHof, addPotmAward, addAccolade, saveArticle).
+// Fame, new articles, beat-writer game recaps, ...) — a live companion to
+// api/weekly-digest.js's weekly summary. Called from the client the instant
+// one of these events is created (see src/services/discordEventNotify.js +
+// the call sites in src/services/db.js: addHof, addPotmAward, addAccolade,
+// saveArticle, addBeatPost).
 //
 // The webhook URL never reaches the browser: the client POSTs a small,
 // allow-listed event payload here, and this route — running server-side —
@@ -58,6 +59,12 @@ const TEMPLATES = {
     title: '📰 New Article',
     description: `**${clip(title || 'Untitled')}**${author ? `\n— ${clip(author)}` : ''}`,
     color: 0x2ecc71,
+  }),
+  beat_post: ({ headline, body, league, tag }) => ({
+    title: `${clip(tag || '🗞️ Beat Wire', 64)} — ${clip(headline || 'Final')}`,
+    description: clip(body || '', 512),
+    color: 0xff9e57,
+    footer: league ? clip(league.toUpperCase()) : undefined,
   }),
 };
 

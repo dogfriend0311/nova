@@ -9,6 +9,7 @@ import { getSport, setCustomStats } from '../../data/sportsConfig';
 import { PERFECT_ATHLETE_SPORTS } from '../../data/perfectAthleteData';
 import perfectAthleteService from '../../services/perfectAthleteService';
 import { addCoins as addCoinsBalance } from '../../services/coinsStorage';
+import { generateBeatPost } from '../../services/beatWriterService';
 import './OwnerDashboard.css';
 
 const SI = { padding:'10px', background:'rgba(94, 129, 244,0.05)', border:'1px solid rgba(94, 129, 244,0.2)', color:'#e2e5f0', borderRadius:'4px', width:'100%' };
@@ -1272,6 +1273,94 @@ const LeagueGamesTab = ({ prefix }) => {
           </div>
         </div>
       ))}
+    </div>
+  );
+};
+
+const LeagueBeatWireTab = ({ prefix }) => {
+  const label = getSport(prefix).label;
+  const [games, setGames]     = useState([]);
+  const [posts, setPosts]     = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = () => {
+    Promise.all([db.getGames(prefix), db.getBeatPosts(prefix, 100)])
+      .then(([g, p]) => { setGames(g); setPosts(p); setLoading(false); });
+  };
+  useEffect(load, [prefix]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const postByGameId = new Map(posts.map(p => [String(p.game_id), p]));
+  const finalGamesWithoutPost = games.filter(g => g.status === 'final' && !postByGameId.has(String(g.id)));
+
+  const generateFor = async (game) => {
+    const post = generateBeatPost({ league: prefix, game });
+    if (!post) return;
+    const saved = await db.addBeatPost(prefix, {
+      ...post, game_id: game.id, home_team: game.home_team, away_team: game.away_team,
+      home_score: game.home_score, away_score: game.away_score,
+    });
+    setPosts(prev => [saved, ...prev]);
+  };
+
+  const regenerate = async (post) => {
+    const game = games.find(g => String(g.id) === String(post.game_id)) || post;
+    await db.deleteBeatPost(prefix, post.id);
+    await generateFor(game);
+  };
+
+  const remove = async (post) => {
+    await db.deleteBeatPost(prefix, post.id);
+    setPosts(prev => prev.filter(p => p.id !== post.id));
+  };
+
+  return (
+    <div className="tab-content">
+      <h2 className="gradient-text-cyan">{label} Beat Wire</h2>
+      <p style={{ color: 'rgba(158,165,196,0.5)', fontSize: '0.85rem', marginTop: '4px', maxWidth: '640px' }}>
+        Recaps are generated automatically the moment a game under Games is saved with Status set to
+        Final — nothing to do here in the normal case. Use this tab to backfill a recap for an older Final
+        game, regenerate one with fresh wording, or take a bad one down. "🔥 Blowout" and "😱 Nail-biter"
+        recaps also auto-post live to Discord; routine "📋 Final" recaps stay in-app only.
+      </p>
+
+      {!loading && finalGamesWithoutPost.length > 0 && (
+        <div className="neon-card p-3" style={{ margin: '16px 0' }}>
+          <h3 style={{ fontSize: '1rem', color: 'rgba(158,165,196,0.7)', marginTop: 0 }}>
+            Final games without a recap
+          </h3>
+          <div style={{ display: 'grid', gap: '8px', marginTop: '10px' }}>
+            {finalGamesWithoutPost.map(g => (
+              <div key={g.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <span style={{ color: 'rgba(158,165,196,0.85)', fontSize: '0.85rem' }}>
+                  {g.home_team} <strong style={{ color: 'var(--color-cyan)' }}>{g.home_score}</strong> - <strong style={{ color: 'var(--color-cyan)' }}>{g.away_score}</strong> {g.away_team}
+                </span>
+                <button className="neon-button" style={{ padding: '5px 12px', fontSize: '0.8rem' }} onClick={() => generateFor(g)}>📰 Generate Recap</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <h3 style={{ fontSize: '1rem', color: 'rgba(158,165,196,0.7)' }}>Posted Recaps</h3>
+      {loading && <p style={{ color: 'rgba(158,165,196,0.5)' }}>Loading…</p>}
+      {!loading && posts.length === 0 && <p style={{ color: 'rgba(158,165,196,0.5)' }}>No recaps yet.</p>}
+      <div style={{ display: 'grid', gap: '8px', marginTop: '10px' }}>
+        {posts.map(p => (
+          <div key={p.id} className="neon-card p-3">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', flexWrap: 'wrap' }}>
+              <div>
+                <span style={{ color: 'var(--color-cyan)', fontWeight: 700 }}>{p.headline}</span>
+                {p.tag && <span style={{ marginLeft: '8px', fontSize: '0.75rem', color: 'rgba(158,165,196,0.6)' }}>{p.tag}</span>}
+                <p style={{ margin: '6px 0 0', color: 'rgba(158,165,196,0.85)', fontSize: '0.85rem' }}>{p.body}</p>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                <button className="neon-button" style={{ fontSize: '0.78rem', padding: '5px 10px' }} onClick={() => regenerate(p)}>🔄 Regenerate</button>
+                <button className="neon-button" style={{ fontSize: '0.78rem', padding: '5px 10px', borderColor: '#ff6b7a', color: '#ff6b7a' }} onClick={() => remove(p)}>Remove</button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
@@ -2780,6 +2869,7 @@ const OwnerDashboard = ({ onExit }) => {
       case 'vizta-boxscores': return <LeagueBoxScoresTab prefix="vizta" />;
       case 'vizta-hof':       return <LeagueHofTab prefix="vizta" />;
       case 'vizta-awards':    return <LeagueAwardsTab prefix="vizta" />;
+      case 'vizta-beatwire':   return <LeagueBeatWireTab prefix="vizta" />;
       case 'hockey-players':   return <LeaguePlayersTab prefix="hockey" />;
       case 'hockey-teams':     return <LeagueTeamsTab prefix="hockey" />;
       case 'hockey-rosters':   return <LeagueRostersTab prefix="hockey" />;
@@ -2787,6 +2877,7 @@ const OwnerDashboard = ({ onExit }) => {
       case 'hockey-boxscores': return <LeagueBoxScoresTab prefix="hockey" />;
       case 'hockey-hof':       return <LeagueHofTab prefix="hockey" />;
       case 'hockey-awards':    return <LeagueAwardsTab prefix="hockey" />;
+      case 'hockey-beatwire':   return <LeagueBeatWireTab prefix="hockey" />;
       case 'football-players':   return <LeaguePlayersTab prefix="football" />;
       case 'football-teams':     return <LeagueTeamsTab prefix="football" />;
       case 'football-rosters':   return <LeagueRostersTab prefix="football" />;
@@ -2794,6 +2885,7 @@ const OwnerDashboard = ({ onExit }) => {
       case 'football-boxscores': return <LeagueBoxScoresTab prefix="football" />;
       case 'football-hof':       return <LeagueHofTab prefix="football" />;
       case 'football-awards':    return <LeagueAwardsTab prefix="football" />;
+      case 'football-beatwire':   return <LeagueBeatWireTab prefix="football" />;
       default: return null;
     }
   };
@@ -2863,6 +2955,7 @@ const OwnerDashboard = ({ onExit }) => {
               <Btn id="vizta-boxscores" label="Box Scores" />
               <Btn id="vizta-hof"       label="HoF" />
               <Btn id="vizta-awards"    label="Awards" />
+              <Btn id="vizta-beatwire"  label="📰 Beat Wire" />
             </div>
           </div>
         )}
@@ -2877,6 +2970,7 @@ const OwnerDashboard = ({ onExit }) => {
               <Btn id="hockey-boxscores" label="Box Scores" />
               <Btn id="hockey-hof"       label="HoF" />
               <Btn id="hockey-awards"    label="Awards" />
+              <Btn id="hockey-beatwire"  label="📰 Beat Wire" />
             </div>
           </div>
         )}
@@ -2891,6 +2985,7 @@ const OwnerDashboard = ({ onExit }) => {
               <Btn id="football-boxscores" label="Box Scores" />
               <Btn id="football-hof"       label="HoF" />
               <Btn id="football-awards"    label="Awards" />
+              <Btn id="football-beatwire"  label="📰 Beat Wire" />
             </div>
           </div>
         )}

@@ -5,6 +5,7 @@
  */
 import { supabase } from './supabaseClient';
 import { notifyDiscordEvent } from './discordEventNotify';
+import { generateBeatPost } from './beatWriterService';
 
 const hasSupabase = () => true; // Rivestack via /api/query — no client-side env vars needed
 
@@ -238,29 +239,40 @@ export const db = {
     const record = { ...game, league, updated_at: new Date().toISOString() };
     if (isNew) record.created_at = new Date().toISOString();
 
+    let saved = null;
     if (hasSupabase()) {
       if (isNew) {
         delete record.id;
         const { data, error } = await supabase.from('nova_games').insert([record]).select();
-        if (!error) { _syncLs(league, 'games', data[0], 'add'); logAudit('game.create', league, 'game', data[0].id); return data[0]; }
+        if (!error) { _syncLs(league, 'games', data[0], 'add'); logAudit('game.create', league, 'game', data[0].id); saved = data[0]; }
       } else {
         const { data, error } = await supabase.from('nova_games')
           .update({ ...record, id: undefined }).eq('id', game.id).select();
-        if (!error) { _syncLs(league, 'games', data[0], 'update'); logAudit('game.update', league, 'game', data[0].id); return data[0]; }
+        if (!error) { _syncLs(league, 'games', data[0], 'update'); logAudit('game.update', league, 'game', data[0].id); saved = data[0]; }
       }
     }
-    const list = ls.get(`${league}_games`);
-    if (isNew) {
-      const newItem = { ...record, id: Date.now().toString() };
-      ls.set(`${league}_games`, [...list, newItem]);
-      logAudit('game.create', league, 'game', newItem.id);
-      return newItem;
-    } else {
-      const updated = list.map(g => g.id === game.id ? { ...g, ...record } : g);
-      ls.set(`${league}_games`, updated);
-      logAudit('game.update', league, 'game', game.id);
-      return record;
+    if (!saved) {
+      const list = ls.get(`${league}_games`);
+      if (isNew) {
+        const newItem = { ...record, id: Date.now().toString() };
+        ls.set(`${league}_games`, [...list, newItem]);
+        logAudit('game.create', league, 'game', newItem.id);
+        saved = newItem;
+      } else {
+        const updated = list.map(g => g.id === game.id ? { ...g, ...record } : g);
+        ls.set(`${league}_games`, updated);
+        logAudit('game.update', league, 'game', game.id);
+        saved = record;
+      }
     }
+
+    // A game just got marked Final (or was edited while already Final) —
+    // fire off the beat-writer recap. Fire-and-forget: never awaited, and
+    // internally swallows its own errors, so a beat-post hiccup can never
+    // fail or slow down the game save itself.
+    if (saved && saved.status === 'final') this._maybeAutoBeatPost(league, saved);
+
+    return saved;
   },
 
   async deleteGame(league, id) {
@@ -269,6 +281,84 @@ export const db = {
     }
     ls.set(`${league}_games`, ls.get(`${league}_games`).filter(g => g.id !== id));
     logAudit('game.delete', league, 'game', id);
+  },
+
+  /* ── BEAT WRITER POSTS ─────────────────────────────────────────
+     Auto-generated recap blurbs, created the instant a game (see
+     saveGame above) is marked Final. Shown as a Twitter/X-style feed
+     (BeatWireFeed.jsx) and, for "big games", also pushed to Discord. */
+  async getBeatPosts(league, limitN = 50) {
+    if (hasSupabase()) {
+      const { data, error } = await supabase.from('nova_beat_posts').select('*')
+        .eq('league', league).order('created_at', { ascending: false }).limit(limitN);
+      if (!error) return data;
+    }
+    return [...ls.get(`${league}_beat_posts`)].reverse().slice(0, limitN);
+  },
+
+  async _hasBeatPostForGame(league, gameId) {
+    if (hasSupabase()) {
+      const { data, error } = await supabase.from('nova_beat_posts').select('id')
+        .eq('league', league).eq('game_id', String(gameId)).limit(1);
+      if (!error) return (data || []).length > 0;
+    }
+    return ls.get(`${league}_beat_posts`).some(p => String(p.game_id) === String(gameId));
+  },
+
+  async addBeatPost(league, post) {
+    const record = { ...post, league, game_id: String(post.game_id), created_at: new Date().toISOString() };
+    let saved = null;
+    if (hasSupabase()) {
+      delete record.id;
+      const { data, error } = await supabase.from('nova_beat_posts').insert([record]).select();
+      if (!error) { _syncLs(league, 'beat_posts', data[0], 'add'); saved = data[0]; }
+    }
+    if (!saved) {
+      const list = ls.get(`${league}_beat_posts`);
+      const newItem = { ...record, id: Date.now().toString() };
+      ls.set(`${league}_beat_posts`, [...list, newItem]);
+      saved = newItem;
+    }
+    // Only "big games" (blowouts/nailbiters, per beatWriterService) ping
+    // Discord live — routine wins still show up in the in-app feed but
+    // don't need to interrupt the channel.
+    if (record.is_featured) {
+      notifyDiscordEvent('beat_post', {
+        league, headline: record.headline, body: record.body, tag: record.tag,
+      });
+    }
+    return saved;
+  },
+
+  async deleteBeatPost(league, id) {
+    if (hasSupabase()) {
+      await supabase.from('nova_beat_posts').delete().eq('id', id);
+    }
+    ls.set(`${league}_beat_posts`, ls.get(`${league}_beat_posts`).filter(p => p.id !== id));
+  },
+
+  // Called from saveGame whenever a game is saved with status 'final'.
+  // Idempotent — skips if a recap already exists for this game — so
+  // re-saving a Final game (e.g. fixing a typo in the score) doesn't spam
+  // duplicate posts. To regenerate on purpose, delete the existing post
+  // first (see the Beat Wire admin tab).
+  async _maybeAutoBeatPost(league, game) {
+    try {
+      const post = generateBeatPost({ league, game });
+      if (!post) return; // scores aren't both set yet
+      const already = await this._hasBeatPostForGame(league, game.id);
+      if (already) return;
+      await this.addBeatPost(league, {
+        ...post,
+        game_id: game.id,
+        home_team: game.home_team,
+        away_team: game.away_team,
+        home_score: game.home_score,
+        away_score: game.away_score,
+      });
+    } catch {
+      // A beat-post failure must never surface as a game-save failure.
+    }
   },
 
   /* BOX SCORE GAMES */

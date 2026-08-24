@@ -9,10 +9,10 @@
  * fail the underlying save.
  */
 
-const EVENTS = new Set(['hof', 'potm', 'accolade', 'article']);
+const EVENTS = new Set(['hof', 'potm', 'accolade', 'article', 'beat_post']);
 
 /**
- * @param {'hof'|'potm'|'accolade'|'article'} event
+ * @param {'hof'|'potm'|'accolade'|'article'|'beat_post'} event
  * @param {object} payload - small, JSON-serializable fields for that
  *   event's template in api/discord-notify.js (e.g. { player_name, league }).
  */

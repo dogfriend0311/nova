@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, Search, Trophy, CalendarDays, ScrollText,
   GitCompare, Target, Award, ArrowLeft, ChevronRight, Medal,
   Activity, BarChart3, Database, TrendingUp,
-  Archive, BookOpen, Bookmark, Radio, Sparkles, Star,
+  Archive, BookOpen, Bookmark, Radio, Sparkles, Star, Newspaper,
 } from 'lucide-react';
 import {
   CommunityPredictionsTab,
@@ -18,6 +18,7 @@ import {
 } from './LeagueFeatures';
 import RadarChart from './components/RadarChart';
 import TeamDepthChart from './components/pages/TeamDepthChart';
+import BeatWireFeed from './components/BeatWireFeed';
 import {
   currentUsername,
   getFavoritePlayers,
@@ -69,6 +70,7 @@ const TABS = [
   { id: 'leaders',    label: 'Leaders',     Icon: Trophy },
   { id: 'schedule',   label: 'Schedule',    Icon: CalendarDays },
   { id: 'scores',     label: 'Box Scores',  Icon: ScrollText },
+  { id: 'beatwire',   label: 'Beat Wire',   Icon: Newspaper },
   { id: 'compare',    label: 'Comparison Lab', Icon: GitCompare },
   { id: 'analytics',  label: 'Analytics',   Icon: BarChart3 },
   { id: 'records',    label: 'Record Book', Icon: BookOpen },
@@ -99,6 +101,7 @@ const ViztaLeague = ({ onSelectPlayer, sport = 'vizta', initialTab = 'overview',
       case 'leaders':    return <LeagueLeadersTab sport={sport} cfg={cfg} onSelectPlayer={onSelectPlayer} />;
       case 'schedule':    return <ScheduleTab sport={sport} cfg={cfg} />;
       case 'scores':     return <BoxScoresTab sport={sport} cfg={cfg} />;
+      case 'beatwire':   return <BeatWireTab sport={sport} />;
       case 'compare':    return <CompareTab sport={sport} cfg={cfg} />;
       case 'analytics':  return <AnalyticsTab sport={sport} cfg={cfg} />;
       case 'records':    return <LeagueRecordsTab sport={sport} cfg={cfg} />;
@@ -909,6 +912,16 @@ const ScheduleTab = ({ sport, cfg }) => {
     </div>
   );
 };
+
+/* ── Beat Wire ────────────────────────────────────────────────── */
+// Auto-generated recap blurbs, one per finalized game — see
+// components/BeatWireFeed.jsx + services/beatWriterService.js.
+const BeatWireTab = ({ sport }) => (
+  <div>
+    <div className="lh-section-head"><h2>Beat Wire</h2><span className="lh-section-tag">Auto-Recaps</span></div>
+    <BeatWireFeed league={sport} />
+  </div>
+);
 
 /* ── Box Scores ───────────────────────────────────────────────── */
 const BoxScoresTab = ({ sport, cfg }) => {
