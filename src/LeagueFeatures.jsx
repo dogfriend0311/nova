@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Archive, ArrowDown, ArrowUp, ArrowUpRight, Bookmark, Check, Database,
-  Minus, Radio, Sparkles, Star, Trophy, Users,
+  Minus, Radio, Repeat, Sparkles, Star, Trophy, Users,
 } from 'lucide-react';
 import db from './services/db';
 import { awardXP } from './services/reputationService';
@@ -181,6 +181,228 @@ export const TransactionsTab = ({ sport, cfg }) => {
           )}
         </div>
       </div>
+    </div>
+  );
+};
+
+/* ── Trade Machine ─────────────────────────────────────────────
+   A fun "what if" trade simulator: pick two teams, pick who moves
+   each way, and see the projected team-stat impact immediately —
+   entirely fictional, nothing here touches real rosters. Members
+   can also publish a proposal to a shared board for others to see. */
+const rosterOf = (players, teamName) => players.filter(p => p.team === teamName);
+
+const aggregateTeamStats = (roster, cfg) => {
+  const sum = (key) => roster.reduce((s, p) => s + (parseFloat(p[key]) || 0), 0);
+  const avg = (key) => {
+    const vals = roster.map(p => parseFloat(p[key])).filter(v => !isNaN(v) && v > 0);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  };
+  return cfg.teamStats.map(ts => ({
+    label: ts.label,
+    agg: ts.agg,
+    value: ts.agg === 'avg' ? avg(ts.field) : sum(ts.field),
+    lowerBetter: (cfg.lowerBetter || []).some(lb => ts.label.endsWith(lb)),
+  }));
+};
+
+const fmtAgg = (value, agg) => {
+  if (value === null || value === undefined || isNaN(value)) return '—';
+  return agg === 'avg' ? value.toFixed(3) : Math.round(value).toLocaleString();
+};
+
+const DeltaBadge = ({ before, after, lowerBetter }) => {
+  if (before === null || after === null) return <span className="lh-pr-movement same">—</span>;
+  const diff = after - before;
+  if (Math.abs(diff) < 0.0005) return <span className="lh-pr-movement same"><Minus size={12} /></span>;
+  const improved = lowerBetter ? diff < 0 : diff > 0;
+  const shown = Math.abs(diff) >= 1 ? Math.round(Math.abs(diff)).toLocaleString() : Math.abs(diff).toFixed(3);
+  return improved
+    ? <span className="lh-pr-movement up"><ArrowUp size={12} />{shown}</span>
+    : <span className="lh-pr-movement down"><ArrowDown size={12} />{shown}</span>;
+};
+
+const TradeSideBuilder = ({ label, teams, teamName, onTeamChange, roster, otherRoster, selected, onToggle }) => (
+  <div className="lh-card lh-feature-panel">
+    <div className="lh-feature-panel-head">
+      <div><span className="lh-panel-kicker">{label}</span><h3>{teamName || 'Choose a team'}</h3></div>
+      <Repeat size={16} color="var(--accent)" />
+    </div>
+    <select value={teamName || ''} onChange={e => onTeamChange(e.target.value)} style={{ width: '100%', marginBottom: 10 }}>
+      <option value="">Select team…</option>
+      {teams.map(t => <option key={t.id} value={t.team_name}>{t.team_name}</option>)}
+    </select>
+    {!teamName ? (
+      <div className="lh-empty">Pick a team to see its roster.</div>
+    ) : roster.length === 0 ? (
+      <div className="lh-empty">No players on this roster.</div>
+    ) : (
+      <div className="lh-trade-roster-list">
+        {roster.map(p => {
+          const isSelected = selected.has(String(p.id));
+          const alreadyOnOtherSide = otherRoster.some(op => String(op.id) === String(p.id));
+          return (
+            <label key={p.id} className={`lh-trade-roster-row ${isSelected ? 'checked' : ''}`}>
+              <input
+                type="checkbox"
+                checked={isSelected}
+                disabled={alreadyOnOtherSide}
+                onChange={() => onToggle(String(p.id))}
+              />
+              <span className="lh-trade-roster-name">{getPlayerLabel(p)}</span>
+              <span className="lh-trade-roster-ovr">{p.overall ? `${p.overall} OVR` : ''}</span>
+            </label>
+          );
+        })}
+      </div>
+    )}
+  </div>
+);
+
+export const TradeMachineTab = ({ sport, cfg }) => {
+  const [teams, setTeams] = useState([]);
+  const [players, setPlayers] = useState([]);
+  const [teamAName, setTeamAName] = useState('');
+  const [teamBName, setTeamBName] = useState('');
+  const [sendFromA, setSendFromA] = useState(new Set());
+  const [sendFromB, setSendFromB] = useState(new Set());
+  const [note, setNote] = useState('');
+  const [proposals, setProposals] = useState([]);
+  const storageKey = `nova_trade_proposals_${sport}`;
+
+  useEffect(() => {
+    Promise.all([db.getTeams(sport), db.getPlayers(sport)]).then(([t, p]) => {
+      setTeams(Array.isArray(t) ? t : []);
+      setPlayers(Array.isArray(p) ? p : []);
+    });
+    setProposals(readList(storageKey));
+  }, [sport, storageKey]);
+
+  useEffect(() => { setSendFromA(new Set()); }, [teamAName]);
+  useEffect(() => { setSendFromB(new Set()); }, [teamBName]);
+
+  const rosterA = useMemo(() => rosterOf(players, teamAName), [players, teamAName]);
+  const rosterB = useMemo(() => rosterOf(players, teamBName), [players, teamBName]);
+
+  const toggleFromA = (id) => setSendFromA(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+  const toggleFromB = (id) => setSendFromB(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+
+  const hasTrade = teamAName && teamBName && teamAName !== teamBName && (sendFromA.size > 0 || sendFromB.size > 0);
+
+  const impact = useMemo(() => {
+    if (!hasTrade) return null;
+    const movingToB = rosterA.filter(p => sendFromA.has(String(p.id)));
+    const movingToA = rosterB.filter(p => sendFromB.has(String(p.id)));
+    const projectedA = [...rosterA.filter(p => !sendFromA.has(String(p.id))), ...movingToA];
+    const projectedB = [...rosterB.filter(p => !sendFromB.has(String(p.id))), ...movingToB];
+    const beforeA = aggregateTeamStats(rosterA, cfg);
+    const afterA = aggregateTeamStats(projectedA, cfg);
+    const beforeB = aggregateTeamStats(rosterB, cfg);
+    const afterB = aggregateTeamStats(projectedB, cfg);
+    return {
+      movingToA, movingToB,
+      rowsA: beforeA.map((row, i) => ({ ...row, after: afterA[i]?.value ?? null })),
+      rowsB: beforeB.map((row, i) => ({ ...row, after: afterB[i]?.value ?? null })),
+    };
+  }, [hasTrade, rosterA, rosterB, sendFromA, sendFromB, cfg]);
+
+  const publishProposal = () => {
+    if (!impact) return;
+    const user = readUser();
+    const movingToB = rosterA.filter(p => sendFromA.has(String(p.id)));
+    const movingToA = rosterB.filter(p => sendFromB.has(String(p.id)));
+    const proposal = {
+      id: `${Date.now()}`,
+      teamA: teamAName, teamB: teamBName,
+      sendFromA: movingToB.map(getPlayerLabel),
+      sendFromB: movingToA.map(getPlayerLabel),
+      note: note.trim(),
+      author: user?.username || 'Anonymous GM',
+      createdAt: new Date().toISOString(),
+    };
+    const next = [proposal, ...proposals].slice(0, 50);
+    setProposals(next);
+    writeList(storageKey, next);
+    setNote('');
+  };
+
+  return (
+    <div className="lh-feature-page">
+      <div className="lh-section-head">
+        <div><h2>Trade Machine</h2><p className="lh-section-note">Float a fictional trade between two {cfg.label} teams and see the projected team-stat impact instantly. Nothing here touches real rosters.</p></div>
+        <span className="lh-section-tag"><Repeat size={12} /> {proposals.length} proposed</span>
+      </div>
+
+      <div className="lh-trade-builder-grid">
+        <TradeSideBuilder label="SIDE A · SENDS" teams={teams} teamName={teamAName} onTeamChange={setTeamAName} roster={rosterA} otherRoster={rosterB} selected={sendFromA} onToggle={toggleFromA} />
+        <TradeSideBuilder label="SIDE B · SENDS" teams={teams} teamName={teamBName} onTeamChange={setTeamBName} roster={rosterB} otherRoster={rosterA} selected={sendFromB} onToggle={toggleFromB} />
+      </div>
+
+      {!hasTrade ? (
+        <div className="lh-empty" style={{ marginTop: 16 }}>Pick two different teams and check at least one player on either side to preview the trade.</div>
+      ) : (
+        <>
+          <div className="lh-section-head" style={{ marginTop: 24 }}>
+            <h3>Projected Impact</h3>
+            <span className="lh-section-tag">Before → After</span>
+          </div>
+          <div className="lh-trade-builder-grid">
+            <div className="lh-card lh-feature-panel">
+              <div className="lh-feature-panel-head"><div><span className="lh-panel-kicker">{teamAName.toUpperCase()}</span><h3>Gains {impact.movingToA.length}, sends {impact.movingToB.length}</h3></div></div>
+              <div className="lh-trade-impact-list">
+                {impact.rowsA.map(row => (
+                  <div className="lh-trade-impact-row" key={row.label}>
+                    <span className="lh-trade-impact-label">{row.label}</span>
+                    <span className="lh-trade-impact-val">{fmtAgg(row.value, row.agg)} → {fmtAgg(row.after, row.agg)}</span>
+                    <DeltaBadge before={row.value} after={row.after} lowerBetter={row.lowerBetter} />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="lh-card lh-feature-panel">
+              <div className="lh-feature-panel-head"><div><span className="lh-panel-kicker">{teamBName.toUpperCase()}</span><h3>Gains {impact.movingToB.length}, sends {impact.movingToA.length}</h3></div></div>
+              <div className="lh-trade-impact-list">
+                {impact.rowsB.map(row => (
+                  <div className="lh-trade-impact-row" key={row.label}>
+                    <span className="lh-trade-impact-label">{row.label}</span>
+                    <span className="lh-trade-impact-val">{fmtAgg(row.value, row.agg)} → {fmtAgg(row.after, row.agg)}</span>
+                    <DeltaBadge before={row.value} after={row.after} lowerBetter={row.lowerBetter} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="lh-card lh-feature-panel" style={{ marginTop: 16 }}>
+            <div className="lh-feature-panel-head"><div><span className="lh-panel-kicker">SHARE IT</span><h3>Publish this trade idea</h3></div></div>
+            <div className="lh-form-two">
+              <input value={note} onChange={e => setNote(e.target.value)} placeholder="Why does this trade make sense? (optional)" style={{ gridColumn: '1 / -1' }} />
+            </div>
+            <button className="lh-primary-action" style={{ marginTop: 10 }} onClick={publishProposal}>Publish to trade board</button>
+          </div>
+        </>
+      )}
+
+      <div className="lh-section-head" style={{ marginTop: 28 }}>
+        <h3>Community Trade Board</h3>
+        <span className="lh-section-tag">Fan proposals</span>
+      </div>
+      {proposals.length === 0 ? (
+        <div className="lh-empty">No trade proposals published yet — build one above and share it with the league.</div>
+      ) : (
+        <div className="lh-transaction-list">
+          {proposals.map(item => (
+            <div className="lh-transaction-row" key={item.id}>
+              <div className="lh-transaction-badge">TRD</div>
+              <div className="lh-transaction-main">
+                <strong>{item.teamA} ⇄ {item.teamB}</strong>
+                <span>{item.teamA} sends {item.sendFromA.join(', ') || 'nothing'} <b>→</b> {item.teamB} sends {item.sendFromB.join(', ') || 'nothing'}</span>
+                {item.note && <small>"{item.note}" — {item.author}</small>}
+              </div>
+              <time>{new Date(item.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</time>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -523,6 +745,129 @@ export const WatchlistsTab = ({ sport, cfg, onSelectPlayer }) => {
         </>
       )}
     </div>
+  );
+};
+
+/* ── League Pulse / Overview News Feed ───────────────────────────
+   A per-league "what's happening" feed for the Overview tab, built
+   from data that already exists elsewhere on the site: the
+   Transaction Wire, published Trade Machine proposals, single-game
+   record-book performances, and Hall of Fame inductions. */
+const goToHash = (hash) => { window.location.hash = hash; };
+
+const timeAgoLabel = (iso) => {
+  if (!iso) return '';
+  const s = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  if (s < 604800) return `${Math.floor(s / 86400)}d ago`;
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+};
+
+export const LeagueNewsFeed = ({ sport, cfg }) => {
+  const [items, setItems] = useState(null); // null = loading
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      db.getPlayers(sport).catch(() => []),
+      db.getBoxScores(sport).catch(() => []),
+      db.getBsGames(sport).catch(() => []),
+      db.getHof(sport).catch(() => []),
+    ]).then(([players, boxScores, bsGames, hof]) => {
+      if (cancelled) return;
+      players = Array.isArray(players) ? players : [];
+      boxScores = Array.isArray(boxScores) ? boxScores : [];
+      bsGames = Array.isArray(bsGames) ? bsGames : [];
+      hof = Array.isArray(hof) ? hof : [];
+
+      const playerById = new Map(players.map(p => [String(p.id), p]));
+      const gameById = new Map(bsGames.map(g => [String(g.id), g]));
+
+      const transactionItems = readList(`nova_transactions_${sport}`).map(t => ({
+        kind: 'transaction', ts: t.createdAt, key: `txn-${t.id}`,
+        icon: '🔄', title: `${t.playerName} · ${t.type}`,
+        meta: `${t.fromTeam} → ${t.toTeam}`,
+        onClick: null,
+      }));
+
+      const tradeItems = readList(`nova_trade_proposals_${sport}`).map(p => ({
+        kind: 'trade', ts: p.createdAt, key: `trd-${p.id}`,
+        icon: '🔁', title: `${p.teamA} ⇄ ${p.teamB} trade proposed`,
+        meta: p.author ? `By ${p.author} · Trade Machine` : 'Trade Machine',
+        onClick: null,
+      }));
+
+      // A "record-breaking game" is any single-game box score that ties or
+      // holds the current all-time high for one of this sport's tracked
+      // box fields — the same numbers already surfaced in the Record Book.
+      const recordItems = [];
+      (cfg.boxFields || []).forEach(field => {
+        let max = -Infinity;
+        boxScores.forEach(b => { const v = num(b[field]); if (v !== null && v > max) max = v; });
+        if (!isFinite(max) || max <= 0) return;
+        boxScores
+          .filter(b => num(b[field]) === max)
+          .slice(0, 2)
+          .forEach(b => {
+            const game = gameById.get(String(b.game_id));
+            const player = playerById.get(String(b.player_id));
+            if (!game || !player) return;
+            recordItems.push({
+              kind: 'record', ts: game.created_at, key: `rec-${field}-${b.id}`,
+              icon: '🔥', title: `${getPlayerLabel(player)} set the single-game record for ${cfg.boxLabels?.[field] || field.toUpperCase()}`,
+              meta: `${valueOrDash(max)} · ${cfg.label} Record Book`,
+              onClick: () => goToHash(`#leagues/player/${player.id}`),
+            });
+          });
+      });
+
+      const hofItems = hof.map(h => {
+        const match = players.find(p => getPlayerLabel(p).toLowerCase() === (h.player_name || '').toLowerCase());
+        return {
+          kind: 'hof', ts: h.created_at, key: `hof-${h.id}`,
+          icon: '⭐', title: `${h.player_name || 'A legend'} inducted into the Hall of Fame`,
+          meta: `${cfg.label} · Hall of Fame`,
+          onClick: match ? () => goToHash(`#leagues/player/${match.id}`) : null,
+        };
+      });
+
+      const feed = [...transactionItems, ...tradeItems, ...recordItems, ...hofItems]
+        .filter(i => i.ts)
+        .sort((a, b) => new Date(b.ts) - new Date(a.ts))
+        .slice(0, 10);
+      setItems(feed);
+    });
+    return () => { cancelled = true; };
+  }, [sport, cfg]);
+
+  if (items === null || items.length === 0) return null;
+
+  return (
+    <>
+      <div className="lh-section-head" style={{ marginTop: 32 }}>
+        <h3>League Pulse</h3>
+        <span className="lh-section-tag">Recent Activity</span>
+      </div>
+      <div className="lh-transaction-list">
+        {items.map(item => (
+          <div
+            className="lh-transaction-row"
+            key={item.key}
+            onClick={item.onClick || undefined}
+            style={{ cursor: item.onClick ? 'pointer' : 'default' }}
+          >
+            <div className="lh-transaction-badge">{item.icon}</div>
+            <div className="lh-transaction-main">
+              <strong>{item.title}</strong>
+              <span>{item.meta}</span>
+            </div>
+            <time>{timeAgoLabel(item.ts)}</time>
+          </div>
+        ))}
+      </div>
+    </>
   );
 };
 

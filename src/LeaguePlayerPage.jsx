@@ -5,6 +5,7 @@ import db, { sortByDisplayOrder } from './services/db';
 import { accoladeLabel, accoladeIcon } from './data/accolades';
 import { getSport } from './data/sportsConfig';
 import PlayerComments from './components/PlayerComments';
+import VsFieldCard from './components/VsFieldCard';
 import { LeagueImpactMap } from './LeagueFeatures';
 import DevelopmentArcChart from './components/DevelopmentArcChart';
 import { gameLogTrend, seasonTrend, trendSummary } from './services/playerTrendService';
@@ -728,6 +729,7 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
           {activePanel === 'overview' && (
             <>
               {isBaseball && <SavantCard player={player} />}
+              <VsFieldCard player={player} sport={leaguePrefix || 'vizta'} cfg={cfg} />
               <div className="player-overview-grid">
                 <StatSection title={isBaseball ? 'Season Hitting' : `${cfg.catA.label} Snapshot`} color="cyan" stats={isBaseball ? hitBasicSeason.slice(0, 8) : genericSeasonA.slice(0, 8)} isCareer={false} onToggle={() => setActivePanel('stats')} />
                 <StatSection title={isBaseball ? 'Season Pitching' : `${cfg.catB.label} Snapshot`} color="magenta" stats={isBaseball ? pitchBasicSeason : genericSeasonB.slice(0, 8)} isCareer={false} onToggle={() => setActivePanel('stats')} />
@@ -738,6 +740,7 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
           {activePanel === 'stats' && (
             <>
               {isBaseball && <SavantCard player={player} />}
+              <VsFieldCard player={player} sport={leaguePrefix || 'vizta'} cfg={cfg} />
               {isBaseball ? (
                 <>
                   <StatSection title="Season Hitting Stats" color="cyan" stats={toggles.hitBasic ? hitBasicCareer : hitBasicSeason} isCareer={toggles.hitBasic} onToggle={() => toggle('hitBasic')} />

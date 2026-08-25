@@ -67,6 +67,7 @@
 .sv-bar-track { height: 6px; background: rgba(158, 165, 196, 0.08); border-radius: 99px; overflow: hidden; }
 .sv-bar-fill { height: 100%; border-radius: 99px; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
 .sv-bar-pct { font-size: 0.68rem; color: rgba(158, 165, 196, 0.35); text-align: right; }
+.sv-bar-pct-sentence { text-align: left !important; display: block; margin-top: 2px; }
 
 /* ── Accolade tags (season awards) ─────────────────────────── */
 .accolade-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }

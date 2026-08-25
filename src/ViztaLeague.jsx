@@ -7,14 +7,16 @@ import {
   LayoutDashboard, Users, Search, Trophy, CalendarDays, ScrollText,
   GitCompare, Target, Award, ArrowLeft, ChevronLeft, ChevronRight, Medal,
   Activity, BarChart3, Database, TrendingUp,
-  Archive, BookOpen, Bookmark, Radio, Sparkles, Star, Newspaper, Flame,
+  Archive, BookOpen, Bookmark, Radio, Repeat, Sparkles, Star, Newspaper, Flame,
 } from 'lucide-react';
 import {
   AllStarVoteTab,
   CommunityPredictionsTab,
+  LeagueNewsFeed,
   LeagueRecordsTab,
   PowerRankingsTab,
   SeasonArchiveTab,
+  TradeMachineTab,
   TransactionsTab,
   WatchlistsTab,
 } from './LeagueFeatures';
@@ -78,6 +80,7 @@ const TABS = [
   { id: 'analytics',  label: 'Analytics',   Icon: BarChart3 },
   { id: 'records',    label: 'Record Book', Icon: BookOpen },
   { id: 'transactions', label: 'Transactions', Icon: Radio },
+  { id: 'trademachine', label: 'Trade Machine', Icon: Repeat },
   { id: 'predictions', label: 'Predictions', Icon: Sparkles },
   { id: 'allstar',    label: 'All-Star Vote', Icon: Star },
   { id: 'watchlist',  label: 'Watchlist',   Icon: Bookmark },
@@ -139,6 +142,7 @@ const ViztaLeague = ({ onSelectPlayer, sport = 'vizta', initialTab = 'overview',
       case 'analytics':  return <AnalyticsTab sport={sport} cfg={cfg} />;
       case 'records':    return <LeagueRecordsTab sport={sport} cfg={cfg} />;
       case 'transactions': return <TransactionsTab sport={sport} cfg={cfg} />;
+      case 'trademachine': return <TradeMachineTab sport={sport} cfg={cfg} />;
       case 'predictions': return <CommunityPredictionsTab sport={sport} cfg={cfg} />;
       case 'allstar':    return <AllStarVoteTab sport={sport} cfg={cfg} />;
       case 'watchlist':  return <WatchlistsTab sport={sport} cfg={cfg} onSelectPlayer={onSelectPlayer} />;
@@ -343,6 +347,8 @@ const OverviewTab = ({ sport, cfg }) => {
           ))}
         </div>
       )}
+
+      <LeagueNewsFeed sport={sport} cfg={cfg} />
     </div>
   );
 };

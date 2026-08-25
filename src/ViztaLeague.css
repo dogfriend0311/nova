@@ -523,6 +523,18 @@
 .lh-transaction-main span b { color: var(--accent); padding: 0 4px; }
 .lh-transaction-main small { margin-top: 3px; color: rgba(158,165,196,0.38); font-size: 0.64rem; }
 .lh-transaction-row time { color: rgba(158,165,196,0.38); font-size: 0.62rem; white-space: nowrap; }
+.lh-trade-builder-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 720px) { .lh-trade-builder-grid, .lh-transaction-layout { grid-template-columns: 1fr; } }
+.lh-trade-roster-list { display: flex; flex-direction: column; gap: 4px; max-height: 320px; overflow-y: auto; }
+.lh-trade-roster-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 9px; padding: 7px 8px; border-radius: 8px; cursor: pointer; font-size: 0.76rem; color: rgba(210,218,242,0.75); }
+.lh-trade-roster-row:hover { background: rgba(var(--accent-rgb),0.06); }
+.lh-trade-roster-row.checked { background: rgba(var(--accent-rgb),0.14); color: #eef0f9; }
+.lh-trade-roster-row input { accent-color: var(--accent); }
+.lh-trade-roster-ovr { color: rgba(158,165,196,0.45); font-size: 0.66rem; }
+.lh-trade-impact-list { display: flex; flex-direction: column; }
+.lh-trade-impact-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.76rem; }
+.lh-trade-impact-label { color: rgba(158,165,196,0.6); }
+.lh-trade-impact-val { color: #e7eaf5; font-variant-numeric: tabular-nums; font-size: 0.72rem; }
 .lh-archive-current { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 16px; background: linear-gradient(105deg, rgba(var(--accent-rgb),0.1), rgba(255,255,255,0.015)); }
 .lh-archive-current h3 { margin: 5px 0 4px; color: #f0f2fc; font-family: var(--font-display); font-size: 1.1rem; }
 .lh-archive-current p { margin: 0; color: rgba(158,165,196,0.55); font-size: 0.76rem; }
