@@ -1201,7 +1201,7 @@ const LeagueGamesTab = ({ prefix }) => {
   const label = getSport(prefix).label;
   const [games, setGames]   = useState([]);
   const [teams, setTeams]   = useState([]);
-  const [newGame, setNewGame] = useState({ home_team:'', away_team:'', game_date:'', home_score:0, away_score:0 });
+  const [newGame, setNewGame] = useState({ home_team:'', away_team:'', game_date:'', home_score:0, away_score:0, week:'' });
   const [editing, setEditing] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [loading, setLoading] = useState(true);
@@ -1211,8 +1211,8 @@ const LeagueGamesTab = ({ prefix }) => {
   const addGame = async () => {
     if (!newGame.home_team||!newGame.away_team||newGame.home_team===newGame.away_team) return;
     const ht=teams.find(t=>t.team_name===newGame.home_team), at=teams.find(t=>t.team_name===newGame.away_team);
-    const saved = await db.saveGame(prefix, { ...newGame, status:'scheduled', home_team_logo:ht?.logo_url||'', away_team_logo:at?.logo_url||'', home_team_color:ht?.team_color||'#5e81f4', away_team_color:at?.team_color||'#5e81f4' });
-    setGames(prev=>[saved,...prev]); setNewGame({ home_team:'', away_team:'', game_date:'', home_score:0, away_score:0 });
+    const saved = await db.saveGame(prefix, { ...newGame, week: newGame.week===''?null:parseInt(newGame.week), status:'scheduled', home_team_logo:ht?.logo_url||'', away_team_logo:at?.logo_url||'', home_team_color:ht?.team_color||'#5e81f4', away_team_color:at?.team_color||'#5e81f4' });
+    setGames(prev=>[saved,...prev]); setNewGame({ home_team:'', away_team:'', game_date:'', home_score:0, away_score:0, week:'' });
   };
   const updateGame = async () => {
     const saved = await db.saveGame(prefix, { ...games.find(g=>g.id===editing), ...editForm, id:editing });
@@ -1236,6 +1236,7 @@ const LeagueGamesTab = ({ prefix }) => {
             </div>
           ))}
           <div className="form-field"><label>Date and Time</label><input type="datetime-local" value={newGame.game_date} onChange={e=>setNewGame({...newGame,game_date:e.target.value})} style={SI} /></div>
+          <div className="form-field"><label>Week (for Power Rankings)</label><input type="number" min="1" value={newGame.week} onChange={e=>setNewGame({...newGame,week:e.target.value})} placeholder="e.g. 3" style={SI} /></div>
           <button className="neon-button" onClick={addGame}>Schedule Game</button>
         </div>
       </div>
@@ -1245,6 +1246,7 @@ const LeagueGamesTab = ({ prefix }) => {
           <div className="edit-form">
             <div className="form-field"><label>Home Score</label><input type="number" value={editForm.home_score??0} onChange={e=>setEditForm({...editForm,home_score:+e.target.value})} style={SI} /></div>
             <div className="form-field"><label>Away Score</label><input type="number" value={editForm.away_score??0} onChange={e=>setEditForm({...editForm,away_score:+e.target.value})} style={SI} /></div>
+            <div className="form-field"><label>Week (for Power Rankings)</label><input type="number" min="1" value={editForm.week??''} onChange={e=>setEditForm({...editForm,week:e.target.value===''?null:+e.target.value})} placeholder="e.g. 3" style={SI} /></div>
             <div className="form-field">
               <label>Status</label>
               <select value={editForm.status||'scheduled'} onChange={e=>setEditForm({...editForm,status:e.target.value})} style={SS}>
@@ -1265,9 +1267,10 @@ const LeagueGamesTab = ({ prefix }) => {
               <p style={{ margin:'0 0 4px', color:'var(--color-cyan)', fontWeight:700 }}>{game.home_team} <span style={{ color:'var(--color-magenta)' }}>{game.home_score}</span> - <span style={{ color:'var(--color-magenta)' }}>{game.away_score}</span> {game.away_team}</p>
               {game.game_date && <p style={{ margin:0, fontSize:'0.8rem', color:'rgba(158, 165, 196,0.4)' }}>{new Date(game.game_date).toLocaleString()}</p>}
               <span className={`badge badge-${game.status==='live'?'active':'pending'}`} style={{ marginTop:'6px', display:'inline-block' }}>{game.status}</span>
+              <span style={{ marginTop:'6px', marginLeft:'8px', display:'inline-block', fontSize:'0.72rem', fontWeight:700, color: game.week ? 'var(--color-cyan)' : 'rgba(158,165,196,0.35)' }}>{game.week ? `Week ${game.week}` : 'No week set'}</span>
             </div>
             <div style={{ display:'flex', gap:'8px' }}>
-              <button className="neon-button" style={{ padding:'6px 14px' }} onClick={()=>{ setEditing(game.id); setEditForm({ home_score:game.home_score||0, away_score:game.away_score||0, status:game.status||'scheduled' }); }}>Edit</button>
+              <button className="neon-button" style={{ padding:'6px 14px' }} onClick={()=>{ setEditing(game.id); setEditForm({ home_score:game.home_score||0, away_score:game.away_score||0, status:game.status||'scheduled', week:game.week??'' }); }}>Edit</button>
               <button className="neon-button" style={{ padding:'6px 14px', borderColor:'#ff6b7a', color:'#ff6b7a' }} onClick={()=>del(game.id)}>Delete</button>
             </div>
           </div>

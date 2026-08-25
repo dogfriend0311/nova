@@ -7,11 +7,12 @@ import {
   LayoutDashboard, Users, Search, Trophy, CalendarDays, ScrollText,
   GitCompare, Target, Award, ArrowLeft, ChevronRight, Medal,
   Activity, BarChart3, Database, TrendingUp,
-  Archive, BookOpen, Bookmark, Radio, Sparkles, Star, Newspaper,
+  Archive, BookOpen, Bookmark, Radio, Sparkles, Star, Newspaper, Flame,
 } from 'lucide-react';
 import {
   CommunityPredictionsTab,
   LeagueRecordsTab,
+  PowerRankingsTab,
   SeasonArchiveTab,
   TransactionsTab,
   WatchlistsTab,
@@ -72,6 +73,7 @@ const TABS = [
   { id: 'scores',     label: 'Box Scores',  Icon: ScrollText },
   { id: 'beatwire',   label: 'Beat Wire',   Icon: Newspaper },
   { id: 'compare',    label: 'Comparison Lab', Icon: GitCompare },
+  { id: 'powerrankings', label: 'Power Rankings', Icon: Flame },
   { id: 'analytics',  label: 'Analytics',   Icon: BarChart3 },
   { id: 'records',    label: 'Record Book', Icon: BookOpen },
   { id: 'transactions', label: 'Transactions', Icon: Radio },
@@ -103,6 +105,7 @@ const ViztaLeague = ({ onSelectPlayer, sport = 'vizta', initialTab = 'overview',
       case 'scores':     return <BoxScoresTab sport={sport} cfg={cfg} />;
       case 'beatwire':   return <BeatWireTab sport={sport} />;
       case 'compare':    return <CompareTab sport={sport} cfg={cfg} />;
+      case 'powerrankings': return <PowerRankingsTab sport={sport} cfg={cfg} />;
       case 'analytics':  return <AnalyticsTab sport={sport} cfg={cfg} />;
       case 'records':    return <LeagueRecordsTab sport={sport} cfg={cfg} />;
       case 'transactions': return <TransactionsTab sport={sport} cfg={cfg} />;

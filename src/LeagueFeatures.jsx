@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Archive, ArrowUpRight, Bookmark, Check, Database,
-  Radio, Sparkles, Trophy, Users,
+  Archive, ArrowDown, ArrowUp, ArrowUpRight, Bookmark, Check, Database,
+  Minus, Radio, Sparkles, Trophy, Users,
 } from 'lucide-react';
 import db from './services/db';
 import { awardXP } from './services/reputationService';
+import { computePowerRankings } from './services/powerRankingsService';
 import './ViztaLeague.css';
 
 const num = (value) => {
@@ -184,46 +185,130 @@ export const TransactionsTab = ({ sport, cfg }) => {
   );
 };
 
+/* ── Power Rankings ───────────────────────────────────────────── */
+const MovementBadge = ({ movement }) => {
+  if (movement === null) return <span className="lh-pr-movement new">NEW</span>;
+  if (movement > 0) return <span className="lh-pr-movement up"><ArrowUp size={12} />{movement}</span>;
+  if (movement < 0) return <span className="lh-pr-movement down"><ArrowDown size={12} />{Math.abs(movement)}</span>;
+  return <span className="lh-pr-movement same"><Minus size={12} /></span>;
+};
+
+export const PowerRankingsTab = ({ sport, cfg }) => {
+  const [teams, setTeams] = useState([]);
+  const [games, setGames] = useState([]);
+  const [selectedWeek, setSelectedWeek] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([db.getTeams(sport), db.getGames(sport)]).then(([t, g]) => {
+      setTeams(Array.isArray(t) ? t : []);
+      setGames(Array.isArray(g) ? g : []);
+      setLoading(false);
+    });
+  }, [sport]);
+
+  const { weeks, currentWeek, previousWeek, rankings } = useMemo(
+    () => computePowerRankings({ teams, games, week: selectedWeek }),
+    [teams, games, selectedWeek]
+  );
+
+  if (loading) return <div className="lh-feature-page"><div className="lh-empty">Loading…</div></div>;
+
+  return (
+    <div className="lh-feature-page">
+      <div className="lh-section-head">
+        <div>
+          <h2>Power Rankings</h2>
+          <p className="lh-section-note">An algorithm-generated 1–{rankings.length || 'N'} ranking, blending win rate, recent form, and scoring margin.</p>
+        </div>
+        {weeks.length > 0 && (
+          <select className="lh-pr-week-select" value={currentWeek ?? ''} onChange={e => setSelectedWeek(Number(e.target.value))}>
+            {weeks.map(w => <option key={w} value={w}>Week {w}</option>)}
+          </select>
+        )}
+      </div>
+
+      {weeks.length === 0 ? (
+        <div className="lh-empty">No power rankings yet — set a week number on a game (Owner Dashboard → {cfg.label} → Games) and mark it Final to start building rankings.</div>
+      ) : (
+        <>
+          <div className="lh-power-list">
+            {rankings.map(team => (
+              <div className="lh-pr-row" key={team.id}>
+                <span className={`lh-power-rank ${team.rank <= 3 ? 'top' : ''}`}>{String(team.rank).padStart(2, '0')}</span>
+                {team.logo_url ? <img src={team.logo_url} alt="" /> : <span className="lh-power-logo" style={{ background: team.team_color || 'var(--accent)' }} />}
+                <div className="lh-power-name">
+                  <strong>{team.team_name}</strong>
+                  <span className="lh-pr-record">{team.wins}-{team.losses}{team.ties ? `-${team.ties}` : ''} · {team.avgMargin >= 0 ? '+' : ''}{team.avgMargin.toFixed(1)} avg margin</span>
+                </div>
+                <MovementBadge movement={team.movement} />
+                <div className="lh-power-score"><b>{(team.score * 100).toFixed(1)}</b><span>POWER SCORE</span></div>
+              </div>
+            ))}
+          </div>
+          <p className="lh-impact-footnote">
+            Through Week {currentWeek}{previousWeek !== null ? ` · movement vs Week ${previousWeek}` : ' · first ranked week — no prior week to compare yet'}.
+          </p>
+        </>
+      )}
+    </div>
+  );
+};
+
 /* ── Season Archive ────────────────────────────────────────────── */
 export const SeasonArchiveTab = ({ sport, cfg }) => {
   const [players, setPlayers] = useState([]);
   const [teams, setTeams] = useState([]);
   const [games, setGames] = useState([]);
   const [archive, setArchive] = useState([]);
-  const storageKey = `nova_season_archive_${sport}`;
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    Promise.all([db.getPlayers(sport), db.getTeams(sport), db.getBsGames(sport)]).then(([p, t, g]) => {
-      setPlayers(Array.isArray(p) ? p : []);
-      setTeams(Array.isArray(t) ? t : []);
-      setGames(Array.isArray(g) ? g : []);
-    });
-    setArchive(readList(storageKey));
-  }, [sport, storageKey]);
+  const load = () => {
+    Promise.all([db.getPlayers(sport), db.getTeams(sport), db.getBsGames(sport), db.getSeasonArchive(sport)])
+      .then(([p, t, g, a]) => {
+        setPlayers(Array.isArray(p) ? p : []);
+        setTeams(Array.isArray(t) ? t : []);
+        setGames(Array.isArray(g) ? g : []);
+        setArchive(Array.isArray(a) ? a : []);
+      });
+  };
+  useEffect(load, [sport]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const snapshot = () => {
+  // Snapshot every numeric season field this sport tracks (see
+  // sportsConfig.js seasonA/seasonB) for every player, so any of those
+  // stats can be charted season-over-season later on the player page
+  // (PlayerDevelopmentArcPanel's "Career Arc" view), not just one
+  // predetermined "key stat".
+  const seasonFields = [...cfg.seasonA, ...cfg.seasonB].map(([f]) => f);
+
+  const snapshot = async () => {
+    setSaving(true);
     const topPlayer = [...players].sort((a, b) => (num(b.overall) || 0) - (num(a.overall) || 0))[0];
     const item = {
-      id: `${Date.now()}`,
       season: new Date().getFullYear(),
-      capturedAt: new Date().toISOString(),
-      teams: teams.length,
-      players: players.length,
-      games: games.length,
-      topPlayer: topPlayer ? getPlayerLabel(topPlayer) : 'No leader yet',
-      league: cfg.label,
+      teams_count: teams.length,
+      players_count: players.length,
+      games_count: games.length,
+      top_player: topPlayer ? getPlayerLabel(topPlayer) : 'No leader yet',
+      league_label: cfg.label,
     };
-    const next = [item, ...archive];
-    setArchive(next);
-    writeList(storageKey, next);
+    const playerSnapshots = players.map(p => {
+      const stats = {};
+      seasonFields.forEach(f => { const v = num(p[f]); if (v !== null) stats[f] = v; });
+      return { player_id: p.id, player_name: getPlayerLabel(p), stats };
+    }).filter(p => Object.keys(p.stats).length > 0);
+
+    await db.saveSeasonArchive(sport, item, playerSnapshots);
+    setSaving(false);
+    load();
   };
 
   return (
     <div className="lh-feature-page">
-      <div className="lh-section-head"><div><h2>Season Archive</h2><p className="lh-section-note">Freeze a season so the league’s story stays browsable after the standings move on.</p></div><span className="lh-section-tag"><Archive size={12} /> {archive.length} snapshots</span></div>
-      <div className="lh-archive-current lh-card"><div><span className="lh-panel-kicker">CURRENT SNAPSHOT</span><h3>{cfg.label} / {new Date().getFullYear()}</h3><p>{teams.length} teams · {players.length} players · {games.length} logged games</p></div><button className="lh-primary-action" onClick={snapshot}><Archive size={15} /> Save season snapshot</button></div>
+      <div className="lh-section-head"><div><h2>Season Archive</h2><p className="lh-section-note">Freeze a season so the league’s story stays browsable after the standings move on — and so each player's stat history builds up over time.</p></div><span className="lh-section-tag"><Archive size={12} /> {archive.length} snapshots</span></div>
+      <div className="lh-archive-current lh-card"><div><span className="lh-panel-kicker">CURRENT SNAPSHOT</span><h3>{cfg.label} / {new Date().getFullYear()}</h3><p>{teams.length} teams · {players.length} players · {games.length} logged games</p></div><button className="lh-primary-action" onClick={snapshot} disabled={saving}><Archive size={15} /> {saving ? 'Saving…' : 'Save season snapshot'}</button></div>
       {archive.length === 0 ? <div className="lh-empty">No seasons archived yet. Save a snapshot when you want to preserve this league state.</div> : (
-        <div className="lh-archive-grid">{archive.map(item => <div className="lh-card lh-archive-card" key={item.id}><div className="lh-archive-card-top"><span>{item.season}</span><small>{new Date(item.capturedAt).toLocaleDateString()}</small></div><strong>{item.league}</strong><div className="lh-archive-stats"><span><b>{item.teams}</b> teams</span><span><b>{item.players}</b> players</span><span><b>{item.games}</b> games</span></div><div className="lh-archive-leader">Top rated <b>{item.topPlayer}</b></div></div>)}</div>
+        <div className="lh-archive-grid">{archive.map(item => <div className="lh-card lh-archive-card" key={item.id}><div className="lh-archive-card-top"><span>{item.season}</span><small>{new Date(item.captured_at).toLocaleDateString()}</small></div><strong>{item.league_label}</strong><div className="lh-archive-stats"><span><b>{item.teams_count}</b> teams</span><span><b>{item.players_count}</b> players</span><span><b>{item.games_count}</b> games</span></div><div className="lh-archive-leader">Top rated <b>{item.top_player}</b></div></div>)}</div>
       )}
     </div>
   );

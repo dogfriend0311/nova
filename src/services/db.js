@@ -1891,6 +1891,77 @@ export const db = {
     if (changed) localStorage.setItem('nova_notifications', JSON.stringify(all));
   },
 
+  /* ── SEASON ARCHIVE ───────────────────────────────────────────────
+     Summary snapshots (see SeasonArchiveTab in LeagueFeatures.jsx) plus
+     one nova_player_season_archive row per player per snapshot, storing
+     that player's season stats at capture time. The per-player rows are
+     what let a player's page plot a "Career Arc" — a stat trending
+     season over season — once a couple of snapshots have been saved. */
+  async getSeasonArchive(league) {
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_season_archive')
+          .select('*').eq('league', league).order('captured_at', { ascending: false });
+        if (!error && Array.isArray(data)) return data;
+      } catch { /* fall through */ }
+    }
+    return [...ls.get(`${league}_season_archive`)].reverse();
+  },
+
+  // playerSnapshots: [{ player_id, player_name, stats: { field: value, ... } }, ...]
+  async saveSeasonArchive(league, item, playerSnapshots = []) {
+    const record = { ...item, league, captured_at: new Date().toISOString() };
+    let saved = null;
+
+    if (hasSupabase()) {
+      try {
+        delete record.id;
+        const { data, error } = await supabase.from('nova_season_archive').insert([record]).select();
+        if (!error && data && data[0]) saved = data[0];
+      } catch { /* fall through */ }
+    }
+    if (!saved) {
+      saved = { ...record, id: Date.now().toString() };
+      const list = ls.get(`${league}_season_archive`);
+      ls.set(`${league}_season_archive`, [...list, saved]);
+    }
+
+    if (playerSnapshots.length) {
+      const rows = playerSnapshots.map(p => ({
+        league, snapshot_id: saved.id, season: String(saved.season),
+        player_id: String(p.player_id), player_name: p.player_name || '',
+        stats: p.stats || {}, captured_at: saved.captured_at,
+      }));
+      if (hasSupabase()) {
+        try {
+          await supabase.from('nova_player_season_archive').insert(rows);
+        } catch { /* per-player history is a bonus — never block the snapshot itself */ }
+      } else {
+        const key = `${league}_player_season_archive`;
+        const list = ls.get(key);
+        ls.set(key, [...list, ...rows.map(r => ({ ...r, id: `${Date.now()}_${r.player_id}` }))]);
+      }
+    }
+
+    logAudit('archive.snapshot', league, 'season_archive', saved.season);
+    return saved;
+  },
+
+  // Chronological (oldest first) stat-snapshot history for one player —
+  // what PlayerDevelopmentArcPanel plots for the "Career Arc" view.
+  async getPlayerSeasonArchive(league, playerId) {
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_player_season_archive')
+          .select('*').eq('league', league).eq('player_id', String(playerId)).order('captured_at', { ascending: true });
+        if (!error && Array.isArray(data)) return data;
+      } catch { /* fall through */ }
+    }
+    return ls.get(`${league}_player_season_archive`)
+      .filter(r => String(r.player_id) === String(playerId))
+      .sort((a, b) => new Date(a.captured_at) - new Date(b.captured_at));
+  },
+
 };
 
 /* ── Internal: keep localStorage in sync with Supabase ─────────── */

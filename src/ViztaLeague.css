@@ -668,3 +668,13 @@
   .lh-signal-status { margin-left: 54px; }
   .lh-player-grid, .lh-team-grid, .lh-hof-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
 }
+
+/* ── Power Rankings ───────────────────────────────────────────── */
+.lh-pr-row { display: grid; grid-template-columns: 26px 28px minmax(0, 1fr) 54px auto; align-items: center; gap: 9px; padding: 8px 7px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.04); background: rgba(255,255,255,0.018); }
+.lh-pr-movement { display: flex; align-items: center; justify-content: center; gap: 3px; font-size: 0.72rem; font-weight: 800; }
+.lh-pr-movement.up { color: #3ddc84; }
+.lh-pr-movement.down { color: #ff6b7a; }
+.lh-pr-movement.same { color: rgba(158,165,196,0.4); }
+.lh-pr-movement.new { color: var(--accent); font-size: 0.6rem; letter-spacing: 0.06em; }
+.lh-pr-record { color: rgba(158,165,196,0.5); font-size: 0.66rem; font-weight: 700; }
+.lh-pr-week-select { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); color: #e8ebf5; border-radius: 8px; padding: 6px 10px; font-size: 0.78rem; font-weight: 700; }

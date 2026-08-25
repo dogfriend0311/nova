@@ -6,6 +6,8 @@ import { accoladeLabel, accoladeIcon } from './data/accolades';
 import { getSport } from './data/sportsConfig';
 import PlayerComments from './components/PlayerComments';
 import { LeagueImpactMap } from './LeagueFeatures';
+import DevelopmentArcChart from './components/DevelopmentArcChart';
+import { gameLogTrend, seasonTrend, trendSummary } from './services/playerTrendService';
 
 // Converts any Spotify link to an embed URL and appends autoplay=1
 // so the song starts automatically when a player's page opens.
@@ -153,6 +155,77 @@ const PlayerGameLog = ({ playerScores, cfg }) => (
   </div>
 );
 
+const PlayerDevelopmentArcPanel = ({ player, playerScores, bsGames, seasonArchiveRows, cfg }) => {
+  const gameLogFields = cfg.boxFields.map(f => [f, cfg.boxLabels[f] || f.toUpperCase()]);
+  const careerFields  = [...cfg.seasonA, ...cfg.seasonB];
+
+  const [view, setView] = useState('season'); // 'season' = this-season game log, 'career' = season-over-season
+  const [gameLogStat, setGameLogStat] = useState(gameLogFields[0]?.[0] || '');
+  const [careerStat, setCareerStat]   = useState(careerFields[0]?.[0] || '');
+
+  const isSeasonView = view === 'season';
+  const statOptions  = isSeasonView ? gameLogFields : careerFields;
+  const statField    = isSeasonView ? gameLogStat : careerStat;
+  const setStatField = isSeasonView ? setGameLogStat : setCareerStat;
+  const statLabel     = statOptions.find(([f]) => f === statField)?.[1] || statField;
+
+  const points = isSeasonView
+    ? gameLogTrend(playerScores, bsGames, statField)
+    : seasonTrend(seasonArchiveRows, statField);
+  const summary = trendSummary(points);
+
+  const arrow = summary?.direction === 'up' ? '▲' : summary?.direction === 'down' ? '▼' : '—';
+  const arrowColor = summary?.direction === 'up' ? '#3ddc84' : summary?.direction === 'down' ? '#ff6b7a' : 'rgba(158,165,196,0.5)';
+
+  return (
+    <div className="stats-section neon-card player-panel-card">
+      <div className="player-panel-heading">
+        <div>
+          <span className="player-panel-kicker">DEVELOPMENT ARC</span>
+          <h3>{statLabel} trend</h3>
+        </div>
+        <div className="fx-toggle-track" onClick={() => setView(isSeasonView ? 'career' : 'season')} data-active={view}>
+          <span className="fx-toggle-pill" />
+          <span className="fx-toggle-opt">This Season</span>
+          <span className="fx-toggle-opt">Career Arc</span>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', margin: '4px 0 16px' }}>
+        <select
+          value={statField}
+          onChange={(e) => setStatField(e.target.value)}
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#e8ebf5', borderRadius: 8, padding: '6px 10px', fontSize: '0.78rem', fontWeight: 700 }}
+        >
+          {statOptions.map(([f, label]) => <option key={f} value={f}>{label}</option>)}
+        </select>
+        {summary && (
+          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: arrowColor }}>
+            {arrow} {summary.first} → {summary.last}{summary.pct !== null ? ` (${summary.pct >= 0 ? '+' : ''}${summary.pct.toFixed(0)}%)` : ''}
+          </span>
+        )}
+      </div>
+
+      <DevelopmentArcChart
+        points={points}
+        color="#5e81f4"
+        emptyMessage={
+          isSeasonView
+            ? 'No logged box-score games with this stat yet this season.'
+            : 'No season snapshots with this stat yet — an owner can save one from Season Archive to start building this player\'s Career Arc.'
+        }
+      />
+      <p className="player-panel-note" style={{ marginTop: 10, fontSize: '0.72rem', color: 'rgba(158,165,196,0.45)' }}>
+        {isSeasonView
+          ? `${points.length} game${points.length === 1 ? '' : 's'} logged this season for ${getPlayerLabelSafe(player)}.`
+          : `${points.length} season snapshot${points.length === 1 ? '' : 's'} captured for ${getPlayerLabelSafe(player)}.`}
+      </p>
+    </div>
+  );
+};
+
+const getPlayerLabelSafe = (player) => player?.nickname || player?.player_name || 'this player';
+
 const PlayerAwardsPanel = ({ player, potmAwards, accolades }) => (
   <div className="player-awards-panel">
     <div className="player-awards-intro">
@@ -208,6 +281,7 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
   const [accolades, setAccolades] = useState([]);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
+  const [seasonArchiveRows, setSeasonArchiveRows] = useState([]);
 
   const toggle = (key) => setToggles(prev => ({ ...prev, [key]: !prev[key] }));
 
@@ -216,6 +290,11 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
     const league = leaguePrefix || 'vizta';
     db.getPotmAwards(league, player.id).then(setPotmAwards);
     db.getAccolades(league, player.id).then(setAccolades);
+  }, [player?.id, leaguePrefix]);
+
+  useEffect(() => {
+    if (!player?.id) { setSeasonArchiveRows([]); return; }
+    db.getPlayerSeasonArchive(leaguePrefix || 'vizta', player.id).then(setSeasonArchiveRows);
   }, [player?.id, leaguePrefix]);
 
   useEffect(() => {
@@ -260,6 +339,7 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
   const isBaseball = cfg.key === 'vizta';
 
   const boxScores    = JSON.parse(localStorage.getItem(`${(leaguePrefix || 'vizta')}_box_scores`) || '[]');
+  const bsGames       = JSON.parse(localStorage.getItem(`${(leaguePrefix || 'vizta')}_bs_games`) || '[]');
   const playerScores = boxScores.filter(b => b.player_id === player.id);
   const gamesPlayed  = playerScores.length;
   const gamesPitched = playerScores.filter(b => safe(b.innings_pitched) > 0).length;
@@ -397,6 +477,7 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
     { id: 'stats', label: 'Full Stats' },
     { id: 'visuals', label: 'Spray / Shot Map' },
     { id: 'gamelog', label: 'Game Log' },
+    { id: 'trend', label: 'Development Arc' },
     { id: 'awards', label: 'Awards' },
   ];
   const snapshotStats = isBaseball
@@ -675,6 +756,7 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
 
           {activePanel === 'visuals' && <LeagueImpactMap player={player} playerScores={playerScores} cfg={cfg} />}
           {activePanel === 'gamelog' && <PlayerGameLog playerScores={playerScores} cfg={cfg} />}
+          {activePanel === 'trend' && <PlayerDevelopmentArcPanel player={player} playerScores={playerScores} bsGames={bsGames} seasonArchiveRows={seasonArchiveRows} cfg={cfg} />}
           {activePanel === 'awards' && <PlayerAwardsPanel player={player} potmAwards={potmAwards} accolades={accolades} />}
 
           {activePanel === 'overview' && potmAwards.length > 0 && (

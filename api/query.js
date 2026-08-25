@@ -59,6 +59,9 @@ const ALLOWED_TABLES = new Set([
   'nova_notifications',
   // Added for: Build the Perfect Athlete — owner/co-owner rating tweaks + saved builds
   'nova_perfect_athlete_ratings', 'nova_perfect_athlete_builds',
+  // Added for: Season Archive snapshots (synced) + per-player season
+  // stat history that powers Player Development Arcs' "Career Arc" view
+  'nova_season_archive', 'nova_player_season_archive',
 ]);
 
 const IDENT_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
