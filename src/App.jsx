@@ -114,6 +114,14 @@ const AppContent = () => {
           db.getCustomStats(lg).then((list) => setCustomStats(lg, list)).catch(() => {});
         });
       });
+      // Load commissioner-defined custom award categories (per league) once
+      // on boot so getAccoladeTypes() in accolades.js can merge them into
+      // the awards dropdown everywhere it's used.
+      import('./data/accolades').then(({ setCustomAwardTypes }) => {
+        ['vizta', 'hockey', 'football'].forEach((lg) => {
+          db.getCustomAwardTypes(lg).then((list) => setCustomAwardTypes(lg, list)).catch(() => {});
+        });
+      });
     });
   }, []);
 

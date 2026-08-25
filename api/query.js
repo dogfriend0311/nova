@@ -62,6 +62,9 @@ const ALLOWED_TABLES = new Set([
   // Added for: Season Archive snapshots (synced) + per-player season
   // stat history that powers Player Development Arcs' "Career Arc" view
   'nova_season_archive', 'nova_player_season_archive',
+  // Added for: commissioner-defined custom award categories (beyond
+  // MVP/ROY/etc.) and mid-season All-Star fan/member voting
+  'nova_custom_award_types', 'nova_allstar_ballots', 'nova_allstar_votes',
 ]);
 
 const IDENT_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;

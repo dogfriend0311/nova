@@ -72,6 +72,33 @@ export const db = {
     logAudit('stat.delete', league, 'custom_stat', label || id);
   },
 
+  /* CUSTOM AWARD CATEGORIES (commissioner-defined award types per league,
+     beyond MVP/ROY/etc. — see src/data/accolades.js for how these merge
+     into the awards dropdown) */
+  async getCustomAwardTypes(league) {
+    try {
+      const { data, error } = await supabase
+        .from('nova_custom_award_types').select('*').eq('league', league);
+      if (!error && Array.isArray(data)) return data;
+    } catch { /* fall through */ }
+    return [];
+  },
+
+  async addCustomAwardType(rec) {
+    const record = { ...rec, created_at: new Date().toISOString() };
+    delete record.id;
+    const { data, error } = await supabase.from('nova_custom_award_types').insert([record]).select();
+    if (error) throw new Error(error.message || 'Failed to save award category');
+    logAudit('award_type.create', rec.league, 'custom_award_type', `${rec.label} (${rec.key})`);
+    return data && data[0];
+  },
+
+  async deleteCustomAwardType(id, league, label) {
+    const { error } = await supabase.from('nova_custom_award_types').delete().eq('id', id);
+    if (error) throw new Error(error.message || 'Failed to remove award category');
+    logAudit('award_type.delete', league, 'custom_award_type', label || id);
+  },
+
   /* TEAMS */
   async getTeams(league) {
     if (hasSupabase()) {
@@ -860,6 +887,101 @@ export const db = {
       } catch {}
     }
     ls.set(`${league}_accolades`, ls.get(`${league}_accolades`).map(a => (a.id === id ? { ...a, sort_index } : a)));
+  },
+
+  /* ── ALL-STAR VOTING (mid-season fan/member vote — separate from
+     end-of-season accolades above). One "ballot" per league represents
+     the current/most-recent round; opening a new round automatically
+     closes any round still marked open, so only one is ever live. Votes
+     are upserted on (ballot_id, category, voter_username) so a member
+     can change their pick, but only ever counts once per category. ── */
+  async getAllStarBallot(league) {
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase
+          .from('nova_allstar_ballots').select('*').eq('league', league)
+          .order('created_at', { ascending: false }).limit(1);
+        if (!error && Array.isArray(data)) return data[0] || null;
+      } catch { /* fall through */ }
+    }
+    const list = ls.get(`${league}_allstar_ballots`);
+    return list.length ? list[list.length - 1] : null;
+  },
+
+  async startAllStarVote(league, roundLabel, username) {
+    const current = await this.getAllStarBallot(league);
+    if (current && current.status === 'open') {
+      await this.closeAllStarVote(current.id, league);
+    }
+    const record = { league, round_label: roundLabel, status: 'open', opened_by: username || 'admin', created_at: new Date().toISOString() };
+    let saved = null;
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_allstar_ballots').insert([record]).select();
+        if (!error) saved = data[0];
+      } catch { /* fall through */ }
+    }
+    if (!saved) {
+      const list = ls.get(`${league}_allstar_ballots`);
+      saved = { ...record, id: Date.now().toString() };
+      ls.set(`${league}_allstar_ballots`, [...list, saved]);
+    }
+    logAudit('allstar.open', league, 'allstar_ballot', roundLabel);
+    return saved;
+  },
+
+  async closeAllStarVote(id, league) {
+    if (hasSupabase()) {
+      try { await supabase.from('nova_allstar_ballots').update({ status: 'closed', closed_at: new Date().toISOString() }).eq('id', id); } catch {}
+    }
+    ls.set(`${league}_allstar_ballots`, ls.get(`${league}_allstar_ballots`).map(b => (b.id === id ? { ...b, status: 'closed' } : b)));
+    logAudit('allstar.close', league, 'allstar_ballot', id);
+  },
+
+  async finalizeAllStarVote(id, league) {
+    if (hasSupabase()) {
+      try { await supabase.from('nova_allstar_ballots').update({ status: 'final', closed_at: new Date().toISOString() }).eq('id', id); } catch {}
+    }
+    ls.set(`${league}_allstar_ballots`, ls.get(`${league}_allstar_ballots`).map(b => (b.id === id ? { ...b, status: 'final' } : b)));
+    logAudit('allstar.finalize', league, 'allstar_ballot', id);
+  },
+
+  async getAllStarVotes(league, ballotId) {
+    if (!ballotId) return [];
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase
+          .from('nova_allstar_votes').select('*').eq('league', league).eq('ballot_id', ballotId);
+        if (!error && Array.isArray(data)) return data;
+      } catch { /* fall through */ }
+    }
+    return ls.get(`${league}_allstar_votes`).filter(v => v.ballot_id === ballotId);
+  },
+
+  async getMyAllStarVotes(league, ballotId, username) {
+    if (!ballotId || !username) return [];
+    const all = await this.getAllStarVotes(league, ballotId);
+    return all.filter(v => v.voter_username === username);
+  },
+
+  async castAllStarVote(league, ballotId, category, player, username) {
+    const record = {
+      ballot_id: ballotId, league, category,
+      player_id: String(player.id), player_name: player.player_name || player.nickname || 'Unknown',
+      voter_username: username, created_at: new Date().toISOString(),
+    };
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_allstar_votes')
+          .upsert([record], { onConflict: 'ballot_id,category,voter_username' }).select();
+        if (!error) return data[0];
+      } catch { /* fall through */ }
+    }
+    const list = ls.get(`${league}_allstar_votes`)
+      .filter(v => !(v.ballot_id === ballotId && v.category === category && v.voter_username === username));
+    const saved = { ...record, id: Date.now().toString() };
+    ls.set(`${league}_allstar_votes`, [...list, saved]);
+    return saved;
   },
 
   /* ── COMMENTS (member profile comments) ──────────────────────── */

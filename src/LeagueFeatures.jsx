@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Archive, ArrowDown, ArrowUp, ArrowUpRight, Bookmark, Check, Database,
-  Minus, Radio, Sparkles, Trophy, Users,
+  Minus, Radio, Sparkles, Star, Trophy, Users,
 } from 'lucide-react';
 import db from './services/db';
 import { awardXP } from './services/reputationService';
@@ -353,6 +353,135 @@ export const CommunityPredictionsTab = ({ sport, cfg }) => {
         })}</div>
       )}
       <div className="lh-card lh-prediction-footnote"><Database size={16} /><span>Predictions are community picks, not wagers. Your saved history stays attached to your Nova username.</span></div>
+    </div>
+  );
+};
+
+/* ── All-Star Vote (mid-season fan/member voting, separate from
+   end-of-season accolades — see AllStarAdminTab in OwnerDashboard.jsx
+   for the commissioner side) ───────────────────────────────────── */
+export const AllStarVoteTab = ({ sport, cfg }) => {
+  const [players, setPlayers] = useState([]);
+  const [ballot, setBallot] = useState(null);
+  const [votes, setVotes] = useState([]);
+  const [myVotes, setMyVotes] = useState({});
+  const [search, setSearch] = useState('');
+  const categories = [cfg.catA, cfg.catB];
+  const [activeCategory, setActiveCategory] = useState(cfg.catA.id);
+  const [loading, setLoading] = useState(true);
+  const user = readUser();
+  const username = user?.username;
+
+  const load = () => {
+    db.getPlayers(sport).then(next => setPlayers(Array.isArray(next) ? next : []));
+    db.getAllStarBallot(sport).then(b => {
+      setBallot(b);
+      setLoading(false);
+      if (!b) { setVotes([]); setMyVotes({}); return; }
+      db.getAllStarVotes(sport, b.id).then(next => setVotes(Array.isArray(next) ? next : []));
+      if (username) {
+        db.getMyAllStarVotes(sport, b.id, username).then(mine => {
+          setMyVotes(Object.fromEntries((mine || []).map(v => [v.category, v])));
+        });
+      } else {
+        setMyVotes({});
+      }
+    });
+  };
+  useEffect(() => { setActiveCategory(cfg.catA.id); load(); }, [sport, username]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const tallyFor = (category) => {
+    const counts = new Map();
+    votes.filter(v => v.category === category).forEach(v => {
+      const key = String(v.player_id);
+      const entry = counts.get(key) || { player_id: v.player_id, player_name: v.player_name, count: 0 };
+      entry.count += 1;
+      counts.set(key, entry);
+    });
+    return Array.from(counts.values()).sort((a, b) => b.count - a.count).slice(0, 5);
+  };
+
+  const castVote = async (player) => {
+    if (!username || !ballot || ballot.status !== 'open') return;
+    await db.castAllStarVote(sport, ballot.id, activeCategory, player, username);
+    awardXP(username, 3);
+    load();
+  };
+
+  if (loading) return <div className="lh-loading">Loading the ballot…</div>;
+
+  if (!ballot || ballot.status === 'closed') {
+    return (
+      <div className="lh-feature-page">
+        <div className="lh-section-head"><div><h2>All-Star Vote</h2><p className="lh-section-note">Cast your pick for the {cfg.label} All-Star team once voting opens.</p></div><span className="lh-section-tag"><Star size={12} /> Fan vote</span></div>
+        <div className="lh-empty">{ballot?.status === 'closed' ? 'Voting has closed — results are being finalized.' : 'No All-Star vote is open right now. Check back midseason.'}</div>
+      </div>
+    );
+  }
+
+  const isFinal = ballot.status === 'final';
+  const currentVote = myVotes[activeCategory];
+  const visiblePlayers = players
+    .filter(player => `${getPlayerLabel(player)} ${player.team || ''}`.toLowerCase().includes(search.toLowerCase()))
+    .slice(0, 30);
+
+  return (
+    <div className="lh-feature-page">
+      <div className="lh-section-head">
+        <div><h2>{isFinal ? `${ballot.round_label} — Results` : 'All-Star Vote'}</h2><p className="lh-section-note">{isFinal ? `The final ${cfg.label} All-Star team, as voted by the community.` : `Cast one vote per category for the ${ballot.round_label}.`}</p></div>
+        <span className="lh-section-tag"><Star size={12} /> {isFinal ? 'Final' : 'Voting open'}</span>
+      </div>
+
+      {!isFinal && !username && <div className="lh-feature-notice">Sign in to cast your All-Star vote. You can still see live totals below.</div>}
+
+      {isFinal ? (
+        <div className="lh-record-columns">
+          {categories.map(cat => {
+            const rows = tallyFor(cat.id);
+            return (
+              <div className="lh-card lh-feature-panel" key={cat.id}>
+                <div className="lh-feature-panel-head"><div><span className="lh-panel-kicker">{cat.label.toUpperCase()}</span><h3>{rows[0] ? rows[0].player_name : 'No votes cast'}</h3></div><Trophy size={16} color="var(--accent)" /></div>
+                {rows.length === 0 ? <div className="lh-empty">No votes were cast in this category.</div> : (
+                  <div className="lh-record-book-list">
+                    {rows.map((row, index) => (
+                      <div className="lh-record-book-row" key={row.player_id}>
+                        <span className="lh-record-rank">{String(index + 1).padStart(2, '0')}</span>
+                        <div className="lh-record-stat"><strong>{row.player_name}</strong></div>
+                        <strong className="lh-record-value">{row.count} vote{row.count === 1 ? '' : 's'}</strong>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <>
+          <div className="lh-prediction-teams" style={{ marginBottom: '16px' }}>
+            {categories.map(cat => (
+              <button key={cat.id} className={activeCategory === cat.id ? 'selected' : ''} onClick={() => setActiveCategory(cat.id)}>
+                <b>{cat.label}</b>
+              </button>
+            ))}
+          </div>
+          {currentVote && <div className="lh-prediction-saved" style={{ marginBottom: '12px' }}><Check size={13} /> You voted for {currentVote.player_name} in {categories.find(c => c.id === activeCategory)?.label}</div>}
+          <div className="lh-watchlist-toolbar"><div className="lh-watchlist-search"><input value={search} onChange={event => setSearch(event.target.value)} placeholder={`Search ${cfg.shortLabel} players`} /><span>{visiblePlayers.length} shown</span></div></div>
+          <div className="lh-watchlist-grid">
+            {visiblePlayers.map(player => {
+              const isMine = currentVote && String(currentVote.player_id) === String(player.id);
+              return (
+                <div className={`lh-watchlist-row ${isMine ? 'watched' : ''}`} key={player.id}>
+                  <div className="lh-watchlist-player"><span className="lh-watchlist-avatar">{player.avatar_data ? <img src={player.avatar_data} alt="" /> : (getPlayerLabel(player)[0] || '?')}</span><span><strong>{getPlayerLabel(player)}</strong><small>{player.team || 'Free Agent'}</small></span></div>
+                  <button className="lh-watchlist-action" onClick={() => castVote(player)} disabled={!username} aria-pressed={isMine}>{isMine ? <><Check size={14} /> Voted</> : <><Star size={14} /> Vote</>}</button>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      <div className="lh-card lh-prediction-footnote"><Database size={16} /><span>One vote per category, per member. You can change your pick anytime before voting closes.</span></div>
     </div>
   );
 };

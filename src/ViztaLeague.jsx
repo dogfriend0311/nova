@@ -10,6 +10,7 @@ import {
   Archive, BookOpen, Bookmark, Radio, Sparkles, Star, Newspaper, Flame,
 } from 'lucide-react';
 import {
+  AllStarVoteTab,
   CommunityPredictionsTab,
   LeagueRecordsTab,
   PowerRankingsTab,
@@ -78,6 +79,7 @@ const TABS = [
   { id: 'records',    label: 'Record Book', Icon: BookOpen },
   { id: 'transactions', label: 'Transactions', Icon: Radio },
   { id: 'predictions', label: 'Predictions', Icon: Sparkles },
+  { id: 'allstar',    label: 'All-Star Vote', Icon: Star },
   { id: 'watchlist',  label: 'Watchlist',   Icon: Bookmark },
   { id: 'archive',    label: 'Season Archive', Icon: Archive },
   { id: 'propbets',   label: 'Prop Bets',   Icon: Target },
@@ -110,6 +112,7 @@ const ViztaLeague = ({ onSelectPlayer, sport = 'vizta', initialTab = 'overview',
       case 'records':    return <LeagueRecordsTab sport={sport} cfg={cfg} />;
       case 'transactions': return <TransactionsTab sport={sport} cfg={cfg} />;
       case 'predictions': return <CommunityPredictionsTab sport={sport} cfg={cfg} />;
+      case 'allstar':    return <AllStarVoteTab sport={sport} cfg={cfg} />;
       case 'watchlist':  return <WatchlistsTab sport={sport} cfg={cfg} onSelectPlayer={onSelectPlayer} />;
       case 'archive':    return <SeasonArchiveTab sport={sport} cfg={cfg} />;
       case 'propbets':   return <PropBetsTab sport={sport} cfg={cfg} />;

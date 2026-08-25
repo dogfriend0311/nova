@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import db, { sortByDisplayOrder } from '../../services/db';
 import fantasyDb from '../../services/fantasyDb';
-import { accoladeLabel, accoladeIcon, getAccoladeTypes } from '../../data/accolades';
+import { accoladeLabel, accoladeIcon, getAccoladeTypes, setCustomAwardTypes } from '../../data/accolades';
 import { BadgeChip, DiscordVerifiedChip } from '../BadgeDisplay';
 import { BADGES as ACHIEVEMENT_BADGES } from '../../services/achievementsService';
 import { getSport, setCustomStats } from '../../data/sportsConfig';
@@ -1575,9 +1575,12 @@ const LeagueHofTab = ({ prefix }) => {
   );
 };
 
+const awardCatSlugify = (s) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').replace(/^(?=[0-9])/, '_');
+
 const LeagueAwardsTab = ({ prefix }) => {
   const { user } = useAuth();
   const label = getSport(prefix).label;
+  const [awardCategories, setAwardCategories] = useState([]);
   const accoladeTypes = getAccoladeTypes(prefix);
   const [players, setPlayers] = useState([]);
   const [selectedId, setSelectedId] = useState('');
@@ -1589,9 +1592,44 @@ const LeagueAwardsTab = ({ prefix }) => {
   const [accSeason, setAccSeason] = useState('S1');
   const [accCustomLabel, setAccCustomLabel] = useState('');
   const [loading, setLoading] = useState(true);
+  const [newCatLabel, setNewCatLabel] = useState('');
+  const [newCatIcon, setNewCatIcon] = useState('🎖️');
+  const [catErr, setCatErr] = useState('');
 
   useEffect(() => { setAccType(accoladeTypes[0].key); }, [prefix]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { db.getPlayers(prefix).then(d => { setPlayers(d); setLoading(false); }); }, [prefix]);
+
+  const loadAwardCategories = () => {
+    db.getCustomAwardTypes(prefix).then(list => {
+      setAwardCategories(list);
+      setCustomAwardTypes(prefix, list);
+    });
+  };
+  useEffect(() => { loadAwardCategories(); }, [prefix]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const addAwardCategory = async () => {
+    setCatErr('');
+    const key = `custom_${awardCatSlugify(newCatLabel)}`;
+    if (!newCatLabel.trim()) { setCatErr('Enter a name for the award (e.g. "Hustle Award").'); return; }
+    if (accoladeTypes.some(t => t.key === key)) { setCatErr('An award with that name already exists for this league.'); return; }
+    try {
+      await db.addCustomAwardType({ league: prefix, key, label: newCatLabel.trim(), icon: newCatIcon.trim() || '🎖️' });
+      loadAwardCategories();
+      setNewCatLabel(''); setNewCatIcon('🎖️');
+    } catch (e) {
+      setCatErr(e.message || 'Failed to save award category.');
+    }
+  };
+
+  const removeAwardCategory = async (cat) => {
+    if (!window.confirm(`Remove "${cat.label}" from ${label}'s award list? Accolades already given using this category will keep showing correctly, but it won't be selectable for new ones.`)) return;
+    try {
+      await db.deleteCustomAwardType(cat.id, prefix, cat.label);
+      loadAwardCategories();
+    } catch (e) {
+      setCatErr(e.message || 'Failed to remove award category.');
+    }
+  };
 
   const selectedPlayer = players.find(p => String(p.id) === String(selectedId));
 
@@ -1663,6 +1701,36 @@ const LeagueAwardsTab = ({ prefix }) => {
       <p style={{ color:'rgba(158, 165, 196,0.6)', marginTop:'6px', marginBottom:'20px', fontSize:'0.88rem' }}>
         Award Player of the Month and season accolades (Gold Glove, Silver Slugger, MVP, All-Star, etc.) — these show up permanently as a trophy card and tags on the player's stat page.
       </p>
+
+      <div className="neon-card p-3" style={{ marginBottom:'24px' }}>
+        <h3 style={{ color:'rgba(158,165,196,0.9)', marginBottom:'6px', fontSize:'0.95rem' }}>🏅 Custom Award Categories</h3>
+        <p style={{ color:'rgba(158,165,196,0.5)', fontSize:'0.82rem', marginTop:0, marginBottom:'14px', maxWidth:'640px' }}>
+          Define your own end-of-season award for {label} — beyond MVP, Rookie of the Year, and the built-in sport
+          awards. Once saved, it appears as a normal option in the "Award" dropdown below for any player.
+        </p>
+        <div className="od-2col-grid">
+          <div className="form-field">
+            <label>Award Name</label>
+            <input style={SI} value={newCatLabel} onChange={e => setNewCatLabel(e.target.value)} placeholder="e.g. Hustle Award" maxLength={30} />
+          </div>
+          <div className="form-field">
+            <label>Icon (optional emoji)</label>
+            <input style={SI} value={newCatIcon} onChange={e => setNewCatIcon(e.target.value)} placeholder="🎖️" maxLength={4} />
+          </div>
+        </div>
+        {catErr && <p style={{ color:'#ff6464', fontSize:'0.85rem', marginTop:'8px' }}>{catErr}</p>}
+        <button className="neon-button" style={{ marginTop:'10px' }} onClick={addAwardCategory}>Add Award Category</button>
+        {awardCategories.length > 0 && (
+          <div style={{ display:'flex', flexWrap:'wrap', gap:'8px', marginTop:'16px' }}>
+            {awardCategories.map(cat => (
+              <span key={cat.id} style={{ display:'inline-flex', alignItems:'center', gap:'8px', padding:'6px 10px', background:'rgba(94, 129, 244,0.08)', border:'1px solid rgba(94, 129, 244,0.25)', borderRadius:'20px', fontSize:'0.85rem', color:'#e2e5f0' }}>
+                {cat.icon} {cat.label}
+                <button onClick={() => removeAwardCategory(cat)} style={{ background:'none', border:'none', color:'#ff6b7a', cursor:'pointer', fontSize:'0.8rem', padding:0 }}>✕</button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="neon-card p-3" style={{ marginBottom:'24px' }}>
         <div className="form-field">
@@ -1770,6 +1838,154 @@ const LeagueAwardsTab = ({ prefix }) => {
               ))}
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ── ALL-STAR VOTE ADMIN TAB ───────────────────────────────────
+   Mid-season fan/member All-Star voting — separate from the
+   end-of-season Awards tab above. One round is "live" per league at a
+   time; commissioners open/close/finalize it here and can grant the
+   category leaders an All-Star accolade with one click once finalized. */
+const AllStarAdminTab = ({ prefix }) => {
+  const { user } = useAuth();
+  const cfg = getSport(prefix);
+  const label = cfg.label;
+  const categories = [cfg.catA, cfg.catB];
+  const [players, setPlayers] = useState([]);
+  const [ballot, setBallot] = useState(null);
+  const [votes, setVotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [roundLabel, setRoundLabel] = useState(`${new Date().getFullYear()} Midseason All-Star Vote`);
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
+  const [granted, setGranted] = useState({});
+
+  const loadBallot = () => {
+    db.getAllStarBallot(prefix).then(b => {
+      setBallot(b);
+      setLoading(false);
+      if (b) db.getAllStarVotes(prefix, b.id).then(setVotes);
+      else setVotes([]);
+    });
+  };
+  useEffect(() => { db.getPlayers(prefix).then(setPlayers); }, [prefix]);
+  useEffect(() => { setLoading(true); setMsg(''); setErr(''); setGranted({}); loadBallot(); }, [prefix]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const openRound = async () => {
+    setErr(''); setMsg('');
+    if (!roundLabel.trim()) { setErr('Give this round a name (e.g. "2026 Midseason All-Star Vote").'); return; }
+    await db.startAllStarVote(prefix, roundLabel.trim(), user?.username);
+    setMsg('New All-Star round is open for voting.');
+    loadBallot();
+  };
+  const closeRound = async () => {
+    await db.closeAllStarVote(ballot.id, prefix);
+    setMsg('Voting closed. You can now finalize and publish the results.');
+    loadBallot();
+  };
+  const finalizeRound = async () => {
+    await db.finalizeAllStarVote(ballot.id, prefix);
+    setMsg('Results finalized and published to the site.');
+    loadBallot();
+  };
+
+  const tallyFor = (category) => {
+    const counts = new Map();
+    votes.filter(v => v.category === category).forEach(v => {
+      const key = String(v.player_id);
+      const entry = counts.get(key) || { player_id: v.player_id, player_name: v.player_name, count: 0 };
+      entry.count += 1;
+      counts.set(key, entry);
+    });
+    return Array.from(counts.values()).sort((a, b) => b.count - a.count).slice(0, 5);
+  };
+
+  const grantAllStar = async (row) => {
+    if (!ballot) return;
+    const player = players.find(p => String(p.id) === String(row.player_id));
+    await db.addAccolade(prefix, {
+      player_id: row.player_id,
+      player_name: player?.player_name || row.player_name,
+      type: 'all_star',
+      season: ballot.round_label,
+      awarded_by: user?.username || 'admin',
+    });
+    setGranted(prev => ({ ...prev, [row.player_id]: true }));
+  };
+
+  const statusColor = { open: '#5ee6a8', closed: '#ffd700', final: '#5e81f4' }[ballot?.status] || 'rgba(158,165,196,0.5)';
+  const totalVotes = votes.length;
+
+  if (loading) return <div className="tab-content"><p style={{ color:'rgba(158,165,196,0.5)' }}>Loading…</p></div>;
+
+  return (
+    <div className="tab-content">
+      <h2 className="gradient-text-cyan">{label} All-Star Vote</h2>
+      <p style={{ color:'rgba(158,165,196,0.6)', marginTop:'6px', marginBottom:'20px', fontSize:'0.88rem', maxWidth:'640px' }}>
+        Run a mid-season fan/member vote for the {label} All-Star team — separate from end-of-season awards.
+        Members cast one vote per category from the league's public pages while a round is open.
+      </p>
+
+      <div className="neon-card p-3" style={{ marginBottom:'20px', maxWidth:'640px' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'10px' }}>
+          <div>
+            <span style={{ color:'rgba(158,165,196,0.6)', fontSize:'0.8rem' }}>CURRENT ROUND</span>
+            <h3 style={{ margin:'2px 0 0', color:'#e2e5f0' }}>{ballot ? ballot.round_label : 'No round yet'}</h3>
+          </div>
+          {ballot && (
+            <span style={{ padding:'4px 12px', borderRadius:'20px', border:`1px solid ${statusColor}`, color:statusColor, fontSize:'0.75rem', fontWeight:700, textTransform:'uppercase' }}>
+              {ballot.status} · {totalVotes} vote{totalVotes === 1 ? '' : 's'}
+            </span>
+          )}
+        </div>
+
+        <div style={{ display:'flex', gap:'10px', marginTop:'16px', flexWrap:'wrap' }}>
+          {ballot?.status === 'open' && <button className="neon-button" onClick={closeRound}>Close Voting</button>}
+          {ballot?.status === 'closed' && <button className="neon-button" style={{ borderColor:'#5e81f4', color:'#5e81f4' }} onClick={finalizeRound}>Finalize &amp; Publish Results</button>}
+        </div>
+
+        <div style={{ marginTop:'20px', paddingTop:'16px', borderTop:'1px solid rgba(158,165,196,0.15)' }}>
+          <div className="form-field">
+            <label>{ballot?.status === 'open' ? 'Start a different round instead (closes the current one)' : 'Round Name'}</label>
+            <input style={SI} value={roundLabel} onChange={e => setRoundLabel(e.target.value)} placeholder="e.g. 2026 Midseason All-Star Vote" />
+          </div>
+          <button className="neon-button" style={{ marginTop:'10px' }} onClick={openRound}>Open New Round</button>
+        </div>
+
+        {err && <p style={{ color:'#ff6464', fontSize:'0.85rem', marginTop:'10px' }}>{err}</p>}
+        {msg && <p style={{ color:'#5ee6a8', fontSize:'0.85rem', marginTop:'10px' }}>{msg}</p>}
+      </div>
+
+      {ballot && (
+        <div style={{ display:'grid', gap:'16px', maxWidth:'640px' }}>
+          {categories.map(cat => {
+            const rows = tallyFor(cat.id);
+            return (
+              <div className="neon-card p-3" key={cat.id}>
+                <h3 className="gradient-text-magenta" style={{ marginBottom:'12px' }}>{cat.label}</h3>
+                {rows.length === 0 ? <p style={{ color:'rgba(158,165,196,0.4)', fontSize:'0.85rem' }}>No votes yet.</p> : (
+                  <div style={{ display:'grid', gap:'8px' }}>
+                    {rows.map((row, i) => (
+                      <div key={row.player_id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px', background: i === 0 ? 'rgba(94, 129, 244,0.08)' : 'rgba(94, 129, 244,0.03)', border:'1px solid rgba(94, 129, 244,0.15)', borderRadius:'6px' }}>
+                        <span style={{ color:'var(--color-cyan)', fontWeight:700 }}>{i === 0 ? '⭐ ' : ''}{row.player_name}</span>
+                        <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
+                          <span style={{ color:'rgba(158,165,196,0.7)', fontSize:'0.85rem' }}>{row.count} vote{row.count === 1 ? '' : 's'}</span>
+                          {ballot.status === 'final' && (
+                            granted[row.player_id]
+                              ? <span style={{ color:'#5ee6a8', fontSize:'0.8rem' }}>✓ Accolade given</span>
+                              : <button className="neon-button" style={{ fontSize:'0.75rem', padding:'4px 10px' }} onClick={() => grantAllStar(row)}>🏅 Grant All-Star</button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -2872,6 +3088,7 @@ const OwnerDashboard = ({ onExit }) => {
       case 'vizta-boxscores': return <LeagueBoxScoresTab prefix="vizta" />;
       case 'vizta-hof':       return <LeagueHofTab prefix="vizta" />;
       case 'vizta-awards':    return <LeagueAwardsTab prefix="vizta" />;
+      case 'vizta-allstar':   return <AllStarAdminTab prefix="vizta" />;
       case 'vizta-beatwire':   return <LeagueBeatWireTab prefix="vizta" />;
       case 'hockey-players':   return <LeaguePlayersTab prefix="hockey" />;
       case 'hockey-teams':     return <LeagueTeamsTab prefix="hockey" />;
@@ -2880,6 +3097,7 @@ const OwnerDashboard = ({ onExit }) => {
       case 'hockey-boxscores': return <LeagueBoxScoresTab prefix="hockey" />;
       case 'hockey-hof':       return <LeagueHofTab prefix="hockey" />;
       case 'hockey-awards':    return <LeagueAwardsTab prefix="hockey" />;
+      case 'hockey-allstar':   return <AllStarAdminTab prefix="hockey" />;
       case 'hockey-beatwire':   return <LeagueBeatWireTab prefix="hockey" />;
       case 'football-players':   return <LeaguePlayersTab prefix="football" />;
       case 'football-teams':     return <LeagueTeamsTab prefix="football" />;
@@ -2888,6 +3106,7 @@ const OwnerDashboard = ({ onExit }) => {
       case 'football-boxscores': return <LeagueBoxScoresTab prefix="football" />;
       case 'football-hof':       return <LeagueHofTab prefix="football" />;
       case 'football-awards':    return <LeagueAwardsTab prefix="football" />;
+      case 'football-allstar':   return <AllStarAdminTab prefix="football" />;
       case 'football-beatwire':   return <LeagueBeatWireTab prefix="football" />;
       default: return null;
     }
@@ -2958,6 +3177,7 @@ const OwnerDashboard = ({ onExit }) => {
               <Btn id="vizta-boxscores" label="Box Scores" />
               <Btn id="vizta-hof"       label="HoF" />
               <Btn id="vizta-awards"    label="Awards" />
+              <Btn id="vizta-allstar"   label="⭐ All-Star Vote" />
               <Btn id="vizta-beatwire"  label="📰 Beat Wire" />
             </div>
           </div>
@@ -2973,6 +3193,7 @@ const OwnerDashboard = ({ onExit }) => {
               <Btn id="hockey-boxscores" label="Box Scores" />
               <Btn id="hockey-hof"       label="HoF" />
               <Btn id="hockey-awards"    label="Awards" />
+              <Btn id="hockey-allstar"   label="⭐ All-Star Vote" />
               <Btn id="hockey-beatwire"  label="📰 Beat Wire" />
             </div>
           </div>
@@ -2988,6 +3209,7 @@ const OwnerDashboard = ({ onExit }) => {
               <Btn id="football-boxscores" label="Box Scores" />
               <Btn id="football-hof"       label="HoF" />
               <Btn id="football-awards"    label="Awards" />
+              <Btn id="football-allstar"   label="⭐ All-Star Vote" />
               <Btn id="football-beatwire"  label="📰 Beat Wire" />
             </div>
           </div>
