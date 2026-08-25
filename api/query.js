@@ -24,6 +24,25 @@ function getPool() {
     pool = new Pool({
       connectionString: process.env.DATABASE_URL,
       ssl: { rejectUnauthorized: false },
+      // This function runs as a serverless function — every concurrent
+      // request can spin up its own separate execution environment, each
+      // with its own module scope, so each one gets its own `pool` here.
+      // With the pg default of `max: 10` per pool, ~10 concurrent
+      // invocations was enough to blow past a low per-role Postgres
+      // connection limit ("too many connections for role ..."), which is
+      // exactly what was breaking team/player saves under any real
+      // traffic. Keeping each pool small, and returning idle clients
+      // quickly, keeps our total footprint far below that ceiling.
+      max: 3,
+      idleTimeoutMillis: 10000,
+      connectionTimeoutMillis: 5000,
+    });
+    // A pool-level error (e.g. the backing connection dying) throws an
+    // unhandled 'error' event by default, which can crash the whole
+    // function. Log it instead so one bad connection doesn't take down
+    // requests that don't even touch it.
+    pool.on('error', (err) => {
+      console.error('[api/query] idle client error:', err.message);
     });
   }
   return pool;
