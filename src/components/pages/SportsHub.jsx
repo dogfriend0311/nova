@@ -7,8 +7,17 @@ import {
 } from '../../services/sportsDataService';
 import './SportsHub.css';
 import PlayByPlay from './PlayByPlay';
+import WinProbabilityChart from './WinProbabilityChart';
+import GameChat from './GameChat';
+import PlayerOfGame from './PlayerOfGame';
+import InjuryReport from './InjuryReport';
+import AroundLeagueDigest from './AroundLeagueDigest';
+import OnThisDaySports from './OnThisDaySports';
+import AllStarVoting from './AllStarVoting';
 import { ScoresGridSkeleton, StandingsSkeleton, NewsGridSkeleton } from '../Skeleton';
 import { getCurrentUsername, isGameStarred, addFavGame as addFavGameLS, removeFavGameByGameId } from '../../services/favGamesStorage';
+import { getMyFavTeamAbbrs, toEspnAbbr } from '../../services/favTeamsService';
+import { Flame, Snowflake } from 'lucide-react';
 
 const SPORTS = [
   { id:'mlb',          label:'MLB',              icon:'⚾' },
@@ -32,6 +41,9 @@ const SUB_TABS = [
   { id:'standings', label:'Standings' },
   { id:'news',      label:'News'      },
   { id:'players',   label:'Players'   },
+  { id:'injuries',  label:'Injuries'  },
+  { id:'onthisday', label:'On This Day' },
+  { id:'allstar',   label:'All-Star Voting' },
 ];
 
 const timeSince = (iso) => {
@@ -281,6 +293,8 @@ const ScoresPanel = ({ sport, refreshKey, onSelectGame, selectedDate }) => {
   const [games, setGames]     = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
+  const [myTeamAbbrs, setMyTeamAbbrs] = useState([]);
+  const [myTeamsOnly, setMyTeamsOnly] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -293,12 +307,27 @@ const ScoresPanel = ({ sport, refreshKey, onSelectGame, selectedDate }) => {
 
   useEffect(() => { load(); }, [load, refreshKey]);
 
+  // "My Teams" quick filter — pulls the abbreviations the member picked
+  // for this sport on their Nova profile (MemberProfile's TeamSelector).
+  useEffect(() => {
+    const username = getCurrentUsername();
+    if (!username) { setMyTeamAbbrs([]); return; }
+    getMyFavTeamAbbrs(username, sport).then(abbrs => {
+      setMyTeamAbbrs((abbrs || []).map(a => toEspnAbbr(sport, a)));
+    });
+  }, [sport]);
+
   if (loading) return <ScoresGridSkeleton />;
   if (error)   return <div className="sh-error">Could not load scores: {error}</div>;
 
-  const live      = games.filter(g=>g.status==='in');
-  const final     = games.filter(g=>g.status==='post');
-  const scheduled = games.filter(g=>g.status==='pre');
+  const applyMyTeams = (list) => (myTeamsOnly && myTeamAbbrs.length)
+    ? list.filter(g => myTeamAbbrs.includes(g.homeTeam.abbr) || myTeamAbbrs.includes(g.awayTeam.abbr))
+    : list;
+
+  const allFinal   = games.filter(g=>g.status==='post');
+  const live       = applyMyTeams(games.filter(g=>g.status==='in'));
+  const final      = applyMyTeams(allFinal);
+  const scheduled  = applyMyTeams(games.filter(g=>g.status==='pre'));
 
   if (!games.length) return (
     <div className="sh-no-games">
@@ -317,6 +346,18 @@ const ScoresPanel = ({ sport, refreshKey, onSelectGame, selectedDate }) => {
 
   return (
     <div className="sh-scores-wrap">
+      {myTeamAbbrs.length > 0 && (
+        <button
+          className={`sh-mytab-toggle ${myTeamsOnly ? 'active' : ''}`}
+          onClick={() => setMyTeamsOnly(v => !v)}
+        >
+          ⭐ My Teams {myTeamsOnly ? '✓' : ''}
+        </button>
+      )}
+      {!myTeamsOnly && <AroundLeagueDigest sport={sport} finals={allFinal} onSelectGame={onSelectGame} />}
+      {myTeamsOnly && !live.length && !final.length && !scheduled.length && (
+        <div className="sh-empty">None of your favorite teams are playing right now.</div>
+      )}
       <Section title="Live"      items={live} />
       <Section title="Final"     items={final} />
       <Section title="Upcoming"  items={scheduled} />
@@ -503,10 +544,13 @@ const GameDetailView = ({ game, sport, onBack }) => {
       </div>
 
       {/* Detail tabs */}
-      <div style={{ display:'flex', gap:'6px', margin:'18px 0', borderBottom:'1px solid rgba(100,120,200,0.18)', paddingBottom:'12px' }}>
+      <div style={{ display:'flex', gap:'6px', margin:'18px 0', borderBottom:'1px solid rgba(100,120,200,0.18)', paddingBottom:'12px', flexWrap:'wrap' }}>
         {[
           { id:'boxscore',   label:'Box Score' },
           ...(isMLB ? [{ id:'highlights', label:'Highlights' }] : []),
+          { id:'winprob',    label:'Win Probability' },
+          { id:'potg',       label:'Player of the Game' },
+          { id:'chat',       label:'Watch Party' },
         ].map(t => (
           <button key={t.id} onClick={()=>setDetailTab(t.id)}
             className={`sh-sub-tab ${detailTab===t.id?'active':''}`}>
@@ -517,6 +561,29 @@ const GameDetailView = ({ game, sport, onBack }) => {
 
       {detailTab === 'highlights' && isMLB && (
         <HighlightsPanel gamePk={game.id} />
+      )}
+
+      {detailTab === 'winprob' && (
+        <WinProbabilityChart
+          sport={sport}
+          eventId={game.id}
+          homeAbbr={game.homeTeam.abbr}
+          awayAbbr={game.awayTeam.abbr}
+          isFinal={game.status === 'post'}
+        />
+      )}
+
+      {detailTab === 'potg' && (
+        <PlayerOfGame
+          sport={sport}
+          gameId={game.id}
+          homeAbbr={game.homeTeam.abbr}
+          awayAbbr={game.awayTeam.abbr}
+        />
+      )}
+
+      {detailTab === 'chat' && (
+        <GameChat sport={sport} gameId={game.id} isLive={game.status === 'in'} />
       )}
 
       {detailTab === 'boxscore' && (
@@ -746,6 +813,20 @@ const PlayerSearchPanel = ({ sport }) => {
   );
 };
 
+/* ── Streak Badge (hot/cold indicator next to a team's streak) ──
+   ESPN's streak displayValue is a short code like "W3" or "L2". A
+   streak of 3+ in either direction gets a flame/snowflake badge. */
+const StreakIcon = ({ streak }) => {
+  const m = /^([WL])\s*(\d+)/i.exec(streak || '');
+  if (!m) return null;
+  const [, dir, lenStr] = m;
+  const len = +lenStr;
+  if (len < 3) return null;
+  return dir.toUpperCase() === 'W'
+    ? <Flame size={13} color="#ff9e57" style={{ marginLeft: 4, verticalAlign: '-2px' }} title={`${len}-game winning streak`} />
+    : <Snowflake size={13} color="#5ec8ff" style={{ marginLeft: 4, verticalAlign: '-2px' }} title={`${len}-game losing streak`} />;
+};
+
 /* ── Standings Panel ─────────────────────────────────────────── */
 const StandingsPanel = ({ sport }) => {
   const [groups, setGroups]   = useState(null);
@@ -792,7 +873,10 @@ const StandingsPanel = ({ sport }) => {
                 <span className="sh-col-num hide-sm">{t.gb}</span>
                 <span className="sh-col-num hide-md">{t.home||'--'}</span>
                 <span className="sh-col-num hide-md">{t.away||'--'}</span>
-                <span className="sh-col-num hide-sm">{t.streak}</span>
+                <span className="sh-col-num hide-sm sh-streak-cell">
+                  {t.streak}
+                  <StreakIcon streak={t.streak} />
+                </span>
               </div>
             ))}
           </div>
@@ -965,6 +1049,9 @@ const SportsHub = ({ initialSport }) => {
             {activeTab==='standings' && <StandingsPanel key={`${activeSport}-standings`} sport={activeSport} />}
             {activeTab==='news'      && <NewsPanel key={`${activeSport}-news`} sport={activeSport} />}
             {activeTab==='players'   && <PlayerSearchPanel key={`${activeSport}-players`} sport={activeSport} />}
+            {activeTab==='injuries' && <InjuryReport key={`${activeSport}-injuries`} sport={activeSport} />}
+            {activeTab==='onthisday' && <OnThisDaySports key={`${activeSport}-otd`} sport={activeSport} onSelectGame={setSelectedGame} />}
+            {activeTab==='allstar' && <AllStarVoting key={`${activeSport}-allstar`} sport={activeSport} />}
           </>
         )}
       </div>

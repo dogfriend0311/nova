@@ -52,6 +52,11 @@
 .sh-standings-wrap { display: flex; flex-direction: column; gap: 20px; }
 .sh-standings-group { background: rgba(12, 12, 35, 0.88); border: 1px solid rgba(100, 120, 200, 0.2); border-radius: 12px; overflow: hidden; }
 .sh-division-title { padding: 10px 16px; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #5e81f4; background: rgba(94, 129, 244, 0.06); border-bottom: 1px solid rgba(94, 129, 244, 0.1); margin: 0; }
+.sh-streak-cell { display: flex; align-items: center; justify-content: center; gap: 2px; }
+
+.sh-mytab-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; margin-bottom: 14px; background: rgba(255, 215, 0, 0.05); border: 1px solid rgba(255, 215, 0, 0.3); border-radius: 8px; color: rgba(255, 215, 0, 0.75); font-size: 0.8rem; font-weight: 700; cursor: pointer; transition: all 0.18s; }
+.sh-mytab-toggle:hover { background: rgba(255, 215, 0, 0.1); border-color: rgba(255, 215, 0, 0.5); }
+.sh-mytab-toggle.active { background: rgba(255, 215, 0, 0.16); border-color: rgba(255, 215, 0, 0.6); color: #ffd700; box-shadow: 0 0 12px rgba(255, 215, 0, 0.15); }
 .sh-table { padding: 0; }
 .sh-table-header { display: grid; grid-template-columns: 1fr 36px 36px 48px 52px 60px 60px 56px; padding: 7px 14px; font-size: 0.67rem; font-weight: 700; letter-spacing: 0.1em; color: rgba(158, 165, 196, 0.35); text-transform: uppercase; border-bottom: 1px solid rgba(100, 120, 200, 0.12); }
 .sh-table-row { display: grid; grid-template-columns: 1fr 36px 36px 48px 52px 60px 60px 56px; padding: 8px 14px; font-size: 0.83rem; border-bottom: 1px solid rgba(100, 120, 200, 0.07); transition: background 0.14s; }

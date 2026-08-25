@@ -43,6 +43,12 @@ export const fetchNews        = (sport) =>
 export const fetchGameSummary = (sport, eventId) =>
   apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/summary?event=${eventId}`);
 
+// League-wide injury report (per-team groups, each with a list of
+// currently-injured players). Same site.api.espn.com host as everything
+// else here, so it rides the existing /espn-proxy in production.
+export const fetchInjuries = (sport) =>
+  apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/injuries`);
+
 // Module-level cache so re-mounting the component doesn't re-fetch
 const _athleteCache = {};
 
@@ -224,6 +230,27 @@ function normalizeEntries(entries) {
     .sort((a, b) => b.wins - a.wins);
 }
 
+// Maps every team abbreviation to its conference (or top-level standings
+// group, for sports without a strict conference structure) — used by
+// All-Star voting to split ballots into "2 per position per conference".
+export async function fetchConferenceTeamMap(sport) {
+  const data = await fetchStandings(sport);
+  const map = {};
+  const conferences = [];
+  for (const top of data?.children || []) {
+    const confLabel = top.name || top.abbreviation || 'Conference';
+    conferences.push(confLabel);
+    const subs = top.children?.length ? top.children : [top];
+    for (const sub of subs) {
+      for (const entry of sub.standings?.entries || []) {
+        const abbr = entry.team?.abbreviation;
+        if (abbr) map[abbr] = confLabel;
+      }
+    }
+  }
+  return { map, conferences };
+}
+
 export function normalizeStandings(data) {
   if (!data?.children) return [];
   const result = [];
@@ -259,6 +286,27 @@ export function normalizeNews(data) {
     image:       a.images?.[0]?.url || null,
     link:        a.links?.web?.href || null,
   }));
+}
+
+export function normalizeInjuries(data) {
+  const groups = Array.isArray(data?.injuries) ? data.injuries : [];
+  return groups
+    .map((g) => ({
+      team: g.displayName || g.team?.displayName || g.name || '?',
+      abbr: g.abbreviation || g.team?.abbreviation || null,
+      logo: g.logo || g.team?.logos?.[0]?.href || null,
+      players: (g.injuries || []).map((inj) => ({
+        id:       inj.id,
+        name:     inj.athlete?.displayName || 'Unknown player',
+        position: inj.athlete?.position?.abbreviation || '',
+        photo:    inj.athlete?.headshot?.href || null,
+        status:   inj.status || inj.type?.description || 'Unknown',
+        detail:   inj.details?.type || inj.shortComment || inj.type?.detail || '',
+        comment:  inj.longComment || inj.shortComment || '',
+        date:     inj.date || null,
+      })),
+    }))
+    .filter((g) => g.players.length > 0);
 }
 
 export function normalizeGameSummary(data) {

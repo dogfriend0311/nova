@@ -19,6 +19,8 @@ export const BADGES = [
   { id: 'bracket_perfect',  emoji: '✨', name: 'Oracle',               desc: 'Perfect first-round bracket picks',     color: '#c864dc' },
   { id: 'veteran_30',       emoji: '⭐', name: 'Veteran',              desc: 'Account older than 30 days',            color: '#747f8d' },
   { id: 'discord_verified', emoji: '💬', name: 'Discord Regular',      desc: 'Confirmed member of the Discord server', color: '#5865F2' },
+  { id: 'potg_voter',       emoji: '🏅', name: 'Talent Scout',         desc: 'Voted for a Player of the Game',        color: '#43b581' },
+  { id: 'allstar_voter',    emoji: '⭐', name: 'All-Star Ballot Cast', desc: 'Submitted an All-Star Voting ballot',   color: '#ffd700' },
 ];
 
 const BADGE_MAP = Object.fromEntries(BADGES.map(b => [b.id, b]));

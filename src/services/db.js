@@ -1079,6 +1079,130 @@ export const db = {
     ls.set(`${league}_player_comments`, ls.get(`${league}_player_comments`).filter(c => c.id !== id));
   },
 
+  /* ── GAME CHAT (Sports Hub "watch party" — live chat scoped to one
+     real-world game, separate from the league PlayerComments thread).
+     Requires: supabase/game_chat.sql to be run once. ── */
+  async getGameChat(sport, gameId) {
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase
+          .from('nova_game_chat')
+          .select('*')
+          .eq('sport', sport)
+          .eq('game_id', String(gameId))
+          .order('created_at', { ascending: true });
+        if (!error) return data;
+      } catch {}
+    }
+    const all = ls.get(`sports_game_chat_${sport}`);
+    return all.filter(c => String(c.game_id) === String(gameId));
+  },
+
+  async addGameChatMessage(sport, message) {
+    const record = { ...message, sport, game_id: String(message.game_id), created_at: new Date().toISOString() };
+    if (hasSupabase()) {
+      try {
+        const insertRecord = { ...record };
+        delete insertRecord.id;
+        const { data, error } = await supabase.from('nova_game_chat').insert([insertRecord]).select();
+        if (!error) return data[0];
+      } catch {}
+    }
+    const key = `sports_game_chat_${sport}`;
+    const list = ls.get(key);
+    const newItem = { ...record, id: Date.now().toString() };
+    ls.set(key, [...list, newItem]);
+    return newItem;
+  },
+
+  async deleteGameChatMessage(sport, id) {
+    if (hasSupabase()) {
+      try { await supabase.from('nova_game_chat').delete().eq('id', id); } catch {}
+    }
+    const key = `sports_game_chat_${sport}`;
+    ls.set(key, ls.get(key).filter(c => c.id !== id));
+  },
+
+  /* ── PLAYER OF THE GAME (community voting, scoped to one real-world
+     game — separate from the admin-assigned league POTM awards above).
+     Requires: supabase/potg_votes.sql to be run once. ── */
+  async getGameVotes(sport, gameId) {
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase
+          .from('nova_potg_votes')
+          .select('*')
+          .eq('sport', sport)
+          .eq('game_id', String(gameId));
+        if (!error) return data;
+      } catch {}
+    }
+    const all = ls.get(`sports_potg_votes_${sport}`);
+    return all.filter(v => String(v.game_id) === String(gameId));
+  },
+
+  async castGameVote(sport, vote) {
+    const key = `sports_potg_votes_${sport}`;
+    const record = { ...vote, sport, game_id: String(vote.game_id), created_at: new Date().toISOString() };
+    if (hasSupabase()) {
+      try {
+        // One vote per member per game — replace their previous pick if any.
+        await supabase.from('nova_potg_votes').delete()
+          .eq('sport', sport).eq('game_id', record.game_id).eq('from_username', record.from_username);
+        const insertRecord = { ...record };
+        delete insertRecord.id;
+        const { data, error } = await supabase.from('nova_potg_votes').insert([insertRecord]).select();
+        if (!error) return data[0];
+      } catch {}
+    }
+    const list = ls.get(key).filter(v => !(String(v.game_id) === record.game_id && v.from_username === record.from_username));
+    const newItem = { ...record, id: Date.now().toString() };
+    ls.set(key, [...list, newItem]);
+    return newItem;
+  },
+
+  /* ── SPORTS HUB ALL-STAR VOTING (league-wide real-sports ballot, by
+     position + conference — up to 2 picks per conference per position;
+     one ballot row per member per position+conference, most recent
+     submission replaces their prior ballot for that slot). Distinct
+     from the in-league getAllStarVotes/castAllStarVote pair above,
+     which vote on Nova's own Roblox players, not real athletes.
+     Requires: supabase/sports_allstar_votes.sql. ── */
+  async getSportsAllStarVotes(sport, position) {
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase
+          .from('nova_sports_allstar_votes')
+          .select('*')
+          .eq('sport', sport)
+          .eq('position', position);
+        if (!error) return data;
+      } catch {}
+    }
+    const all = ls.get(`sports_allstar_votes_${sport}`);
+    return all.filter(v => v.position === position);
+  },
+
+  async saveSportsAllStarBallot(sport, ballot) {
+    // ballot: { position, conference, from_username, picks: [{id,name,team,photo}, ...] (max 2) }
+    const key = `sports_allstar_votes_${sport}`;
+    const record = { ...ballot, sport, created_at: new Date().toISOString() };
+    if (hasSupabase()) {
+      try {
+        await supabase.from('nova_sports_allstar_votes').delete()
+          .eq('sport', sport).eq('position', record.position).eq('conference', record.conference).eq('from_username', record.from_username);
+        const insertRecord = { ...record };
+        delete insertRecord.id;
+        const { data, error } = await supabase.from('nova_sports_allstar_votes').insert([insertRecord]).select();
+        if (!error) return data[0];
+      } catch {}
+    }
+    const list = ls.get(key).filter(v => !(v.position === record.position && v.conference === record.conference && v.from_username === record.from_username));
+    const newItem = { ...record, id: Date.now().toString() };
+    ls.set(key, [...list, newItem]);
+    return newItem;
+  },
+
   /* ── FANTASY TEAM SCHEDULES ─────────────────────────────────────
      Stores schedule entries for fantasy teams (week, opponent, result).
      Requires: supabase/team_schedule_schema.sql to be run once.        */
