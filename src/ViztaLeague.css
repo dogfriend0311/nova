@@ -113,14 +113,47 @@
 .lh-sidecar-list strong.ready { color: var(--color-success); font-size: 0.6rem; letter-spacing: 0.08em; }
 
 /* ── TAB BAR ──────────────────────────────────────────────────── */
-.lh-tabs {
+.lh-tabs-wrap {
   position: sticky; top: 0; z-index: 30;
+  display: flex; align-items: center; margin-bottom: 24px;
+}
+.lh-tabs {
   display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none;
-  padding: 8px; margin-bottom: 24px; border-radius: 14px;
+  padding: 8px; border-radius: 14px; width: 100%;
   background: rgba(10,13,26,0.86); backdrop-filter: blur(14px);
   border: 1px solid rgba(var(--accent-rgb),0.16);
+  scroll-behavior: smooth;
 }
 .lh-tabs::-webkit-scrollbar { display: none; }
+
+/* Edge fades hint that the tab strip scrolls further in that direction */
+.lh-tabs-fade {
+  position: absolute; top: 1px; bottom: 1px; width: 40px; z-index: 2;
+  pointer-events: none; opacity: 0; transition: opacity 0.2s ease; border-radius: 14px;
+}
+.lh-tabs-fade.visible { opacity: 1; }
+.lh-tabs-fade-left {
+  left: 1px;
+  background: linear-gradient(90deg, rgba(10,13,26,0.95), rgba(10,13,26,0));
+}
+.lh-tabs-fade-right {
+  right: 1px;
+  background: linear-gradient(270deg, rgba(10,13,26,0.95), rgba(10,13,26,0));
+}
+
+/* Left/right scroll buttons, only shown when there's more to scroll to */
+.lh-tabs-arrow {
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: 3;
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+  background: rgba(var(--accent-rgb),0.9); color: #050710; border: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  opacity: 0; pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.lh-tabs-arrow.visible { opacity: 1; pointer-events: auto; }
+.lh-tabs-arrow:hover { transform: translateY(-50%) scale(1.08); }
+.lh-tabs-arrow-left { left: -4px; }
+.lh-tabs-arrow-right { right: -4px; }
 .lh-tab {
   display: flex; align-items: center; gap: 7px; white-space: nowrap; flex-shrink: 0;
   padding: 9px 16px; border-radius: 10px; border: 1px solid transparent; cursor: pointer;

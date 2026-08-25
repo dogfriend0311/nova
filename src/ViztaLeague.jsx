@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import db from './services/db';
 import { getCoins as getCoinsBalance, setCoins as setCoinsBalance } from './services/coinsStorage';
 import { getAllProps, getUserBets, saveUserBets, tryPlaceBet } from './services/propBetsStorage';
 import { getSport } from './data/sportsConfig';
 import {
   LayoutDashboard, Users, Search, Trophy, CalendarDays, ScrollText,
-  GitCompare, Target, Award, ArrowLeft, ChevronRight, Medal,
+  GitCompare, Target, Award, ArrowLeft, ChevronLeft, ChevronRight, Medal,
   Activity, BarChart3, Database, TrendingUp,
   Archive, BookOpen, Bookmark, Radio, Sparkles, Star, Newspaper, Flame,
 } from 'lucide-react';
@@ -90,11 +90,39 @@ const ViztaLeague = ({ onSelectPlayer, sport = 'vizta', initialTab = 'overview',
   const cfg = getSport(sport);
   const [activeTab, setActiveTab] = useState(initialTab);
   const [counts, setCounts] = useState({ teams: 0, players: 0, games: 0 });
+  const tabsRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
   useEffect(() => {
     Promise.all([db.getTeams(sport), db.getPlayers(sport), db.getBsGames(sport)])
       .then(([t, p, g]) => setCounts({ teams: t.length, players: p.length, games: g.length }));
   }, [sport]);
+
+  const updateTabScrollState = useCallback(() => {
+    const el = tabsRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }, []);
+
+  useEffect(() => {
+    updateTabScrollState();
+    const el = tabsRef.current;
+    if (!el) return;
+    el.addEventListener('scroll', updateTabScrollState, { passive: true });
+    window.addEventListener('resize', updateTabScrollState);
+    return () => {
+      el.removeEventListener('scroll', updateTabScrollState);
+      window.removeEventListener('resize', updateTabScrollState);
+    };
+  }, [updateTabScrollState]);
+
+  const scrollTabs = (dir) => {
+    const el = tabsRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * Math.round(el.clientWidth * 0.7), behavior: 'smooth' });
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -160,17 +188,43 @@ const ViztaLeague = ({ onSelectPlayer, sport = 'vizta', initialTab = 'overview',
         </div>
       </div>
 
-      <div className="lh-tabs">
-        {TABS.map(tab => (
-          <button
-            key={tab.id}
-            className={`lh-tab ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            <tab.Icon size={15} strokeWidth={2.4} />
-            <span>{tab.label}</span>
-          </button>
-        ))}
+      <div className="lh-tabs-wrap">
+        <button
+          type="button"
+          className={`lh-tabs-arrow lh-tabs-arrow-left ${canScrollLeft ? 'visible' : ''}`}
+          onClick={() => scrollTabs(-1)}
+          aria-label="Scroll tabs left"
+          tabIndex={canScrollLeft ? 0 : -1}
+        >
+          <ChevronLeft size={16} strokeWidth={2.6} />
+        </button>
+
+        <div className={`lh-tabs-fade lh-tabs-fade-left ${canScrollLeft ? 'visible' : ''}`} />
+
+        <div className="lh-tabs" ref={tabsRef}>
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              className={`lh-tab ${activeTab === tab.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              <tab.Icon size={15} strokeWidth={2.4} />
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className={`lh-tabs-fade lh-tabs-fade-right ${canScrollRight ? 'visible' : ''}`} />
+
+        <button
+          type="button"
+          className={`lh-tabs-arrow lh-tabs-arrow-right ${canScrollRight ? 'visible' : ''}`}
+          onClick={() => scrollTabs(1)}
+          aria-label="Scroll tabs right"
+          tabIndex={canScrollRight ? 0 : -1}
+        >
+          <ChevronRight size={16} strokeWidth={2.6} />
+        </button>
       </div>
 
       <div className="lh-content">{renderTabContent()}</div>
