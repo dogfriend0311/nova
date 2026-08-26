@@ -97,6 +97,18 @@ const ViztaLeague = ({ onSelectPlayer, sport = 'vizta', initialTab = 'overview',
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
+  // Cross-tab handoff for the Overview tab's Player Spotlight card — lets a
+  // single click jump straight into Rosters (that player's team), Leaders,
+  // or the Comparison Lab (that player preloaded as Player A) without the
+  // user having to re-find the player once they land on the tab.
+  const [spotlightTarget, setSpotlightTarget] = useState(null);
+  const jumpToSpotlightTarget = (tab, extra) => {
+    setSpotlightTarget({ tab, ...extra, nonce: Date.now() });
+    setActiveTab(tab);
+  };
+  const rosterSpotlightTeam = spotlightTarget?.tab === 'rosters' ? spotlightTarget.team : null;
+  const compareSpotlightPlayerId = spotlightTarget?.tab === 'compare' ? spotlightTarget.playerId : null;
+
   useEffect(() => {
     Promise.all([db.getTeams(sport), db.getPlayers(sport), db.getBsGames(sport)])
       .then(([t, p, g]) => setCounts({ teams: t.length, players: p.length, games: g.length }));
@@ -129,15 +141,15 @@ const ViztaLeague = ({ onSelectPlayer, sport = 'vizta', initialTab = 'overview',
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'overview':   return <OverviewTab sport={sport} cfg={cfg} />;
-      case 'rosters':    return <RostersTab sport={sport} cfg={cfg} onSelectPlayer={onSelectPlayer} initialTeam={initialTab === 'rosters' ? initialTeam : null} />;
+      case 'overview':   return <OverviewTab sport={sport} cfg={cfg} onSelectPlayer={onSelectPlayer} onJumpToTab={jumpToSpotlightTarget} />;
+      case 'rosters':    return <RostersTab sport={sport} cfg={cfg} onSelectPlayer={onSelectPlayer} initialTeam={rosterSpotlightTeam || (initialTab === 'rosters' ? initialTeam : null)} />;
       case 'depthchart': return <TeamDepthChart league={sport} />;
       case 'players':    return <PlayersTab sport={sport} cfg={cfg} onSelectPlayer={onSelectPlayer} />;
       case 'leaders':    return <LeagueLeadersTab sport={sport} cfg={cfg} onSelectPlayer={onSelectPlayer} />;
       case 'schedule':    return <ScheduleTab sport={sport} cfg={cfg} />;
       case 'scores':     return <BoxScoresTab sport={sport} cfg={cfg} />;
       case 'beatwire':   return <BeatWireTab sport={sport} />;
-      case 'compare':    return <CompareTab sport={sport} cfg={cfg} />;
+      case 'compare':    return <CompareTab sport={sport} cfg={cfg} presetPlayerId={compareSpotlightPlayerId} />;
       case 'powerrankings': return <PowerRankingsTab sport={sport} cfg={cfg} />;
       case 'analytics':  return <AnalyticsTab sport={sport} cfg={cfg} />;
       case 'records':    return <LeagueRecordsTab sport={sport} cfg={cfg} />;
@@ -236,8 +248,82 @@ const ViztaLeague = ({ onSelectPlayer, sport = 'vizta', initialTab = 'overview',
   );
 };
 
+/* ── Player Spotlight (Overview) ─────────────────────────────────
+   Rotating featured-player card. Cycles automatically through a pool
+   of headline players (top by overall rating) and links out to the
+   other league tabs for that same player — no re-searching required. */
+const PlayerSpotlight = ({ sport, cfg, players, teams, onSelectPlayer, onJumpToTab }) => {
+  const [idx, setIdx] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  // Headline pool = top 12 by overall rating (falls back to the full
+  // list if `overall` isn't populated for this league yet).
+  const pool = [...players]
+    .filter(p => p.player_name)
+    .sort((a, b) => (parseFloat(b.overall) || 0) - (parseFloat(a.overall) || 0))
+    .slice(0, 12);
+
+  useEffect(() => { setIdx(0); }, [sport]);
+
+  useEffect(() => {
+    if (paused || pool.length < 2) return;
+    const t = setInterval(() => setIdx(i => (i + 1) % pool.length), 8000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paused, pool.length, sport]);
+
+  if (pool.length === 0) return null;
+  const player = pool[idx % pool.length];
+  const teamColor = teams.find(t => t.team_name === player.team)?.team_color || cfg.accent;
+  const teamLogo = teams.find(t => t.team_name === player.team)?.logo_url || null;
+
+  const step = (dir) => setIdx(i => (i + dir + pool.length) % pool.length);
+
+  return (
+    <div
+      className="lh-spotlight-card"
+      style={{ '--spot-rgb': hexToRgb(teamColor) || accentRgbFromCfg(cfg) }}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      <div className="lh-spotlight-head">
+        <span className="lh-spotlight-eyebrow"><Sparkles size={13} /> Player Spotlight</span>
+        {pool.length > 1 && (
+          <div className="lh-spotlight-nav">
+            <button type="button" onClick={() => step(-1)} aria-label="Previous player"><ChevronLeft size={14} /></button>
+            <span>{(idx % pool.length) + 1}/{pool.length}</span>
+            <button type="button" onClick={() => step(1)} aria-label="Next player"><ChevronRight size={14} /></button>
+          </div>
+        )}
+      </div>
+      <div className="lh-spotlight-body" onClick={() => onSelectPlayer && onSelectPlayer(player)}>
+        {player.avatar_data
+          ? <img className="lh-spotlight-avatar" src={player.avatar_data} alt="" />
+          : (teamLogo
+              ? <img className="lh-spotlight-avatar lh-spotlight-avatar-fallback" src={teamLogo} alt="" />
+              : <div className="lh-spotlight-avatar lh-spotlight-avatar-fallback" />)}
+        <div className="lh-spotlight-info">
+          <h4>{player.player_name}</h4>
+          <p>{player.team || 'Free Agent'} · {player.position || '--'}{player.overall ? ` · OVR ${player.overall}` : ''}</p>
+        </div>
+      </div>
+      <div className="lh-spotlight-actions">
+        <button type="button" onClick={() => onJumpToTab && onJumpToTab('rosters', { team: player.team })}>
+          <Users size={13} /> Roster
+        </button>
+        <button type="button" onClick={() => onJumpToTab && onJumpToTab('leaders', {})}>
+          <Trophy size={13} /> Leaders
+        </button>
+        <button type="button" onClick={() => onJumpToTab && onJumpToTab('compare', { playerId: player.id })}>
+          <GitCompare size={13} /> Compare
+        </button>
+      </div>
+    </div>
+  );
+};
+
 /* ── Overview ─────────────────────────────────────────────────── */
-const OverviewTab = ({ sport, cfg }) => {
+const OverviewTab = ({ sport, cfg, onSelectPlayer, onJumpToTab }) => {
   const [teams, setTeams] = useState([]);
   const [players, setPlayers] = useState([]);
   const [bsGames, setBsGames] = useState([]);
@@ -267,6 +353,8 @@ const OverviewTab = ({ sport, cfg }) => {
 
   return (
     <div>
+      <PlayerSpotlight sport={sport} cfg={cfg} players={players} teams={teams} onSelectPlayer={onSelectPlayer} onJumpToTab={onJumpToTab} />
+
       <div className="lh-pulse-row">
         <div className="lh-pulse-card">
           <span className="lh-pulse-label">Teams</span>
@@ -1037,7 +1125,7 @@ const BoxScoresTab = ({ sport, cfg }) => {
 };
 
 /* ── Compare ──────────────────────────────────────────────────── */
-const CompareTab = ({ sport, cfg }) => {
+const CompareTab = ({ sport, cfg, presetPlayerId }) => {
   const [players, setPlayers] = useState([]);
   const [teams, setTeams]     = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1053,6 +1141,17 @@ const CompareTab = ({ sport, cfg }) => {
     Promise.all([db.getPlayers(sport), db.getTeams(sport)])
       .then(([p, t]) => { setPlayers(p); setTeams(t); setLoading(false); });
   }, [sport]);
+
+  // A player handed off from elsewhere (e.g. the Overview tab's Player
+  // Spotlight card) preloads as Player A so the visitor lands on a ready
+  // comparison instead of an empty picker.
+  useEffect(() => {
+    if (presetPlayerId) {
+      setCompareMode('player');
+      setIdA(String(presetPlayerId));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presetPlayerId]);
 
   if (loading) return <RowsSkeleton rows={6} />;
 

@@ -88,6 +88,12 @@ export async function checkDailyLogin(username) {
   // Coins stay in the existing per-browser scheme.
   try {
     addCoins(username, coinReward);
+    db.createNotification(username, {
+      type: 'coins',
+      title: `💰 Daily reward: +${coinReward} coins`,
+      body: `Day ${streak} login streak${xpReward ? ` · +${xpReward} XP` : ''}`,
+      link: '#store',
+    }).catch(() => {});
   } catch { /* ignore */ }
 
   return { streak, coinReward, xpReward };

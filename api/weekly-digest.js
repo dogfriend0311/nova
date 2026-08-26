@@ -111,8 +111,30 @@ export default async function handler(req, res) {
   }
 
   const totalItems = articles.length + potm.length + accolades.length + hof.length + newMembers.length + boxScores.length;
+
+  // Even a quiet week should post something — a silently-skipped digest
+  // is indistinguishable from a broken cron, so send a short "nothing
+  // new" notice to the channel instead of returning early.
   if (totalItems === 0) {
-    res.status(200).json({ skipped: true, reason: 'Nothing new this week — no message sent.' });
+    try {
+      const discordRes = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          embeds: [{
+            title: '📊 Nova — This Week in the League',
+            description: 'No new announcements today — check back tomorrow!',
+            color: 0x5e81f4,
+            footer: { text: 'Nova weekly digest' },
+            timestamp: new Date().toISOString(),
+          }],
+        }),
+      });
+      if (!discordRes.ok) throw new Error(`Discord returned ${discordRes.status}`);
+      res.status(200).json({ sent: true, itemCount: 0, note: 'No new announcements this week.' });
+    } catch (err) {
+      res.status(502).json({ error: 'Failed to post to Discord webhook.' });
+    }
     return;
   }
 

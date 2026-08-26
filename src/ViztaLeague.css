@@ -207,6 +207,38 @@
 }
 .lh-card.hoverable:hover { transform: translateY(-3px); border-color: rgba(var(--accent-rgb),0.45); box-shadow: 0 14px 30px rgba(var(--accent-rgb),0.16); }
 
+/* ── Player Spotlight card (Overview) ─────────────────────────── */
+.lh-spotlight-card {
+  border-radius: 16px; padding: 16px 18px; margin-bottom: 22px;
+  background: linear-gradient(155deg, rgba(var(--spot-rgb, var(--accent-rgb)),0.14), rgba(255,255,255,0.015));
+  border: 1px solid rgba(var(--spot-rgb, var(--accent-rgb)),0.28);
+  animation: lh-fade-up 0.4s ease both;
+}
+.lh-spotlight-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.lh-spotlight-eyebrow {
+  display: flex; align-items: center; gap: 6px; font-size: 0.68rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.1em; color: rgba(var(--spot-rgb, var(--accent-rgb)),0.9);
+}
+.lh-spotlight-nav { display: flex; align-items: center; gap: 6px; color: rgba(158,165,196,0.5); font-size: 0.72rem; font-weight: 700; }
+.lh-spotlight-nav button {
+  display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(var(--spot-rgb, var(--accent-rgb)),0.25);
+  color: #e2e5f0; cursor: pointer; transition: background 0.2s ease;
+}
+.lh-spotlight-nav button:hover { background: rgba(var(--spot-rgb, var(--accent-rgb)),0.2); }
+.lh-spotlight-body { display: flex; align-items: center; gap: 14px; cursor: pointer; padding-bottom: 14px; }
+.lh-spotlight-avatar { width: 52px; height: 52px; border-radius: 14px; object-fit: cover; background: rgba(255,255,255,0.05); }
+.lh-spotlight-avatar-fallback { object-fit: contain; padding: 8px; }
+.lh-spotlight-info h4 { margin: 0 0 3px; font-size: 1.05rem; font-weight: 800; color: #eef0f9; }
+.lh-spotlight-info p { margin: 0; font-size: 0.8rem; color: rgba(158,165,196,0.6); }
+.lh-spotlight-actions { display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid rgba(var(--spot-rgb, var(--accent-rgb)),0.15); padding-top: 12px; }
+.lh-spotlight-actions button {
+  display: flex; align-items: center; gap: 6px; padding: 7px 13px; border-radius: 999px;
+  background: rgba(var(--spot-rgb, var(--accent-rgb)),0.12); border: 1px solid rgba(var(--spot-rgb, var(--accent-rgb)),0.3);
+  color: #e2e5f0; font-size: 0.78rem; font-weight: 700; cursor: pointer; transition: background 0.2s ease, transform 0.15s ease;
+}
+.lh-spotlight-actions button:hover { background: rgba(var(--spot-rgb, var(--accent-rgb)),0.24); transform: translateY(-1px); }
+
 /* ── Pulse / quick-stat row (Overview) ────────────────────────── */
 .lh-pulse-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 30px; }
 .lh-pulse-card {

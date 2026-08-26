@@ -404,6 +404,12 @@ const GiveCoinsTab = () => {
   const give = () => {
     if (!username) { setMsg('Select a user first.'); return; }
     const next = addCoinsBalance(username, amount);
+    db.createNotification(username, {
+      type: 'coins',
+      title: `💰 You received ${amount} coins`,
+      body: 'Awarded by a staff member.',
+      link: '#store',
+    }).catch(() => {});
     setMsg(`Gave ${amount} coins to ${username}. New total: ${next}`);
     setTimeout(() => setMsg(''), 3000);
   };

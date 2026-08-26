@@ -2,6 +2,7 @@
  * achievementsService.js — Badge definitions and earn/check logic.
  * All data stored in localStorage. No Supabase needed.
  */
+import db from './db';
 
 export const BADGES = [
   { id: 'early_member',     emoji: '🚀', name: 'Early Adopter',       desc: 'One of the first 50 members',           color: '#ff9e57' },
@@ -38,12 +39,24 @@ export function getEarnedBadgeObjects(username) {
   return getEarnedBadges(username).map(id => BADGE_MAP[id]).filter(Boolean);
 }
 
-/** Award a single badge (idempotent) */
+/** Award a single badge (idempotent). Notifies the unified notification
+ *  center the first time a badge is newly earned — a no-op re-check
+ *  (the common case, since syncBadges runs on every profile load)
+ *  never fires a duplicate. */
 export function awardBadge(username, badgeId) {
   if (!username || !badgeId) return;
   const earned = getEarnedBadges(username);
   if (!earned.includes(badgeId)) {
     localStorage.setItem(storageKey(username), JSON.stringify([...earned, badgeId]));
+    const badge = BADGE_MAP[badgeId];
+    if (badge) {
+      db.createNotification(username, {
+        type: 'badge',
+        title: `${badge.emoji} Badge earned: ${badge.name}`,
+        body: badge.desc,
+        link: '#profile',
+      }).catch(() => {});
+    }
   }
 }
 

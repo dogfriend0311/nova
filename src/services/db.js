@@ -1367,6 +1367,12 @@ export const db = {
       try { await supabase.from('nova_staff_of_month').upsert([record], { onConflict: 'id' }); } catch {}
     }
     localStorage.setItem('nova_staff_of_month', JSON.stringify(record));
+    this.broadcastNotification({
+      type: 'staff',
+      title: `⭐ Staff of the Month: ${record.username}`,
+      body: record.note || (record.month_label ? `Recognized for ${record.month_label}` : undefined),
+      link: `#members/${record.username}`,
+    }, record.set_by).catch(() => {});
     return record;
   },
 
@@ -2086,6 +2092,23 @@ export const db = {
       );
     } catch {
       // notification fan-out must never break the underlying save
+    }
+  },
+
+  // Fans a notification out to every registered member — used for
+  // site-wide announcements (e.g. Staff of the Month) rather than
+  // events tied to a single follow relationship. Best-effort: a
+  // failure here should never break the announcement itself.
+  async broadcastNotification({ type, title, body, link }, excludeUsername = null) {
+    try {
+      const users = await this.getUsers();
+      await Promise.all(
+        (users || [])
+          .filter(u => u.username && u.username !== excludeUsername)
+          .map(u => this.createNotification(u.username, { type, title, body, link }))
+      );
+    } catch {
+      // fan-out must never break the underlying save
     }
   },
 

@@ -4,6 +4,15 @@ import db from '../services/db';
 import { useAuth } from '../context/AuthContext';
 
 // ── Notifications ────────────────────────────────────────────
+// Unified notification center: this single bell + nova_notifications
+// table is now the landing spot for every previously-separate alert
+// system — profile comments, DMs, player-follower awards (HOF/POTM/
+// accolades), badge unlocks, coin rewards (daily login + staff grants),
+// and site-wide Staff of the Month announcements. Anything that wants
+// to notify a member should call db.createNotification(username, {...})
+// (or db.broadcastNotification({...}) for an all-members announcement)
+// rather than inventing a new, separate alert surface.
+//
 // This is in-app notifications + on-screen desktop notifications while
 // the site is OPEN in a tab — not true push (delivery while the site
 // is fully closed). Real push needs a service-worker push subscription,
@@ -25,7 +34,7 @@ const timeAgo = (iso) => {
   return `${Math.floor(s / 86400)}d ago`;
 };
 
-const ICONS = { dm: '💬', comment: '📝', award: '🏆', stats: '📊', score: '⚡', news: '📰' };
+const ICONS = { dm: '💬', comment: '📝', award: '🏆', stats: '📊', score: '⚡', news: '📰', badge: '🎖️', coins: '💰', staff: '⭐' };
 
 const NotificationBell = () => {
   const { user } = useAuth();
