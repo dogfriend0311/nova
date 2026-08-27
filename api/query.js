@@ -33,8 +33,8 @@ function getPool() {
       // exactly what was breaking team/player saves under any real
       // traffic. Keeping each pool small, and returning idle clients
       // quickly, keeps our total footprint far below that ceiling.
-      max: 3,
-      idleTimeoutMillis: 10000,
+      max: 1,
+      idleTimeoutMillis: 5000,
       connectionTimeoutMillis: 5000,
     });
     // A pool-level error (e.g. the backing connection dying) throws an
@@ -114,6 +114,27 @@ function toParamValue(v) {
 
 function quoteIdent(name) {
   return '"' + name.replace(/"/g, '""') + '"';
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Postgres error 53300 = too_many_connections. Under real traffic, several
+// serverless invocations can each be mid-connect at the same instant and
+// briefly collide with the role's connection cap even with a small pool —
+// a short retry smooths over that without masking a genuinely broken DB
+// (it still fails for good after a few tries).
+async function queryWithRetry(pool, sql, params, attempts = 3) {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await pool.query(sql, params);
+    } catch (err) {
+      const isConnLimit = err.code === '53300' || /too many connections/i.test(err.message || '');
+      if (!isConnLimit || i === attempts - 1) throw err;
+      await sleep(150 * (i + 1));
+    }
+  }
 }
 
 const OP_SQL = {
@@ -273,7 +294,7 @@ export default async function handler(req, res) {
       throw new Error(`Unsupported action: ${action}`);
     }
 
-    const result = await pool.query(sql, params);
+    const result = await queryWithRetry(pool, sql, params);
     let data = result.rows;
 
     if (single) {

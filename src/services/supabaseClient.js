@@ -199,7 +199,7 @@ export async function checkBackendHealth(forceRecheck = false) {
     const res = await fetch('/api/query', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ table: 'app_data', action: 'select', columns: 'key', limit: 1 }),
+      body: JSON.stringify({ table: 'nova_teams', action: 'select', columns: 'id', limit: 1 }),
     });
     const json = await res.json();
     _healthCache = {
