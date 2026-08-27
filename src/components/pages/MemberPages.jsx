@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl } from '../../data/teams';
+import { SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl, getTeamByAbbr } from '../../data/teams';
 import * as lfm from '../../services/lastfmService';
 import { ProfileBackground, ProfileAudioPlayer, effectiveBgList, effectiveAudioList, RobloxLinkCard, RobloxGameCard } from './MemberProfile';
 import { BadgeRow, DiscordVerifiedChip } from '../BadgeDisplay';
@@ -450,8 +450,6 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
       onBack={handleBack}
       badgeTypes={badgeTypes}
       viewerProfile={viewerProfile}
-      viewerFollowedTeams={followedTeamsByMember[viewerUsername] || []}
-      memberFollowedTeams={followedTeamsByMember[selectedMember.username] || []}
     />
   );
 
@@ -560,7 +558,7 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
 };
 
 // ── Member Profile View (improved) ────────────────────────────
-const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, viewerFollowedTeams = [], memberFollowedTeams = [] }) => {
+const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile }) => {
   const users      = JSON.parse(localStorage.getItem('nova_users') || '[]');
   const userRecord = users.find(u => u.username === member.username);
   const role       = userRecord?.role || member.role || 'member';
@@ -615,25 +613,22 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, viewerFo
     try { sessionStorage.setItem(seenKey, JSON.stringify([...seen, member.username])); } catch {}
   }, [member?.username, me]);
 
-  // Mutual indicators — real-world favorite teams the viewer and this
-  // member both have picked on their profile, plus Roblox league teams
-  // they both follow. Only meaningful when signed in and looking at
-  // someone else's page.
+  // Mutual indicators — real-world favorite teams (NBA/NFL/MLB/NHL/etc.)
+  // the viewer and this member have both picked in their profile's Teams
+  // section. Only meaningful when signed in and looking at someone
+  // else's page.
   const mutualTeams = React.useMemo(() => {
-    if (!me || me === member.username) return [];
+    if (!me || me === member.username || !viewerProfile?.fav_teams) return [];
     const out = [];
-    if (viewerProfile?.fav_teams) {
-      SPORT_KEYS.forEach(sport => {
-        const mine  = viewerProfile.fav_teams?.[sport] || [];
-        const theirs = member.fav_teams?.[sport] || [];
-        mine.forEach(abbr => { if (theirs.includes(abbr)) out.push(abbr); });
+    SPORT_KEYS.forEach(sport => {
+      const mine   = viewerProfile.fav_teams?.[sport] || [];
+      const theirs = member.fav_teams?.[sport] || [];
+      mine.forEach(abbr => {
+        if (theirs.includes(abbr)) out.push(getTeamByAbbr(sport, abbr).name || abbr);
       });
-    }
-    (viewerFollowedTeams || []).forEach(team => {
-      if ((memberFollowedTeams || []).includes(team) && !out.includes(team)) out.push(team);
     });
     return out;
-  }, [me, member.username, member.fav_teams, viewerProfile, viewerFollowedTeams, memberFollowedTeams]);
+  }, [me, member.username, member.fav_teams, viewerProfile]);
 
   useEffect(() => {
     let cancelled = false;
