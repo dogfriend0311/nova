@@ -375,10 +375,9 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
   const [search,         setSearch]         = useState('');
   const [roleFilter,     setRoleFilter]     = useState('all');
   const [badgeFilter,    setBadgeFilter]    = useState('all');
-  const [teamFilter,     setTeamFilter]     = useState('all');
+  const [teamFilter,     setTeamFilter]     = useState('all'); // "sport:ABBR", matched against each member's profile fav_teams
   const [loading,        setLoading]        = useState(true);
   const [badgeTypes,     setBadgeTypes]     = useState([]);
-  const [followedTeamsByMember, setFollowedTeamsByMember]  = useState({}); // username -> ["Team A", "Team B", ...] of ROBLOX LEAGUE teams followed (not profile fav_teams)
 
   // Attach the badge ids each member has both been assigned AND chosen to
   // display, so a revoked or hidden badge never shows up stale.
@@ -390,7 +389,7 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
 
   useEffect(() => {
     import('../../services/db').then(({ default: db }) => {
-      Promise.all([db.getMemberProfiles(), db.getUsers(), db.getBadgeTypes(), db.getMemberBadges(), db.getStaffOfMonth(), db.getAllFollowedTeams()]).then(([profiles, users, badges, assignments, sotm, followedTeams]) => {
+      Promise.all([db.getMemberProfiles(), db.getUsers(), db.getBadgeTypes(), db.getMemberBadges(), db.getStaffOfMonth()]).then(([profiles, users, badges, assignments, sotm]) => {
         const enriched = withVisibleBadges(profiles.map(p => ({
           ...p,
           role: users.find(u => u.username === p.username)?.role || p.role || 'member',
@@ -406,12 +405,6 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
           const now = new Date().toISOString();
           setMembers(prev => prev.map(m => newlyVerified.includes(m.username) ? { ...m, discord_verified_at: now } : m));
         }).catch(() => {});
-        const teamMap = {};
-        (followedTeams || []).forEach(t => {
-          if (!t.member_username || !t.team_name) return;
-          (teamMap[t.member_username] ||= []).push(t.team_name);
-        });
-        setFollowedTeamsByMember(teamMap);
         setLoading(false);
         if (targetUsername) {
           const found = findMemberByIdentifier(enriched, targetUsername);
@@ -457,14 +450,28 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
     const ms = m.username?.toLowerCase().includes(search.toLowerCase());
     const mr = roleFilter === 'all' || (m.role || 'member') === roleFilter;
     const mb = badgeFilter === 'all' || (m.visible_badge_ids || []).map(String).includes(String(badgeFilter));
-    const mt = teamFilter === 'all' || (followedTeamsByMember[m.username] || []).includes(teamFilter);
+    const [tfSport, tfAbbr] = teamFilter === 'all' ? [] : teamFilter.split(':');
+    const mt = teamFilter === 'all' || (m.fav_teams?.[tfSport] || []).includes(tfAbbr);
     return ms && mr && mb && mt;
   });
 
-  // Every distinct Roblox league team any member follows (see favoritesService.js) —
-  // NOT the same as the real-world "Favorite Teams" shown on each card below,
-  // which comes from profile.fav_teams instead. Used for the team filter dropdown.
-  const allFollowedTeamNames = Array.from(new Set(Object.values(followedTeamsByMember).flat())).sort();
+  // Every distinct real-world favorite team (NBA/NFL/MLB/NHL/CFB/CBB) any
+  // member has picked in their profile's Teams section — used for the
+  // team filter dropdown. Keyed "sport:ABBR" so teams that share an
+  // abbreviation across sports (e.g. ATL in MLB and NBA) don't collide.
+  // Plain computed value (not useMemo) since it runs after the early
+  // `if (selectedMember) return` above — a hook here would be called
+  // conditionally, which React disallows.
+  const favTeamSeen = new Map();
+  members.forEach(m => {
+    SPORT_KEYS.forEach(sport => {
+      (m.fav_teams?.[sport] || []).forEach(abbr => {
+        const key = `${sport}:${abbr}`;
+        if (!favTeamSeen.has(key)) favTeamSeen.set(key, { key, sport, abbr, name: getTeamByAbbr(sport, abbr).name || abbr });
+      });
+    });
+  });
+  const allFavTeamOptions = Array.from(favTeamSeen.values()).sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 12px' }}>
@@ -527,8 +534,10 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
           onChange={e => setTeamFilter(e.target.value)}
           style={{ padding: '8px 12px', borderRadius: 20, background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.15)', color: teamFilter === 'all' ? 'rgba(158,165,196,0.45)' : '#e2e5f0', fontSize: '0.78rem', minHeight: 36, cursor: 'pointer' }}
         >
-          <option value="all">Any followed team</option>
-          {allFollowedTeamNames.map(t => <option key={t} value={t}>{t}</option>)}
+          <option value="all">Any favorite team</option>
+          {allFavTeamOptions.map(t => (
+            <option key={t.key} value={t.key}>{SPORT_ICONS[t.sport]} {t.name} ({SPORT_SHORT[t.sport]})</option>
+          ))}
         </select>
       </div>
 
