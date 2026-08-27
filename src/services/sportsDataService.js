@@ -29,6 +29,37 @@ const apiFetch = async (url) => {
   return r.json();
 };
 
+/* ── Other ESPN hosts (search, core API, CDN) ────────────────────
+   ESPN's data is spread across several hosts beyond site.api.espn.com:
+     - site.web.api.espn.com   → search, richer athlete profiles/splits/gamelog
+     - sports.core.api.espn.com→ athletes, leaders, odds, play-by-play, situation
+     - cdn.espn.com            → CDN-optimized live scoreboard/game package
+   In production these all still go through /espn-proxy (same-origin, so
+   the browser never hits CORS) — we just tell the proxy which upstream
+   host to use via ?host=. In dev we hit the host directly. */
+const HOST_WEB  = 'site.web.api.espn.com';
+const HOST_CORE = 'sports.core.api.espn.com';
+const HOST_CDN  = 'cdn.espn.com';
+
+const hostApiFetch = async (host, pathStr, params = {}) => {
+  const isProd = process.env.NODE_ENV === 'production';
+  const base = isProd ? '/espn-proxy' : `https://${host}`;
+  const qp = new URLSearchParams(params);
+  if (isProd) qp.set('host', host);
+  const qs = qp.toString();
+  const r = await fetch(`${base}/${pathStr}${qs ? `?${qs}` : ''}`, { cache: 'no-store' });
+  if (!r.ok) throw new Error(`HTTP_${r.status}`);
+  return r.json();
+};
+
+// 'baseball/mlb' -> { sportSlug: 'baseball', leagueSlug: 'mlb' } — the
+// core API and CDN API address a league as two separate path segments
+// (.../leagues/mlb/...) rather than site API's combined 'baseball/mlb'.
+const splitSportPath = (sport) => {
+  const [sportSlug, leagueSlug] = (SPORT_PATHS[sport] || '').split('/');
+  return { sportSlug, leagueSlug };
+};
+
 // Always resolve "today" from the viewer's own device clock, rather than
 // omitting the ?dates= param and letting ESPN pick its own "today" — ESPN's
 // default cutoff doesn't line up with every local timezone, which is what
@@ -188,6 +219,71 @@ export const fetchAthleteProfile = (sport, athleteId) =>
 export const fetchAthleteStats = (sport, athleteId) =>
   apiFetch(`${ESPN_V3}/${SPORT_PATHS[sport]}/athletes/${athleteId}/stats`);
 
+/* ── Search ───────────────────────────────────────────────────── */
+// Global ESPN search (site.web.api.espn.com), optionally scoped so an
+// athlete/team/event search doesn't pull in unrelated sports.
+export const fetchSearch = (query, sport) =>
+  hostApiFetch(HOST_WEB, 'apis/common/v3/search', {
+    region: 'us', lang: 'en', mode: 'prefix', limit: 20, query,
+    ...(sport ? { sport: SPORT_PATHS[sport]?.split('/')[0] } : {}),
+  });
+
+/* ── Richer athlete profile data ─────────────────────────────────
+   overview/splits/gamelog live on site.web.api.espn.com under the
+   common/v3 path — separate host from fetchAthleteProfile/fetchAthleteStats
+   above, which use the site.api.espn.com common/v3 mirror. */
+export const fetchAthleteOverview = (sport, athleteId) =>
+  hostApiFetch(HOST_WEB, `apis/common/v3/sports/${SPORT_PATHS[sport]}/athletes/${athleteId}/overview`);
+
+export const fetchAthleteSplits = (sport, athleteId) =>
+  hostApiFetch(HOST_WEB, `apis/common/v3/sports/${SPORT_PATHS[sport]}/athletes/${athleteId}/splits`);
+
+export const fetchAthleteGameLog = (sport, athleteId) =>
+  hostApiFetch(HOST_WEB, `apis/common/v3/sports/${SPORT_PATHS[sport]}/athletes/${athleteId}/gamelog`);
+
+export const fetchAthleteNews = (sport, athleteId) =>
+  apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/athletes/${athleteId}/news`);
+
+/* ── Leaders (richer schema) ──────────────────────────────────────
+   site.api.espn.com's v3 leaders endpoint returns fully-embedded
+   category/leader data (no $ref chasing needed), unlike the core API's
+   v2 leaders endpoint which returns bare $ref links to each athlete. */
+export const fetchLeaders = (sport, season) =>
+  apiFetch(`${_ORIGIN}/apis/site/v3/sports/${SPORT_PATHS[sport]}/leaders${season ? `?season=${season}` : ''}`);
+
+/* ── Team detail (site-facing) ───────────────────────────────────*/
+export const fetchTeam = (sport, teamId) =>
+  apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/teams/${teamId}`);
+
+/* ── Per-event detailed data (odds, predictor, situation, plays) ──
+   Core API v2 — addressed as .../events/{id}/competitions/{id}/{resource}.
+   For a standard (non-series) game the competition id is the same value
+   as the event id, so callers only need to pass one id. */
+const coreEventResource = (sport, eventId, resource, params) => {
+  const { sportSlug, leagueSlug } = splitSportPath(sport);
+  return hostApiFetch(
+    HOST_CORE,
+    `v2/sports/${sportSlug}/leagues/${leagueSlug}/events/${eventId}/competitions/${eventId}/${resource}`,
+    params,
+  );
+};
+
+export const fetchEventOdds          = (sport, eventId) => coreEventResource(sport, eventId, 'odds');
+export const fetchEventPredictor     = (sport, eventId) => coreEventResource(sport, eventId, 'predictor');
+export const fetchEventProbabilities = (sport, eventId) => coreEventResource(sport, eventId, 'probabilities', { limit: 200 });
+export const fetchEventSituation     = (sport, eventId) => coreEventResource(sport, eventId, 'situation');
+export const fetchEventPlaysCore     = (sport, eventId) => coreEventResource(sport, eventId, 'plays', { limit: 300 });
+
+/* ── CDN-optimized live scoreboard ────────────────────────────────
+   cdn.espn.com serves the same game shape as the site API scoreboard
+   (content.sbData.events[]), so normalizeGame works on it unchanged.
+   "Today only" — the CDN endpoint doesn't support arbitrary ?dates=. */
+export const fetchCDNScoreboard = async (sport) => {
+  const { leagueSlug } = splitSportPath(sport);
+  const data = await hostApiFetch(HOST_CDN, `core/${leagueSlug}/scoreboard`, { xhr: 1 });
+  return { events: data?.content?.sbData?.events || [] };
+};
+
 /* ── Normalizers ─────────────────────────────────────────────── */
 
 export function normalizeGame(event) {
@@ -296,6 +392,49 @@ export function normalizeNews(data) {
     image:       a.images?.[0]?.url || null,
     link:        a.links?.web?.href || null,
   }));
+}
+
+// ESPN's search response groups results by type (each group has a
+// "contents" array). This is undocumented and has been seen to vary, so
+// this is deliberately defensive: it tries the grouped shape first, then
+// falls back to a flat "results"/"items" array, and skips anything it
+// doesn't recognize rather than throwing.
+export function normalizeSearchResults(data) {
+  const groups = data?.results || data?.items || [];
+  const out = [];
+  for (const group of groups) {
+    const type = group?.type || group?.contentType || 'result';
+    const contents = Array.isArray(group?.contents) ? group.contents : [group];
+    for (const c of contents) {
+      if (!c || (!c.displayName && !c.name)) continue;
+      out.push({
+        type,
+        id:      c.id || c.uid || null,
+        name:    c.displayName || c.name,
+        subtitle: c.subtitle || c.description || '',
+        image:   c.image?.default || c.image?.url || c.logo || null,
+        link:    c.link?.web || c.links?.[0]?.href || null,
+      });
+    }
+  }
+  return out;
+}
+
+// Site API v3 leaders response: { leaders: { categories: [{ name,
+// displayName, leaders: [{ displayValue, value, athlete, team }] }] } }
+export function normalizeLeaders(data) {
+  const categories = data?.leaders?.categories || data?.categories || [];
+  return categories.map((cat) => ({
+    name:        cat.name,
+    displayName: cat.displayName || cat.shortDisplayName || cat.name,
+    leaders: (cat.leaders || []).slice(0, 10).map((l) => ({
+      displayValue: l.displayValue,
+      value:        l.value,
+      athleteName:  l.athlete?.displayName || l.athlete?.shortName || '?',
+      athletePhoto: l.athlete?.headshot?.href || null,
+      teamAbbr:     l.team?.abbreviation || l.athlete?.team?.abbreviation || '',
+    })),
+  })).filter((cat) => cat.leaders.length > 0);
 }
 
 export function normalizeInjuries(data) {

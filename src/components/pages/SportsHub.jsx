@@ -4,6 +4,9 @@ import {
   fetchAllAthletes, fetchAthleteProfile, fetchAthleteStats,
   normalizeGame, normalizeStandings, normalizeNews, normalizeGameSummary,
   fetchMiLBScoreboard, normalizeMiLBGame, fetchMiLBGameDetail,
+  fetchSearch, normalizeSearchResults,
+  fetchLeaders, normalizeLeaders,
+  fetchEventOdds, fetchEventPredictor, fetchEventSituation,
 } from '../../services/sportsDataService';
 import './SportsHub.css';
 import PlayByPlay from './PlayByPlay';
@@ -41,6 +44,8 @@ const SUB_TABS = [
   { id:'standings', label:'Standings' },
   { id:'news',      label:'News'      },
   { id:'players',   label:'Players'   },
+  { id:'leaders',   label:'Leaders'   },
+  { id:'search',    label:'Search'    },
   { id:'injuries',  label:'Injuries'  },
   { id:'onthisday', label:'On This Day' },
   { id:'allstar',   label:'All-Star Voting' },
@@ -486,6 +491,90 @@ const MiLBScoresPanel = ({ sport, refreshKey, selectedDate }) => {
   return <div className="sh-scores-wrap"><Section title="Live" items={live} clickable /><Section title="Final" items={final} clickable /><Section title="Upcoming" items={scheduled} /></div>;
 };
 
+/* ── Odds & Predictor Panel ──────────────────────────────────────
+   Pulls from ESPN's Core API (sports.core.api.espn.com): betting odds
+   from whichever providers ESPN has for the game, ESPN's own win-probability
+   predictor, and — for live games only — the current situation (down &
+   distance, balls/strikes/outs, etc., whatever the sport provides). Any
+   piece that ESPN doesn't have for this particular game is just omitted
+   rather than shown as an error, since coverage varies a lot by sport
+   and by how far out the game is. */
+const OddsPredictorPanel = ({ sport, game }) => {
+  const [odds, setOdds]           = useState(null);
+  const [predictor, setPredictor] = useState(null);
+  const [situation, setSituation] = useState(null);
+  const [loading, setLoading]     = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.allSettled([
+      fetchEventOdds(sport, game.id),
+      fetchEventPredictor(sport, game.id),
+      game.status === 'in' ? fetchEventSituation(sport, game.id) : Promise.reject(),
+    ]).then(([oddsRes, predRes, sitRes]) => {
+      setOdds(oddsRes.status === 'fulfilled' ? (oddsRes.value?.items || []) : []);
+      setPredictor(predRes.status === 'fulfilled' ? predRes.value : null);
+      setSituation(sitRes?.status === 'fulfilled' ? sitRes.value : null);
+    }).finally(() => setLoading(false));
+  }, [sport, game.id, game.status]);
+
+  if (loading) return <div className="sh-loading" style={{ marginTop:'30px' }}><div className="sh-spinner" /></div>;
+
+  const homePct = predictor?.homeTeamPredictedWinPct ?? predictor?.homeTeam?.gameProjection;
+  const awayPct = predictor?.awayTeamPredictedWinPct ?? predictor?.awayTeam?.gameProjection;
+  const hasAnything = odds?.length || homePct != null || situation;
+
+  if (!hasAnything) return (
+    <div className="sh-empty" style={{ marginTop:'20px' }}>No odds or predictor data available for this game.</div>
+  );
+
+  return (
+    <div style={{ marginTop:'10px' }}>
+      {situation && (
+        <div className="sh-detail-section">
+          <h3 className="sh-detail-section-title">Current Situation</h3>
+          <p style={{ color:'var(--color-cyan)', fontSize:'0.95rem', fontWeight:600 }}>
+            {situation.shortDownDistanceText || situation.downDistanceText || situation.lastPlay?.text || 'Live — no situational detail available.'}
+          </p>
+        </div>
+      )}
+      {homePct != null && (
+        <div className="sh-detail-section">
+          <h3 className="sh-detail-section-title">ESPN Predictor</h3>
+          <div style={{ display:'flex', gap:'18px', alignItems:'center' }}>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:'0.78rem', color:'rgba(158, 165, 196,0.5)', marginBottom:'4px' }}>{game.awayTeam.abbr}</div>
+              <div style={{ fontSize:'1.4rem', fontWeight:800, color:'var(--color-cyan)' }}>{Math.round(awayPct)}%</div>
+            </div>
+            <div style={{ flex:1, textAlign:'right' }}>
+              <div style={{ fontSize:'0.78rem', color:'rgba(158, 165, 196,0.5)', marginBottom:'4px' }}>{game.homeTeam.abbr}</div>
+              <div style={{ fontSize:'1.4rem', fontWeight:800, color:'var(--color-cyan)' }}>{Math.round(homePct)}%</div>
+            </div>
+          </div>
+        </div>
+      )}
+      {odds?.length > 0 && (
+        <div className="sh-detail-section">
+          <h3 className="sh-detail-section-title">Odds</h3>
+          <div style={{ display:'grid', gap:'10px' }}>
+            {odds.slice(0, 4).map((o, i) => (
+              <div key={i} style={{ padding:'10px 12px', background:'rgba(255,255,255,0.02)', border:'1px solid rgba(100,120,200,0.12)', borderRadius:'8px' }}>
+                <div style={{ fontSize:'0.72rem', color:'rgba(158, 165, 196,0.4)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'6px' }}>{o.provider?.name || 'Odds'}</div>
+                <div style={{ display:'flex', gap:'14px', flexWrap:'wrap', fontSize:'0.85rem', color:'rgba(158, 165, 196,0.85)' }}>
+                  {o.details && <span>{o.details}</span>}
+                  {o.overUnder != null && <span>O/U {o.overUnder}</span>}
+                  {o.awayTeamOdds?.moneyLine != null && <span>{game.awayTeam.abbr} ML {o.awayTeamOdds.moneyLine}</span>}
+                  {o.homeTeamOdds?.moneyLine != null && <span>{game.homeTeam.abbr} ML {o.homeTeamOdds.moneyLine}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ── Game Detail View ────────────────────────────────────────── */
 const GameDetailView = ({ game, sport, onBack }) => {
   const [summary, setSummary]   = useState(null);
@@ -549,6 +638,7 @@ const GameDetailView = ({ game, sport, onBack }) => {
           { id:'boxscore',   label:'Box Score' },
           ...(isMLB ? [{ id:'highlights', label:'Highlights' }] : []),
           { id:'winprob',    label:'Win Probability' },
+          { id:'odds',       label:'Odds & Predictor' },
           { id:'potg',       label:'Player of the Game' },
           { id:'chat',       label:'Watch Party' },
         ].map(t => (
@@ -571,6 +661,10 @@ const GameDetailView = ({ game, sport, onBack }) => {
           awayAbbr={game.awayTeam.abbr}
           isFinal={game.status === 'post'}
         />
+      )}
+
+      {detailTab === 'odds' && (
+        <OddsPredictorPanel sport={sport} game={game} />
       )}
 
       {detailTab === 'potg' && (
@@ -677,6 +771,109 @@ const GameDetailView = ({ game, sport, onBack }) => {
             </>
           )}
         </>
+      )}
+    </div>
+  );
+};
+
+/* ── Leaders Panel (richer schema) ──────────────────────────────
+   ESPN's site API v3 leaders endpoint — statistical leaders across all
+   the categories ESPN tracks for the sport (passing, home runs, points,
+   etc.), each with the leading players already embedded (no extra
+   per-athlete fetches needed). */
+const LeadersPanel = ({ sport }) => {
+  const [categories, setCategories] = useState(null);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState(null);
+
+  useEffect(() => {
+    setLoading(true); setError(null);
+    fetchLeaders(sport)
+      .then(raw => setCategories(normalizeLeaders(raw)))
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [sport]);
+
+  if (loading) return <div className="sh-loading"><div className="sh-spinner" /></div>;
+  if (error)   return <div className="sh-error">Leaders unavailable: {error}</div>;
+  if (!categories?.length) return <div className="sh-empty">No leader data available for this sport right now.</div>;
+
+  return (
+    <div className="sh-scores-wrap">
+      {categories.map(cat => (
+        <div key={cat.name} style={{ marginBottom:'22px' }}>
+          <h3 className="sh-section-title">{cat.displayName}</h3>
+          <div style={{ display:'grid', gap:'8px' }}>
+            {cat.leaders.map((l, i) => (
+              <div key={i} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'8px 12px', background:'rgba(255,255,255,0.02)', border:'1px solid rgba(100,120,200,0.12)', borderRadius:'8px' }}>
+                <span style={{ width:'20px', textAlign:'center', color:'rgba(158, 165, 196,0.4)', fontSize:'0.8rem', fontWeight:700 }}>{i+1}</span>
+                {l.athletePhoto && <img src={l.athletePhoto} alt={l.athleteName} style={{ width:'28px', height:'28px', borderRadius:'50%', objectFit:'cover' }} />}
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ color:'rgba(158, 165, 196,0.92)', fontSize:'0.85rem', fontWeight:600 }}>{l.athleteName} {l.teamAbbr && <span style={{ color:'rgba(158, 165, 196,0.4)', fontWeight:400 }}>· {l.teamAbbr}</span>}</div>
+                </div>
+                <span style={{ color:'var(--color-cyan)', fontWeight:700, fontSize:'0.85rem', whiteSpace:'nowrap' }}>{l.displayValue}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+/* ── Search Panel ─────────────────────────────────────────────── */
+const SearchPanel = ({ sport }) => {
+  const [query, setQuery]     = useState('');
+  const [results, setResults] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState(null);
+
+  const handleSearch = async (e) => {
+    e.preventDefault(); if (!query.trim()) return;
+    setLoading(true); setError(null); setResults(null);
+    try {
+      const raw = await fetchSearch(query.trim(), sport);
+      setResults(normalizeSearchResults(raw));
+    } catch { setError('Search failed. Please try again.'); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="sh-players-panel">
+      <div className="sh-players-header">
+        <h3 className="gradient-text-cyan">Search ESPN</h3>
+        <p style={{ color:'rgba(158, 165, 196,0.5)', fontSize:'0.85rem', marginTop:'6px' }}>Find players, teams, and events across ESPN's coverage.</p>
+      </div>
+      <form className="sh-search-form" onSubmit={handleSearch}>
+        <input className="sh-search-input" type="text" placeholder="Search players, teams, events..." value={query} onChange={e=>setQuery(e.target.value)} />
+        <button className="neon-button sh-search-btn" type="submit" disabled={loading}>{loading?'Searching...':'Search'}</button>
+      </form>
+      {error && <div className="sh-error" style={{ marginTop:'14px' }}>{error}</div>}
+      {results && results.length === 0 && !error && (
+        <div className="sh-no-games" style={{ marginTop:'30px' }}><p>No results found. Try a different search term.</p></div>
+      )}
+      {results && results.length > 0 && (
+        <div className="sh-search-results">
+          <p style={{ fontSize:'0.78rem', color:'rgba(158, 165, 196,0.4)', marginBottom:'10px' }}>{results.length} result{results.length!==1?'s':''} found</p>
+          {results.map((r, i) => {
+            const Wrapper = r.link ? 'a' : 'div';
+            const wrapperProps = r.link ? { href:r.link, target:'_blank', rel:'noreferrer' } : {};
+            return (
+              <Wrapper key={r.id || i} {...wrapperProps} className="sh-athlete-btn" style={{ textDecoration:'none', marginBottom:'8px' }}>
+                <div className="sh-athlete-left">
+                  {r.image ? <img src={r.image} alt={r.name} className="sh-athlete-photo" onError={e=>{e.target.style.display='none';}} /> : <span className="sh-team-logo-placeholder">?</span>}
+                  <div className="sh-athlete-info">
+                    <span className="sh-athlete-name">{r.name}</span>
+                    <span className="sh-athlete-meta">{[r.type, r.subtitle].filter(Boolean).join(' · ')}</span>
+                  </div>
+                </div>
+              </Wrapper>
+            );
+          })}
+        </div>
+      )}
+      {!loading && !results && !error && (
+        <div className="sh-no-games" style={{ marginTop:'30px' }}><p>Search for a player, team, or event to get started.</p></div>
       )}
     </div>
   );
@@ -1049,6 +1246,8 @@ const SportsHub = ({ initialSport }) => {
             {activeTab==='standings' && <StandingsPanel key={`${activeSport}-standings`} sport={activeSport} />}
             {activeTab==='news'      && <NewsPanel key={`${activeSport}-news`} sport={activeSport} />}
             {activeTab==='players'   && <PlayerSearchPanel key={`${activeSport}-players`} sport={activeSport} />}
+            {activeTab==='leaders'  && <LeadersPanel key={`${activeSport}-leaders`} sport={activeSport} />}
+            {activeTab==='search'   && <SearchPanel key={`${activeSport}-search`} sport={activeSport} />}
             {activeTab==='injuries' && <InjuryReport key={`${activeSport}-injuries`} sport={activeSport} />}
             {activeTab==='onthisday' && <OnThisDaySports key={`${activeSport}-otd`} sport={activeSport} onSelectGame={setSelectedGame} />}
             {activeTab==='allstar' && <AllStarVoting key={`${activeSport}-allstar`} sport={activeSport} />}
