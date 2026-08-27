@@ -684,6 +684,48 @@ export const db = {
     ls.set('member_profiles', list);
   },
 
+  // Lightweight visit counter, shown on the public profile card (e.g.
+  // "142 views"). There's no atomic increment through /api/query's
+  // select/insert/update/upsert/delete shape, so this reads the current
+  // count and writes count+1 — same eventually-consistent, no-RPC
+  // approach the rest of this file uses (see e.g. addCoins-style
+  // read-then-write patterns). A rare lost increment under concurrent
+  // visits is an acceptable trade-off for a casual stat like this one.
+  async incrementProfileView(username) {
+    if (!username) return null;
+    if (hasSupabase()) {
+      try {
+        const { data } = await supabase.from('nova_member_profiles').select('profile_views').eq('username', username).maybeSingle();
+        const next = (data?.profile_views || 0) + 1;
+        await supabase.from('nova_member_profiles').update({ profile_views: next }).eq('username', username);
+        const list = ls.get('member_profiles');
+        const idx = list.findIndex(p => p.username === username);
+        if (idx >= 0) list[idx] = { ...list[idx], profile_views: next };
+        ls.set('member_profiles', list);
+        return next;
+      } catch {}
+    }
+    const list = ls.get('member_profiles');
+    const idx = list.findIndex(p => p.username === username);
+    const next = (list[idx]?.profile_views || 0) + 1;
+    if (idx >= 0) list[idx] = { ...list[idx], profile_views: next };
+    ls.set('member_profiles', list);
+    return next;
+  },
+
+  // Custom URL/slug support — lets a member claim a display slug (e.g.
+  // /members/nova) in addition to their username. Case-insensitive
+  // uniqueness check against every OTHER member's claimed slug (a
+  // member is always allowed to keep/re-save their own).
+  async isProfileSlugTaken(slug, excludeUsername) {
+    const clean = (slug || '').trim().toLowerCase();
+    if (!clean) return false;
+    const profiles = await this.getMemberProfiles();
+    return (profiles || []).some(p =>
+      p.username !== excludeUsername && (p.profile_slug || '').trim().toLowerCase() === clean
+    );
+  },
+
   // Manual status (Online / Do Not Disturb / Invisible) a member picks for
   // themselves. This used to be written ONLY to that member's own
   // localStorage, keyed by their username — which meant it could never be

@@ -27,11 +27,22 @@ function escapeHtml(str) {
   ));
 }
 
-async function fetchProfile(username) {
-  if (!SUPABASE_ANON_KEY || !username) return null;
+async function fetchProfile(identifier) {
+  if (!SUPABASE_ANON_KEY || !identifier) return null;
   try {
-    const url = `${SUPABASE_URL}/rest/v1/nova_member_profiles?username=eq.${encodeURIComponent(username)}&select=*`;
-    const r = await fetch(url, {
+    // Custom URL/slug support — a share link may carry either the
+    // member's username or a slug they've claimed (e.g. /members/nova).
+    // Try username first, then fall back to a case-insensitive slug match.
+    const byUsername = `${SUPABASE_URL}/rest/v1/nova_member_profiles?username=eq.${encodeURIComponent(identifier)}&select=*`;
+    let r = await fetch(byUsername, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+    });
+    if (r.ok) {
+      const data = await r.json();
+      if (data?.[0]) return data[0];
+    }
+    const bySlug = `${SUPABASE_URL}/rest/v1/nova_member_profiles?profile_slug=ilike.${encodeURIComponent(identifier)}&select=*`;
+    r = await fetch(bySlug, {
       headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
     });
     if (!r.ok) return null;

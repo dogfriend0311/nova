@@ -47,6 +47,16 @@ function copyToClipboard(text, setCopied) {
   }).catch(() => {});
 }
 
+// Custom URL/slug support — a member page is reachable at either
+// /members/<username> or, if they've claimed one, /members/<slug>.
+// Username match wins so a slug can never shadow someone else's page.
+function findMemberByIdentifier(list, identifier) {
+  if (!identifier) return null;
+  return list.find(m => m.username === identifier)
+    || list.find(m => (m.profile_slug || '').toLowerCase() === identifier.toLowerCase())
+    || null;
+}
+
 
 // ── Default gradient banners per role ─────────────────────────
 const defaultBanner = (role) => {
@@ -349,6 +359,7 @@ const MemberCard = ({ member, badgeTypes, onClick }) => {
           {member.created_at && (
             <p style={{ margin: '6px 0 0', color: 'rgba(158,165,196,0.35)', fontSize: '0.7rem' }}>
               Joined {new Date(member.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+              {member.profile_views > 0 && <> · 👁️ {member.profile_views.toLocaleString()}</>}
             </p>
           )}
         </div>
@@ -403,7 +414,7 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
         setFollowedTeamsByMember(teamMap);
         setLoading(false);
         if (targetUsername) {
-          const found = enriched.find(m => m.username === targetUsername);
+          const found = findMemberByIdentifier(enriched, targetUsername);
           if (found) setSelectedMember(found);
         }
       }).catch(() => {
@@ -413,7 +424,7 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
         setMembers(enriched);
         setLoading(false);
         if (targetUsername) {
-          const found = enriched.find(m => m.username === targetUsername);
+          const found = findMemberByIdentifier(enriched, targetUsername);
           if (found) setSelectedMember(found);
         }
       });
@@ -422,7 +433,7 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
 
   const handleSelect = (member) => {
     setSelectedMember(member);
-    if (onMemberSelect) onMemberSelect(member.username);
+    if (onMemberSelect) onMemberSelect(member.profile_slug || member.username);
   };
 
   const handleBack = () => {
@@ -430,7 +441,19 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
     if (onMemberSelect) onMemberSelect(null);
   };
 
-  if (selectedMember) return <MemberProfileView member={selectedMember} onBack={handleBack} badgeTypes={badgeTypes} />;
+  const viewerUsername = currentUsername();
+  const viewerProfile = members.find(m => m.username === viewerUsername) || null;
+
+  if (selectedMember) return (
+    <MemberProfileView
+      member={selectedMember}
+      onBack={handleBack}
+      badgeTypes={badgeTypes}
+      viewerProfile={viewerProfile}
+      viewerFollowedTeams={followedTeamsByMember[viewerUsername] || []}
+      memberFollowedTeams={followedTeamsByMember[selectedMember.username] || []}
+    />
+  );
 
   const filtered = members.filter(m => {
     const ms = m.username?.toLowerCase().includes(search.toLowerCase());
@@ -537,7 +560,7 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
 };
 
 // ── Member Profile View (improved) ────────────────────────────
-const MemberProfileView = ({ member, onBack, badgeTypes }) => {
+const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, viewerFollowedTeams = [], memberFollowedTeams = [] }) => {
   const users      = JSON.parse(localStorage.getItem('nova_users') || '[]');
   const userRecord = users.find(u => u.username === member.username);
   const role       = userRecord?.role || member.role || 'member';
@@ -572,7 +595,45 @@ const MemberProfileView = ({ member, onBack, badgeTypes }) => {
   const [kudosNote,    setKudosNote]    = useState('');
   const [givingKudos,  setGivingKudos]  = useState(false);
   const [kudosMessage, setKudosMessage] = useState('');
+  const [profileViews, setProfileViews] = useState(member.profile_views || 0);
   const me = currentUsername();
+
+  // Profile visit counter — count once per browser session per profile,
+  // and never when someone is looking at their own page, so refreshing
+  // your own profile (or bouncing back and forth) doesn't inflate it.
+  useEffect(() => {
+    if (!member?.username || me === member.username) return;
+    const seenKey = 'nova_viewed_profiles';
+    let seen = [];
+    try { seen = JSON.parse(sessionStorage.getItem(seenKey) || '[]'); } catch {}
+    if (seen.includes(member.username)) return;
+    import('../../services/db').then(({ default: db }) => {
+      db.incrementProfileView(member.username).then((next) => {
+        if (typeof next === 'number') setProfileViews(next);
+      }).catch(() => {});
+    });
+    try { sessionStorage.setItem(seenKey, JSON.stringify([...seen, member.username])); } catch {}
+  }, [member?.username, me]);
+
+  // Mutual indicators — real-world favorite teams the viewer and this
+  // member both have picked on their profile, plus Roblox league teams
+  // they both follow. Only meaningful when signed in and looking at
+  // someone else's page.
+  const mutualTeams = React.useMemo(() => {
+    if (!me || me === member.username) return [];
+    const out = [];
+    if (viewerProfile?.fav_teams) {
+      SPORT_KEYS.forEach(sport => {
+        const mine  = viewerProfile.fav_teams?.[sport] || [];
+        const theirs = member.fav_teams?.[sport] || [];
+        mine.forEach(abbr => { if (theirs.includes(abbr)) out.push(abbr); });
+      });
+    }
+    (viewerFollowedTeams || []).forEach(team => {
+      if ((memberFollowedTeams || []).includes(team) && !out.includes(team)) out.push(team);
+    });
+    return out;
+  }, [me, member.username, member.fav_teams, viewerProfile, viewerFollowedTeams, memberFollowedTeams]);
 
   useEffect(() => {
     let cancelled = false;
@@ -639,7 +700,7 @@ const MemberProfileView = ({ member, onBack, badgeTypes }) => {
     { id: 'comments',    label: '💬 Comments'  },
   ];
 
-  const shareUrl = `${window.location.origin}${window.location.pathname}#members/${member.username}`;
+  const shareUrl = `${window.location.origin}${window.location.pathname}#members/${member.profile_slug || member.username}`;
 
   const robloxGames = favGames.filter(g => g.placeId);
   const sportsGames = favGames.filter(g => !g.placeId);
@@ -734,10 +795,23 @@ const MemberProfileView = ({ member, onBack, badgeTypes }) => {
               {member.birthday && (
                 <> · 🎂 {new Date(`${member.birthday}T00:00:00`).toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}</>
               )}
+              {' · '}👁️ {profileViews.toLocaleString()} view{profileViews === 1 ? '' : 's'}
             </p>
           )}
 
           {member.bio && <p className="gl-public-bio" style={{ color: member.text_color ? `${member.text_color}cc` : undefined }}>{member.bio}</p>}
+
+          {mutualTeams.length > 0 && (
+            <div style={{
+              marginTop: 10, padding: '7px 14px', borderRadius: 20, textAlign: 'center',
+              background: 'rgba(94,129,244,0.08)', border: '1px solid rgba(94,129,244,0.25)',
+              color: '#5e81f4', fontSize: '0.76rem', fontWeight: 700,
+            }}>
+              {mutualTeams.length === 1
+                ? `🤝 You both follow the ${mutualTeams[0]}`
+                : `🤝 ${mutualTeams.length} mutual teams: ${mutualTeams.slice(0, 3).join(', ')}${mutualTeams.length > 3 ? '…' : ''}`}
+            </div>
+          )}
 
           {/* Kudos — member-to-member endorsements. Anyone signed in
               except the profile owner can send one, with an optional

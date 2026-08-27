@@ -22,7 +22,6 @@ import ArticlesPage from './components/pages/ArticlesPage';
 import NovaWrapped from './components/pages/NovaWrapped';
 import RobloxTracker from './components/pages/RobloxTracker';
 import MusicHub from './components/pages/MusicHub';
-import DiamondLeague from './components/pages/baseball/DiamondLeague';
 import EmbedPlayerCard from './components/EmbedPlayerCard';
 import InstallPrompt from './components/InstallPrompt';
 import OfflineBanner from './components/OfflineBanner';
@@ -37,7 +36,7 @@ import './styles/space.css';
 import './styles/responsive.css';
 
 // Lazy-loaded so the Perfect Athlete game (and its player data) ships in
-// its own JS chunk — it no longer loads as part of the baseball simulation bundle.
+// its own JS chunk, separate from the rest of the Games tab.
 const BuildPerfectAthlete = React.lazy(() => import('./components/pages/baseball/BuildPerfectAthlete'));
 
 // ── Hash router helpers ──────────────────────────────────────
@@ -59,8 +58,9 @@ function pushHash(page, sub1, sub2) {
   }
 }
 
-// ── Games tab — Fantasy, Pick'ems, RTTS, Prop Bets, Playoff Pools ──
-// NOTE: Beat Battle moved to Music tab
+// ── Games tab — Fantasy, Pick'ems, RTTS, Prop Bets, Playoff Pools, Perfect Athlete ──
+// NOTE: Beat Battle moved to Music tab. Perfect Athlete moved here from its
+// own top-level nav item; the Simulations/Diamond League tab was removed.
 const GamesPage = ({ onSignIn, initialTab = 'fantasy', user: gamesUser }) => {
   const [subTab, setSubTab] = React.useState(initialTab);
   const tb = (id, label) => (
@@ -87,12 +87,18 @@ const GamesPage = ({ onSignIn, initialTab = 'fantasy', user: gamesUser }) => {
         {tb('pickems',  "✅ Pick'ems")}
         {tb('propbets', '🎯 Prop Bets')}
         {tb('playoffs', '🏆 Playoff Pools')}
+        {tb('perfectathlete', '🐐 Perfect Athlete')}
         {tb('alltime',  '📊 All-Time')}
       </div>
       {subTab === 'fantasy'  && <FantasyHub onSignIn={onSignIn} />}
       {subTab === 'pickems'  && <PickemsHub onSignIn={onSignIn} />}
       {subTab === 'propbets' && <PropBets user={gamesUser} />}
       {subTab === 'playoffs' && <PlayoffPools user={gamesUser} />}
+      {subTab === 'perfectathlete' && (
+        <React.Suspense fallback={<div style={{ textAlign: 'center', padding: '60px', color: 'rgba(158, 165, 196,0.4)' }}>Loading…</div>}>
+          <BuildPerfectAthlete user={gamesUser} />
+        </React.Suspense>
+      )}
       {subTab === 'alltime'  && <AllTimeLeaderboard />}
     </div>
   );
@@ -142,6 +148,7 @@ const AppContent = () => {
     // Redirect legacy routes
     if (page === 'radio' || page === 'lastfm') return 'music';
     if (page === 'coinshop') return 'store';
+    if (page === 'simulations' || page === 'diamond') return 'games'; // Simulations tab removed
     return page;
   });
   const [routeSub, setRouteSub] = useState(() => parseHash().sub1);
@@ -165,6 +172,7 @@ const AppContent = () => {
         // Redirect legacy routes
         const resolved = (page === 'radio' || page === 'lastfm') ? 'music'
           : page === 'coinshop' ? 'store'
+          : (page === 'simulations' || page === 'diamond') ? 'games' // Simulations tab removed
           : page;
         setCurrentPage(resolved);
         setRouteSub(sub1 || null);
@@ -218,6 +226,11 @@ const AppContent = () => {
     if (page === 'coinshop') {
       setCurrentPage('store');
       pushHash('store');
+      return;
+    }
+    if (page === 'simulations' || page === 'diamond') { // Simulations tab removed
+      setCurrentPage('games');
+      pushHash('games');
       return;
     }
     setCurrentPage(page);
@@ -308,6 +321,10 @@ const AppContent = () => {
       case 'games':
         return <GamesPage key="games-default" onSignIn={() => setShowLoginModal(true)} initialTab="fantasy" user={user} />;
 
+      // Perfect Athlete now lives inside the Games tab as a sub-tab.
+      case 'perfectathlete':
+        return <GamesPage key="games-perfectathlete" onSignIn={() => setShowLoginModal(true)} initialTab="perfectathlete" user={user} />;
+
       case 'articles':
         return <ArticlesPage initialArticleId={routeSub} onArticleSelect={handleArticleSelect} />;
 
@@ -321,17 +338,6 @@ const AppContent = () => {
 
       case 'roblox':
         return <RobloxTracker user={user} />;
-
-      case 'simulations':
-      case 'diamond': // backward compat
-        return <DiamondLeague user={user} />;
-
-      case 'perfectathlete':
-        return (
-          <React.Suspense fallback={<div style={{ textAlign: 'center', padding: '60px', color: 'rgba(158, 165, 196,0.4)' }}>Loading…</div>}>
-            <BuildPerfectAthlete user={user} />
-          </React.Suspense>
-        );
 
       case 'player':
         if (!selectedLeaguePlayer) {

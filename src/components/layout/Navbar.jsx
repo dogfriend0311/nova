@@ -14,8 +14,6 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, on
     { id: 'leagues',     label: 'Leagues',     icon: 'Baseball' },
     { id: 'articles',    label: 'Articles',    icon: 'FileText' },
     { id: 'sports',      label: 'Sports',      icon: 'Trophy' },
-    { id: 'simulations', label: 'Simulations', icon: 'Baseball' },
-    { id: 'perfectathlete', label: '🐐 Perfect Athlete', icon: 'Goat' },
     { id: 'games',       label: 'Games',       icon: 'Gamepad' },
     { id: 'music',       label: 'Music',       icon: 'Music' },
     { id: 'store',       label: 'Store',       icon: 'Store' },
@@ -26,7 +24,7 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, on
   const isActive = (id) =>
     currentPage === id ||
     (id === 'leagues' && currentPage === 'player') ||
-    (id === 'simulations' && currentPage === 'diamond');
+    (id === 'games' && currentPage === 'perfectathlete');
 
   return (
     <nav className="navbar">

@@ -30,6 +30,8 @@ const DEFAULT_PROFILE = {
   birthday: '', // optional, YYYY-MM-DD — shown as month/day only (see below), never the year, and only if the member sets it
   fav_team_notifs: {}, // { [sport]: { [abbr]: { finalScore: bool, news: bool } } }
   fav_games: [],
+  profile_slug: '',  // optional custom URL, e.g. /members/nova instead of /members/<username>
+  profile_views: 0,  // lightweight visit counter shown on the public card
   // guns.lol-style page customization
   bg_media_url: '', bg_media_type: '', // legacy single-item fields (kept so old profiles still work)
   audio_url: '', audio_title: '',
@@ -827,6 +829,7 @@ const MemberProfile = () => {
   const [copied,       setCopied]      = useState(false);
   const [equippedTheme, setEquippedTheme] = useState(null);
   const [isStaffOfMonth, setIsStaffOfMonth] = useState(false);
+  const [slugStatus,    setSlugStatus]   = useState(null); // null | 'checking' | 'available' | 'taken' | 'invalid'
   const coinsRef = useRef(null);
 
   useEffect(() => {
@@ -947,16 +950,37 @@ const MemberProfile = () => {
   // ── Save helpers ──────────────────────────────────────────
   const handleField = (key, val) => setFormData((prev) => ({ ...prev, [key]: val }));
 
+  // ── Custom URL slug — validate shape client-side, then check
+  // availability against Supabase (debounced so it doesn't fire on
+  // every keystroke). 3–20 chars, lowercase letters/numbers/hyphens.
+  const SLUG_PATTERN = /^[a-z0-9-]{3,20}$/;
+  useEffect(() => {
+    const raw = (formData.profile_slug || '').trim();
+    if (!raw) { setSlugStatus(null); return; }
+    if (!SLUG_PATTERN.test(raw)) { setSlugStatus('invalid'); return; }
+    setSlugStatus('checking');
+    const t = setTimeout(() => {
+      import('../../services/db').then(({ default: db }) => {
+        db.isProfileSlugTaken(raw, user?.username).then(taken => {
+          setSlugStatus(taken ? 'taken' : 'available');
+        }).catch(() => setSlugStatus(null));
+      });
+    }, 500);
+    return () => clearTimeout(t);
+  }, [formData.profile_slug, user?.username]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [saveError, setSaveError] = useState('');
 
   const handleSave = () => {
+    if (slugStatus === 'taken' || slugStatus === 'invalid') return; // block save on a bad slug
+    const dataToSave = { ...formData, profile_slug: (formData.profile_slug || '').trim().toLowerCase() };
     const profiles = JSON.parse(localStorage.getItem('member_profiles') || '[]');
     const idx = profiles.findIndex((p) => p.username === user?.username);
-    if (idx !== -1) profiles[idx] = formData; else profiles.push(formData);
+    if (idx !== -1) profiles[idx] = dataToSave; else profiles.push(dataToSave);
     localStorage.setItem('member_profiles', JSON.stringify(profiles));
     setSaveError('');
     import('../../services/db').then(({ default: db }) => {
-      db.saveMemberProfile(formData).catch((err) => {
+      db.saveMemberProfile(dataToSave).catch((err) => {
         console.error('Profile save failed:', err);
         setSaveError(
           "Couldn't save to the server (saved on this device only — other visitors won't see your changes). " +
@@ -964,7 +988,8 @@ const MemberProfile = () => {
         );
       });
     });
-    setProfile(formData);
+    setProfile(dataToSave);
+    setFormData(dataToSave);
     setEditing(false);
     setFavTab(false);
   };
@@ -1005,8 +1030,10 @@ const MemberProfile = () => {
     // Path-based URL (not #hash) so Discord/iMessage/Slack/etc bots can
     // fetch it and see this specific person's name/team via the
     // /api/preview-member serverless function. Real visitors get an
-    // instant redirect into the actual app.
-    const url = `${window.location.origin}/members/${user?.username}`;
+    // instant redirect into the actual app. Prefers the member's
+    // claimed custom slug over their username when one is set.
+    const handle = (profile?.profile_slug || user?.username || '').trim();
+    const url = `${window.location.origin}/members/${handle}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -1086,6 +1113,12 @@ const MemberProfile = () => {
                       <div className="gl-stat-value">{linkedSocialsCount}/4</div>
                       <div className="gl-stat-sub">linked accounts</div>
                     </div>
+                    <div className="gl-stat-card">
+                      <span className="gl-stat-icon">👁️</span>
+                      <div className="gl-stat-label">Profile Views</div>
+                      <div className="gl-stat-value">{(profile?.profile_views || 0).toLocaleString()}</div>
+                      <div className="gl-stat-sub">{profile?.profile_slug ? `/members/${profile.profile_slug}` : 'all-time visits'}</div>
+                    </div>
                   </div>
                 </div>
 
@@ -1122,8 +1155,26 @@ const MemberProfile = () => {
                   <label>Birthday <span style={{ fontWeight: 400, opacity: 0.6 }}>(optional — shown as month &amp; day only, never your age or birth year)</span></label>
                   <input type="date" value={formData.birthday || ''} onChange={(e) => setFormData({ ...formData, birthday: e.target.value })} />
                 </div>
+                <div className="form-group">
+                  <label>Custom URL <span style={{ fontWeight: 400, opacity: 0.6 }}>(optional — claim a short link instead of your username)</span></label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 0, flexWrap: 'wrap' }}>
+                    <span style={{ padding: '9px 0 9px 12px', fontSize: '0.85rem', color: 'rgba(158,165,196,0.5)', whiteSpace: 'nowrap' }}>/members/</span>
+                    <input
+                      type="text"
+                      value={formData.profile_slug || ''}
+                      onChange={(e) => setFormData({ ...formData, profile_slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
+                      placeholder={user?.username}
+                      maxLength={20}
+                      style={{ flex: 1, minWidth: 120 }}
+                    />
+                  </div>
+                  {slugStatus === 'checking' && <div style={{ fontSize: '0.75rem', color: 'rgba(158,165,196,0.5)', marginTop: 4 }}>Checking availability…</div>}
+                  {slugStatus === 'available' && <div style={{ fontSize: '0.75rem', color: '#00ff88', marginTop: 4 }}>✓ That's available!</div>}
+                  {slugStatus === 'taken' && <div style={{ fontSize: '0.75rem', color: '#ff6b7a', marginTop: 4 }}>⚠ Someone already has that one — try another.</div>}
+                  {slugStatus === 'invalid' && <div style={{ fontSize: '0.75rem', color: '#ff6b7a', marginTop: 4 }}>⚠ 3–20 characters — lowercase letters, numbers and hyphens only.</div>}
+                </div>
                 <div className="form-actions">
-                  <button className="neon-button" onClick={handleSave}>Save Profile</button>
+                  <button className="neon-button" onClick={handleSave} disabled={slugStatus === 'taken' || slugStatus === 'invalid'}>Save Profile</button>
                 </div>
               </div>
             )}
