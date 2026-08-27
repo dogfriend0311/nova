@@ -19,17 +19,26 @@ const Sidebar = ({ currentPage, onNavigate }) => {
   }, [user]);
 
   useEffect(() => {
-    const refresh = () => {
+    // db.getOnlineUsers() checks last_seen on the server, so it reflects
+    // members active on ANY device — the previous version read
+    // localStorage('nova_online') directly, which only ever contains
+    // activity from this one browser, so other members never showed as
+    // online here even while actively using the site elsewhere.
+    const refresh = async () => {
       const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
       const memberCount = users.length + 1;
-
-      const onlineData = JSON.parse(localStorage.getItem('nova_online') || '{}');
-      const fiveMinAgo = Date.now() - 5 * 60 * 1000;
-      const online = Object.entries(onlineData)
-        .filter(([, ts]) => ts > fiveMinAgo)
-        .map(([username]) => username);
-
       const clips = JSON.parse(localStorage.getItem('nova_clips') || '[]');
+
+      let online = [];
+      try {
+        online = await db.getOnlineUsers();
+      } catch {
+        const onlineData = JSON.parse(localStorage.getItem('nova_online') || '{}');
+        const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+        online = Object.entries(onlineData)
+          .filter(([, ts]) => ts > fiveMinAgo)
+          .map(([username]) => username);
+      }
 
       setStats({ members: memberCount, online: online.length, clips: clips.length });
       setOnlineMembers(online);

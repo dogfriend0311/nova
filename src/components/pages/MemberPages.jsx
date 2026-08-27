@@ -547,8 +547,23 @@ const MemberProfileView = ({ member, onBack, badgeTypes }) => {
   const savedUser   = JSON.parse(localStorage.getItem('nova_user') || 'null');
   const currentUser = savedUser?.username || null;
 
-  const onlineData = JSON.parse(localStorage.getItem('nova_online') || '{}');
-  const isOnline   = onlineData[member.username] > Date.now() - 5 * 60 * 1000;
+  // Cross-device online check. This used to read localStorage('nova_online')
+  // directly, which only ever reflects activity that happened in THIS
+  // browser — so a friend online on their own device never showed up here.
+  // db.getOnlineUsers() checks last_seen on the server instead.
+  const [isOnline, setIsOnline] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    import('../../services/db').then(({ default: db }) => {
+      db.getOnlineUsers().then((online) => {
+        if (!cancelled) setIsOnline(online.includes(member.username));
+      }).catch(() => {
+        const onlineData = JSON.parse(localStorage.getItem('nova_online') || '{}');
+        if (!cancelled) setIsOnline(onlineData[member.username] > Date.now() - 5 * 60 * 1000);
+      });
+    });
+    return () => { cancelled = true; };
+  }, [member.username]);
 
   const [viewTab, setViewTab] = useState('overview');
   const [copied,  setCopied]  = useState(false);
@@ -598,7 +613,11 @@ const MemberProfileView = ({ member, onBack, badgeTypes }) => {
   const anniversaryYears = joinedDate ? (new Date().getFullYear() - joinedDate.getFullYear()) : 0;
 
   const favGames       = member.fav_games || [];
-  const presenceStatus = localStorage.getItem(`nova_presence_${member.username}`) || 'online';
+  // Read the status this member picked from their synced profile data
+  // (member.presence, from nova_member_profiles) instead of this viewer's
+  // own localStorage — that key is only ever populated for yourself, never
+  // for anyone else you look up.
+  const presenceStatus = member.presence || 'online';
   const presenceDot    = presenceStatus === 'online' ? '#43b581' : presenceStatus === 'idle' ? '#f04747' : '#747f8d';
   const presenceTxt    = isOnline
     ? (presenceStatus === 'online' ? 'Online' : presenceStatus === 'idle' ? 'Do Not Disturb' : 'Invisible')

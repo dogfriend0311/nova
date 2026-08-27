@@ -866,7 +866,9 @@ const MemberProfile = () => {
 
   const changePresence = (p) => {
     setPresence(p);
-    localStorage.setItem(`nova_presence_${user?.username}`, p);
+    // Sync to the server so other visitors (and other devices) see this
+    // status too — this used to save to localStorage only.
+    db.setPresence(user?.username, p).catch(() => {});
   };
 
   // ── Load this member's assigned badges + the full badge catalog ──
@@ -918,6 +920,13 @@ const MemberProfile = () => {
       });
     });
   }, [user]);
+
+  // Once the profile loads from the server, prefer its synced `presence`
+  // value over whatever this browser's own localStorage happened to have
+  // (e.g. after switching devices, or the very first load on a new device).
+  useEffect(() => {
+    if (profile?.presence) setPresence(profile.presence);
+  }, [profile?.presence]);
 
   // ── Check for a fresh Discord-join match (best-effort, see
   // discordBadgeCheck.js) whenever this profile has a Discord Tag set but

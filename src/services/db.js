@@ -684,6 +684,24 @@ export const db = {
     ls.set('member_profiles', list);
   },
 
+  // Manual status (Online / Do Not Disturb / Invisible) a member picks for
+  // themselves. This used to be written ONLY to that member's own
+  // localStorage, keyed by their username — which meant it could never be
+  // seen by anyone visiting from a different browser/device, since that
+  // key simply doesn't exist anywhere else. Syncing it onto their profile
+  // row (like discord_verified_at above) makes it visible to everyone.
+  async setPresence(username, presence) {
+    if (!username) return;
+    if (hasSupabase()) {
+      try { await supabase.from('nova_member_profiles').update({ presence }).eq('username', username); } catch {}
+    }
+    localStorage.setItem(`nova_presence_${username}`, presence);
+    const list = ls.get('member_profiles');
+    const idx = list.findIndex(p => p.username === username);
+    if (idx >= 0) list[idx] = { ...list[idx], presence };
+    ls.set('member_profiles', list);
+  },
+
   /* USERS / ROLES */
   async getUsers() {
     try {
