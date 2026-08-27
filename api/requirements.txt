@@ -1,0 +1,3 @@
+# Used only by api/ytmusic.py (Vercel Python runtime auto-installs this
+# alongside that function — it has no effect on the Node/React build).
+ytmusicapi>=1.9.0
