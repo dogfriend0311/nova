@@ -33,6 +33,9 @@ export default async function handler(req, res) {
     const body = await espnRes.text();
     res.status(espnRes.status);
     res.setHeader('Content-Type', espnRes.headers.get('content-type') || 'application/json');
+    // Live scores/standings/news change constantly — never let a browser,
+    // proxy, or CDN cache this response.
+    res.setHeader('Cache-Control', 'no-store');
     res.send(body);
   } catch (err) {
     res.status(502).json({ error: 'ESPN proxy request failed', message: err.message });

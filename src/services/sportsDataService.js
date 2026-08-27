@@ -22,14 +22,25 @@ const DIV_LABELS = {
 };
 
 const apiFetch = async (url) => {
-  const r = await fetch(url);
+  // no-store: this is live score/standings/news data — never serve a
+  // cached copy (browser HTTP cache, service worker, or otherwise).
+  const r = await fetch(url, { cache: 'no-store' });
   if (!r.ok) throw new Error(`HTTP_${r.status}`);
   return r.json();
 };
 
+// Always resolve "today" from the viewer's own device clock, rather than
+// omitting the ?dates= param and letting ESPN pick its own "today" — ESPN's
+// default cutoff doesn't line up with every local timezone, which is what
+// made the scoreboard occasionally show the wrong day's games.
+const todayLocalDate = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
 export const fetchScoreboard  = (sport, date) => {
-  const qs = date ? `?dates=${date.replace(/-/g,'')}` : '';
-  return apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/scoreboard${qs}`);
+  const qs = (date || todayLocalDate()).replace(/-/g, '');
+  return apiFetch(`${ESPN}/${SPORT_PATHS[sport]}/scoreboard?dates=${qs}`);
 };
 
 export const fetchStandings   = (sport) => {
@@ -108,17 +119,16 @@ const MILB_SPORT_IDS = {
 
 export const fetchMiLBGameDetail = async (gamePk) => {
   const [bsRes, lsRes] = await Promise.all([
-    fetch(`${MILB_API}/game/${gamePk}/boxscore`).then((r) => r.json()),
-    fetch(`${MILB_API}/game/${gamePk}/linescore`).then((r) => r.json()),
+    fetch(`${MILB_API}/game/${gamePk}/boxscore`, { cache: 'no-store' }).then((r) => r.json()),
+    fetch(`${MILB_API}/game/${gamePk}/linescore`, { cache: 'no-store' }).then((r) => r.json()),
   ]);
   return { boxscore: bsRes, linescore: lsRes };
 };
 
 export const fetchMiLBScoreboard = async (sport, date) => {
   const sportId = MILB_SPORT_IDS[sport];
-  const now     = new Date();
-  const today   = date || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-  const r = await fetch(`${MILB_API}/schedule?sportId=${sportId}&date=${today}`);
+  const today   = date || todayLocalDate();
+  const r = await fetch(`${MILB_API}/schedule?sportId=${sportId}&date=${today}`, { cache: 'no-store' });
   if (!r.ok) throw new Error(`HTTP_${r.status}`);
   const d = await r.json();
   return (d.dates || []).flatMap(dt => dt.games || []);

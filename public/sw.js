@@ -8,7 +8,7 @@
 // the "Install Nova" prompt (see src/components/InstallPrompt.jsx) actually
 // fires. It is NOT a full offline-first cache strategy for the whole app.
 
-const CACHE_NAME = 'nova-shell-v1';
+const CACHE_NAME = 'nova-shell-v2';
 const APP_SHELL = ['/', '/index.html', '/manifest.json', '/favicon.ico'];
 
 self.addEventListener('install', (event) => {
@@ -33,6 +33,19 @@ self.addEventListener('activate', (event) => {
 // offline; cache-first for same-origin static assets. Never intercepts
 // cross-origin requests (Supabase, ESPN, Roblox, etc.) — those always hit
 // the network directly.
+//
+// IMPORTANT: /espn-proxy/*, /mlb-proxy/*, and everything under /api/ are
+// same-origin (they're rewritten through this same domain — see
+// vercel.json) even though they ultimately serve live, constantly-changing
+// data from ESPN/MLB/Supabase/etc. They must NEVER be served cache-first —
+// doing so previously froze scoreboards at whatever was cached on first
+// load (a game could sit "live" for hours after it ended, and "today"
+// could silently mean whatever day the cache was first populated).
+const isDynamicDataPath = (pathname) =>
+  pathname.startsWith('/api/') ||
+  pathname.startsWith('/espn-proxy/') ||
+  pathname.startsWith('/mlb-proxy/');
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
@@ -44,6 +57,13 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request).catch(() => caches.match('/index.html'))
     );
+    return;
+  }
+
+  // Always go straight to the network for live/dynamic data — never read
+  // from or write to the cache for these.
+  if (isDynamicDataPath(url.pathname)) {
+    event.respondWith(fetch(request));
     return;
   }
 
