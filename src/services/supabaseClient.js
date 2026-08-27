@@ -183,4 +183,34 @@ export const supabase = {
   storage: storageStub,
 };
 
+// ── Backend health check ─────────────────────────────────────────
+// db.js silently falls back to per-browser localStorage any time /api/query
+// fails (missing DATABASE_URL, DB unreachable, table not migrated, etc).
+// That fallback is what keeps the app usable offline/locally, but it also
+// means a broken backend produces no visible error — teams/players just
+// quietly stop showing up on other devices. This lets the UI (see
+// SyncStatusBanner) surface that state instead of it being invisible.
+let _healthCache = null; // { ok, checkedAt, error }
+export async function checkBackendHealth(forceRecheck = false) {
+  if (_healthCache && !forceRecheck && Date.now() - _healthCache.checkedAt < 60000) {
+    return _healthCache;
+  }
+  try {
+    const res = await fetch('/api/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ table: 'app_data', action: 'select', columns: 'key', limit: 1 }),
+    });
+    const json = await res.json();
+    _healthCache = {
+      ok: !json.error,
+      checkedAt: Date.now(),
+      error: json.error ? (json.error.message || 'Unknown error') : null,
+    };
+  } catch (err) {
+    _healthCache = { ok: false, checkedAt: Date.now(), error: err.message || 'Network error' };
+  }
+  return _healthCache;
+}
+
 export default supabase;

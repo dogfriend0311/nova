@@ -109,8 +109,35 @@
 .badge-active { background: rgba(0,255,100,0.15); border: 1px solid rgba(0,255,100,0.4); color: #00ff64; }
 
 @media (max-width: 768px) {
-  .dashboard-section { flex-direction: column; align-items: flex-start; }
-  .section-label { border-right: none; border-bottom: 1px solid rgba(94, 129, 244,0.1); width: 100%; }
+  /* The category-label + tab-row pattern reads as a dense wall of
+     bordered boxes when stacked on a phone (label bar, then a wrapped
+     row of pills, repeated per category). Turn the label into a
+     small sticky-style caption instead of a full-width bordered bar,
+     and give categories breathing room instead of borders on every
+     edge, so scrolling through the list of categories reads as
+     distinct sections instead of one dense grid of lines. */
+  .dashboard-section {
+    flex-direction: column;
+    align-items: flex-start;
+    background: transparent;
+    border-bottom: none;
+    padding: 14px 0 6px;
+  }
+  .dashboard-sections {
+    border-bottom: none;
+    gap: 4px;
+  }
+  .section-label {
+    border-right: none;
+    border-bottom: none;
+    width: auto;
+    padding: 0 0 8px 2px;
+    font-size: 0.66rem;
+    opacity: 0.75;
+  }
+  .dashboard-section .dashboard-tabs {
+    padding: 0;
+  }
 }
 
 /* Responsive 2-column utility — stacks on narrow/mobile screens instead
