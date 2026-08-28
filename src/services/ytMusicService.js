@@ -2,9 +2,10 @@
 //
 // Thin client for /api/ytmusic (see that file for the full list of
 // supported actions). GET is used for read-only lookups so responses can
-// be cached/shared by URL; POST is used for anything that writes to a
-// YouTube Music account or would otherwise produce an overly long query
-// string (bulk lists, base64 file uploads).
+// be cached/shared by URL; POST is used for the handful of actions that
+// send a longer payload (bulk id lists) or write library state (ratings,
+// subscriptions, history). Playlist creation/editing and uploads are not
+// exposed here — see api/ytmusic.py for why.
 
 const ENDPOINT = '/api/ytmusic';
 
@@ -16,7 +17,7 @@ async function callGet(action, params = {}) {
   });
   const res = await fetch(`${ENDPOINT}?${qs.toString()}`);
   const data = await res.json().catch(() => ({ ok: false, error: `HTTP ${res.status}` }));
-  if (!res.ok || !data.ok) throw new Error(data.error || `YT Music request failed (${res.status})`);
+  if (!res.ok || !data.ok) throw new Error(data.error || `Nova Music request failed (${res.status})`);
   return data.result;
 }
 
@@ -27,7 +28,7 @@ async function callPost(action, body = {}) {
     body: JSON.stringify({ action, ...body }),
   });
   const data = await res.json().catch(() => ({ ok: false, error: `HTTP ${res.status}` }));
-  if (!res.ok || !data.ok) throw new Error(data.error || `YT Music request failed (${res.status})`);
+  if (!res.ok || !data.ok) throw new Error(data.error || `Nova Music request failed (${res.status})`);
   return data.result;
 }
 
@@ -62,7 +63,6 @@ const ytMusicService = {
   getCharts: (country) => callGet('get_charts', { country }),
 
   // ── Library management ───────────────────────────────────────────
-  getLibraryPlaylists: (limit) => callGet('get_library_playlists', { limit }),
   getLibrarySongs: (opts = {}) => callGet('get_library_songs', opts),
   getLibraryAlbums: (opts = {}) => callGet('get_library_albums', opts),
   getLibraryArtists: (opts = {}) => callGet('get_library_artists', opts),
@@ -79,18 +79,8 @@ const ytMusicService = {
   unsubscribeArtists: (channelIds) => callPost('unsubscribe_artists', { channelIds }),
   getAccountInfo: () => callGet('get_account_info'),
 
-  // ── Playlists ─────────────────────────────────────────────────────
+  // ── Playlists (view-only — no create/edit/delete/upload) ──────────
   getPlaylist: (playlistId, opts = {}) => callGet('get_playlist', { playlistId, ...opts }),
-  getLikedSongs: (limit) => callGet('get_liked_songs', { limit }),
-  createPlaylist: (title, description, opts = {}) =>
-    callPost('create_playlist', { title, description, ...opts }),
-  joinCollaborativePlaylist: (playlistId, joinCollaborationToken) =>
-    callPost('join_collaborative_playlist', { playlistId, joinCollaborationToken }),
-  editPlaylist: (playlistId, changes = {}) => callPost('edit_playlist', { playlistId, ...changes }),
-  deletePlaylist: (playlistId) => callPost('delete_playlist', { playlistId }),
-  addPlaylistItems: (playlistId, videoIds, opts = {}) =>
-    callPost('add_playlist_items', { playlistId, videoIds, ...opts }),
-  removePlaylistItems: (playlistId, videos) => callPost('remove_playlist_items', { playlistId, videos }),
 
   // ── Podcasts ──────────────────────────────────────────────────────
   getChannel: (channelId) => callGet('get_channel', { channelId }),
@@ -98,26 +88,6 @@ const ytMusicService = {
   getPodcast: (playlistId, limit) => callGet('get_podcast', { playlistId, limit }),
   getEpisode: (videoId) => callGet('get_episode', { videoId }),
   getEpisodesPlaylist: (playlistId) => callGet('get_episodes_playlist', { playlist_id: playlistId }),
-
-  // ── Uploads ───────────────────────────────────────────────────────
-  getLibraryUploadSongs: (opts = {}) => callGet('get_library_upload_songs', opts),
-  getLibraryUploadArtists: (opts = {}) => callGet('get_library_upload_artists', opts),
-  getLibraryUploadAlbums: (opts = {}) => callGet('get_library_upload_albums', opts),
-  getLibraryUploadArtist: (browseId, limit) => callGet('get_library_upload_artist', { browseId, limit }),
-  getLibraryUploadAlbum: (browseId) => callGet('get_library_upload_album', { browseId }),
-  // `file` is a browser File/Blob — read client-side and sent as base64
-  // because the serverless function has no access to the browser's disk.
-  uploadSong: (file) =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onerror = () => reject(new Error('Could not read the file.'));
-      reader.onload = () => {
-        const base64 = String(reader.result).split(',')[1] || '';
-        callPost('upload_song', { filename: file.name, data: base64 }).then(resolve, reject);
-      };
-      reader.readAsDataURL(file);
-    }),
-  deleteUploadEntity: (entityId) => callPost('delete_upload_entity', { entityId }),
 };
 
 export default ytMusicService;

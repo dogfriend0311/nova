@@ -156,7 +156,7 @@ const LastFmPanel = ({ user }) => {
 const TABS = [
   { id: 'lastfm',    label: '🎧 Last.fm'    },
   { id: 'battle',    label: '🎵 Beat Battle' },
-  { id: 'ytmusic',   label: '🎶 YT Music'    },
+  { id: 'ytmusic',   label: '🎶 Nova Music'    },
 ];
 
 const MusicHub = ({ user, initialTab, onSignIn }) => {

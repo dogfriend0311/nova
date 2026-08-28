@@ -432,7 +432,6 @@ function ExploreTab({ onOpen }) {
 
 // ── Library management ───────────────────────────────────────────────
 const LIBRARY_SECTIONS = [
-  { id: 'playlists', label: 'Playlists' },
   { id: 'songs', label: 'Songs' },
   { id: 'artists', label: 'Artists' },
   { id: 'albums', label: 'Albums' },
@@ -443,10 +442,9 @@ const LIBRARY_SECTIONS = [
 ];
 
 function LibraryTab({ onOpen }) {
-  const [sub, setSub] = useState('playlists');
+  const [sub, setSub] = useState('songs');
   const loader = useCallback(() => {
     switch (sub) {
-      case 'playlists': return ytm.getLibraryPlaylists();
       case 'songs': return ytm.getLibrarySongs();
       case 'artists': return ytm.getLibraryArtists();
       case 'albums': return ytm.getLibraryAlbums();
@@ -485,10 +483,6 @@ function LibraryTab({ onOpen }) {
       {data && Array.isArray(data) && (
         <div className="ytm-list" style={{ marginTop: 12 }}>
           {data.map((item, i) => {
-            if (sub === 'playlists') {
-              return <ListRow key={item.playlistId || i} thumb={thumbUrl(item.thumbnails)} title={item.title} sub={`${item.count ?? ''} items`}
-                onClick={() => onOpen({ kind: 'playlist', playlistId: item.playlistId, title: item.title })} />;
-            }
             if (sub === 'songs' || sub === 'history') {
               return <ListRow key={item.videoId || i} thumb={thumbUrl(item.thumbnails)} title={item.title} sub={artistNames(item.artists)} tag={item.duration}
                 onClick={() => onOpen({ kind: 'song', videoId: item.videoId, title: item.title })}
@@ -524,28 +518,9 @@ function LibraryTab({ onOpen }) {
   );
 }
 
-// ── Playlists: create/delete/edit + contents ────────────────────────
-function PlaylistDetail({ playlistId, onBack }) {
-  const { data, loading, error, reload } = useLoad(() => ytm.getPlaylist(playlistId, { suggestions_limit: 5 }), playlistId);
-  const [newVideoId, setNewVideoId] = useState('');
-  const [editTitle, setEditTitle] = useState('');
-  const [msg, setMsg] = useState('');
-
-  const addTrack = () => {
-    if (!newVideoId.trim()) return;
-    ytm.addPlaylistItems(playlistId, [newVideoId.trim()]).then(() => { setNewVideoId(''); reload(); }).catch((e) => setMsg(e.message));
-  };
-  const removeTrack = (t) => {
-    ytm.removePlaylistItems(playlistId, [{ videoId: t.videoId, setVideoId: t.setVideoId }]).then(reload).catch((e) => setMsg(e.message));
-  };
-  const saveTitle = () => {
-    if (!editTitle.trim()) return;
-    ytm.editPlaylist(playlistId, { title: editTitle.trim() }).then(() => { setMsg('Updated.'); reload(); }).catch((e) => setMsg(e.message));
-  };
-  const doDelete = () => {
-    if (!window.confirm('Delete this playlist? This cannot be undone.')) return;
-    ytm.deletePlaylist(playlistId).then(() => onBack()).catch((e) => setMsg(e.message));
-  };
+// ── Playlists: view contents only (no create/edit/delete) ──────────
+function PlaylistView({ playlistId, onOpen }) {
+  const { data, loading, error } = useLoad(() => ytm.getPlaylist(playlistId, { suggestions_limit: 5 }), playlistId);
 
   if (loading) return <div className="ytm-loading">Loading playlist…</div>;
   if (error) return <div className="ytm-error">{error}</div>;
@@ -562,24 +537,11 @@ function PlaylistDetail({ playlistId, onBack }) {
         </div>
       </div>
 
-      <Section title="Edit">
-        <div className="ytm-row">
-          <input className="ytm-input" placeholder="New title…" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
-          <button className="ytm-btn" onClick={saveTitle}>Save title</button>
-          <button className="ytm-btn danger" onClick={doDelete}>Delete playlist</button>
-        </div>
-        <div className="ytm-row" style={{ marginTop: 8 }}>
-          <input className="ytm-input" placeholder="Video ID to add…" value={newVideoId} onChange={(e) => setNewVideoId(e.target.value)} />
-          <button className="ytm-btn" onClick={addTrack}>Add track</button>
-        </div>
-        {msg && <div className="ytm-list-sub" style={{ marginTop: 6 }}>{msg}</div>}
-      </Section>
-
       <Section title="Tracks">
         <div className="ytm-list">
           {(data.tracks || []).map((t, i) => (
             <ListRow key={t.videoId || i} thumb={thumbUrl(t.thumbnails)} title={`${i + 1}. ${t.title}`} sub={artistNames(t.artists)} tag={t.duration}
-              actions={<button className="ytm-btn small danger" onClick={() => removeTrack(t)}>Remove</button>} />
+              onClick={() => onOpen({ kind: 'song', videoId: t.videoId, title: t.title })} />
           ))}
         </div>
       </Section>
@@ -589,54 +551,11 @@ function PlaylistDetail({ playlistId, onBack }) {
           <div className="ytm-list">
             {data.suggestions.map((t, i) => (
               <ListRow key={t.videoId || i} thumb={thumbUrl(t.thumbnails)} title={t.title} sub={artistNames(t.artists)}
-                actions={<button className="ytm-btn small" onClick={() => ytm.addPlaylistItems(playlistId, [t.videoId]).then(reload)}>Add</button>} />
+                onClick={() => onOpen({ kind: 'song', videoId: t.videoId, title: t.title })} />
             ))}
           </div>
         </Section>
       )}
-    </div>
-  );
-}
-
-function PlaylistsTab({ onOpen }) {
-  const { data, loading, error, reload } = useLoad(() => ytm.getLibraryPlaylists(), 'lib-playlists');
-  const [title, setTitle] = useState('');
-  const [desc, setDesc] = useState('');
-  const [msg, setMsg] = useState('');
-  const needsAuth = error && /signed-in/i.test(error);
-
-  const create = () => {
-    if (!title.trim()) return;
-    ytm.createPlaylist(title.trim(), desc.trim()).then(() => { setTitle(''); setDesc(''); reload(); }).catch((e) => setMsg(e.message));
-  };
-
-  return (
-    <div>
-      <Section title="Create a playlist">
-        <div className="ytm-row">
-          <input className="ytm-input" placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
-          <input className="ytm-input" style={{ flex: '1 1 200px' }} placeholder="Description (optional)" value={desc} onChange={(e) => setDesc(e.target.value)} />
-          <button className="ytm-btn" onClick={create} disabled={!title.trim()}>Create</button>
-        </div>
-        {msg && <div className="ytm-list-sub" style={{ marginTop: 6 }}>{msg}</div>}
-      </Section>
-
-      <Section title="Your playlists">
-        {loading && <div className="ytm-loading">Loading…</div>}
-        {needsAuth && (
-          <div className="ytm-auth-note">
-            Creating and managing playlists needs a signed-in YouTube Music session configured on the server.
-          </div>
-        )}
-        {error && !needsAuth && <div className="ytm-error">{error}</div>}
-        {data && data.length === 0 && <div className="ytm-empty">No playlists yet.</div>}
-        <div className="ytm-list">
-          {(data || []).map((p, i) => (
-            <ListRow key={p.playlistId || i} thumb={thumbUrl(p.thumbnails)} title={p.title} sub={`${p.count ?? ''} items`}
-              onClick={() => onOpen({ kind: 'playlist', playlistId: p.playlistId, title: p.title })} />
-          ))}
-        </div>
-      </Section>
     </div>
   );
 }
@@ -767,92 +686,12 @@ function EpisodesPlaylistView({ playlistId, onOpen }) {
   );
 }
 
-// ── Uploads ───────────────────────────────────────────────────────────
-function UploadsTab({ onOpen }) {
-  const [sub, setSub] = useState('songs');
-  const loader = useCallback(() => {
-    if (sub === 'songs') return ytm.getLibraryUploadSongs();
-    if (sub === 'artists') return ytm.getLibraryUploadArtists();
-    return ytm.getLibraryUploadAlbums();
-  }, [sub]);
-  const { data, loading, error, reload } = useLoad(loader, sub);
-  const [uploading, setUploading] = useState(false);
-  const [msg, setMsg] = useState('');
-  const needsAuth = error && /signed-in/i.test(error);
-
-  const onFile = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true); setMsg('');
-    ytm.uploadSong(file)
-      .then(() => { setMsg(`Uploaded ${file.name}.`); reload(); })
-      .catch((err) => setMsg(err.message))
-      .finally(() => setUploading(false));
-    e.target.value = '';
-  };
-
-  const remove = (entityId) => ytm.deleteUploadEntity(entityId).then(reload).catch((e) => setMsg(e.message));
-
-  return (
-    <div>
-      <Section title="Upload a song">
-        <div className="ytm-row">
-          <input type="file" accept=".mp3,.m4a,.wma,.flac,.ogg" onChange={onFile} disabled={uploading} />
-          {uploading && <span className="ytm-list-sub">Uploading…</span>}
-        </div>
-        {msg && <div className="ytm-list-sub" style={{ marginTop: 6 }}>{msg}</div>}
-      </Section>
-
-      <div className="ytm-pills" style={{ marginTop: 16 }}>
-        <button className={`ytm-pill ${sub === 'songs' ? 'active' : ''}`} onClick={() => setSub('songs')}>Uploaded songs</button>
-        <button className={`ytm-pill ${sub === 'artists' ? 'active' : ''}`} onClick={() => setSub('artists')}>Uploaded artists</button>
-        <button className={`ytm-pill ${sub === 'albums' ? 'active' : ''}`} onClick={() => setSub('albums')}>Uploaded albums</button>
-      </div>
-
-      {loading && <div className="ytm-loading">Loading…</div>}
-      {needsAuth && (
-        <div className="ytm-auth-note" style={{ marginTop: 12 }}>
-          Uploads need a signed-in, browser-authenticated YouTube Music session configured on the server.
-        </div>
-      )}
-      {error && !needsAuth && <div className="ytm-error">{error}</div>}
-      {data && data.length === 0 && <div className="ytm-empty">Nothing uploaded yet.</div>}
-
-      <div className="ytm-list" style={{ marginTop: 12 }}>
-        {(data || []).map((item, i) => (
-          <ListRow key={item.entityId || item.videoId || item.browseId || i}
-            thumb={thumbUrl(item.thumbnails)} title={item.title || item.artist} sub={artistNames(item.artists)}
-            onClick={sub === 'artists' && item.browseId ? () => onOpen({ kind: 'uploadArtist', browseId: item.browseId, title: item.artist }) : undefined}
-            actions={sub === 'songs' && item.entityId && (
-              <button className="ytm-btn small danger" onClick={() => remove(item.entityId)}>Delete</button>
-            )} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function UploadArtistView({ browseId }) {
-  const { data, loading, error } = useLoad(() => ytm.getLibraryUploadArtist(browseId), browseId);
-  if (loading) return <div className="ytm-loading">Loading…</div>;
-  if (error) return <div className="ytm-error">{error}</div>;
-  return (
-    <div className="ytm-list">
-      {(data || []).map((t, i) => (
-        <ListRow key={t.videoId || i} thumb={thumbUrl(t.thumbnails)} title={t.title} sub={artistNames(t.artists)} tag={t.duration} />
-      ))}
-    </div>
-  );
-}
-
 // ── root panel ───────────────────────────────────────────────────────
 const TOP_TABS = [
   { id: 'search', label: '🔍 Search' },
   { id: 'explore', label: '🧭 Explore' },
   { id: 'library', label: '📚 Library' },
-  { id: 'playlists', label: '📃 Playlists' },
   { id: 'podcasts', label: '🎙️ Podcasts' },
-  { id: 'uploads', label: '⬆️ Uploads' },
 ];
 
 export default function YTMusicPanel() {
@@ -868,8 +707,8 @@ export default function YTMusicPanel() {
   return (
     <div className="nf-page">
       <div className="nf-header">
-        <h1>🎶 YT Music</h1>
-        <p>Search, browse and manage YouTube Music — songs, artists, albums, playlists, podcasts and your library.</p>
+        <h1>🎶 Nova Music</h1>
+        <p>Search and browse YouTube Music — songs, artists, albums, playlists, podcasts and your library.</p>
       </div>
 
       <div className="ytm-wrap">
@@ -889,19 +728,16 @@ export default function YTMusicPanel() {
           {!current && tab === 'search' && <SearchTab onOpen={open} />}
           {!current && tab === 'explore' && <ExploreTab onOpen={open} />}
           {!current && tab === 'library' && <LibraryTab onOpen={open} />}
-          {!current && tab === 'playlists' && <PlaylistsTab onOpen={open} />}
           {!current && tab === 'podcasts' && <PodcastsTab onOpen={open} />}
-          {!current && tab === 'uploads' && <UploadsTab onOpen={open} />}
 
           {current?.kind === 'artist' && <ArtistView channelId={current.channelId} onOpen={open} />}
           {current?.kind === 'album' && <AlbumView browseId={current.browseId} onOpen={open} />}
           {current?.kind === 'song' && <SongView videoId={current.videoId} title={current.title} />}
-          {current?.kind === 'playlist' && <PlaylistDetail playlistId={current.playlistId} onBack={back} />}
+          {current?.kind === 'playlist' && <PlaylistView playlistId={current.playlistId} onOpen={open} />}
           {current?.kind === 'podcast' && <PodcastView playlistId={current.playlistId} onOpen={open} />}
           {current?.kind === 'podcastChannel' && <ChannelView channelId={current.channelId} onOpen={open} />}
           {current?.kind === 'episode' && <EpisodeView videoId={current.videoId} />}
           {current?.kind === 'episodesPlaylist' && <EpisodesPlaylistView playlistId={current.playlistId} onOpen={open} />}
-          {current?.kind === 'uploadArtist' && <UploadArtistView browseId={current.browseId} />}
         </div>
       </div>
     </div>
