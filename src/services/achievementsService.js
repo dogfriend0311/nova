@@ -28,10 +28,28 @@ const BADGE_MAP = Object.fromEntries(BADGES.map(b => [b.id, b]));
 
 function storageKey(username) { return `nova_badges_${username}`; }
 
+// Earlier versions stored a flat array of badge id strings with no earn
+// date. Normalize that alongside the current [{ id, earned_at }] shape so
+// existing members' saved badges don't need a migration step.
+function normalizeEarned(raw) {
+  return (Array.isArray(raw) ? raw : []).map(e => (typeof e === 'string' ? { id: e, earned_at: null } : e));
+}
+
+function readEarned(username) {
+  try { return normalizeEarned(JSON.parse(localStorage.getItem(storageKey(username)) || '[]')); }
+  catch { return []; }
+}
+
 /** Returns array of badge IDs the user has earned */
 export function getEarnedBadges(username) {
-  try { return JSON.parse(localStorage.getItem(storageKey(username)) || '[]'); }
-  catch { return []; }
+  return readEarned(username).map(e => e.id);
+}
+
+/** Returns [{ id, earned_at }] for the user's earned badges — earned_at is
+ *  null for badges earned before this field existed. Used for the activity
+ *  timeline, where "badge earned" needs a real timestamp to sort by. */
+export function getEarnedBadgesWithDates(username) {
+  return readEarned(username);
 }
 
 /** Returns full badge objects the user has earned */
@@ -45,9 +63,9 @@ export function getEarnedBadgeObjects(username) {
  *  never fires a duplicate. */
 export function awardBadge(username, badgeId) {
   if (!username || !badgeId) return;
-  const earned = getEarnedBadges(username);
-  if (!earned.includes(badgeId)) {
-    localStorage.setItem(storageKey(username), JSON.stringify([...earned, badgeId]));
+  const earned = readEarned(username);
+  if (!earned.some(e => e.id === badgeId)) {
+    localStorage.setItem(storageKey(username), JSON.stringify([...earned, { id: badgeId, earned_at: new Date().toISOString() }]));
     const badge = BADGE_MAP[badgeId];
     if (badge) {
       db.createNotification(username, {
@@ -115,5 +133,5 @@ export function getBadgeProgress(badgeId, { coins = 0 } = {}) {
   }
 }
 
-const achievementsService = { BADGES, BADGE_MAP, getEarnedBadges, getEarnedBadgeObjects, awardBadge, syncBadges, getBadgeProgress };
+const achievementsService = { BADGES, BADGE_MAP, getEarnedBadges, getEarnedBadgesWithDates, getEarnedBadgeObjects, awardBadge, syncBadges, getBadgeProgress };
 export default achievementsService;

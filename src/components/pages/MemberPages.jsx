@@ -70,6 +70,92 @@ const defaultBanner = (role) => {
   return m[role] || 'linear-gradient(135deg,#070b1a 0%,#0d1535 40%,#070b1a 100%)';
 };
 
+// Shared "3h ago" / "2d ago" label used by comments, kudos, and the
+// per-member activity timeline below.
+const formatTimeAgo = (iso) => {
+  if (!iso) return '';
+  const s = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  if (s < 604800) return `${Math.floor(s / 86400)}d ago`;
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+};
+
+// ── Per-member activity timeline ─────────────────────────────
+// A filtered, member-scoped cousin of the site-wide ActivityFeed.jsx on
+// Home. That feed is built from site content (articles, league POTM/
+// accolades/HOF, fantasy trades) that isn't tied to a specific member, so
+// it isn't reused here directly — instead this pulls only the events that
+// genuinely belong to *this* member and carry a real timestamp: kudos
+// given/received and badges earned. Favorite games are also included,
+// labeled as "added to favorites" (the date a member favorited a game is
+// the only game-related timestamp this app stores — there's no play-
+// session tracking, so this deliberately doesn't claim to show "last
+// active game").
+const MemberActivityTimeline = ({ username, favGames }) => {
+  const [items, setItems] = useState(null); // null = loading
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      import('../../services/db'),
+      import('../../services/achievementsService'),
+    ]).then(([{ default: db }, { BADGES: ACH_BADGES, getEarnedBadgesWithDates }]) => {
+      db.getAllKudos().then((allKudos) => {
+        if (cancelled) return;
+        const kudosReceived = (allKudos || []).filter(k => k.to_username === username).map(k => ({
+          key: `kr-${k.id}`, ts: k.created_at, icon: '👍',
+          title: `Received kudos from ${k.from_username}`, meta: k.note || 'Kudos',
+        }));
+        const kudosGiven = (allKudos || []).filter(k => k.from_username === username).map(k => ({
+          key: `kg-${k.id}`, ts: k.created_at, icon: '🙌',
+          title: `Gave kudos to ${k.to_username}`, meta: k.note || 'Kudos',
+        }));
+        const badgeMap = Object.fromEntries(ACH_BADGES.map(b => [b.id, b]));
+        const badgesEarned = getEarnedBadgesWithDates(username).filter(e => e.earned_at).map(e => ({
+          key: `b-${e.id}`, ts: e.earned_at, icon: badgeMap[e.id]?.emoji || '🏅',
+          title: `Earned the "${badgeMap[e.id]?.name || e.id}" badge`, meta: 'Badge',
+        }));
+        const gamesAdded = (favGames || []).filter(g => g.date).map(g => ({
+          key: `g-${g.id}`, ts: g.date, icon: g.placeId ? '🎮' : '🏟️',
+          title: `Added "${g.text}" to favorite games`, meta: 'Favorite Game',
+        }));
+        const feed = [...kudosReceived, ...kudosGiven, ...badgesEarned, ...gamesAdded]
+          .filter(i => i.ts)
+          .sort((a, b) => new Date(b.ts) - new Date(a.ts))
+          .slice(0, 8);
+        setItems(feed);
+      }).catch(() => { if (!cancelled) setItems([]); });
+    });
+    return () => { cancelled = true; };
+  }, [username, favGames]);
+
+  if (items === null || items.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 20 }}>
+      <span className="member-overview-kicker">RECENT ACTIVITY</span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
+        {items.map(item => (
+          <div key={item.key} style={{
+            display: 'flex', alignItems: 'center', gap: 12,
+            background: 'rgba(94,129,244,0.04)', border: '1px solid rgba(94,129,244,0.1)',
+            borderRadius: 10, padding: '10px 14px',
+          }}>
+            <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>{item.icon}</span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ color: '#e2e5f0', fontSize: '0.85rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title}</div>
+              {item.meta && <div style={{ color: 'rgba(158,165,196,0.45)', fontSize: '0.72rem' }}>{item.meta}</div>}
+            </span>
+            <span style={{ color: 'rgba(158,165,196,0.35)', fontSize: '0.7rem', flexShrink: 0 }}>{formatTimeAgo(item.ts)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // ── Fav Teams ─────────────────────────────────────────────────
 const FavTeams = ({ favTeams }) => {
   const hasSome = SPORT_KEYS.some(s => (favTeams?.[s] || []).length > 0);
@@ -935,6 +1021,7 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile }) => {
               <button onClick={() => setViewTab('teams')}>Favorite teams <span>→</span></button>
               <button onClick={() => setViewTab('comments')}>Community comments <span>→</span></button>
             </div>
+            <MemberActivityTimeline username={member.username} favGames={favGames} />
           </div>
         )}
 

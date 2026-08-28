@@ -15,6 +15,18 @@ import { COSMETICS } from './CoinShop';
 import { ProfileCardSkeleton } from '../Skeleton';
 import './MemberProfile.css';
 
+// Free curated color presets — a one-click starting point for the Colors
+// panel, distinct from the paid COSMETICS themes in the Coin Shop. Each is
+// just the accent/bg/text trio the Colors panel already controls, so
+// applying one is exactly like filling those three fields by hand.
+const COLOR_PRESETS = [
+  { name: 'Midnight Violet', accent_color: '#6c5ce7', bg_color: '#09070f', text_color: '#f5f2ff' },
+  { name: 'Sunset Ember',    accent_color: '#ff9e57', bg_color: '#160b06', text_color: '#fff1e6' },
+  { name: 'Arctic Frost',    accent_color: '#5e81f4', bg_color: '#060b16', text_color: '#e8f0ff' },
+  { name: 'Emerald Night',   accent_color: '#43b581', bg_color: '#04120c', text_color: '#e7fff4' },
+  { name: 'Neon Magenta',    accent_color: '#c864dc', bg_color: '#12061a', text_color: '#f9e9ff' },
+];
+
 const roleLabel = (role) => {
   const map = { owner: 'Owner', cofounder: 'Co-Founder', mod: 'Moderator', vizta_helper: 'Roblox Baseball Helper', member: 'Member', guest: 'Guest' };
   return map[role] || role || 'Member';
@@ -299,6 +311,13 @@ const MultiBgUploadField = ({ username, list, onChange, hint }) => {
   };
 
   const remove = (id) => onChange(list.filter(b => b.id !== id));
+  const move = (i, dir) => {
+    const j = i + dir;
+    if (j < 0 || j >= list.length) return;
+    const next = [...list];
+    [next[i], next[j]] = [next[j], next[i]];
+    onChange(next);
+  };
 
   return (
     <div className="form-group mp-image-field">
@@ -312,6 +331,14 @@ const MultiBgUploadField = ({ username, list, onChange, hint }) => {
               ? <video src={b.url} muted loop playsInline />
               : <img src={b.url} alt={`Background ${i + 1}`} onError={(e) => { e.target.style.display = 'none'; }} />}
             <button className="gl-upload-tile-remove" onClick={() => remove(b.id)} title="Remove">✕</button>
+            {list.length > 1 && (
+              <div style={{ position: 'absolute', top: 6, left: 6, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <button onClick={() => move(i, -1)} disabled={i === 0} title="Move earlier"
+                  style={{ width: 22, height: 22, borderRadius: 6, border: 'none', background: 'rgba(0,0,0,0.65)', color: '#e4defc', fontSize: '0.7rem', cursor: i === 0 ? 'default' : 'pointer', opacity: i === 0 ? 0.35 : 1 }}>▲</button>
+                <button onClick={() => move(i, 1)} disabled={i === list.length - 1} title="Move later"
+                  style={{ width: 22, height: 22, borderRadius: 6, border: 'none', background: 'rgba(0,0,0,0.65)', color: '#e4defc', fontSize: '0.7rem', cursor: i === list.length - 1 ? 'default' : 'pointer', opacity: i === list.length - 1 ? 0.35 : 1 }}>▼</button>
+              </div>
+            )}
             <span style={{
               position: 'absolute', bottom: 6, left: 6, padding: '2px 8px', borderRadius: 20,
               background: 'rgba(0,0,0,0.65)', fontSize: '0.65rem', fontWeight: 700, color: '#e4defc',
@@ -361,6 +388,13 @@ const MultiAudioUploadField = ({ username, list, onChange, hint }) => {
 
   const remove = (id) => onChange(list.filter(t => t.id !== id));
   const updateField = (id, key, val) => onChange(list.map(t => t.id === id ? { ...t, [key]: val } : t));
+  const move = (i, dir) => {
+    const j = i + dir;
+    if (j < 0 || j >= list.length) return;
+    const next = [...list];
+    [next[i], next[j]] = [next[j], next[i]];
+    onChange(next);
+  };
 
   return (
     <div className="form-group mp-image-field">
@@ -381,6 +415,14 @@ const MultiAudioUploadField = ({ username, list, onChange, hint }) => {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <span className="gl-social-icon-circle" style={{ width: 26, height: 26, fontSize: '0.7rem' }}>{i + 1}</span>
                 <span style={{ flex: 1, fontSize: '0.78rem', color: 'rgba(220,215,240,0.55)' }}>🎵 Uploaded track</span>
+                {list.length > 1 && (
+                  <>
+                    <button onClick={() => move(i, -1)} disabled={i === 0} title="Move earlier in the playlist"
+                      style={{ background: 'none', border: 'none', color: 'rgba(220,215,240,0.7)', cursor: i === 0 ? 'default' : 'pointer', fontSize: '0.85rem', opacity: i === 0 ? 0.3 : 1 }}>▲</button>
+                    <button onClick={() => move(i, 1)} disabled={i === list.length - 1} title="Move later in the playlist"
+                      style={{ background: 'none', border: 'none', color: 'rgba(220,215,240,0.7)', cursor: i === list.length - 1 ? 'default' : 'pointer', fontSize: '0.85rem', opacity: i === list.length - 1 ? 0.3 : 1 }}>▼</button>
+                  </>
+                )}
                 <button onClick={() => remove(t.id)} style={{ background: 'none', border: 'none', color: '#ff6b7a', cursor: 'pointer', fontSize: '0.85rem' }}>✕ Remove</button>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
@@ -1243,6 +1285,24 @@ const MemberProfile = () => {
               <div className="gl-panel">
                 <div className="gl-panel-title">Color Customization</div>
                 <div className="gl-panel-sub">Override the default role color on your profile card. Leave blank to use the default.</div>
+
+                <div className="form-group">
+                  <label>Presets <span style={{ fontWeight: 400, opacity: 0.6 }}>(free — pick one as a starting point, then tweak below)</span></label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {COLOR_PRESETS.map(p => (
+                      <button
+                        key={p.name}
+                        type="button"
+                        className="neon-button"
+                        onClick={() => setFormData(prev => ({ ...prev, accent_color: p.accent_color, bg_color: p.bg_color, text_color: p.text_color }))}
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.78rem', padding: '6px 12px' }}
+                      >
+                        <span style={{ width: 14, height: 14, borderRadius: '50%', flexShrink: 0, background: p.accent_color, border: '1px solid rgba(255,255,255,0.35)' }} />
+                        {p.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
                 <ColorField label="Accent Color"     fieldKey="accent_color" value={formData.accent_color} onChange={handleField} defaultSwatch="#6c5ce7" />
                 <ColorField label="Background Color" fieldKey="bg_color"     value={formData.bg_color}     onChange={handleField} defaultSwatch="#09070f" />
