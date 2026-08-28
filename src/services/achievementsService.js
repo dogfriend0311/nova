@@ -99,5 +99,21 @@ export function syncBadges(username, { profile = {}, coins = 0, joinDate = null 
   }
 }
 
-const achievementsService = { BADGES, BADGE_MAP, getEarnedBadges, getEarnedBadgeObjects, awardBadge, syncBadges };
+/**
+ * For a locked badge, returns { current, target } progress toward earning
+ * it when that can be computed from data the caller already has on hand,
+ * or null when the badge is a one-time / boolean action (linked an
+ * account, voted once, made a purchase) that has no meaningful "partway
+ * there" state. Keep this in sync with the thresholds in syncBadges().
+ */
+export function getBadgeProgress(badgeId, { coins = 0 } = {}) {
+  switch (badgeId) {
+    case 'coin_100':  return { current: Math.min(coins, 100),  target: 100 };
+    case 'coin_500':  return { current: Math.min(coins, 500),  target: 500 };
+    case 'coin_1000': return { current: Math.min(coins, 1000), target: 1000 };
+    default: return null;
+  }
+}
+
+const achievementsService = { BADGES, BADGE_MAP, getEarnedBadges, getEarnedBadgeObjects, awardBadge, syncBadges, getBadgeProgress };
 export default achievementsService;

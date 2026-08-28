@@ -107,6 +107,28 @@ export const MemberGridSkeleton = ({ count = 8 }) => (
   </div>
 );
 
+/** Matches .gl-public-card in MemberProfile.css — the floating profile
+ *  card (own dashboard and public member view), so the "Loading…" state
+ *  doesn't jump layout once the real card mounts, same idea as
+ *  MemberGridSkeleton on the directory page. */
+export const ProfileCardSkeleton = () => (
+  <div className="gl-public-card-wrap" style={{ paddingTop: 20 }} aria-hidden="true" aria-label="Loading profile">
+    <div className="gl-public-card" style={{ width: '100%' }}>
+      <Skel height={120} radius={14} style={{ marginBottom: 16 }} />
+      <div className="gl-public-avatar-row">
+        <Skel width={74} height={74} radius="50%" />
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <Skel width="45%" height={18} style={{ marginBottom: 8 }} />
+          <Skel width="65%" height={13} style={{ marginBottom: 6 }} />
+          <Skel width="30%" height={11} />
+        </div>
+      </div>
+      <Skel width="90%" height={13} style={{ marginTop: 16 }} />
+      <Skel width="70%" height={13} style={{ marginTop: 8 }} />
+    </div>
+  </div>
+);
+
 /**
  * Generic fallback: a handful of shimmering rows. Use for tables/lists that
  * don't have (or don't yet need) a shape tailored to them — e.g. the many

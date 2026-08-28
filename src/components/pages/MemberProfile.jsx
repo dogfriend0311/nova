@@ -4,7 +4,7 @@ import { uploadToBlob } from '../../services/blobUpload';
 import { TEAMS, SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl } from '../../data/teams';
 import { getWatchList } from '../../services/mediaService';
 import * as lfm from '../../services/lastfmService';
-import { BADGES, getEarnedBadges, syncBadges } from '../../services/achievementsService';
+import { BADGES, getEarnedBadges, syncBadges, getBadgeProgress } from '../../services/achievementsService';
 import { BadgeRow, DiscordVerifiedChip } from '../BadgeDisplay';
 import { LevelBadge } from '../LevelBadge';
 import { checkAndAwardDiscordBadges } from '../../services/discordBadgeCheck';
@@ -12,6 +12,7 @@ import { getCoins as getCoinsBalance, addCoins as addCoinsBalance } from '../../
 import { getFavGames, setFavGames as persistFavGamesLS } from '../../services/favGamesStorage';
 import db from '../../services/db';
 import { COSMETICS } from './CoinShop';
+import { ProfileCardSkeleton } from '../Skeleton';
 import './MemberProfile.css';
 
 const roleLabel = (role) => {
@@ -1042,7 +1043,7 @@ const MemberProfile = () => {
   };
 
   // ── Edit mode ─────────────────────────────────────────────
-  if (!profile) return <div style={{ padding: '40px', textAlign: 'center', color: 'rgba(158, 165, 196,0.4)' }}>Loading…</div>;
+  if (!profile) return <div className="tw-page gl-scope"><ProfileCardSkeleton /></div>;
 
   if (editing && !previewMode) {
     const NAV = [
@@ -1453,6 +1454,11 @@ const MemberProfile = () => {
             background: cardData.bg_color || undefined,
           }}
         >
+          {cardData.top_banner_url && (
+            <div className="gl-public-banner">
+              <img src={cardData.top_banner_url} alt="" />
+            </div>
+          )}
           <div className="gl-public-avatar-row">
             <div className="gl-public-avatar">
               {cardData.avatar_url ? <img src={cardData.avatar_url} alt="avatar" /> : '🚀'}
@@ -1570,18 +1576,37 @@ const MemberProfile = () => {
                 <>
                   <div className="tw-section-title" style={{ marginTop: 20 }}>Locked ({locked.length})</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
-                    {locked.map(b => (
-                      <div key={b.id} title={b.desc} style={{
-                        display: 'flex', alignItems: 'center', gap: 8,
-                        padding: '8px 14px', borderRadius: 999,
-                        border: '1px solid rgba(94,129,244,0.12)', background: 'rgba(94,129,244,0.04)',
-                        color: 'rgba(158,165,196,0.3)', fontSize: '0.85rem', fontWeight: 600,
-                        filter: 'grayscale(1)', opacity: 0.5, cursor: 'default',
-                      }}>
-                        <span style={{ fontSize: '1.1rem' }}>🔒</span>
-                        {b.name}
-                      </div>
-                    ))}
+                    {locked.map(b => {
+                      const progress = getBadgeProgress(b.id, { coins });
+                      const pct = progress ? Math.min(100, Math.round((progress.current / progress.target) * 100)) : null;
+                      return (
+                        <div key={b.id} title={b.desc} style={{
+                          display: 'flex', flexDirection: 'column', gap: 4,
+                          padding: '8px 14px', borderRadius: 14, minWidth: progress ? 120 : undefined,
+                          border: '1px solid rgba(94,129,244,0.14)', background: 'rgba(94,129,244,0.04)',
+                          cursor: 'default',
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            {/* Silhouette: the badge's own emoji, desaturated — reads as
+                                "this badge, not yet yours" rather than a flat padlock. */}
+                            <span style={{ fontSize: '1.1rem', filter: 'grayscale(1)', opacity: 0.45 }}>{b.emoji}</span>
+                            <span style={{ color: 'rgba(158,165,196,0.55)', fontSize: '0.85rem', fontWeight: 600 }}>{b.name}</span>
+                          </div>
+                          {progress ? (
+                            <>
+                              <div style={{ height: 4, borderRadius: 999, background: 'rgba(158,165,196,0.15)', overflow: 'hidden' }}>
+                                <div style={{ height: '100%', width: `${pct}%`, borderRadius: 999, background: b.color }} />
+                              </div>
+                              <div style={{ fontSize: '0.68rem', color: 'rgba(158,165,196,0.45)', fontWeight: 600 }}>
+                                {progress.current.toLocaleString()}/{progress.target.toLocaleString()}
+                              </div>
+                            </>
+                          ) : (
+                            <div style={{ fontSize: '0.68rem', color: 'rgba(158,165,196,0.35)' }}>Not yet earned</div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </>
               )}

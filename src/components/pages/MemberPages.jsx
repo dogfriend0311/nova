@@ -750,6 +750,11 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile }) => {
             background: member.bg_color || undefined,
           }}
         >
+          {member.top_banner_url && (
+            <div className="gl-public-banner">
+              <img src={member.top_banner_url} alt="" />
+            </div>
+          )}
           <div className="gl-public-avatar-row">
             <div className="gl-public-avatar">
               {member.avatar_url
