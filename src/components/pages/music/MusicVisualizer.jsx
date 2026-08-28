@@ -24,6 +24,7 @@ import ytm from '../../../services/ytMusicService';
 import { useNowPlaying } from '../../../context/NowPlayingContext';
 import { useAuth } from '../../../context/AuthContext';
 import db from '../../../services/db';
+import { loadYouTubeAPI } from '../../../services/youtubeApiLoader';
 import '../NovaFeatures.css';
 import './ytmusic.css';
 import './visualizer.css';
@@ -34,26 +35,6 @@ const thumbUrl = (thumbnails) => {
 };
 const artistNames = (artists) =>
   Array.isArray(artists) ? artists.filter((a) => a?.name).map((a) => a.name).join(', ') : '';
-
-// ── YouTube IFrame Player API loader (singleton) ──────────────────────
-let ytApiPromise = null;
-function loadYouTubeAPI() {
-  if (window.YT && window.YT.Player) return Promise.resolve(window.YT);
-  if (ytApiPromise) return ytApiPromise;
-  ytApiPromise = new Promise((resolve) => {
-    const prevReady = window.onYouTubeIframeAPIReady;
-    window.onYouTubeIframeAPIReady = () => {
-      if (typeof prevReady === 'function') prevReady();
-      resolve(window.YT);
-    };
-    if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
-      const tag = document.createElement('script');
-      tag.src = 'https://www.youtube.com/iframe_api';
-      document.head.appendChild(tag);
-    }
-  });
-  return ytApiPromise;
-}
 
 // Normalize a lyrics line coming back from ytmusicapi's LyricLine
 // dataclass — fields are snake_case (start_time/end_time) but be

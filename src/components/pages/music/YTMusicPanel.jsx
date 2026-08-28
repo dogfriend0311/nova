@@ -5,11 +5,11 @@
 // plus Artist/Album/Song detail views reached by tapping a search result.
 //
 // Playback: ytmusicapi only returns metadata (titles, artists, lyrics,
-// track order) — it can't hand back an audio stream. Actual playback here
-// is a real embedded YouTube player (the official iframe embed), driven
-// by a persistent "now playing" bar mounted at the App root (see
-// NowPlayingContext) so it keeps playing even if you navigate away from
-// the Music tab entirely.
+// track order) — it can't hand back an audio stream. Actual playback goes
+// through the app-wide "now playing" context (see NowPlayingContext),
+// which drives the iPod-styled mini-player pinned to the bottom-right of
+// every page — so it keeps playing (and stays controllable) even after
+// you navigate away from the Music tab entirely.
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ytm from '../../../services/ytMusicService';
 import { useNowPlaying } from '../../../context/NowPlayingContext';
@@ -282,7 +282,7 @@ function resultRowProps(r, onOpen, onPlay) {
     case 'video':
       return { title: t, sub: artistNames(r.artists), tag: r.duration,
         onClick: () => onOpen({ kind: 'song', videoId: r.videoId, title: t }),
-        onPlay: () => onPlay(r.videoId, t) };
+        onPlay: () => onPlay(r.videoId, t, { subtitle: artistNames(r.artists), thumbnail: thumbUrl(r.thumbnails), kind: 'song' }) };
     case 'album':
       return { title: t, sub: `${r.artist || ''}${r.year ? ` · ${r.year}` : ''}`,
         onClick: () => onOpen({ kind: 'album', browseId: r.browseId, title: t }) };
@@ -300,7 +300,7 @@ function resultRowProps(r, onOpen, onPlay) {
     case 'episode':
       return { title: t, sub: r.date,
         onClick: () => onOpen({ kind: 'episode', videoId: r.videoId, title: t }),
-        onPlay: () => onPlay(r.videoId, t) };
+        onPlay: () => onPlay(r.videoId, t, { subtitle: r.date, thumbnail: thumbUrl(r.thumbnails), kind: 'episode' }) };
     default:
       return { title: t, sub: r.resultType };
   }
@@ -613,7 +613,7 @@ function PodcastView({ playlistId, onOpen, onPlay }) {
           {(data.episodes || []).map((e, i) => (
             <ListRow key={e.videoId || i} thumb={thumbUrl(e.thumbnails)} title={e.title} sub={e.date}
               onClick={() => onOpen({ kind: 'episode', videoId: e.videoId, title: e.title })}
-              onPlay={() => onPlay(e.videoId, e.title)} />
+              onPlay={() => onPlay(e.videoId, e.title, { subtitle: e.date, thumbnail: thumbUrl(e.thumbnails), kind: 'episode' })} />
           ))}
         </div>
       </Section>
@@ -625,7 +625,7 @@ function EpisodeView({ videoId, title, onPlay }) {
   const { data, loading, error } = useLoad(() => ytm.getEpisode(videoId), videoId);
 
   // Opening an episode starts it playing automatically, same as songs.
-  useEffect(() => { onPlay(videoId, title); }, [videoId, title, onPlay]);
+  useEffect(() => { onPlay(videoId, title, { kind: 'episode' }); }, [videoId, title, onPlay]);
 
   if (loading) return <div className="ytm-loading">Loading episode…</div>;
   if (error) return <div className="ytm-error">{error}</div>;
@@ -637,7 +637,7 @@ function EpisodeView({ videoId, title, onPlay }) {
         <div>
           <div className="ytm-detail-title">{data.title}</div>
           <div className="ytm-detail-sub">{data.author?.name} · {data.date}</div>
-          <button className="ytm-btn small" style={{ marginTop: 8 }} onClick={() => onPlay(videoId, data.title || title)}>▶ Play</button>
+          <button className="ytm-btn small" style={{ marginTop: 8 }} onClick={() => onPlay(videoId, data.title || title, { subtitle: data.author?.name, thumbnail: thumbUrl(data.thumbnails), kind: 'episode' })}>▶ Play</button>
         </div>
       </div>
       {data.description && <Section title="Description"><div className="ytm-lyrics">{data.description}</div></Section>}
@@ -664,7 +664,7 @@ function ChannelView({ channelId, onOpen, onPlay }) {
           {(data.episodes?.results || []).map((e, i) => (
             <ListRow key={e.videoId || i} thumb={thumbUrl(e.thumbnails)} title={e.title} sub={e.date}
               onClick={() => onOpen({ kind: 'episode', videoId: e.videoId, title: e.title })}
-              onPlay={() => onPlay(e.videoId, e.title)} />
+              onPlay={() => onPlay(e.videoId, e.title, { subtitle: e.date, thumbnail: thumbUrl(e.thumbnails), kind: 'episode' })} />
           ))}
         </div>
       </Section>
@@ -720,7 +720,7 @@ function EpisodesPlaylistView({ playlistId, onOpen, onPlay }) {
         {(data.episodes || data.tracks || []).map((e, i) => (
           <ListRow key={e.videoId || i} thumb={thumbUrl(e.thumbnails)} title={e.title} sub={e.date || artistNames(e.artists)}
             onClick={() => onOpen({ kind: 'episode', videoId: e.videoId, title: e.title })}
-            onPlay={() => onPlay(e.videoId, e.title)} />
+            onPlay={() => onPlay(e.videoId, e.title, { subtitle: e.date || artistNames(e.artists), thumbnail: thumbUrl(e.thumbnails), kind: 'episode' })} />
         ))}
       </div>
     </div>
@@ -746,7 +746,7 @@ export default function YTMusicPanel() {
   const goHome = (t) => { setTab(t); setStack([]); };
   // Routed through the global now-playing context so playback survives
   // navigating away from the Music tab entirely (see NowPlayingContext).
-  const play = useCallback((videoId, title) => playGlobal(videoId, title), [playGlobal]);
+  const play = useCallback((videoId, title, extra) => playGlobal(videoId, title, extra), [playGlobal]);
 
   const current = stack[stack.length - 1];
 
@@ -754,7 +754,7 @@ export default function YTMusicPanel() {
     <div className="nf-page">
       <div className="nf-header">
         <h1>🎶 Nova Music</h1>
-        <p>Search and browse YouTube Music — songs, artists, albums, playlists, podcasts and your library. Tap ▶ on anything to play it.</p>
+        <p>Search and browse YouTube Music — songs, artists, albums, playlists, podcasts and your library. Tap ▶ on anything to play it — it keeps playing in the mini-player (bottom-right) as you browse the rest of the site.</p>
       </div>
 
       <div className="ytm-wrap">

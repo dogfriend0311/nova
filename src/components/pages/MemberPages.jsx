@@ -223,6 +223,82 @@ const NowPlayingPublic = ({ lastfmUsername }) => {
   );
 };
 
+// ── Listening to (Nova Music "now playing" status) ──────────────
+// Shown right under the member's username. Backed by the shared
+// `now_playing` table (see db.getNowPlaying / supabase/now_playing.sql),
+// which the app-wide music player (src/context/NowPlayingContext.jsx)
+// keeps updated every ~15s while that member has something playing.
+const fmtListeningTime = (sec) => {
+  if (!Number.isFinite(sec) || sec < 0) return '0:00';
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+};
+
+// Anything not refreshed in this long is treated as stale (browser
+// closed, tab crashed, etc.) rather than "still listening".
+const LISTENING_STALE_MS = 90000;
+
+const ListeningToPublic = ({ username }) => {
+  const [status, setStatus] = useState(null);
+  const [tickNow, setTickNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!username) return;
+    let active = true;
+    const poll = async () => {
+      try {
+        const { db } = await import('../../services/db');
+        const s = await db.getNowPlaying(username);
+        if (active) setStatus(s);
+      } catch { /* ignore — just don't show the status */ }
+    };
+    poll();
+    const id = setInterval(poll, 10000);
+    return () => { active = false; clearInterval(id); };
+  }, [username]);
+
+  // Ticks the displayed "how far in" forward between polls, so it doesn't
+  // look frozen for the ~10s between refreshes.
+  useEffect(() => {
+    const id = setInterval(() => setTickNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (!status || !status.track_title) return null;
+  const updatedAt = status.updated_at ? new Date(status.updated_at).getTime() : 0;
+  if (!updatedAt || tickNow - updatedAt > LISTENING_STALE_MS) return null;
+
+  const elapsedSincePoll = status.is_paused ? 0 : Math.max(0, (tickNow - updatedAt) / 1000);
+  const position = Math.min((status.position_sec || 0) + elapsedSincePoll, status.duration_sec || Infinity);
+  const pct = status.duration_sec > 0 ? Math.min(100, (position / status.duration_sec) * 100) : 0;
+
+  return (
+    <div className="gl-listening-to">
+      <div className="gl-listening-thumb">
+        {status.thumbnail_url ? <img src={status.thumbnail_url} alt="" /> : <span>♪</span>}
+      </div>
+      <div className="gl-listening-main">
+        <div className="gl-listening-kicker">
+          <span className="gl-listening-dot" />
+          {status.is_paused ? 'Paused' : `Listening to ${status.kind === 'episode' ? 'a podcast' : 'a song'}`}
+        </div>
+        <div className="gl-listening-title">{status.track_title}</div>
+        {status.artist && <div className="gl-listening-artist">{status.artist}</div>}
+        {status.duration_sec > 0 && (
+          <>
+            <div className="gl-listening-bar"><div className="gl-listening-bar-fill" style={{ width: `${pct}%` }} /></div>
+            <div className="gl-listening-times">
+              <span>{fmtListeningTime(position)}</span>
+              <span>{fmtListeningTime(status.duration_sec)}</span>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ── Comments ──────────────────────────────────────────────────
 const CommentsSection = ({ toUsername, currentUser }) => {
   const [comments, setComments] = useState([]);
@@ -857,6 +933,7 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile }) => {
                 <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', marginRight: 5, background: isOnline ? presenceDot : 'rgba(220,215,240,0.3)', boxShadow: isOnline ? `0 0 6px ${presenceDot}` : 'none' }} />
                 {presenceTxt}
               </div>
+              <ListeningToPublic username={member.username} />
             </div>
           </div>
 

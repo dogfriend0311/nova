@@ -1730,7 +1730,9 @@ export const db = {
   },
 
   /* ── NOW PLAYING (music "now listening" status) ───────────────
-     Requires: now_playing table (see nova-migrations.sql).         */
+     Requires: now_playing table (see supabase/now_playing.sql).
+     Powers the "🎧 Listening to" line shown under a member's name
+     on their public member page while Nova Music is playing. */
   async getNowPlaying(username) {
     if (hasSupabase()) {
       try {
@@ -1742,8 +1744,23 @@ export const db = {
     return ls.get('now_playing').find(n => n.member_username === username) || null;
   },
 
-  async setNowPlaying(username, trackTitle, artist, source) {
-    const record = { member_username: username, track_title: trackTitle, artist, source, updated_at: new Date().toISOString() };
+  // extra: { videoId, thumbnail, kind ('song'|'episode'), positionSec,
+  // durationSec, isPaused } — all optional, used for the progress bar
+  // and "how far into the track" display on the public member page.
+  async setNowPlaying(username, trackTitle, artist, source, extra = {}) {
+    const record = {
+      member_username: username,
+      track_title: trackTitle,
+      artist,
+      source,
+      video_id: extra.videoId ?? null,
+      thumbnail_url: extra.thumbnail ?? null,
+      kind: extra.kind || 'song',
+      position_sec: Math.max(0, Math.floor(extra.positionSec || 0)),
+      duration_sec: Math.max(0, Math.floor(extra.durationSec || 0)),
+      is_paused: !!extra.isPaused,
+      updated_at: new Date().toISOString(),
+    };
     if (hasSupabase()) {
       try {
         const { data, error } = await supabase
@@ -1758,6 +1775,14 @@ export const db = {
     const list = ls.get('now_playing').filter(n => n.member_username !== username);
     ls.set('now_playing', [...list, record]);
     return record;
+  },
+
+  // Clears a member's "listening to" status (playback stopped / signed out).
+  async clearNowPlaying(username) {
+    if (hasSupabase()) {
+      try { await supabase.from('now_playing').delete().eq('member_username', username); } catch {}
+    }
+    ls.set('now_playing', ls.get('now_playing').filter(n => n.member_username !== username));
   },
 
   /* ── XP / ACHIEVEMENTS (site-wide progression) ────────────────
