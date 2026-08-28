@@ -5,6 +5,7 @@ import './NovaFeatures.css';
 // Lazy-loaded — pulls in the ytmusicapi service/UI only when someone
 // actually opens the tab, instead of bloating every Music Hub visit.
 const YTMusicPanel = React.lazy(() => import('./music/YTMusicPanel'));
+const MusicLeaderboard = React.lazy(() => import('./music/MusicLeaderboard'));
 
 // ── Last.fm inline panel ─────────────────────────────────────
 const LastFmPanel = ({ user }) => {
@@ -154,9 +155,10 @@ const LastFmPanel = ({ user }) => {
 
 // ── MusicHub root ─────────────────────────────────────────────
 const TABS = [
-  { id: 'lastfm',    label: '🎧 Last.fm'    },
-  { id: 'battle',    label: '🎵 Beat Battle' },
-  { id: 'ytmusic',   label: '🎶 Nova Music'    },
+  { id: 'lastfm',      label: '🎧 Last.fm'      },
+  { id: 'battle',      label: '🎵 Beat Battle'  },
+  { id: 'ytmusic',     label: '🎶 Nova Music'    },
+  { id: 'leaderboard', label: '🏆 Leaderboard'  },
 ];
 
 const MusicHub = ({ user, initialTab, onSignIn }) => {
@@ -196,6 +198,11 @@ const MusicHub = ({ user, initialTab, onSignIn }) => {
       {tab === 'ytmusic'    && (
         <React.Suspense fallback={<div className="nf-card nf-empty">Loading…</div>}>
           <YTMusicPanel />
+        </React.Suspense>
+      )}
+      {tab === 'leaderboard' && (
+        <React.Suspense fallback={<div className="nf-card nf-empty">Loading…</div>}>
+          <MusicLeaderboard />
         </React.Suspense>
       )}
     </div>

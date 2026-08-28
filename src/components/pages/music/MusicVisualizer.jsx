@@ -1,21 +1,29 @@
 // src/components/pages/music/MusicVisualizer.jsx
 //
-// Full-screen music visualizer for Nova Music: water fountains + disco
-// lights pulsing on the beat, with real lyrics synced to playback.
+// Full-screen music visualizer for Nova Music: fireworks launching and
+// bursting on the beat, with karaoke-style lyrics synced to playback.
 //
 // Honesty note on "the beat": ytmusicapi (and the YouTube iframe embed
 // that actually plays the audio) never hand back an audio stream, so
 // there's no waveform/FFT data to analyze here — a cross-origin YouTube
 // iframe can't be fed into the Web Audio API either. So the beat driving
-// the fountains/lights is a BPM clock, not a live audio analysis: it
-// defaults to a reasonable guess and you dial it in with the "Tap tempo"
-// button (tap along and it both sets the BPM and locks the downbeat to
-// that moment in the track). The lyrics, by contrast, ARE real —
-// ytmusicapi returns actual per-line timestamps for most tracks, and
-// this synced against the live playback time from the YouTube player.
+// the fireworks is a BPM clock, not a live audio analysis: it defaults
+// to a reasonable guess and you dial it in with the "Tap tempo" button
+// (tap along and it both sets the BPM and locks the downbeat to that
+// moment in the track). The lyrics, by contrast, ARE real — ytmusicapi
+// returns actual per-line timestamps for most tracks, and this is
+// synced against the live playback time from the YouTube player. Every
+// line (past/active/upcoming) is rendered in a scrolling karaoke list,
+// and the active line fills in left-to-right in time with its
+// start/end timestamps. Tracks without timestamps fall back to a
+// plain lyrics block that auto-scrolls proportionally to playback
+// position (via the player's duration), so it still moves with the
+// song instead of sitting static.
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ytm from '../../../services/ytMusicService';
 import { useNowPlaying } from '../../../context/NowPlayingContext';
+import { useAuth } from '../../../context/AuthContext';
+import db from '../../../services/db';
 import '../NovaFeatures.css';
 import './ytmusic.css';
 import './visualizer.css';
@@ -58,7 +66,7 @@ function normalizeLine(line) {
 
 // ── Canvas visualizer: fountains + disco lights, driven by a beat clock ──
 function useVisualizerCanvas(canvasRef, { getBeatPhase, getIsPlaying, colorSeed }) {
-  const stateRef = useRef({ particles: [], lastBeatIndex: -1, hue: 0 });
+  const stateRef = useRef({ rockets: [], sparks: [], flashes: [], stars: [], hue: 0, beatCount: 0 });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -72,34 +80,56 @@ function useVisualizerCanvas(canvasRef, { getBeatPhase, getIsPlaying, colorSeed 
       w = rect.width; h = rect.height;
       canvas.width = w * dpr; canvas.height = h * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      // reseed the starfield to the new size
+      const st = stateRef.current;
+      st.stars = Array.from({ length: 90 }, () => ({
+        x: Math.random() * w, y: Math.random() * h * 0.85,
+        r: 0.4 + Math.random() * 1.1, phase: Math.random() * Math.PI * 2,
+      }));
     };
     resize();
     window.addEventListener('resize', resize);
 
-    // 3 fountain emitters along the bottom
-    const emitters = [0.2, 0.5, 0.8];
-
-    const spawnBurst = (baseHue) => {
+    // Launch a rocket from near the bottom that climbs to a random
+    // apex height, then explodes into a radial shell of sparks. Every
+    // 4th beat gets a bigger, double-shell "finale" burst for variety.
+    const launchFirework = (baseHue, big) => {
       const st = stateRef.current;
-      emitters.forEach((fx, idx) => {
-        const count = 14;
+      const x = w * (0.12 + Math.random() * 0.76);
+      const apexY = h * (big ? 0.16 + Math.random() * 0.14 : 0.22 + Math.random() * 0.3);
+      st.rockets.push({
+        x, y: h + 6, apexY,
+        vy: -(h - apexY) / (big ? 34 : 26) - 2,
+        hue: (baseHue + Math.random() * 30) % 360,
+        big, trail: [],
+      });
+      if (st.rockets.length > 8) st.rockets.shift();
+    };
+
+    const explode = (rocket) => {
+      const st = stateRef.current;
+      const shells = rocket.big ? 2 : 1;
+      for (let s = 0; s < shells; s++) {
+        const count = rocket.big ? 70 : 46;
+        const speed0 = rocket.big ? 3.4 : 2.6;
+        const shellHue = (rocket.hue + s * 45) % 360;
         for (let i = 0; i < count; i++) {
-          const spread = (Math.random() - 0.5) * 0.9;
-          const speed = 5.5 + Math.random() * 3.2;
-          const angle = -Math.PI / 2 + spread;
-          st.particles.push({
-            x: fx * w,
-            y: h,
+          const angle = (Math.PI * 2 * i) / count + Math.random() * 0.15;
+          const speed = speed0 * (0.7 + Math.random() * 0.5);
+          st.sparks.push({
+            x: rocket.x, y: rocket.y,
             vx: Math.cos(angle) * speed,
             vy: Math.sin(angle) * speed,
             life: 0,
-            maxLife: 60 + Math.random() * 30,
-            hue: (baseHue + idx * 40 + Math.random() * 20) % 360,
-            size: 1.5 + Math.random() * 2.2,
+            maxLife: 46 + Math.random() * 30,
+            hue: (shellHue + (Math.random() - 0.5) * 26) % 360,
+            size: 1.6 + Math.random() * 1.8,
+            flicker: Math.random() * 10,
           });
         }
-      });
-      if (st.particles.length > 1400) st.particles.splice(0, st.particles.length - 1400);
+      }
+      if (st.sparks.length > 2200) st.sparks.splice(0, st.sparks.length - 2200);
+      st.flashes.push({ x: rocket.x, y: rocket.y, life: 0, maxLife: 14, size: rocket.big ? 70 : 46 });
     };
 
     let lastTs = performance.now();
@@ -124,86 +154,90 @@ function useVisualizerCanvas(canvasRef, { getBeatPhase, getIsPlaying, colorSeed 
       // envelope: sharp attack, decay over the beat — peaks right after phase resets to 0
       const envelope = Math.max(0, 1 - phase * 2.2);
 
-      // detect a fresh beat (phase just wrapped near 0) to spawn a burst + advance hue
+      // detect a fresh beat (phase just wrapped near 0) → launch fireworks to it
       if (playing && phase < 0.06 && st.lastPhase !== undefined && st.lastPhase > 0.5) {
         st.hue = (st.hue + 47) % 360;
-        spawnBurst(st.hue + colorSeed);
+        st.beatCount += 1;
+        const big = st.beatCount % 4 === 0;
+        launchFirework(st.hue + colorSeed, big);
+        // occasionally a second, smaller rocket for a fuller sky
+        if (Math.random() < 0.35) launchFirework((st.hue + 90 + colorSeed) % 360, false);
       }
       st.lastPhase = phase;
 
-      // ── background wash ──
+      // ── night sky background ──
       ctx.clearRect(0, 0, w, h);
-      const bgGrad = ctx.createRadialGradient(w / 2, h * 0.35, 0, w / 2, h * 0.35, Math.max(w, h) * 0.75);
-      bgGrad.addColorStop(0, `hsla(${(st.hue + colorSeed) % 360}, 60%, ${playing ? 10 + envelope * 6 : 8}%, 1)`);
-      bgGrad.addColorStop(1, 'hsla(230, 40%, 3%, 1)');
+      const bgGrad = ctx.createRadialGradient(w / 2, h * 0.3, 0, w / 2, h * 0.3, Math.max(w, h) * 0.8);
+      bgGrad.addColorStop(0, `hsla(${(st.hue + colorSeed) % 360}, 45%, ${playing ? 7 + envelope * 5 : 6}%, 1)`);
+      bgGrad.addColorStop(1, 'hsla(230, 45%, 2%, 1)');
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, w, h);
 
-      // ── disco light beams sweeping from the top ──
-      const beamCount = 5;
-      ctx.globalCompositeOperation = 'lighter';
-      for (let i = 0; i < beamCount; i++) {
-        const t = ts / 1000;
-        const sweep = Math.sin(t * 0.35 + i * 1.7) * 0.9;
-        const originX = w * (0.15 + (i / (beamCount - 1)) * 0.7);
-        const hue = (st.hue + colorSeed + i * 65) % 360;
-        const beamW = 0.09 + envelope * 0.05;
-        ctx.save();
-        ctx.translate(originX, -h * 0.05);
-        ctx.rotate(sweep * 0.5);
-        const grad = ctx.createLinearGradient(0, 0, 0, h * 1.15);
-        grad.addColorStop(0, `hsla(${hue}, 90%, 65%, ${0.20 + envelope * 0.28})`);
-        grad.addColorStop(1, `hsla(${hue}, 90%, 60%, 0)`);
-        ctx.fillStyle = grad;
+      // ── twinkling stars ──
+      st.stars.forEach((star) => {
+        const tw = 0.35 + 0.35 * Math.sin(ts / 500 + star.phase);
         ctx.beginPath();
-        ctx.moveTo(-w * beamW * 0.15, 0);
-        ctx.lineTo(w * beamW * 0.15, 0);
-        ctx.lineTo(w * beamW * 1.8, h * 1.15);
-        ctx.lineTo(-w * beamW * 1.8, h * 1.15);
-        ctx.closePath();
+        ctx.fillStyle = `rgba(255,255,255,${Math.max(0, tw)})`;
+        ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
         ctx.fill();
-        ctx.restore();
-      }
-      ctx.globalCompositeOperation = 'source-over';
+      });
 
-      // ── mirror-ball flash on beat ──
-      if (envelope > 0.05) {
-        ctx.fillStyle = `rgba(255,255,255,${envelope * 0.05})`;
-        ctx.fillRect(0, 0, w, h);
-      }
-
-      // ── fountain particles ──
+      // ── rocket flight + trails ──
       ctx.globalCompositeOperation = 'lighter';
-      const gravity = 0.16;
-      st.particles.forEach((p) => {
+      st.rockets.forEach((r) => {
+        r.trail.push({ x: r.x, y: r.y });
+        if (r.trail.length > 10) r.trail.shift();
+        r.y += r.vy * dt;
+        r.vy += 0.02 * dt; // gentle deceleration as it climbs
+        r.trail.forEach((p, i) => {
+          const a = (i / r.trail.length) * 0.5;
+          ctx.beginPath();
+          ctx.fillStyle = `hsla(${r.hue}, 90%, 70%, ${a})`;
+          ctx.arc(p.x, p.y, 1.6, 0, Math.PI * 2);
+          ctx.fill();
+        });
+        ctx.beginPath();
+        ctx.fillStyle = `hsla(${r.hue}, 95%, 80%, 0.95)`;
+        ctx.arc(r.x, r.y, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      const done = st.rockets.filter((r) => r.y <= r.apexY);
+      done.forEach(explode);
+      st.rockets = st.rockets.filter((r) => r.y > r.apexY);
+
+      // ── burst flash rings ──
+      st.flashes.forEach((f) => { f.life += dt; });
+      st.flashes = st.flashes.filter((f) => f.life < f.maxLife);
+      st.flashes.forEach((f) => {
+        const a = Math.max(0, 1 - f.life / f.maxLife);
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(255,255,255,${a * 0.5})`;
+        ctx.arc(f.x, f.y, f.size * (0.3 + (f.life / f.maxLife) * 0.7), 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // ── spark shells ──
+      const gravity = 0.045;
+      const drag = 0.986;
+      st.sparks.forEach((p) => {
+        p.vx *= drag; p.vy *= drag;
         p.vy += gravity * dt;
         p.x += p.vx * dt;
         p.y += p.vy * dt;
         p.life += dt;
       });
-      st.particles = st.particles.filter((p) => p.life < p.maxLife && p.y < h + 40);
-      st.particles.forEach((p) => {
+      st.sparks = st.sparks.filter((p) => p.life < p.maxLife);
+      st.sparks.forEach((p) => {
         const lifeRatio = p.life / p.maxLife;
-        const alpha = Math.max(0, 1 - lifeRatio);
-        const r = p.size * (1 + lifeRatio * 1.4);
+        const flicker = 0.6 + 0.4 * Math.sin(p.life * 0.9 + p.flicker);
+        const alpha = Math.max(0, 1 - lifeRatio) * flicker;
+        const r = p.size * (1 - lifeRatio * 0.3);
         ctx.beginPath();
-        ctx.fillStyle = `hsla(${p.hue}, 85%, 70%, ${alpha * 0.85})`;
+        ctx.fillStyle = `hsla(${p.hue}, 90%, 68%, ${alpha})`;
         ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
         ctx.fill();
       });
       ctx.globalCompositeOperation = 'source-over';
-
-      // ── fountain basins ──
-      emitters.forEach((fx) => {
-        const bx = fx * w;
-        const basinGrad = ctx.createRadialGradient(bx, h - 4, 0, bx, h - 4, 46 + envelope * 14);
-        basinGrad.addColorStop(0, `hsla(${(st.hue + colorSeed) % 360}, 80%, 60%, ${0.35 + envelope * 0.25})`);
-        basinGrad.addColorStop(1, 'hsla(220, 60%, 10%, 0)');
-        ctx.fillStyle = basinGrad;
-        ctx.beginPath();
-        ctx.ellipse(bx, h - 4, 60 + envelope * 18, 16 + envelope * 6, 0, 0, Math.PI * 2);
-        ctx.fill();
-      });
     };
 
     raf = requestAnimationFrame(draw);
@@ -217,6 +251,7 @@ export default function MusicVisualizer() {
   // Stop the global mini-player (if something's playing there) so we
   // don't end up with two YouTube embeds producing audio at once.
   const { stop: stopGlobal } = useNowPlaying();
+  const { user } = useAuth();
 
   // search
   const [query, setQuery] = useState('');
@@ -231,9 +266,14 @@ export default function MusicVisualizer() {
   const playerElRef = useRef(null);
   const [playerReady, setPlayerReady] = useState(false);
 
-  // lyrics
+  // lyrics (karaoke)
   const [lyricsState, setLyricsState] = useState({ status: 'idle', lines: [], hasTimestamps: false, plain: '' });
+  const lyricsStateRef = useRef(lyricsState);
+  useEffect(() => { lyricsStateRef.current = lyricsState; }, [lyricsState]);
   const [activeLineIdx, setActiveLineIdx] = useState(-1);
+  const activeLineIdxRef = useRef(-1);
+  const activeFillRef = useRef(null); // the currently-active line's karaoke fill overlay
+  const plainLyricsRef = useRef(null); // scroll container for untimed lyrics
 
   // beat / bpm
   const [bpm, setBpm] = useState(120);
@@ -264,8 +304,18 @@ export default function MusicVisualizer() {
     setSong(s);
     setLyricsState({ status: 'loading', lines: [], hasTimestamps: false, plain: '' });
     setActiveLineIdx(-1);
+    activeLineIdxRef.current = -1;
     beatOffsetRef.current = 0;
     tapTimesRef.current = [];
+
+    // Fire-and-forget listen tracking for the Music Hub leaderboard.
+    db.recordMusicPlay({
+      username: user?.username,
+      video_id: s.videoId,
+      title: s.title,
+      artist: artistNames(s.artists),
+      thumbnail: thumbUrl(s.thumbnails),
+    }).catch(() => {});
 
     ytm.getWatchPlaylist({ videoId: s.videoId })
       .then((data) => {
@@ -284,7 +334,7 @@ export default function MusicVisualizer() {
           });
       })
       .catch(() => setLyricsState({ status: 'unavailable', lines: [], hasTimestamps: false, plain: '' }));
-  }, [stopGlobal]);
+  }, [stopGlobal, user]);
 
   // ── mount YT player once ──
   useEffect(() => {
@@ -313,27 +363,50 @@ export default function MusicVisualizer() {
     }
   }, [playerReady, song]);
 
-  // ── playback clock: poll currentTime + drive lyric sync ──
+  // ── playback clock: poll currentTime + drive karaoke sync ──
+  // Runs every frame via rAF. Reads/writes through refs (not React
+  // state) wherever a per-frame update is needed, so a 60fps tick
+  // doesn't trigger 60 re-renders a second — activeLineIdx only
+  // triggers a (cheap) re-render when the active LINE actually
+  // changes; the karaoke fill sweep and the plain-lyrics auto-scroll
+  // are applied straight to the DOM.
   useEffect(() => {
     let raf;
     const tick = () => {
       raf = requestAnimationFrame(tick);
       const p = playerRef.current;
-      if (p && typeof p.getCurrentTime === 'function') {
-        const t = p.getCurrentTime();
-        currentTimeRef.current = t;
-        setLyricsState((prev) => {
-          if (!prev.hasTimestamps || !prev.lines.length) return prev;
-          const idx = prev.lines.findIndex((ln) => ln.start != null && t >= ln.start && (ln.end == null || t < ln.end));
-          if (idx !== activeLineIdx) setActiveLineIdx(idx);
-          return prev;
-        });
+      if (!p || typeof p.getCurrentTime !== 'function') return;
+      const t = p.getCurrentTime();
+      currentTimeRef.current = t;
+      const lstate = lyricsStateRef.current;
+
+      if (lstate.hasTimestamps && lstate.lines.length) {
+        const idx = lstate.lines.findIndex((ln) => ln.start != null && t >= ln.start && (ln.end == null || t < ln.end));
+        if (idx !== activeLineIdxRef.current) {
+          activeLineIdxRef.current = idx;
+          setActiveLineIdx(idx);
+        }
+        // karaoke fill sweep: left-to-right progress across the active line's timestamp span
+        if (idx >= 0 && activeFillRef.current) {
+          const ln = lstate.lines[idx];
+          const dur = ln.start != null && ln.end != null ? ln.end - ln.start : null;
+          const pct = dur && dur > 0 ? Math.max(0, Math.min(1, (t - ln.start) / dur)) * 100 : 100;
+          activeFillRef.current.style.setProperty('--fill', `${pct}%`);
+        }
+      } else if (lstate.status === 'ready' && !lstate.hasTimestamps && lstate.plain && plainLyricsRef.current && typeof p.getDuration === 'function') {
+        // No per-line timestamps — still move the lyrics with the song by
+        // auto-scrolling proportionally to playback position.
+        const dur = p.getDuration();
+        if (dur > 0) {
+          const el = plainLyricsRef.current;
+          const maxScroll = el.scrollHeight - el.clientHeight;
+          if (maxScroll > 0) el.scrollTop = Math.max(0, Math.min(maxScroll, (t / dur) * maxScroll));
+        }
       }
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeLineIdx]);
+  }, []);
 
   // ── beat phase getter for canvas (0..1, wraps every beat, anchored to tap/offset) ──
   const getBeatPhase = useCallback(() => {
@@ -379,13 +452,17 @@ export default function MusicVisualizer() {
     return () => document.removeEventListener('fullscreenchange', onChange);
   }, []);
 
-  const activeLine = lyricsState.hasTimestamps ? lyricsState.lines[activeLineIdx] : null;
-  const nextLine = lyricsState.hasTimestamps ? lyricsState.lines[activeLineIdx + 1] : null;
+  // Karaoke list scroll: keep the active row vertically centered in the
+  // track by translating the whole track up/down. ROW_H must match
+  // .viz-karaoke-row's height in visualizer.css.
+  const ROW_H = 44;
+  const KARAOKE_H = ROW_H * 5;
+  const karaokeOffset = KARAOKE_H / 2 - ROW_H / 2 - Math.max(activeLineIdx, 0) * ROW_H;
 
   return (
     <div>
       <div className="ytm-list-sub" style={{ marginBottom: 12 }}>
-        Pick a song — fountains and disco lights pulse to a tappable beat clock, with real lyrics synced underneath.
+        Pick a song — fireworks launch and burst to a tappable beat clock, with karaoke-style lyrics scrolling underneath.
       </div>
 
       {!song && (
@@ -445,14 +522,34 @@ export default function MusicVisualizer() {
             <div className="viz-lyrics">
               {lyricsState.status === 'loading' && <div className="viz-lyrics-line dim">Loading lyrics…</div>}
               {lyricsState.status === 'unavailable' && <div className="viz-lyrics-line dim">No lyrics available for this track.</div>}
+
               {lyricsState.hasTimestamps && (
-                <>
-                  <div className="viz-lyrics-line active">{activeLine?.text || '\u00A0'}</div>
-                  <div className="viz-lyrics-line next">{nextLine?.text || ''}</div>
-                </>
+                <div className="viz-karaoke" style={{ height: KARAOKE_H }}>
+                  <div
+                    className="viz-karaoke-track"
+                    style={{ transform: `translateY(${karaokeOffset}px)` }}
+                  >
+                    {lyricsState.lines.map((ln, i) => {
+                      const rowState = i === activeLineIdx ? 'active' : i < activeLineIdx ? 'past' : 'upcoming';
+                      return (
+                        <div key={i} className={`viz-karaoke-row ${rowState}`} style={{ height: ROW_H }}>
+                          {rowState === 'active' ? (
+                            <span className="viz-karaoke-text">
+                              <span className="viz-karaoke-text-base">{ln.text || '\u00A0'}</span>
+                              <span className="viz-karaoke-text-fill" ref={activeFillRef}>{ln.text || '\u00A0'}</span>
+                            </span>
+                          ) : (
+                            <span>{ln.text || '\u00A0'}</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
+
               {!lyricsState.hasTimestamps && lyricsState.plain && (
-                <div className="viz-lyrics-plain">{lyricsState.plain}</div>
+                <div className="viz-lyrics-plain" ref={plainLyricsRef}>{lyricsState.plain}</div>
               )}
             </div>
 

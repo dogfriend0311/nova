@@ -8,17 +8,29 @@
 // normal mini-player ("the iPod") should. Nova Music itself just calls
 // play()/stop() from useNowPlaying() instead of holding its own state.
 import React, { createContext, useContext, useState, useCallback } from 'react';
+import { useAuth } from './AuthContext';
+import db from '../services/db';
 import './nowPlaying.css';
 
 const NowPlayingContext = createContext(null);
 
 export function NowPlayingProvider({ children }) {
   const [current, setCurrent] = useState(null); // { videoId, title, subtitle, thumbnail }
+  const { user } = useAuth();
 
   const play = useCallback((videoId, title, extra = {}) => {
     if (!videoId) return;
     setCurrent({ videoId, title, ...extra });
-  }, []);
+    // Fire-and-forget listen tracking for the Music Hub leaderboard —
+    // never blocks playback if it fails.
+    db.recordMusicPlay({
+      username: user?.username,
+      video_id: videoId,
+      title,
+      artist: extra.subtitle,
+      thumbnail: extra.thumbnail,
+    }).catch(() => {});
+  }, [user]);
   const stop = useCallback(() => setCurrent(null), []);
 
   return (

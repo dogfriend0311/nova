@@ -2307,6 +2307,80 @@ export const db = {
       .sort((a, b) => new Date(a.captured_at) - new Date(b.captured_at));
   },
 
+  /* ── MUSIC PLAYS (Nova Music listen tracking → leaderboard) ──────
+     One row per "a member opened/played a track" — logged from
+     NowPlayingContext (the global mini-player, used by Nova Music's
+     search/browse) and from MusicVisualizer (the karaoke/fireworks
+     screen). Aggregated client-side into "top songs" and "top
+     listeners" for the Leaderboard tab. Fire-and-forget: a failed
+     write never blocks playback. */
+  async recordMusicPlay({ username, video_id, title, artist, thumbnail }) {
+    if (!username || username === 'Guest' || !video_id) return;
+    const record = {
+      username, video_id,
+      title: title || 'Untitled', artist: artist || '', thumbnail: thumbnail || null,
+      played_at: new Date().toISOString(),
+    };
+    if (hasSupabase()) {
+      try {
+        const { error } = await supabase.from('nova_music_plays').insert([record]);
+        if (!error) return;
+      } catch { /* fall through to localStorage */ }
+    }
+    const all = ls.get('nova_music_plays');
+    all.push(record);
+    ls.set('nova_music_plays', all);
+  },
+
+  async _getMusicPlays() {
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_music_plays').select('*');
+        if (!error) return data || [];
+      } catch { /* fall through */ }
+    }
+    return ls.get('nova_music_plays');
+  },
+
+  async getTopSongs(limit = 10) {
+    const rows = await this._getMusicPlays();
+    const byVideo = new Map();
+    for (const r of rows) {
+      if (!r.video_id) continue;
+      if (!byVideo.has(r.video_id)) {
+        byVideo.set(r.video_id, { video_id: r.video_id, title: r.title, artist: r.artist, thumbnail: r.thumbnail, plays: 0, listeners: new Set() });
+      }
+      const e = byVideo.get(r.video_id);
+      e.plays += 1;
+      e.listeners.add(r.username);
+      // prefer the most recently-seen title/artist/thumbnail, in case a
+      // track's metadata was missing on an earlier play
+      if (r.title) e.title = r.title;
+      if (r.artist) e.artist = r.artist;
+      if (r.thumbnail) e.thumbnail = r.thumbnail;
+    }
+    return Array.from(byVideo.values())
+      .map((e) => ({ ...e, listeners: e.listeners.size }))
+      .sort((a, b) => b.plays - a.plays)
+      .slice(0, limit);
+  },
+
+  async getTopListeners(limit = 10) {
+    const rows = await this._getMusicPlays();
+    const byUser = new Map();
+    for (const r of rows) {
+      if (!r.username) continue;
+      if (!byUser.has(r.username)) byUser.set(r.username, { username: r.username, plays: 0, songs: new Set() });
+      const e = byUser.get(r.username);
+      e.plays += 1;
+      e.songs.add(r.video_id);
+    }
+    return Array.from(byUser.values())
+      .map((e) => ({ ...e, songs: e.songs.size }))
+      .sort((a, b) => b.plays - a.plays)
+      .slice(0, limit);
+  },
+
 };
 
 /* ── Internal: keep localStorage in sync with Supabase ─────────── */

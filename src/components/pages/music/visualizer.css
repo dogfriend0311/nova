@@ -79,14 +79,75 @@
   text-shadow: 0 2px 14px rgba(0,0,0,0.75), 0 0 24px rgba(94,129,244,0.35);
   transition: opacity 0.2s ease;
 }
-.viz-lyrics-line.active { font-size: 1.35rem; color: #fff; margin-bottom: 6px; }
-.viz-lyrics-line.next { font-size: 1rem; color: rgba(255,255,255,0.55); }
 .viz-lyrics-line.dim { font-size: 0.95rem; color: rgba(255,255,255,0.45); font-weight: 600; }
+
+/* ── Karaoke lyrics list ──────────────────────────────────────────
+   All lines are always rendered; the track slides via `transform` so
+   the active line stays vertically centered (karaoke-prompter style).
+   Past lines dim out above, upcoming lines wait dimmed below, and a
+   soft mask fades the top/bottom edges of the window. */
+.viz-karaoke {
+  position: relative;
+  max-width: 640px;
+  margin: 0 auto;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 78%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 78%, transparent 100%);
+}
+.viz-karaoke-track {
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.viz-karaoke-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  color: rgba(255,255,255,0.4);
+  text-shadow: 0 2px 10px rgba(0,0,0,0.7);
+  transition: opacity 0.3s ease, font-size 0.3s ease, color 0.3s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 8px;
+}
+.viz-karaoke-row.past { opacity: 0.32; }
+.viz-karaoke-row.upcoming { opacity: 0.5; }
+.viz-karaoke-row.active {
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: rgba(255,255,255,0.5);
+  opacity: 1;
+}
+
+/* Karaoke "fill sweep": a bright overlay copy of the active line,
+   clipped to a --fill percentage (0–100) that's updated every frame
+   in sync with the track's real playback time — the classic
+   left-to-right karaoke color wipe. */
+.viz-karaoke-text { position: relative; display: inline-block; }
+.viz-karaoke-text-base { color: rgba(255,255,255,0.42); }
+.viz-karaoke-text-fill {
+  position: absolute;
+  inset: 0;
+  color: #fff;
+  background: linear-gradient(90deg, #7ef9c0, #5e81f4 60%, #ff8bd0);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 18px rgba(126,249,192,0.55);
+  clip-path: inset(0 calc(100% - var(--fill, 0%)) 0 0);
+  pointer-events: none;
+}
+
 .viz-lyrics-plain {
-  max-height: 120px; overflow-y: auto; pointer-events: auto;
-  white-space: pre-line; line-height: 1.6; font-size: 0.85rem;
+  max-height: 140px; overflow-y: hidden; pointer-events: auto;
+  white-space: pre-line; line-height: 1.7; font-size: 0.85rem;
   color: rgba(255,255,255,0.7); background: rgba(5,7,13,0.4);
   border-radius: 8px; padding: 10px 14px; display: inline-block; max-width: 90%;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 88%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 12%, #000 88%, transparent 100%);
 }
 
 .viz-controls {
