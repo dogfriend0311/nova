@@ -14,6 +14,8 @@ import ytm from '../../../services/ytMusicService';
 import '../NovaFeatures.css';
 import './ytmusic.css';
 
+const MusicVisualizer = React.lazy(() => import('./MusicVisualizer'));
+
 // ── small shared bits ───────────────────────────────────────────────
 const thumbUrl = (thumbnails) => {
   if (!Array.isArray(thumbnails) || !thumbnails.length) return null;
@@ -753,6 +755,7 @@ const TOP_TABS = [
   { id: 'explore', label: '🧭 Explore' },
   { id: 'library', label: '📚 Library' },
   { id: 'podcasts', label: '🎙️ Podcasts' },
+  { id: 'visualizer', label: '✨ Visualizer' },
 ];
 
 export default function YTMusicPanel() {
@@ -793,6 +796,11 @@ export default function YTMusicPanel() {
           {!current && tab === 'explore' && <ExploreTab onOpen={open} onPlay={play} />}
           {!current && tab === 'library' && <LibraryTab onOpen={open} onPlay={play} />}
           {!current && tab === 'podcasts' && <PodcastsTab onOpen={open} />}
+          {!current && tab === 'visualizer' && (
+            <React.Suspense fallback={<div className="ytm-loading">Loading…</div>}>
+              <MusicVisualizer />
+            </React.Suspense>
+          )}
 
           {current?.kind === 'artist' && <ArtistView channelId={current.channelId} onOpen={open} onPlay={play} />}
           {current?.kind === 'album' && <AlbumView browseId={current.browseId} onOpen={open} onPlay={play} />}
@@ -805,7 +813,7 @@ export default function YTMusicPanel() {
         </div>
       </div>
 
-      <NowPlayingBar current={nowPlaying} onClose={stopPlaying} />
+      {tab !== 'visualizer' && <NowPlayingBar current={nowPlaying} onClose={stopPlaying} />}
     </div>
   );
 }

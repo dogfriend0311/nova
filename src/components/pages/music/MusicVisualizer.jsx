@@ -16,6 +16,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ytm from '../../../services/ytMusicService';
 import '../NovaFeatures.css';
+import './ytmusic.css';
 import './visualizer.css';
 
 const thumbUrl = (thumbnails) => {
@@ -367,41 +368,38 @@ export default function MusicVisualizer() {
   const nextLine = lyricsState.hasTimestamps ? lyricsState.lines[activeLineIdx + 1] : null;
 
   return (
-    <div className="nf-page">
-      <div className="nf-header">
-        <h1>✨ Visualizer</h1>
-        <p>Pick a song — fountains and disco lights pulse to a tappable beat clock, with real lyrics synced underneath.</p>
+    <div>
+      <div className="ytm-list-sub" style={{ marginBottom: 12 }}>
+        Pick a song — fountains and disco lights pulse to a tappable beat clock, with real lyrics synced underneath.
       </div>
 
       {!song && (
-        <div className="nf-card">
-          <div className="ytm-row">
-            <input
-              className="ytm-input" style={{ flex: '1 1 220px' }}
-              placeholder="Search for a song…" value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && runSearch(query)}
-            />
-            <button className="ytm-btn" onClick={() => runSearch(query)} disabled={!query.trim()}>Search</button>
-          </div>
-          {searching && <div className="ytm-loading">Searching…</div>}
-          {searchErr && <div className="ytm-error">{searchErr}</div>}
-          {results && results.length === 0 && <div className="ytm-empty">No songs found.</div>}
-          {results && results.length > 0 && (
-            <div className="ytm-list" style={{ marginTop: 12 }}>
-              {results.map((r, i) => (
-                <div key={r.videoId || i} className="ytm-list-row" onClick={() => selectSong(r)}>
-                  {thumbUrl(r.thumbnails)
-                    ? <img className="ytm-thumb" src={thumbUrl(r.thumbnails)} alt="" />
-                    : <div className="ytm-thumb" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>♪</div>}
-                  <div className="ytm-list-main">
-                    <div className="ytm-list-title">{r.title}</div>
-                    <div className="ytm-list-sub">{artistNames(r.artists)}</div>
-                  </div>
-                </div>
-              ))}
+        <div className="ytm-row">
+          <input
+            className="ytm-input" style={{ flex: '1 1 220px' }}
+            placeholder="Search for a song…" value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && runSearch(query)}
+          />
+          <button className="ytm-btn" onClick={() => runSearch(query)} disabled={!query.trim()}>Search</button>
+        </div>
+      )}
+      {!song && searching && <div className="ytm-loading">Searching…</div>}
+      {!song && searchErr && <div className="ytm-error">{searchErr}</div>}
+      {!song && results && results.length === 0 && <div className="ytm-empty">No songs found.</div>}
+      {!song && results && results.length > 0 && (
+        <div className="ytm-list" style={{ marginTop: 12 }}>
+          {results.map((r, i) => (
+            <div key={r.videoId || i} className="ytm-list-row" onClick={() => selectSong(r)}>
+              {thumbUrl(r.thumbnails)
+                ? <img className="ytm-thumb" src={thumbUrl(r.thumbnails)} alt="" />
+                : <div className="ytm-thumb" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>♪</div>}
+              <div className="ytm-list-main">
+                <div className="ytm-list-title">{r.title}</div>
+                <div className="ytm-list-sub">{artistNames(r.artists)}</div>
+              </div>
             </div>
-          )}
+          ))}
         </div>
       )}
 
