@@ -262,6 +262,8 @@ export default function MusicVisualizer() {
   // playback
   const [song, setSong] = useState(null); // { videoId, title, artists, thumbnails }
   const [isPlaying, setIsPlaying] = useState(false);
+  const isPlayingRef = useRef(false);
+  useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
   const playerRef = useRef(null);
   const playerElRef = useRef(null);
   const [playerReady, setPlayerReady] = useState(false);
@@ -415,7 +417,11 @@ export default function MusicVisualizer() {
     const phase = ((t % secPerBeat) + secPerBeat) % secPerBeat;
     return phase / secPerBeat;
   }, []);
-  const getIsPlaying = useCallback(() => isPlaying, [isPlaying]);
+  // Reads through a ref (not the `isPlaying` state closure) — the
+  // canvas draw loop below is set up once on mount, so a plain
+  // `() => isPlaying` closure would freeze at whatever `isPlaying`
+  // was at that first render (false) and never see play/pause again.
+  const getIsPlaying = useCallback(() => isPlayingRef.current, []);
 
   useVisualizerCanvas(canvasRef, { getBeatPhase, getIsPlaying, colorSeed: 0 });
 
