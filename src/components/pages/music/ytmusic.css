@@ -97,3 +97,33 @@
   color: rgba(158,165,196,0.7); cursor: pointer;
 }
 .ytm-pill.active { background: rgba(94,129,244,0.22); border-color: var(--color-cyan); color: var(--color-cyan); }
+
+/* Inline ▶ play buttons on list rows */
+.ytm-play-btn {
+  width: 26px; height: 26px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; border: 1px solid rgba(94,129,244,0.35);
+  background: rgba(94,129,244,0.12); color: var(--color-cyan);
+  font-size: 0.68rem; cursor: pointer; padding: 0;
+}
+.ytm-play-btn:hover { background: rgba(94,129,244,0.25); }
+
+/* Persistent now-playing bar (real YouTube embed — this is what actually
+   produces sound; ytmusicapi itself only ever returns metadata). */
+.ytm-nowplaying {
+  position: sticky; bottom: 0; left: 0; right: 0; z-index: 30;
+  margin-top: 16px;
+  display: flex; align-items: center; gap: 12px;
+  background: #0b0f1e; border: 1px solid rgba(94,129,244,0.25);
+  border-radius: 10px; padding: 8px 12px;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.35);
+}
+.ytm-nowplaying-frame {
+  width: 160px; height: 90px; flex-shrink: 0; border-radius: 6px; overflow: hidden;
+  background: #000;
+}
+.ytm-nowplaying-frame iframe { width: 100%; height: 100%; border: 0; display: block; }
+.ytm-nowplaying-title {
+  flex: 1; min-width: 0; font-size: 0.82rem; font-weight: 700; color: #e2e5f0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}

@@ -1,9 +1,14 @@
 // src/components/pages/music/YTMusicPanel.jsx
 //
 // UI for the ytmusicapi-backed endpoint (api/ytmusic.py). Organized into
-// the same groups as that backend and the feature request it was built
-// from: Search, Explore, Library, Playlists, Podcasts, Uploads — plus
-// Artist/Album/Song detail views reached by tapping a search result.
+// the same groups as that backend: Search, Explore, Library, Podcasts —
+// plus Artist/Album/Song detail views reached by tapping a search result.
+//
+// Playback: ytmusicapi only returns metadata (titles, artists, lyrics,
+// track order) — it can't hand back an audio stream. Actual playback here
+// is a real embedded YouTube player (the official iframe embed), driven
+// by a persistent "now playing" bar at the bottom of the panel so it
+// keeps playing while you keep browsing.
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ytm from '../../../services/ytMusicService';
 import '../NovaFeatures.css';
@@ -25,7 +30,7 @@ function Thumb({ src, round, size = 'list' }) {
     : <div className={cls} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>♪</div>;
 }
 
-function ListRow({ thumb, round, title, sub, tag, onClick, actions }) {
+function ListRow({ thumb, round, title, sub, tag, onClick, onPlay, actions }) {
   return (
     <div className={`ytm-list-row ${onClick ? '' : 'static'}`} onClick={onClick}>
       <Thumb src={thumb} round={round} />
@@ -34,7 +39,10 @@ function ListRow({ thumb, round, title, sub, tag, onClick, actions }) {
         {sub && <div className="ytm-list-sub">{sub}</div>}
       </div>
       {tag && <div className="ytm-list-tag">{tag}</div>}
-      {actions && <div className="ytm-list-actions" onClick={(e) => e.stopPropagation()}>{actions}</div>}
+      <div className="ytm-list-actions" onClick={(e) => e.stopPropagation()}>
+        {onPlay && <button className="ytm-play-btn" title="Play" onClick={onPlay}>▶</button>}
+        {actions}
+      </div>
     </div>
   );
 }
@@ -69,7 +77,7 @@ function useLoad(loader, depsKey) {
 }
 
 // ── Artist / Album / Song detail views ──────────────────────────────
-function ArtistView({ channelId, onOpen }) {
+function ArtistView({ channelId, onOpen, onPlay }) {
   const { data, loading, error } = useLoad(() => ytm.getArtist(channelId), channelId);
   if (loading) return <div className="ytm-loading">Loading artist…</div>;
   if (error) return <div className="ytm-error">{error}</div>;
@@ -96,7 +104,8 @@ function ArtistView({ channelId, onOpen }) {
             {songs.map((s, i) => (
               <ListRow key={s.videoId || i} thumb={thumbUrl(s.thumbnails)}
                 title={s.title} sub={artistNames(s.artists)}
-                onClick={() => onOpen({ kind: 'song', videoId: s.videoId, title: s.title })} />
+                onClick={() => onOpen({ kind: 'song', videoId: s.videoId, title: s.title })}
+                onPlay={() => onPlay(s.videoId, s.title)} />
             ))}
           </div>
         </Section>
@@ -149,7 +158,7 @@ function ArtistView({ channelId, onOpen }) {
   );
 }
 
-function AlbumView({ browseId, onOpen }) {
+function AlbumView({ browseId, onOpen, onPlay }) {
   const { data, loading, error } = useLoad(() => ytm.getAlbum(browseId), browseId);
   if (loading) return <div className="ytm-loading">Loading album…</div>;
   if (error) return <div className="ytm-error">{error}</div>;
@@ -170,7 +179,8 @@ function AlbumView({ browseId, onOpen }) {
           {tracks.map((t, i) => (
             <ListRow key={t.videoId || i} tag={t.duration}
               title={`${i + 1}. ${t.title}`} sub={artistNames(t.artists) || artistNames(data.artists)}
-              onClick={() => onOpen({ kind: 'song', videoId: t.videoId, title: t.title })} />
+              onClick={() => onOpen({ kind: 'song', videoId: t.videoId, title: t.title })}
+              onPlay={() => onPlay(t.videoId, t.title)} />
           ))}
         </div>
       </Section>
@@ -178,7 +188,7 @@ function AlbumView({ browseId, onOpen }) {
   );
 }
 
-function SongView({ videoId, title }) {
+function SongView({ videoId, title, onPlay }) {
   const { data, loading, error } = useLoad(() => ytm.getWatchPlaylist({ videoId }), videoId);
   const [lyrics, setLyrics] = useState(null);
   const [lyricsErr, setLyricsErr] = useState(null);
@@ -191,6 +201,9 @@ function SongView({ videoId, title }) {
     }
   }, [data]);
 
+  // Opening a song's detail page starts it playing automatically.
+  useEffect(() => { onPlay(videoId, title); }, [videoId, title, onPlay]);
+
   const current = (data?.tracks || []).find((t) => t.videoId === videoId) || data?.tracks?.[0];
 
   return (
@@ -202,14 +215,23 @@ function SongView({ videoId, title }) {
           <div className="ytm-detail-sub">{artistNames(current?.artists)}</div>
           {current?.album?.name && <div className="ytm-list-sub">{current.album.name}</div>}
           {current?.length && <div className="ytm-list-sub">{current.length}</div>}
-          {credits && (
-            <button className="ytm-btn small ghost" style={{ marginTop: 8 }}
-              onClick={() => ytm.getSongCredits(videoId).then((c) => setCredits(c)).catch(() => {})}>
-              Load credits
-            </button>
-          )}
+          <div className="ytm-row" style={{ marginTop: 8 }}>
+            <button className="ytm-btn small" onClick={() => onPlay(videoId, current?.title || title)}>▶ Play</button>
+            {!credits && (
+              <button className="ytm-btn small ghost"
+                onClick={() => ytm.getSongCredits(videoId).then((c) => setCredits(c || {})).catch(() => {})}>
+                Load credits
+              </button>
+            )}
+          </div>
         </div>
       </div>
+
+      {credits && Object.keys(credits).length > 0 && (
+        <Section title="Credits">
+          <div className="ytm-list-sub">{JSON.stringify(credits)}</div>
+        </Section>
+      )}
 
       {lyrics?.lyrics && (
         <Section title="Lyrics">
@@ -225,7 +247,8 @@ function SongView({ videoId, title }) {
         <div className="ytm-list">
           {(data?.tracks || []).map((t, i) => (
             <ListRow key={t.videoId || i} thumb={thumbUrl(t.thumbnail)}
-              title={t.title} sub={artistNames(t.artists)} tag={t.length} />
+              title={t.title} sub={artistNames(t.artists)} tag={t.length}
+              onPlay={() => onPlay(t.videoId, t.title)} />
           ))}
         </div>
       </Section>
@@ -248,13 +271,14 @@ const SEARCH_FILTERS = [
   { id: 'episodes', label: 'Episodes' },
 ];
 
-function resultRowProps(r, onOpen) {
+function resultRowProps(r, onOpen, onPlay) {
   const t = r.title || r.artist || r.name || '';
   switch (r.resultType) {
     case 'song':
     case 'video':
       return { title: t, sub: artistNames(r.artists), tag: r.duration,
-        onClick: () => onOpen({ kind: 'song', videoId: r.videoId, title: t }) };
+        onClick: () => onOpen({ kind: 'song', videoId: r.videoId, title: t }),
+        onPlay: () => onPlay(r.videoId, t) };
     case 'album':
       return { title: t, sub: `${r.artist || ''}${r.year ? ` · ${r.year}` : ''}`,
         onClick: () => onOpen({ kind: 'album', browseId: r.browseId, title: t }) };
@@ -271,13 +295,14 @@ function resultRowProps(r, onOpen) {
         onClick: () => onOpen({ kind: 'podcast', playlistId: r.browseId, title: t }) };
     case 'episode':
       return { title: t, sub: r.date,
-        onClick: () => onOpen({ kind: 'episode', videoId: r.videoId, title: t }) };
+        onClick: () => onOpen({ kind: 'episode', videoId: r.videoId, title: t }),
+        onPlay: () => onPlay(r.videoId, t) };
     default:
       return { title: t, sub: r.resultType };
   }
 }
 
-function SearchTab({ onOpen }) {
+function SearchTab({ onOpen, onPlay }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('');
   const [suggestions, setSuggestions] = useState([]);
@@ -339,7 +364,7 @@ function SearchTab({ onOpen }) {
       {results && results.length > 0 && (
         <div className="ytm-list" style={{ marginTop: 12 }}>
           {results.map((r, i) => {
-            const props = resultRowProps(r, onOpen);
+            const props = resultRowProps(r, onOpen, onPlay);
             return <ListRow key={i} thumb={thumbUrl(r.thumbnails)} round={r.resultType === 'artist'} tag={r.resultType} {...props} />;
           })}
         </div>
@@ -349,7 +374,7 @@ function SearchTab({ onOpen }) {
 }
 
 // ── Explore: moods/genres + charts ──────────────────────────────────
-function ExploreTab({ onOpen }) {
+function ExploreTab({ onOpen, onPlay }) {
   const [sub, setSub] = useState('moods');
   const { data: moodCats, loading: catsLoading, error: catsError } = useLoad(() => ytm.getMoodCategories(), sub === 'moods');
   const [activeMood, setActiveMood] = useState(null);
@@ -419,7 +444,8 @@ function ExploreTab({ onOpen }) {
                       ? onOpen({ kind: 'song', videoId: it.videoId, title: it.title })
                       : it.browseId && onOpen(key === 'artists'
                         ? { kind: 'artist', channelId: it.browseId, title: it.title }
-                        : { kind: 'album', browseId: it.browseId, title: it.title }))} />
+                        : { kind: 'album', browseId: it.browseId, title: it.title }))}
+                    onPlay={it.videoId ? () => onPlay(it.videoId, it.title) : undefined} />
                 ))}
               </div>
             </Section>
@@ -441,7 +467,7 @@ const LIBRARY_SECTIONS = [
   { id: 'history', label: 'History' },
 ];
 
-function LibraryTab({ onOpen }) {
+function LibraryTab({ onOpen, onPlay }) {
   const [sub, setSub] = useState('songs');
   const loader = useCallback(() => {
     switch (sub) {
@@ -486,6 +512,7 @@ function LibraryTab({ onOpen }) {
             if (sub === 'songs' || sub === 'history') {
               return <ListRow key={item.videoId || i} thumb={thumbUrl(item.thumbnails)} title={item.title} sub={artistNames(item.artists)} tag={item.duration}
                 onClick={() => onOpen({ kind: 'song', videoId: item.videoId, title: item.title })}
+                onPlay={item.videoId ? () => onPlay(item.videoId, item.title) : undefined}
                 actions={item.videoId && (
                   <>
                     <button className="ytm-btn small" onClick={() => rate(item.videoId, 'LIKE')}>👍</button>
@@ -519,7 +546,7 @@ function LibraryTab({ onOpen }) {
 }
 
 // ── Playlists: view contents only (no create/edit/delete) ──────────
-function PlaylistView({ playlistId, onOpen }) {
+function PlaylistView({ playlistId, onOpen, onPlay }) {
   const { data, loading, error } = useLoad(() => ytm.getPlaylist(playlistId, { suggestions_limit: 5 }), playlistId);
 
   if (loading) return <div className="ytm-loading">Loading playlist…</div>;
@@ -541,7 +568,8 @@ function PlaylistView({ playlistId, onOpen }) {
         <div className="ytm-list">
           {(data.tracks || []).map((t, i) => (
             <ListRow key={t.videoId || i} thumb={thumbUrl(t.thumbnails)} title={`${i + 1}. ${t.title}`} sub={artistNames(t.artists)} tag={t.duration}
-              onClick={() => onOpen({ kind: 'song', videoId: t.videoId, title: t.title })} />
+              onClick={() => onOpen({ kind: 'song', videoId: t.videoId, title: t.title })}
+              onPlay={() => onPlay(t.videoId, t.title)} />
           ))}
         </div>
       </Section>
@@ -551,7 +579,8 @@ function PlaylistView({ playlistId, onOpen }) {
           <div className="ytm-list">
             {data.suggestions.map((t, i) => (
               <ListRow key={t.videoId || i} thumb={thumbUrl(t.thumbnails)} title={t.title} sub={artistNames(t.artists)}
-                onClick={() => onOpen({ kind: 'song', videoId: t.videoId, title: t.title })} />
+                onClick={() => onOpen({ kind: 'song', videoId: t.videoId, title: t.title })}
+                onPlay={() => onPlay(t.videoId, t.title)} />
             ))}
           </div>
         </Section>
@@ -561,7 +590,7 @@ function PlaylistView({ playlistId, onOpen }) {
 }
 
 // ── Podcasts ──────────────────────────────────────────────────────────
-function PodcastView({ playlistId, onOpen }) {
+function PodcastView({ playlistId, onOpen, onPlay }) {
   const { data, loading, error } = useLoad(() => ytm.getPodcast(playlistId), playlistId);
   if (loading) return <div className="ytm-loading">Loading podcast…</div>;
   if (error) return <div className="ytm-error">{error}</div>;
@@ -579,7 +608,8 @@ function PodcastView({ playlistId, onOpen }) {
         <div className="ytm-list">
           {(data.episodes || []).map((e, i) => (
             <ListRow key={e.videoId || i} thumb={thumbUrl(e.thumbnails)} title={e.title} sub={e.date}
-              onClick={() => onOpen({ kind: 'episode', videoId: e.videoId, title: e.title })} />
+              onClick={() => onOpen({ kind: 'episode', videoId: e.videoId, title: e.title })}
+              onPlay={() => onPlay(e.videoId, e.title)} />
           ))}
         </div>
       </Section>
@@ -587,8 +617,12 @@ function PodcastView({ playlistId, onOpen }) {
   );
 }
 
-function EpisodeView({ videoId }) {
+function EpisodeView({ videoId, title, onPlay }) {
   const { data, loading, error } = useLoad(() => ytm.getEpisode(videoId), videoId);
+
+  // Opening an episode starts it playing automatically, same as songs.
+  useEffect(() => { onPlay(videoId, title); }, [videoId, title, onPlay]);
+
   if (loading) return <div className="ytm-loading">Loading episode…</div>;
   if (error) return <div className="ytm-error">{error}</div>;
   if (!data) return null;
@@ -599,6 +633,7 @@ function EpisodeView({ videoId }) {
         <div>
           <div className="ytm-detail-title">{data.title}</div>
           <div className="ytm-detail-sub">{data.author?.name} · {data.date}</div>
+          <button className="ytm-btn small" style={{ marginTop: 8 }} onClick={() => onPlay(videoId, data.title || title)}>▶ Play</button>
         </div>
       </div>
       {data.description && <Section title="Description"><div className="ytm-lyrics">{data.description}</div></Section>}
@@ -606,7 +641,7 @@ function EpisodeView({ videoId }) {
   );
 }
 
-function ChannelView({ channelId, onOpen }) {
+function ChannelView({ channelId, onOpen, onPlay }) {
   const { data, loading, error } = useLoad(() => ytm.getChannel(channelId), channelId);
   if (loading) return <div className="ytm-loading">Loading channel…</div>;
   if (error) return <div className="ytm-error">{error}</div>;
@@ -624,7 +659,8 @@ function ChannelView({ channelId, onOpen }) {
         <div className="ytm-list">
           {(data.episodes?.results || []).map((e, i) => (
             <ListRow key={e.videoId || i} thumb={thumbUrl(e.thumbnails)} title={e.title} sub={e.date}
-              onClick={() => onOpen({ kind: 'episode', videoId: e.videoId, title: e.title })} />
+              onClick={() => onOpen({ kind: 'episode', videoId: e.videoId, title: e.title })}
+              onPlay={() => onPlay(e.videoId, e.title)} />
           ))}
         </div>
       </Section>
@@ -668,7 +704,7 @@ function PodcastsTab({ onOpen }) {
   );
 }
 
-function EpisodesPlaylistView({ playlistId, onOpen }) {
+function EpisodesPlaylistView({ playlistId, onOpen, onPlay }) {
   const { data, loading, error } = useLoad(() => ytm.getEpisodesPlaylist(playlistId), playlistId);
   if (loading) return <div className="ytm-loading">Loading…</div>;
   if (error) return <div className="ytm-error">{error}</div>;
@@ -679,9 +715,34 @@ function EpisodesPlaylistView({ playlistId, onOpen }) {
       <div className="ytm-list">
         {(data.episodes || data.tracks || []).map((e, i) => (
           <ListRow key={e.videoId || i} thumb={thumbUrl(e.thumbnails)} title={e.title} sub={e.date || artistNames(e.artists)}
-            onClick={() => onOpen({ kind: 'episode', videoId: e.videoId, title: e.title })} />
+            onClick={() => onOpen({ kind: 'episode', videoId: e.videoId, title: e.title })}
+            onPlay={() => onPlay(e.videoId, e.title)} />
         ))}
       </div>
+    </div>
+  );
+}
+
+// ── Now Playing: a real, official YouTube iframe embed. ytmusicapi only
+// returns metadata — it can't hand back an audio stream — so this is
+// what actually produces sound. It's pinned to the bottom of the panel
+// so it keeps playing as you keep browsing to other tabs/pages.
+function NowPlayingBar({ current, onClose }) {
+  if (!current) return null;
+  return (
+    <div className="ytm-nowplaying">
+      <div className="ytm-nowplaying-frame">
+        <iframe
+          key={current.videoId}
+          src={`https://www.youtube.com/embed/${current.videoId}?autoplay=1`}
+          title={current.title || 'Now playing'}
+          allow="autoplay; encrypted-media"
+          allowFullScreen
+          frameBorder="0"
+        />
+      </div>
+      <div className="ytm-nowplaying-title">{current.title}</div>
+      <button className="ytm-btn small ghost" onClick={onClose} title="Stop">✕</button>
     </div>
   );
 }
@@ -697,10 +758,13 @@ const TOP_TABS = [
 export default function YTMusicPanel() {
   const [tab, setTab] = useState('search');
   const [stack, setStack] = useState([]); // detail-view navigation stack
+  const [nowPlaying, setNowPlaying] = useState(null);
 
   const open = (view) => setStack((s) => [...s, view]);
   const back = () => setStack((s) => s.slice(0, -1));
   const goHome = (t) => { setTab(t); setStack([]); };
+  const play = useCallback((videoId, title) => { if (videoId) setNowPlaying({ videoId, title }); }, []);
+  const stopPlaying = () => setNowPlaying(null);
 
   const current = stack[stack.length - 1];
 
@@ -708,7 +772,7 @@ export default function YTMusicPanel() {
     <div className="nf-page">
       <div className="nf-header">
         <h1>🎶 Nova Music</h1>
-        <p>Search and browse YouTube Music — songs, artists, albums, playlists, podcasts and your library.</p>
+        <p>Search and browse YouTube Music — songs, artists, albums, playlists, podcasts and your library. Tap ▶ on anything to play it.</p>
       </div>
 
       <div className="ytm-wrap">
@@ -725,21 +789,23 @@ export default function YTMusicPanel() {
             <button className="ytm-btn ghost ytm-back" onClick={back}>← Back</button>
           )}
 
-          {!current && tab === 'search' && <SearchTab onOpen={open} />}
-          {!current && tab === 'explore' && <ExploreTab onOpen={open} />}
-          {!current && tab === 'library' && <LibraryTab onOpen={open} />}
+          {!current && tab === 'search' && <SearchTab onOpen={open} onPlay={play} />}
+          {!current && tab === 'explore' && <ExploreTab onOpen={open} onPlay={play} />}
+          {!current && tab === 'library' && <LibraryTab onOpen={open} onPlay={play} />}
           {!current && tab === 'podcasts' && <PodcastsTab onOpen={open} />}
 
-          {current?.kind === 'artist' && <ArtistView channelId={current.channelId} onOpen={open} />}
-          {current?.kind === 'album' && <AlbumView browseId={current.browseId} onOpen={open} />}
-          {current?.kind === 'song' && <SongView videoId={current.videoId} title={current.title} />}
-          {current?.kind === 'playlist' && <PlaylistView playlistId={current.playlistId} onOpen={open} />}
-          {current?.kind === 'podcast' && <PodcastView playlistId={current.playlistId} onOpen={open} />}
-          {current?.kind === 'podcastChannel' && <ChannelView channelId={current.channelId} onOpen={open} />}
-          {current?.kind === 'episode' && <EpisodeView videoId={current.videoId} />}
-          {current?.kind === 'episodesPlaylist' && <EpisodesPlaylistView playlistId={current.playlistId} onOpen={open} />}
+          {current?.kind === 'artist' && <ArtistView channelId={current.channelId} onOpen={open} onPlay={play} />}
+          {current?.kind === 'album' && <AlbumView browseId={current.browseId} onOpen={open} onPlay={play} />}
+          {current?.kind === 'song' && <SongView videoId={current.videoId} title={current.title} onPlay={play} />}
+          {current?.kind === 'playlist' && <PlaylistView playlistId={current.playlistId} onOpen={open} onPlay={play} />}
+          {current?.kind === 'podcast' && <PodcastView playlistId={current.playlistId} onOpen={open} onPlay={play} />}
+          {current?.kind === 'podcastChannel' && <ChannelView channelId={current.channelId} onOpen={open} onPlay={play} />}
+          {current?.kind === 'episode' && <EpisodeView videoId={current.videoId} title={current.title} onPlay={play} />}
+          {current?.kind === 'episodesPlaylist' && <EpisodesPlaylistView playlistId={current.playlistId} onOpen={open} onPlay={play} />}
         </div>
       </div>
+
+      <NowPlayingBar current={nowPlaying} onClose={stopPlaying} />
     </div>
   );
 }

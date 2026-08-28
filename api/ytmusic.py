@@ -9,30 +9,33 @@
 # stateless pass-through — a single router keeps the YTMusic() client setup
 # (auth, cookies) in one place instead of duplicated across a dozen files.
 #
-# Auth: browsing/search/exploring/charts work with no login at all (that's
-# how ytmusicapi's default, unauthenticated client behaves). Library
-# management, playlist creation/editing, play history and uploads need a
-# logged-in session, exactly like the Python library does — so those
-# actions require one of the two environment variables below to be set on
-# the Vercel project:
+# Auth: browsing/search/exploring/charts/podcasts/playlist-viewing all work
+# with no login at all (that's how ytmusicapi's default, unauthenticated
+# client behaves — this covers everything the app's UI actually uses).
+# Playlist creation/editing and uploads are NOT exposed here at all, since
+# those need a signed-in session tied to one specific Google account —
+# see git history if you want to bring that back later.
+#
+# The remaining library actions below (ratings, subscriptions, history,
+# account info) still need one of these two env vars set on the Vercel
+# project if you want them to work:
 #
 #   YTMUSIC_AUTH_HEADERS   raw request headers copied from a logged-in
 #                          browser (see ytmusicapi's "browser" auth setup)
 #   YTMUSIC_OAUTH_JSON     an oauth.json produced by `ytmusicapi oauth`
 #
 # Neither is required for the app to work — search, artist/album/song
-# pages, moods/charts, podcasts, and watch playlists all function signed
-# out. Actions that need auth return a clear 401 JSON error if neither
-# env var is set, instead of crashing.
+# pages, moods/charts, podcasts, watch playlists, and viewing (not
+# editing) a playlist's contents all function signed out. Actions that
+# need auth return a clear 401 JSON error if neither env var is set,
+# instead of crashing.
 #
 # Local dev: `pip install -r api/requirements.txt` then run this file's
 # logic through `vercel dev`, which knows how to boot Python functions.
 
 import json
 import os
-import tempfile
-import base64
-import uuid
+import dataclasses
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
@@ -203,7 +206,17 @@ def _browsing_get_song_credits(ytm, a):
 
 def _browsing_get_lyrics(ytm, a):
     lyrics = ytm.get_lyrics(browseId=_s(a, 'browseId'), timestamps=_b(a, 'timestamps', False))
-    return lyrics.__dict__ if lyrics is not None else None
+    if lyrics is None:
+        return None
+    result = dict(lyrics)
+    # When timestamps=True, "lyrics" is a list of LyricLine dataclass
+    # instances, which json.dumps can't serialize on its own.
+    if result.get('hasTimestamps') and isinstance(result.get('lyrics'), list):
+        result['lyrics'] = [
+            dataclasses.asdict(line) if dataclasses.is_dataclass(line) else line
+            for line in result['lyrics']
+        ]
+    return result
 
 
 def _watch_get_watch_playlist(ytm, a):
@@ -226,10 +239,6 @@ def _explore_get_mood_playlists(ytm, a):
 
 def _charts_get_charts(ytm, a):
     return ytm.get_charts(country=_s(a, 'country', 'ZZ'))
-
-
-def _library_get_playlists(ytm, a):
-    return ytm.get_library_playlists(limit=_i(a, 'limit', 25))
 
 
 def _library_get_songs(ytm, a):
@@ -315,61 +324,6 @@ def _playlists_get_playlist(ytm, a):
     )
 
 
-def _playlists_get_liked_songs(ytm, a):
-    return ytm.get_liked_songs(limit=_i(a, 'limit', 100))
-
-
-def _playlists_create(ytm, a):
-    return ytm.create_playlist(
-        title=_s(a, 'title'),
-        description=_s(a, 'description', ''),
-        privacy_status=_s(a, 'privacy_status', 'PRIVATE'),
-        video_ids=_list(a, 'video_ids'),
-        source_playlist=_s(a, 'source_playlist'),
-    )
-
-
-def _playlists_join_collaborative(ytm, a):
-    return ytm.join_collaborative_playlist(
-        playlistId=_s(a, 'playlistId'),
-        joinCollaborationToken=_s(a, 'joinCollaborationToken'),
-    )
-
-
-def _playlists_edit(ytm, a):
-    move_item = _s(a, 'moveItem')
-    move_before = _s(a, 'moveItemBefore')
-    if move_item and move_before:
-        move_item = (move_item, move_before)
-    return ytm.edit_playlist(
-        playlistId=_s(a, 'playlistId'),
-        title=_s(a, 'title'),
-        description=_s(a, 'description'),
-        privacyStatus=_s(a, 'privacyStatus'),
-        collaboration=a.get('collaboration') if 'collaboration' in a else None,
-        moveItem=move_item,
-        addPlaylistId=_s(a, 'addPlaylistId'),
-        addToTop=a.get('addToTop') if 'addToTop' in a else None,
-    )
-
-
-def _playlists_delete(ytm, a):
-    return ytm.delete_playlist(playlistId=_s(a, 'playlistId'))
-
-
-def _playlists_add_items(ytm, a):
-    return ytm.add_playlist_items(
-        playlistId=_s(a, 'playlistId'),
-        videoIds=_list(a, 'videoIds'),
-        source_playlist=_s(a, 'source_playlist'),
-        duplicates=_b(a, 'duplicates', False),
-    )
-
-
-def _playlists_remove_items(ytm, a):
-    return ytm.remove_playlist_items(playlistId=_s(a, 'playlistId'), videos=_list(a, 'videos', []))
-
-
 def _podcasts_get_channel(ytm, a):
     return ytm.get_channel(channelId=_s(a, 'channelId'))
 
@@ -388,53 +342,6 @@ def _podcasts_get_episode(ytm, a):
 
 def _podcasts_get_episodes_playlist(ytm, a):
     return ytm.get_episodes_playlist(playlist_id=_s(a, 'playlist_id', 'RDPN'))
-
-
-def _uploads_get_songs(ytm, a):
-    return ytm.get_library_upload_songs(limit=_i(a, 'limit', 25), order=_s(a, 'order'))
-
-
-def _uploads_get_artists(ytm, a):
-    return ytm.get_library_upload_artists(limit=_i(a, 'limit', 25), order=_s(a, 'order'))
-
-
-def _uploads_get_albums(ytm, a):
-    return ytm.get_library_upload_albums(limit=_i(a, 'limit', 25), order=_s(a, 'order'))
-
-
-def _uploads_get_artist(ytm, a):
-    return ytm.get_library_upload_artist(browseId=_s(a, 'browseId'), limit=_i(a, 'limit', 25))
-
-
-def _uploads_get_album(ytm, a):
-    return ytm.get_library_upload_album(browseId=_s(a, 'browseId'))
-
-
-def _uploads_upload_song(ytm, a):
-    # The browser can't hand this endpoint a filesystem path, so it sends
-    # the file as base64 in the JSON body; we materialize it in /tmp
-    # (the only writable directory in a Vercel function) for the one call
-    # ytmusicapi's upload_song() needs a real path for, then clean up.
-    filename = _s(a, 'filename', 'upload.mp3')
-    data_b64 = _s(a, 'data')
-    if not data_b64:
-        raise YTMusicUserError('No file data provided (expected base64 in "data").')
-    suffix = os.path.splitext(filename)[1] or '.mp3'
-    tmp_path = os.path.join(tempfile.gettempdir(), f'{uuid.uuid4().hex}{suffix}')
-    try:
-        with open(tmp_path, 'wb') as f:
-            f.write(base64.b64decode(data_b64))
-        result = ytm.upload_song(tmp_path)
-        return {'status': str(result) if not hasattr(result, 'status_code') else result.status_code}
-    finally:
-        try:
-            os.remove(tmp_path)
-        except OSError:
-            pass
-
-
-def _uploads_delete_entity(ytm, a):
-    return ytm.delete_upload_entity(entityId=_s(a, 'entityId'))
 
 
 # actions that work with the public, unauthenticated client
@@ -464,11 +371,11 @@ PUBLIC_ACTIONS = {
     'get_episodes_playlist': _podcasts_get_episodes_playlist,
 }
 
-# actions that require a signed-in session (library, playlist writes,
-# history, uploads — anything ytmusicapi itself gates behind auth)
+# actions that require a signed-in session (library ratings/subscriptions,
+# history, account info — anything ytmusicapi itself gates behind auth).
+# Playlist creation/editing and uploads are intentionally not exposed here.
 AUTH_ACTIONS = {
     'remove_search_suggestions': _browsing_remove_search_suggestions,
-    'get_library_playlists': _library_get_playlists,
     'get_library_songs': _library_get_songs,
     'get_library_albums': _library_get_albums,
     'get_library_artists': _library_get_artists,
@@ -484,20 +391,6 @@ AUTH_ACTIONS = {
     'subscribe_artists': _library_subscribe_artists,
     'unsubscribe_artists': _library_unsubscribe_artists,
     'get_account_info': _library_get_account_info,
-    'get_liked_songs': _playlists_get_liked_songs,
-    'create_playlist': _playlists_create,
-    'join_collaborative_playlist': _playlists_join_collaborative,
-    'edit_playlist': _playlists_edit,
-    'delete_playlist': _playlists_delete,
-    'add_playlist_items': _playlists_add_items,
-    'remove_playlist_items': _playlists_remove_items,
-    'get_library_upload_songs': _uploads_get_songs,
-    'get_library_upload_artists': _uploads_get_artists,
-    'get_library_upload_albums': _uploads_get_albums,
-    'get_library_upload_artist': _uploads_get_artist,
-    'get_library_upload_album': _uploads_get_album,
-    'upload_song': _uploads_upload_song,
-    'delete_upload_entity': _uploads_delete_entity,
 }
 
 
