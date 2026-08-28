@@ -110,8 +110,6 @@ function useVisualizerCanvas(canvasRef, { getBeatPhase, getIsPlaying, colorSeed 
       const st = stateRef.current;
       const playing = getIsPlaying();
       const phase = getBeatPhase(); // 0..1, wraps every beat
-      const beatIndex = Math.floor(phase * 1e6); // monotonically increases; we just want edge detection differently below
-
       // envelope: sharp attack, decay over the beat — peaks right after phase resets to 0
       const envelope = Math.max(0, 1 - phase * 2.2);
 
@@ -214,7 +212,6 @@ export default function MusicVisualizer() {
   // playback
   const [song, setSong] = useState(null); // { videoId, title, artists, thumbnails }
   const [isPlaying, setIsPlaying] = useState(false);
-  const [duration, setDuration] = useState(0);
   const playerRef = useRef(null);
   const playerElRef = useRef(null);
   const [playerReady, setPlayerReady] = useState(false);
@@ -286,7 +283,6 @@ export default function MusicVisualizer() {
           onReady: () => setPlayerReady(true),
           onStateChange: (e) => {
             setIsPlaying(e.data === 1);
-            if (e.data === 1) setDuration(playerRef.current.getDuration?.() || 0);
           },
         },
       });
