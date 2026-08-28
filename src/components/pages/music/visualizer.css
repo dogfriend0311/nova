@@ -1,0 +1,101 @@
+/* visualizer.css — styles for MusicVisualizer.jsx */
+
+.viz-wrap {
+  position: relative;
+  width: 100%;
+  height: min(72vh, 640px);
+  border-radius: 14px;
+  overflow: hidden;
+  background: #05070d;
+  border: 1px solid rgba(94,129,244,0.18);
+}
+.viz-wrap.viz-fullscreen {
+  height: 100vh;
+  border-radius: 0;
+  border: none;
+}
+
+.viz-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* The YouTube iframe is the real audio source. We keep it tiny and
+   tucked in a corner rather than display:none — some browsers throttle
+   or mute fully hidden iframes/media, and we want the audio to keep
+   playing while the canvas takes the visual focus. */
+.viz-player-slot {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  width: 96px;
+  height: 54px;
+  border-radius: 6px;
+  overflow: hidden;
+  opacity: 0.85;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+  z-index: 5;
+}
+.viz-player-slot > div { width: 100%; height: 100%; }
+
+.viz-topbar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: linear-gradient(to bottom, rgba(5,7,13,0.75), transparent);
+}
+.viz-track-meta { flex: 1; min-width: 0; text-align: center; }
+.viz-track-title {
+  font-weight: 800; font-size: 0.92rem; color: #fff;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.6);
+}
+.viz-track-sub {
+  font-size: 0.76rem; color: rgba(255,255,255,0.65);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.viz-lyrics {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 84px;
+  z-index: 6;
+  text-align: center;
+  padding: 0 16px;
+  pointer-events: none;
+}
+.viz-lyrics-line {
+  font-weight: 800;
+  text-shadow: 0 2px 14px rgba(0,0,0,0.75), 0 0 24px rgba(94,129,244,0.35);
+  transition: opacity 0.2s ease;
+}
+.viz-lyrics-line.active { font-size: 1.35rem; color: #fff; margin-bottom: 6px; }
+.viz-lyrics-line.next { font-size: 1rem; color: rgba(255,255,255,0.55); }
+.viz-lyrics-line.dim { font-size: 0.95rem; color: rgba(255,255,255,0.45); font-weight: 600; }
+.viz-lyrics-plain {
+  max-height: 120px; overflow-y: auto; pointer-events: auto;
+  white-space: pre-line; line-height: 1.6; font-size: 0.85rem;
+  color: rgba(255,255,255,0.7); background: rgba(5,7,13,0.4);
+  border-radius: 8px; padding: 10px 14px; display: inline-block; max-width: 90%;
+}
+
+.viz-controls {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  z-index: 6;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 12px;
+  background: linear-gradient(to top, rgba(5,7,13,0.85), transparent);
+}
+.viz-bpm {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.78rem; font-weight: 700; color: rgba(255,255,255,0.8);
+}
+.viz-bpm input[type="range"] { width: 110px; }
