@@ -359,7 +359,11 @@ const MemberCard = ({ member, badgeTypes, onClick }) => {
           {member.created_at && (
             <p style={{ margin: '6px 0 0', color: 'rgba(158,165,196,0.35)', fontSize: '0.7rem' }}>
               Joined {new Date(member.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-              {member.profile_views > 0 && <> · 👁️ {member.profile_views.toLocaleString()}</>}
+            </p>
+          )}
+          {member.profile_views > 0 && (
+            <p style={{ margin: '4px 0 0', color: 'rgba(158,165,196,0.35)', fontSize: '0.7rem' }}>
+              👁️ {member.profile_views.toLocaleString()} view{member.profile_views === 1 ? '' : 's'}
             </p>
           )}
         </div>
@@ -568,9 +572,14 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
 
 // ── Member Profile View (improved) ────────────────────────────
 const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile }) => {
-  const users      = JSON.parse(localStorage.getItem('nova_users') || '[]');
-  const userRecord = users.find(u => u.username === member.username);
-  const role       = userRecord?.role || member.role || 'member';
+  // `member.role` is already resolved correctly upstream (MemberDirectory
+  // fetches it from db.getUsers(), which reads Supabase — the shared,
+  // cross-device source of truth). We used to override it here with a
+  // synchronous, local-only localStorage['nova_users'] lookup, which could
+  // hold a stale cached role (e.g. from before an owner was promoted) and
+  // silently win over the correct one, making the page show the wrong
+  // role. Trust member.role; only fall back to 'member' if it's missing.
+  const role       = member.role || 'member';
   const rc         = member.accent_color || roleColor(role);
   const rg         = member.accent_color ? `${member.accent_color}77` : roleGlow(role);
 
@@ -793,13 +802,13 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile }) => {
             </div>
           )}
 
-          {joinedDate && (
+          {(joinedDate || member.birthday || profileViews > 0) && (
             <p style={{ margin: '8px 0 0', color: 'rgba(158,165,196,0.4)', fontSize: '0.76rem', textAlign: 'center' }}>
-              Member since {joinedDate.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
-              {member.birthday && (
-                <> · 🎂 {new Date(`${member.birthday}T00:00:00`).toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}</>
-              )}
-              {' · '}👁️ {profileViews.toLocaleString()} view{profileViews === 1 ? '' : 's'}
+              {[
+                joinedDate && `Member since ${joinedDate.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}`,
+                member.birthday && `🎂 ${new Date(`${member.birthday}T00:00:00`).toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}`,
+                `👁️ ${profileViews.toLocaleString()} view${profileViews === 1 ? '' : 's'}`,
+              ].filter(Boolean).join(' · ')}
             </p>
           )}
 

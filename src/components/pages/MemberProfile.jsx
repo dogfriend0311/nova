@@ -821,6 +821,7 @@ const MemberProfile = () => {
   const { user } = useAuth();
   const [profile,      setProfile]     = useState(null);
   const [editing,      setEditing]     = useState(false);
+  const [previewMode,  setPreviewMode] = useState(false); // "preview as visitor" toggle while still in edit mode
   const [activeTab,    setActiveTab]   = useState('badges');
   const [formData,     setFormData]    = useState({});
   const [favTab,       setFavTab]      = useState('overview'); // active edit-dashboard section id
@@ -1043,7 +1044,7 @@ const MemberProfile = () => {
   // ── Edit mode ─────────────────────────────────────────────
   if (!profile) return <div style={{ padding: '40px', textAlign: 'center', color: 'rgba(158, 165, 196,0.4)' }}>Loading…</div>;
 
-  if (editing) {
+  if (editing && !previewMode) {
     const NAV = [
       { id: 'overview',  icon: '◆', label: 'Overview'   },
       { id: 'profile',   icon: '👤', label: 'Profile'    },
@@ -1061,7 +1062,17 @@ const MemberProfile = () => {
       <div className="page discord-edit-page gl-scope">
         <div className="page-header">
           <h1 className="gradient-text">Edit Profile</h1>
-          <button className="neon-button" onClick={() => { setEditing(false); setFavTab('overview'); }}>Done</button>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              className="neon-button"
+              onClick={() => setPreviewMode(true)}
+              style={{ fontSize: '0.82rem', padding: '8px 14px', borderColor: 'rgba(94,129,244,0.4)', color: '#9eabf0' }}
+              title="See your full public card — background, audio bar, and colors together — without saving or leaving edit mode"
+            >
+              👁️ Preview as Visitor
+            </button>
+            <button className="neon-button" onClick={() => { setEditing(false); setFavTab('overview'); }}>Done</button>
+          </div>
         </div>
 
         <div className="gl-dash">
@@ -1375,7 +1386,13 @@ const MemberProfile = () => {
   const SI = { padding: '10px', background: 'rgba(94, 129, 244,0.05)', border: '1px solid rgba(94, 129, 244,0.2)', color: '#e2e5f0', borderRadius: '6px', width: '100%', marginBottom: '8px' };
 
   const presenceMap = { online: { label: 'Online', color: '#43b581' }, idle: { label: 'Do Not Disturb', color: '#f04747' }, offline: { label: 'Invisible', color: '#747f8d' } };
-  const rc = profile.accent_color || equippedTheme?.css?.accent || '#6c5ce7';
+  // While previewing from inside the editor, show the in-progress formData
+  // (background media + audio bar + colors together) instead of the last
+  // saved snapshot, so members can check how their page will look without
+  // saving or hitting Done first.
+  const previewingFromEdit = editing && previewMode;
+  const cardData = previewingFromEdit ? { ...profile, ...formData } : profile;
+  const rc = cardData.accent_color || equippedTheme?.css?.accent || '#6c5ce7';
   const rg = `${rc}77`;
 
   return (
@@ -1394,19 +1411,36 @@ const MemberProfile = () => {
       )}
 
       {/* Custom page background — guns.lol style */}
-      <ProfileBackground list={effectiveBgList(profile)} />
-      <ProfileAudioPlayer list={effectiveAudioList(profile)} />
+      <ProfileBackground list={effectiveBgList(cardData)} />
+      <ProfileAudioPlayer list={effectiveAudioList(cardData)} />
 
       {/* Actions */}
       <div className="tw-action-row" style={{ paddingTop: 16 }}>
-        <button className="neon-button" onClick={() => setEditing(true)}>Edit Profile</button>
-        <button
-          className="neon-button"
-          onClick={shareProfile}
-          style={{ fontSize: '0.82rem', padding: '8px 14px', borderColor: copied ? '#00ff88' : 'rgba(108,92,231,0.35)', color: copied ? '#00ff88' : 'rgba(220,215,240,0.7)' }}
-        >
-          {copied ? '✓ Copied!' : '🔗 Share Profile'}
-        </button>
+        {previewingFromEdit ? (
+          <>
+            <button className="neon-button" onClick={() => setPreviewMode(false)} style={{ borderColor: 'rgba(94,129,244,0.5)', color: '#9eabf0' }}>
+              ← Back to Editing
+            </button>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.78rem',
+              padding: '8px 14px', borderRadius: 8, color: 'rgba(220,215,240,0.6)',
+              background: 'rgba(94,129,244,0.08)', border: '1px solid rgba(94,129,244,0.2)',
+            }}>
+              👁️ Previewing as a visitor sees it{Object.keys(formData).length ? ' — unsaved changes included' : ''}
+            </span>
+          </>
+        ) : (
+          <>
+            <button className="neon-button" onClick={() => setEditing(true)}>Edit Profile</button>
+            <button
+              className="neon-button"
+              onClick={shareProfile}
+              style={{ fontSize: '0.82rem', padding: '8px 14px', borderColor: copied ? '#00ff88' : 'rgba(108,92,231,0.35)', color: copied ? '#00ff88' : 'rgba(220,215,240,0.7)' }}
+            >
+              {copied ? '✓ Copied!' : '🔗 Share Profile'}
+            </button>
+          </>
+        )}
       </div>
 
       {/* Floating glow profile card, guns.lol style */}
@@ -1416,21 +1450,21 @@ const MemberProfile = () => {
           style={{
             '--gl-role-color': rc, '--gl-role-glow': rg, '--gl-role-border': `${rc}55`,
             width: '100%',
-            background: profile.bg_color || undefined,
+            background: cardData.bg_color || undefined,
           }}
         >
           <div className="gl-public-avatar-row">
             <div className="gl-public-avatar">
-              {profile.avatar_url ? <img src={profile.avatar_url} alt="avatar" /> : '🚀'}
+              {cardData.avatar_url ? <img src={cardData.avatar_url} alt="avatar" /> : '🚀'}
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
               <div className="gl-public-name-row">
-                <span className="gl-public-name" style={{ color: profile.text_color || equippedTheme?.css?.accent || undefined }}>{profile.username}</span>
+                <span className="gl-public-name" style={{ color: cardData.text_color || equippedTheme?.css?.accent || undefined }}>{cardData.username}</span>
                 <span className="gl-public-diamond">◆</span>
-                <LevelBadge username={profile.username} size="sm" />
-                <DiscordVerifiedChip verifiedAt={profile.discord_verified_at} size="sm" />
+                <LevelBadge username={cardData.username} size="sm" />
+                <DiscordVerifiedChip verifiedAt={cardData.discord_verified_at} size="sm" />
               </div>
-              <div className="gl-public-sub" style={{ color: profile.text_color ? `${profile.text_color}99` : undefined }}>@{profile.username} · {roleLabel(user?.role)}</div>
+              <div className="gl-public-sub" style={{ color: cardData.text_color ? `${cardData.text_color}99` : undefined }}>@{cardData.username} · {roleLabel(user?.role)}</div>
               <div className="gl-public-joined">
                 <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', marginRight: 5, background: presenceMap[presence]?.color, boxShadow: `0 0 6px ${presenceMap[presence]?.color}` }} />
                 {presenceMap[presence]?.label}
@@ -1449,12 +1483,12 @@ const MemberProfile = () => {
             )}
             <BadgeRow
               badgeTypes={badgeTypes}
-              ids={(profile.displayed_badges || []).filter(id => assignedBadgeIds.includes(String(id)))}
+              ids={(cardData.displayed_badges || []).filter(id => assignedBadgeIds.includes(String(id)))}
               size={16}
             />
           </div>
 
-          {profile.bio && <p className="gl-public-bio" style={{ color: profile.text_color ? `${profile.text_color}cc` : undefined }}>{profile.bio}</p>}
+          {cardData.bio && <p className="gl-public-bio" style={{ color: cardData.text_color ? `${cardData.text_color}cc` : undefined }}>{cardData.bio}</p>}
 
           {/* Presence toggle */}
           <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
@@ -1479,7 +1513,7 @@ const MemberProfile = () => {
 
       {/* Info */}
       <div className="tw-info" style={{ padding: '0 20px' }}>
-        {profile.roblox_username && <RobloxLinkCard username={profile.roblox_username} />}
+        {cardData.roblox_username && <RobloxLinkCard username={cardData.roblox_username} />}
 
         {socials.length > 0 && (
           <div className="tw-socials">
@@ -1558,19 +1592,19 @@ const MemberProfile = () => {
         {/* MUSIC */}
         {activeTab === 'music' && (
           <div className="tw-section">
-            <LastFmWidget lastfmUsername={profile.lastfm_username} />
-            {profile.spotify_url && (
+            <LastFmWidget lastfmUsername={cardData.lastfm_username} />
+            {cardData.spotify_url && (
               <>
                 <div className="tw-section-title" style={{ marginTop: '16px' }}>Spotify</div>
                 <iframe
-                  src={profile.spotify_url.includes('/embed/') ? profile.spotify_url : profile.spotify_url.replace('open.spotify.com/', 'open.spotify.com/embed/')}
+                  src={cardData.spotify_url.includes('/embed/') ? cardData.spotify_url : cardData.spotify_url.replace('open.spotify.com/', 'open.spotify.com/embed/')}
                   width="100%" height="80" frameBorder="0"
                   allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
                   title="Spotify" style={{ borderRadius: '10px', display: 'block' }}
                 />
               </>
             )}
-            {!profile.lastfm_username && !profile.spotify_url && (
+            {!cardData.lastfm_username && !cardData.spotify_url && (
               <div className="tw-empty">No music linked. Edit your profile to add Last.fm or Spotify.</div>
             )}
           </div>
@@ -1675,14 +1709,14 @@ const MemberProfile = () => {
         {/* TEAMS */}
         {activeTab === 'teams' && (
           <div className="tw-section">
-            <FavTeamsDisplay favTeams={profile.fav_teams} />
+            <FavTeamsDisplay favTeams={cardData.fav_teams} />
           </div>
         )}
 
         {/* WATCH LIST */}
         {activeTab === 'watchlist' && (
           <div className="tw-section">
-            <WatchListPreview username={profile.username} />
+            <WatchListPreview username={cardData.username} />
           </div>
         )}
       </div>

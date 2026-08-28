@@ -794,11 +794,17 @@ export const db = {
 
   async updateUserRole(username, role) {
     try {
-      await supabase.from('nova_users').update({ role }).eq('username', username);
+      // upsert, not update: a plain .update() silently does nothing if no
+      // row exists yet for this username, which made role changes look
+      // like they saved (no error) but never actually persist — so the
+      // member never showed the new role and never appeared in the Staff
+      // Directory, which reads roles straight from this table.
+      await supabase.from('nova_users').upsert([{ username, role }], { onConflict: 'username' });
     } catch {}
     const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
     const idx = users.findIndex(u => u.username === username);
     if (idx >= 0) { users[idx].role = role; localStorage.setItem('nova_users', JSON.stringify(users)); }
+    else { users.push({ username, role }); localStorage.setItem('nova_users', JSON.stringify(users)); }
   },
 
   /* ── ONLINE PRESENCE (cross-device) ──────────────────────────

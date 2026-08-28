@@ -40,6 +40,38 @@ export const AuthProvider = ({ children }) => {
     return () => clearInterval(interval);
   }, [user]);
 
+  // Keep this session's role in sync with Supabase — not just at login.
+  // Previously the role was only ever refreshed at the moment of login,
+  // so a role change made elsewhere (an admin promoting you in User
+  // Roles, or a change made from another device) never reached an
+  // already-open session: "my page" kept showing the old role, and
+  // anything gated on it (dashboard access, the owner crown, etc.)
+  // stayed stale until logging out and back in. This re-checks on
+  // mount/session-restore and every 30s while logged in.
+  useEffect(() => {
+    if (!user || user.role === 'guest') return;
+
+    const syncRole = () => {
+      import('../services/db').then(({ default: db }) => {
+        db.getUsers().then(supaUsers => {
+          const supaUser = supaUsers.find(u => u.username === user.username);
+          if (supaUser?.role && supaUser.role !== user.role) {
+            const updated = { ...user, role: supaUser.role };
+            setUser(updated);
+            localStorage.setItem('nova_user', JSON.stringify(updated));
+            const localUsers = JSON.parse(localStorage.getItem('nova_users') || '[]');
+            const idx = localUsers.findIndex(u => u.username === user.username);
+            if (idx >= 0) { localUsers[idx].role = supaUser.role; localStorage.setItem('nova_users', JSON.stringify(localUsers)); }
+          }
+        }).catch(() => {});
+      }).catch(() => {});
+    };
+
+    syncRole();
+    const interval = setInterval(syncRole, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
+
   const login = async (rawUsername, rawPassword) => {
     const username = (rawUsername || '').trim();
     const password = (rawPassword || '').trim();
@@ -163,6 +195,19 @@ export const AuthProvider = ({ children }) => {
     if (userIndex !== -1) {
       users[userIndex].role = newRole;
       localStorage.setItem('nova_users', JSON.stringify(users));
+    } else {
+      users.push({ username: targetUsername, role: newRole });
+      localStorage.setItem('nova_users', JSON.stringify(users));
+    }
+    // 1b. If you just changed your OWN role (e.g. an owner promoting/
+    //     fixing their own account in User Roles), update this session
+    //     immediately instead of waiting on the periodic Supabase sync —
+    //     otherwise your own page keeps showing the old role until the
+    //     next poll or a fresh login.
+    if (user && user.username === targetUsername && user.role !== newRole) {
+      const updated = { ...user, role: newRole };
+      setUser(updated);
+      localStorage.setItem('nova_user', JSON.stringify(updated));
     }
     // 2. Persist to Supabase so the change takes effect on every device
     //    (the friend's next login will pick this up via the check in login())
