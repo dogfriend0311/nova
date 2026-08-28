@@ -89,7 +89,18 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('member_profiles', JSON.stringify(memberProfiles));
       }
       import('../services/db').then(({ default: db }) => {
-        db.saveUser({ username, role: 'owner' }).catch(() => {});
+        // Include the password like every other saveUser() call does.
+        // This branch used to omit it — { username, role: 'owner' } with
+        // no password — and if the nova_users table requires a password
+        // value, that upsert fails outright. The failure was swallowed by
+        // a silent catch, so nothing ever surfaced: the profile row (bio,
+        // join date) saved fine via saveMemberProfile below, but the role
+        // itself never made it into the shared table, which is exactly
+        // why the owner account showed as "Member" everywhere that reads
+        // roles from Supabase (Member Pages, Staff Directory, User Roles).
+        db.saveUser({ username, password, role: 'owner' }).catch((err) => {
+          console.error('Failed to sync owner role to Supabase:', err);
+        });
         // Push the profile row to the shared DB too — not just this
         // device's localStorage — so it shows up cross-device right away
         // instead of only after this account visits its own profile page.

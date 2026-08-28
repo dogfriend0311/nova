@@ -778,8 +778,15 @@ export const db = {
       // Requires: ALTER TABLE nova_users ADD COLUMN IF NOT EXISTS password TEXT;
       const record = { username: user.username, role: user.role || 'member' };
       if (user.password) record.password = user.password;
-      await supabase.from('nova_users').upsert([record], { onConflict: 'username' });
-    } catch {}
+      const { error } = await supabase.from('nova_users').upsert([record], { onConflict: 'username' });
+      // This used to be swallowed by an empty catch, so a failed role
+      // write (e.g. a NOT NULL column with no value supplied) looked
+      // identical to a successful one — nothing in the console, no way
+      // to tell the shared table never actually got updated. Surface it.
+      if (error) console.error('saveUser: Supabase upsert failed —', error.message, error);
+    } catch (err) {
+      console.error('saveUser: Supabase upsert threw —', err);
+    }
     const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
     const idx = users.findIndex(u => u.username === user.username);
     if (idx >= 0) {
@@ -799,8 +806,11 @@ export const db = {
       // like they saved (no error) but never actually persist — so the
       // member never showed the new role and never appeared in the Staff
       // Directory, which reads roles straight from this table.
-      await supabase.from('nova_users').upsert([{ username, role }], { onConflict: 'username' });
-    } catch {}
+      const { error } = await supabase.from('nova_users').upsert([{ username, role }], { onConflict: 'username' });
+      if (error) console.error('updateUserRole: Supabase upsert failed —', error.message, error);
+    } catch (err) {
+      console.error('updateUserRole: Supabase upsert threw —', err);
+    }
     const users = JSON.parse(localStorage.getItem('nova_users') || '[]');
     const idx = users.findIndex(u => u.username === username);
     if (idx >= 0) { users[idx].role = role; localStorage.setItem('nova_users', JSON.stringify(users)); }
