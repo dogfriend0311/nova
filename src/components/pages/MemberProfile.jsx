@@ -973,6 +973,25 @@ const MemberProfile = () => {
 
   const [saveError, setSaveError] = useState('');
 
+  // ── Unsaved-changes tracking for the sticky save bar / Done button /
+  // tab-close warning below. formData starts as a copy of profile on load
+  // and handleSave keeps them in lockstep, so a plain content comparison
+  // is enough to know whether there's anything pending.
+  const isDirty = JSON.stringify(formData) !== JSON.stringify(profile);
+
+  // Warn before the browser tab closes/refreshes with unsaved edits.
+  // (This can't catch navigating to a different in-app page — this app's
+  // router unmounts MemberProfile directly on a page switch rather than
+  // going through this component, so that path has no hook to warn from.)
+  useEffect(() => {
+    if (!editing || !isDirty) return;
+    const handler = (e) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [editing, isDirty]);
+
+  const [justSaved, setJustSaved] = useState(false);
+
   const handleSave = () => {
     if (slugStatus === 'taken' || slugStatus === 'invalid') return; // block save on a bad slug
     const dataToSave = { ...formData, profile_slug: (formData.profile_slug || '').trim().toLowerCase() };
@@ -992,9 +1011,23 @@ const MemberProfile = () => {
     });
     setProfile(dataToSave);
     setFormData(dataToSave);
-    setEditing(false);
-    setFavTab(false);
+    // Stay in edit mode — with one save bar covering every section now,
+    // there's no reason a save should also kick you out to view mode.
+    setJustSaved(true);
+    setTimeout(() => setJustSaved(false), 2000);
   };
+
+  const discardChanges = () => {
+    if (profile) setFormData(profile);
+  };
+
+  const exitEditing = () => {
+    if (isDirty && !window.confirm('You have unsaved changes. Discard them and leave editing?')) return;
+    setFormData(profile);
+    setEditing(false);
+    setFavTab('overview');
+  };
+
 
   // ── Fav games helpers ─────────────────────────────────────
   const persistFavGames = (updated) => {
@@ -1060,7 +1093,7 @@ const MemberProfile = () => {
     const linkedSocialsCount = ['twitter_url','twitch_url','youtube_url','instagram_url'].filter(k => formData[k]).length;
 
     return (
-      <div className="page discord-edit-page gl-scope">
+      <div className="page discord-edit-page gl-scope" style={{ paddingBottom: 76 }}>
         <div className="page-header">
           <h1 className="gradient-text">Edit Profile</h1>
           <div style={{ display: 'flex', gap: 10 }}>
@@ -1072,7 +1105,7 @@ const MemberProfile = () => {
             >
               👁️ Preview as Visitor
             </button>
-            <button className="neon-button" onClick={() => { setEditing(false); setFavTab('overview'); }}>Done</button>
+            <button className="neon-button" onClick={exitEditing}>Done</button>
           </div>
         </div>
 
@@ -1185,9 +1218,6 @@ const MemberProfile = () => {
                   {slugStatus === 'taken' && <div style={{ fontSize: '0.75rem', color: '#ff6b7a', marginTop: 4 }}>⚠ Someone already has that one — try another.</div>}
                   {slugStatus === 'invalid' && <div style={{ fontSize: '0.75rem', color: '#ff6b7a', marginTop: 4 }}>⚠ 3–20 characters — lowercase letters, numbers and hyphens only.</div>}
                 </div>
-                <div className="form-actions">
-                  <button className="neon-button" onClick={handleSave} disabled={slugStatus === 'taken' || slugStatus === 'invalid'}>Save Profile</button>
-                </div>
               </div>
             )}
 
@@ -1204,9 +1234,6 @@ const MemberProfile = () => {
                     onChange={(list) => setFormData(prev => ({ ...prev, bg_media: list }))}
                     hint="Shows behind your whole profile, like a guns.lol page. Video loops muted; under 40MB each."
                   />
-                </div>
-                <div className="form-actions">
-                  <button className="neon-button" onClick={handleSave}>Save Profile</button>
                 </div>
               </div>
             )}
@@ -1246,7 +1273,6 @@ const MemberProfile = () => {
                 </div>
 
                 <div className="form-actions">
-                  <button className="neon-button" onClick={handleSave}>Save Profile</button>
                   <button className="neon-button" onClick={() => setFormData(prev => ({ ...prev, accent_color: '', bg_color: '', text_color: '' }))}>Reset Colors</button>
                 </div>
               </div>
@@ -1272,9 +1298,6 @@ const MemberProfile = () => {
                   <label>Spotify URL</label>
                   <input type="text" value={formData.spotify_url || ''} onChange={(e) => setFormData({ ...formData, spotify_url: e.target.value })} placeholder="https://open.spotify.com/track/..." />
                 </div>
-                <div className="form-actions">
-                  <button className="neon-button" onClick={handleSave}>Save Profile</button>
-                </div>
               </div>
             )}
 
@@ -1294,9 +1317,6 @@ const MemberProfile = () => {
                     <input type="text" value={formData[key] || ''} onChange={(e) => setFormData({ ...formData, [key]: e.target.value })} placeholder="https://…" />
                   </div>
                 ))}
-                <div className="form-actions">
-                  <button className="neon-button" onClick={handleSave}>Save Profile</button>
-                </div>
               </div>
             )}
 
@@ -1339,9 +1359,6 @@ const MemberProfile = () => {
                     })}
                   </div>
                 )}
-                <div className="form-actions">
-                  <button className="neon-button" onClick={handleSave}>Save Profile</button>
-                </div>
               </div>
             )}
 
@@ -1356,12 +1373,38 @@ const MemberProfile = () => {
                   favTeamNotifs={formData.fav_team_notifs || {}}
                   onNotifsChange={(fn) => setFormData({ ...formData, fav_team_notifs: fn })}
                 />
-                <div className="form-actions" style={{ marginTop: '20px' }}>
-                  <button className="neon-button" onClick={handleSave}>Save</button>
-                </div>
               </div>
             )}
           </div>
+        </div>
+
+        {/* Sticky save bar — one place to save from, instead of a
+            "Save Profile" button repeated in every section. */}
+        <div style={{
+          position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 55,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12,
+          padding: '12px 16px', background: 'rgba(9,7,16,0.92)', backdropFilter: 'blur(10px)',
+          borderTop: '1px solid rgba(255,255,255,0.08)',
+        }}>
+          <span style={{ fontSize: '0.8rem', color: 'rgba(220,215,240,0.55)', minWidth: 0 }}>
+            {justSaved ? '✓ Saved' : isDirty ? 'Unsaved changes' : 'No changes to save'}
+          </span>
+          <button
+            className="neon-button"
+            onClick={discardChanges}
+            disabled={!isDirty}
+            style={{ opacity: isDirty ? 1 : 0.4 }}
+          >
+            Discard
+          </button>
+          <button
+            className="neon-button"
+            onClick={handleSave}
+            disabled={!isDirty || slugStatus === 'taken' || slugStatus === 'invalid'}
+            style={{ opacity: (!isDirty || slugStatus === 'taken' || slugStatus === 'invalid') ? 0.5 : 1 }}
+          >
+            Save Profile
+          </button>
         </div>
       </div>
     );

@@ -766,7 +766,7 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile }) => {
                 <span className="gl-public-name" style={{ color: member.text_color || undefined }}>{member.username}</span>
                 <span className="gl-public-diamond">◆</span>
               </div>
-              <div className="gl-public-sub" style={{ color: member.text_color ? `${member.text_color}99` : undefined }}>{roleLabel(role)}{member.bio ? ` · ${member.bio.slice(0, 40)}${member.bio.length > 40 ? '…' : ''}` : ''}</div>
+              <div className="gl-public-sub" title={member.bio || undefined} style={{ color: member.text_color ? `${member.text_color}99` : undefined }}>{roleLabel(role)}{member.bio ? ` · ${member.bio.slice(0, 40)}${member.bio.length > 40 ? '…' : ''}` : ''}</div>
               <div className="gl-public-joined">
                 <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', marginRight: 5, background: isOnline ? presenceDot : 'rgba(220,215,240,0.3)', boxShadow: isOnline ? `0 0 6px ${presenceDot}` : 'none' }} />
                 {presenceTxt}
