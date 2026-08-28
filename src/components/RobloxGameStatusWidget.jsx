@@ -18,7 +18,7 @@ const GameChip = ({ placeId, label }) => {
   useEffect(() => {
     let cancelled = false;
     const poll = () => {
-      fetch(`/api/roblox-game-status?placeId=${encodeURIComponent(placeId)}`)
+      fetch(`/api/roblox?action=game-status&placeId=${encodeURIComponent(placeId)}`)
         .then(r => r.json())
         .then(data => {
           if (cancelled) return;

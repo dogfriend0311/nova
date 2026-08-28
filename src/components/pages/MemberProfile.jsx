@@ -82,7 +82,7 @@ export const RobloxGameCard = ({ placeId, title, note, onRemove }) => {
   useEffect(() => {
     if (!placeId) return;
     let active = true;
-    fetch(`/api/roblox-game-thumb?placeId=${encodeURIComponent(placeId)}`)
+    fetch(`/api/roblox?action=game-thumb&placeId=${encodeURIComponent(placeId)}`)
       .then(res => res.json())
       .then(data => { if (active) { if (data?.thumbnailUrl) setThumbUrl(data.thumbnailUrl); else setFailed(true); } })
       .catch(() => { if (active) setFailed(true); });
@@ -772,7 +772,7 @@ export const RobloxLinkCard = ({ username }) => {
     setError(false);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 10000);
-    fetch(`/api/roblox-lookup?username=${encodeURIComponent(username)}`, { signal: controller.signal })
+    fetch(`/api/roblox?action=lookup&username=${encodeURIComponent(username)}`, { signal: controller.signal })
       .then(res => res.json())
       .then(result => { if (active) { setData(result); setLoading(false); } })
       .catch(() => { if (active) { setError(true); setLoading(false); } })

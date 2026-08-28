@@ -4,10 +4,10 @@ import { awardBadge } from '../../services/achievementsService';
 
 const STORAGE_KEY = (username) => `nova_roblox_${username}`;
 
-// Roblox lookups now go through our own /api/roblox-lookup serverless
-// function (server-to-server, no CORS issue) instead of public CORS
-// proxies like corsproxy.io / allorigins, which were unreliable and had
-// no timeout — that's what caused "unable to find username" + an
+// Roblox lookups now go through our own /api/roblox serverless function
+// (server-to-server, no CORS issue) instead of public CORS proxies like
+// corsproxy.io / allorigins, which were unreliable and had no timeout —
+// that's what caused "unable to find username" + an
 // infinite loading spinner. This fetch always resolves within ~10s.
 async function fetchWithTimeout(url, ms = 10000) {
   const controller = new AbortController();
@@ -48,7 +48,7 @@ const RobloxTracker = ({ user }) => {
     setProfile(null);
 
     try {
-      const res = await fetchWithTimeout(`/api/roblox-lookup?username=${encodeURIComponent(uname)}`, 10000);
+      const res = await fetchWithTimeout(`/api/roblox?action=lookup&username=${encodeURIComponent(uname)}`, 10000);
       const result = await res.json().catch(() => null);
       if (!res.ok || !result) {
         throw new Error(result?.error || `User "${uname}" not found. Check spelling and try again.`);
