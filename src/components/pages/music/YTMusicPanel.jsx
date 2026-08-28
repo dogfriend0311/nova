@@ -7,10 +7,12 @@
 // Playback: ytmusicapi only returns metadata (titles, artists, lyrics,
 // track order) — it can't hand back an audio stream. Actual playback here
 // is a real embedded YouTube player (the official iframe embed), driven
-// by a persistent "now playing" bar at the bottom of the panel so it
-// keeps playing while you keep browsing.
+// by a persistent "now playing" bar mounted at the App root (see
+// NowPlayingContext) so it keeps playing even if you navigate away from
+// the Music tab entirely.
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ytm from '../../../services/ytMusicService';
+import { useNowPlaying } from '../../../context/NowPlayingContext';
 import '../NovaFeatures.css';
 import './ytmusic.css';
 
@@ -725,30 +727,6 @@ function EpisodesPlaylistView({ playlistId, onOpen, onPlay }) {
   );
 }
 
-// ── Now Playing: a real, official YouTube iframe embed. ytmusicapi only
-// returns metadata — it can't hand back an audio stream — so this is
-// what actually produces sound. It's pinned to the bottom of the panel
-// so it keeps playing as you keep browsing to other tabs/pages.
-function NowPlayingBar({ current, onClose }) {
-  if (!current) return null;
-  return (
-    <div className="ytm-nowplaying">
-      <div className="ytm-nowplaying-frame">
-        <iframe
-          key={current.videoId}
-          src={`https://www.youtube.com/embed/${current.videoId}?autoplay=1`}
-          title={current.title || 'Now playing'}
-          allow="autoplay; encrypted-media"
-          allowFullScreen
-          frameBorder="0"
-        />
-      </div>
-      <div className="ytm-nowplaying-title">{current.title}</div>
-      <button className="ytm-btn small ghost" onClick={onClose} title="Stop">✕</button>
-    </div>
-  );
-}
-
 // ── root panel ───────────────────────────────────────────────────────
 const TOP_TABS = [
   { id: 'search', label: '🔍 Search' },
@@ -761,13 +739,14 @@ const TOP_TABS = [
 export default function YTMusicPanel() {
   const [tab, setTab] = useState('search');
   const [stack, setStack] = useState([]); // detail-view navigation stack
-  const [nowPlaying, setNowPlaying] = useState(null);
+  const { play: playGlobal } = useNowPlaying();
 
   const open = (view) => setStack((s) => [...s, view]);
   const back = () => setStack((s) => s.slice(0, -1));
   const goHome = (t) => { setTab(t); setStack([]); };
-  const play = useCallback((videoId, title) => { if (videoId) setNowPlaying({ videoId, title }); }, []);
-  const stopPlaying = () => setNowPlaying(null);
+  // Routed through the global now-playing context so playback survives
+  // navigating away from the Music tab entirely (see NowPlayingContext).
+  const play = useCallback((videoId, title) => playGlobal(videoId, title), [playGlobal]);
 
   const current = stack[stack.length - 1];
 
@@ -813,7 +792,8 @@ export default function YTMusicPanel() {
         </div>
       </div>
 
-      {tab !== 'visualizer' && <NowPlayingBar current={nowPlaying} onClose={stopPlaying} />}
+      {/* Now Playing bar is global (see NowPlayingContext) so it survives
+          navigating to other pages — nothing to render here anymore. */}
     </div>
   );
 }

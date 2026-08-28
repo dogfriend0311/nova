@@ -15,6 +15,7 @@
 // this synced against the live playback time from the YouTube player.
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ytm from '../../../services/ytMusicService';
+import { useNowPlaying } from '../../../context/NowPlayingContext';
 import '../NovaFeatures.css';
 import './ytmusic.css';
 import './visualizer.css';
@@ -107,6 +108,15 @@ function useVisualizerCanvas(canvasRef, { getBeatPhase, getIsPlaying, colorSeed 
       raf = requestAnimationFrame(draw);
       const dt = Math.min((ts - lastTs) / 16.67, 3); // normalized ~frames
       lastTs = ts;
+
+      // Re-measure every frame — cheap, and self-heals the canvas size
+      // when it goes from display:none (0×0, before a song is picked)
+      // to visible without needing a dedicated "just became visible"
+      // signal.
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0 && (rect.width !== w || rect.height !== h)) {
+        resize();
+      }
 
       const st = stateRef.current;
       const playing = getIsPlaying();
@@ -204,6 +214,10 @@ function useVisualizerCanvas(canvasRef, { getBeatPhase, getIsPlaying, colorSeed 
 
 // ── main component ─────────────────────────────────────────────────
 export default function MusicVisualizer() {
+  // Stop the global mini-player (if something's playing there) so we
+  // don't end up with two YouTube embeds producing audio at once.
+  const { stop: stopGlobal } = useNowPlaying();
+
   // search
   const [query, setQuery] = useState('');
   const [results, setResults] = useState(null);
@@ -246,6 +260,7 @@ export default function MusicVisualizer() {
 
   // ── select a song: set up player + fetch lyrics ──
   const selectSong = useCallback((s) => {
+    stopGlobal();
     setSong(s);
     setLyricsState({ status: 'loading', lines: [], hasTimestamps: false, plain: '' });
     setActiveLineIdx(-1);
@@ -269,7 +284,7 @@ export default function MusicVisualizer() {
           });
       })
       .catch(() => setLyricsState({ status: 'unavailable', lines: [], hasTimestamps: false, plain: '' }));
-  }, []);
+  }, [stopGlobal]);
 
   // ── mount YT player once ──
   useEffect(() => {
@@ -403,48 +418,55 @@ export default function MusicVisualizer() {
         </div>
       )}
 
-      {song && (
-        <div className={`viz-wrap ${fullscreen ? 'viz-fullscreen' : ''}`} ref={wrapRef}>
-          <canvas ref={canvasRef} className="viz-canvas" />
+      {/* Always mounted (even before a song is picked) so the YouTube
+          player element exists in the DOM the moment the player-creation
+          effect runs — otherwise the player never gets created and
+          Play silently does nothing. Visually hidden via CSS until a
+          song is selected. */}
+      <div className={`viz-wrap ${!song ? 'viz-hidden' : ''} ${fullscreen ? 'viz-fullscreen' : ''}`} ref={wrapRef}>
+        <canvas ref={canvasRef} className="viz-canvas" />
 
-          {/* Hidden-ish YT player — audio comes from here */}
-          <div className="viz-player-slot">
-            <div ref={playerElRef} />
-          </div>
-
-          <div className="viz-topbar">
-            <button className="ytm-btn ghost small" onClick={() => { setSong(null); setResults(null); }}>← New search</button>
-            <div className="viz-track-meta">
-              <div className="viz-track-title">{song.title}</div>
-              <div className="viz-track-sub">{artistNames(song.artists)}</div>
-            </div>
-            <button className="ytm-btn ghost small" onClick={toggleFullscreen}>{fullscreen ? '⤢ Exit' : '⤢ Fullscreen'}</button>
-          </div>
-
-          <div className="viz-lyrics">
-            {lyricsState.status === 'loading' && <div className="viz-lyrics-line dim">Loading lyrics…</div>}
-            {lyricsState.status === 'unavailable' && <div className="viz-lyrics-line dim">No lyrics available for this track.</div>}
-            {lyricsState.hasTimestamps && (
-              <>
-                <div className="viz-lyrics-line active">{activeLine?.text || '\u00A0'}</div>
-                <div className="viz-lyrics-line next">{nextLine?.text || ''}</div>
-              </>
-            )}
-            {!lyricsState.hasTimestamps && lyricsState.plain && (
-              <div className="viz-lyrics-plain">{lyricsState.plain}</div>
-            )}
-          </div>
-
-          <div className="viz-controls">
-            <button className="ytm-btn" onClick={togglePlay}>{isPlaying ? '⏸ Pause' : '▶ Play'}</button>
-            <button className="ytm-btn ghost" onClick={tapTempo}>👏 Tap tempo</button>
-            <div className="viz-bpm">
-              <span>{bpm} BPM</span>
-              <input type="range" min="60" max="200" value={bpm} onChange={(e) => setBpm(Number(e.target.value))} />
-            </div>
-          </div>
+        {/* Hidden-ish YT player — audio comes from here */}
+        <div className="viz-player-slot">
+          <div ref={playerElRef} />
         </div>
-      )}
+
+        {song && (
+          <>
+            <div className="viz-topbar">
+              <button className="ytm-btn ghost small" onClick={() => { setSong(null); setResults(null); }}>← New search</button>
+              <div className="viz-track-meta">
+                <div className="viz-track-title">{song.title}</div>
+                <div className="viz-track-sub">{artistNames(song.artists)}</div>
+              </div>
+              <button className="ytm-btn ghost small" onClick={toggleFullscreen}>{fullscreen ? '⤢ Exit' : '⤢ Fullscreen'}</button>
+            </div>
+
+            <div className="viz-lyrics">
+              {lyricsState.status === 'loading' && <div className="viz-lyrics-line dim">Loading lyrics…</div>}
+              {lyricsState.status === 'unavailable' && <div className="viz-lyrics-line dim">No lyrics available for this track.</div>}
+              {lyricsState.hasTimestamps && (
+                <>
+                  <div className="viz-lyrics-line active">{activeLine?.text || '\u00A0'}</div>
+                  <div className="viz-lyrics-line next">{nextLine?.text || ''}</div>
+                </>
+              )}
+              {!lyricsState.hasTimestamps && lyricsState.plain && (
+                <div className="viz-lyrics-plain">{lyricsState.plain}</div>
+              )}
+            </div>
+
+            <div className="viz-controls">
+              <button className="ytm-btn" onClick={togglePlay}>{isPlaying ? '⏸ Pause' : '▶ Play'}</button>
+              <button className="ytm-btn ghost" onClick={tapTempo}>👏 Tap tempo</button>
+              <div className="viz-bpm">
+                <span>{bpm} BPM</span>
+                <input type="range" min="60" max="200" value={bpm} onChange={(e) => setBpm(Number(e.target.value))} />
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

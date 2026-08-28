@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { NowPlayingProvider } from './context/NowPlayingContext';
 import { getCoins } from './services/coinsStorage';
 import Layout from './components/layout/Layout';
 import Home from './components/pages/Home';
@@ -410,7 +411,9 @@ const App = () => {
   return (
     <AuthProvider>
       <ErrorBoundary>
-        <AppContent />
+        <NowPlayingProvider>
+          <AppContent />
+        </NowPlayingProvider>
       </ErrorBoundary>
     </AuthProvider>
   );
