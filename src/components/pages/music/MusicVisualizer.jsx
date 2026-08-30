@@ -24,7 +24,6 @@ import ytm from '../../../services/ytMusicService';
 import { useNowPlaying } from '../../../context/NowPlayingContext';
 import { useAuth } from '../../../context/AuthContext';
 import db from '../../../services/db';
-import { loadYouTubeAPI } from '../../../services/youtubeApiLoader';
 import '../NovaFeatures.css';
 import './ytmusic.css';
 import './visualizer.css';
@@ -36,13 +35,39 @@ const thumbUrl = (thumbnails) => {
 const artistNames = (artists) =>
   Array.isArray(artists) ? artists.filter((a) => a?.name).map((a) => a.name).join(', ') : '';
 
+// ── YouTube IFrame Player API loader (singleton) ──────────────────────
+let ytApiPromise = null;
+function loadYouTubeAPI() {
+  if (window.YT && window.YT.Player) return Promise.resolve(window.YT);
+  if (ytApiPromise) return ytApiPromise;
+  ytApiPromise = new Promise((resolve) => {
+    const prevReady = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      if (typeof prevReady === 'function') prevReady();
+      resolve(window.YT);
+    };
+    if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(tag);
+    }
+  });
+  return ytApiPromise;
+}
+
 // Normalize a lyrics line coming back from ytmusicapi's LyricLine
 // dataclass — fields are snake_case (start_time/end_time) but be
-// defensive in case of camelCase too.
+// defensive in case of camelCase too. ytmusicapi reports these in
+// MILLISECONDS, while the YouTube player's getCurrentTime() reports
+// SECONDS — convert here so every comparison downstream is apples to
+// apples. (This unit mismatch was the actual reason lyrics used to
+// look "stuck": every line's start/end was ~1000x too large next to
+// getCurrentTime()'s seconds, so after the first line matched, no
+// later line's start threshold was ever reached again.)
 function normalizeLine(line) {
   const start = line.start_time ?? line.startTime ?? line.start ?? null;
   const end = line.end_time ?? line.endTime ?? line.end ?? null;
-  return { text: line.text ?? '', start: start != null ? Number(start) : null, end: end != null ? Number(end) : null };
+  return { text: line.text ?? '', start: start != null ? Number(start) / 1000 : null, end: end != null ? Number(end) / 1000 : null };
 }
 
 // ── Canvas visualizer: fountains + disco lights, driven by a beat clock ──
@@ -73,26 +98,30 @@ function useVisualizerCanvas(canvasRef, { getBeatPhase, getIsPlaying, colorSeed 
 
     // Launch a rocket from near the bottom that climbs to a random
     // apex height, then explodes into a radial shell of sparks. Every
-    // 4th beat gets a bigger, double-shell "finale" burst for variety.
+    // 5th beat gets a bigger, double-shell "finale" burst for variety.
+    // Tuned for one clean burst per beat rather than a crowded pile-up:
+    // a slower climb, fewer sparks, and a shorter spark lifetime so
+    // each firework reads as a distinct event instead of blurring into
+    // the next one.
     const launchFirework = (baseHue, big) => {
       const st = stateRef.current;
       const x = w * (0.12 + Math.random() * 0.76);
       const apexY = h * (big ? 0.16 + Math.random() * 0.14 : 0.22 + Math.random() * 0.3);
       st.rockets.push({
         x, y: h + 6, apexY,
-        vy: -(h - apexY) / (big ? 34 : 26) - 2,
+        vy: -(h - apexY) / (big ? 46 : 36) - 1.4,
         hue: (baseHue + Math.random() * 30) % 360,
         big, trail: [],
       });
-      if (st.rockets.length > 8) st.rockets.shift();
+      if (st.rockets.length > 6) st.rockets.shift();
     };
 
     const explode = (rocket) => {
       const st = stateRef.current;
       const shells = rocket.big ? 2 : 1;
       for (let s = 0; s < shells; s++) {
-        const count = rocket.big ? 70 : 46;
-        const speed0 = rocket.big ? 3.4 : 2.6;
+        const count = rocket.big ? 46 : 30;
+        const speed0 = rocket.big ? 3.2 : 2.4;
         const shellHue = (rocket.hue + s * 45) % 360;
         for (let i = 0; i < count; i++) {
           const angle = (Math.PI * 2 * i) / count + Math.random() * 0.15;
@@ -102,14 +131,14 @@ function useVisualizerCanvas(canvasRef, { getBeatPhase, getIsPlaying, colorSeed 
             vx: Math.cos(angle) * speed,
             vy: Math.sin(angle) * speed,
             life: 0,
-            maxLife: 46 + Math.random() * 30,
+            maxLife: 30 + Math.random() * 16,
             hue: (shellHue + (Math.random() - 0.5) * 26) % 360,
-            size: 1.6 + Math.random() * 1.8,
+            size: 1.5 + Math.random() * 1.6,
             flicker: Math.random() * 10,
           });
         }
       }
-      if (st.sparks.length > 2200) st.sparks.splice(0, st.sparks.length - 2200);
+      if (st.sparks.length > 1000) st.sparks.splice(0, st.sparks.length - 1000);
       st.flashes.push({ x: rocket.x, y: rocket.y, life: 0, maxLife: 14, size: rocket.big ? 70 : 46 });
     };
 
@@ -135,14 +164,12 @@ function useVisualizerCanvas(canvasRef, { getBeatPhase, getIsPlaying, colorSeed 
       // envelope: sharp attack, decay over the beat — peaks right after phase resets to 0
       const envelope = Math.max(0, 1 - phase * 2.2);
 
-      // detect a fresh beat (phase just wrapped near 0) → launch fireworks to it
+      // detect a fresh beat (phase just wrapped near 0) → launch one firework per beat
       if (playing && phase < 0.06 && st.lastPhase !== undefined && st.lastPhase > 0.5) {
         st.hue = (st.hue + 47) % 360;
         st.beatCount += 1;
-        const big = st.beatCount % 4 === 0;
+        const big = st.beatCount % 6 === 0;
         launchFirework(st.hue + colorSeed, big);
-        // occasionally a second, smaller rocket for a fuller sky
-        if (Math.random() < 0.35) launchFirework((st.hue + 90 + colorSeed) % 360, false);
       }
       st.lastPhase = phase;
 
