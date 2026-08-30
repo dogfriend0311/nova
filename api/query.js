@@ -84,6 +84,9 @@ const ALLOWED_TABLES = new Set([
   // Added for: commissioner-defined custom award categories (beyond
   // MVP/ROY/etc.) and mid-season All-Star fan/member voting
   'nova_custom_award_types', 'nova_allstar_ballots', 'nova_allstar_votes',
+  // Added for: Song of the Day, moved off localStorage so it's visible
+  // cross-device and to the weekly Discord digest
+  'nova_song_of_day',
 ]);
 
 const IDENT_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;

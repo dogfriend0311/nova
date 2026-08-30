@@ -6,7 +6,7 @@ const MONTHS = ['January','February','March','April','May','June','July','August
 
 function pad(n) { return String(n).padStart(2,'0'); }
 
-function buildWrapped(username, year, month) {
+async function buildWrapped(username, year, month) {
   // Coins
   const coins = getCoins(username);
 
@@ -25,9 +25,14 @@ function buildWrapped(username, year, month) {
   // Badges
   const badges = JSON.parse(localStorage.getItem(`nova_badges_${username}`) || '[]');
 
-  // Song of day submissions
-  const songs = JSON.parse(localStorage.getItem('nova_song_history') || '[]');
-  const mySongs = songs.filter(s => s.submittedBy === username && s.date?.startsWith(monthKey));
+  // Song of day submissions — now stored in Supabase (nova_song_of_day)
+  // instead of localStorage, so it's counted correctly across devices.
+  let mySongsCount = 0;
+  try {
+    const { default: db } = await import('../../services/db');
+    const songs = await db.getSongHistory(200);
+    mySongsCount = songs.filter(s => s.submitted_by === username && s.created_at?.startsWith(monthKey)).length;
+  } catch {}
 
   // Beat battle votes
   const voted = JSON.parse(localStorage.getItem('nova_beat_votes') || '{}');
@@ -49,7 +54,7 @@ function buildWrapped(username, year, month) {
   const joinDate = me?.createdAt || me?.created_at || null;
   const daysActive = joinDate ? Math.floor((Date.now() - new Date(joinDate).getTime()) / (1000*60*60*24)) : null;
 
-  return { coins, correct, total, wins, losses, badges: badges.length, mySongs: mySongs.length, didVote, propWins, topSport, daysActive };
+  return { coins, correct, total, wins, losses, badges: badges.length, mySongs: mySongsCount, didVote, propWins, topSport, daysActive };
 }
 
 const SPORT_EMOJI = { nfl:'🏈', nba:'🏀', mlb:'⚾', nhl:'🏒' };
@@ -61,7 +66,11 @@ const NovaWrapped = ({ user }) => {
   const [data,  setData]  = useState(null);
 
   useEffect(() => {
-    if (user?.username) setData(buildWrapped(user.username, year, month));
+    let active = true;
+    if (user?.username) {
+      buildWrapped(user.username, year, month).then(result => { if (active) setData(result); });
+    }
+    return () => { active = false; };
   }, [user, year, month]);
 
   if (!user) {

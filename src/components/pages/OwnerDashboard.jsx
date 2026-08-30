@@ -2573,25 +2573,31 @@ const SiteSettingsTab = () => {
 const SongOfDayTab = () => {
   const { user } = useAuth();
   const [form, setForm]   = useState({ title: '', artist: '', url: '', description: '' });
-  const [history, setHistory] = useState(() => { try { return JSON.parse(localStorage.getItem('nova_song_history') || '[]'); } catch { return []; } });
+  const [history, setHistory] = useState([]);
   const [msg, setMsg]     = useState(null);
 
-  function post() {
+  const loadHistory = () => {
+    import('../../services/db').then(({ default: dbMod }) => {
+      dbMod.getSongHistory(10).then(setHistory);
+    });
+  };
+  useEffect(loadHistory, []);
+
+  async function post() {
     if (!form.title && !form.url) { setMsg({ ok: false, text: 'Title or URL required.' }); return; }
-    const today = new Date().toISOString().slice(0, 10);
-    const entry = { ...form, date: today, submittedBy: user?.username, id: Date.now().toString() };
-    const updated = [entry, ...history];
-    localStorage.setItem('nova_song_history', JSON.stringify(updated));
-    localStorage.setItem('nova_song_of_day', JSON.stringify(entry));
-    setHistory(updated);
+    const dbMod = (await import('../../services/db')).default;
+    await dbMod.postSongOfDay(form, user?.username);
+    loadHistory();
     setForm({ title: '', artist: '', url: '', description: '' });
-    setMsg({ ok: true, text: 'Song of the Day set! It will appear on the home page.' });
+    setMsg({ ok: true, text: 'Song of the Day set! It will appear on the home page and in the weekly Discord digest.' });
     setTimeout(() => setMsg(null), 3000);
   }
 
-  function removeSotd() {
-    localStorage.removeItem('nova_song_of_day');
-    setMsg({ ok: true, text: 'Song of the Day removed from home page.' });
+  async function removeSotd(id) {
+    const dbMod = (await import('../../services/db')).default;
+    await dbMod.deleteSongOfDay(id);
+    loadHistory();
+    setMsg({ ok: true, text: 'Removed.' });
     setTimeout(() => setMsg(null), 2000);
   }
 
@@ -2617,21 +2623,25 @@ const SongOfDayTab = () => {
       {msg && <div style={{ marginBottom: 10, padding: '8px 14px', borderRadius: 7, background: msg.ok ? 'rgba(67,181,129,0.12)' : 'rgba(255,107,122,0.12)', color: msg.ok ? '#43b581' : '#ff6b7a', fontSize: '0.85rem' }}>{msg.text}</div>}
       <div style={{ display: 'flex', gap: 10 }}>
         <button className="neon-button" onClick={post}>Set as Song of the Day</button>
-        <button className="neon-button" onClick={removeSotd} style={{ borderColor: '#ff6b7a', color: '#ff6b7a' }}>Remove</button>
+        {history[0] && (
+          <button className="neon-button" onClick={() => removeSotd(history[0].id)} style={{ borderColor: '#ff6b7a', color: '#ff6b7a' }}>Remove current</button>
+        )}
       </div>
       {history.length > 0 && (
         <div style={{ marginTop: 24 }}>
           <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(158,165,196,0.4)', marginBottom: 10 }}>History</div>
-          {history.slice(0, 10).map(s => (
+          {history.slice(0, 10).map((s, i) => (
             <div key={s.id} style={{ padding: '10px 14px', background: 'rgba(94,129,244,0.04)', border: '1px solid rgba(94,129,244,0.1)', borderRadius: 8, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
               <div>
-                <div style={{ fontWeight: 700, color: '#e2e5f0', fontSize: '0.9rem' }}>{s.title} {s.artist ? `— ${s.artist}` : ''}</div>
-                <div style={{ fontSize: '0.75rem', color: 'rgba(158,165,196,0.4)', marginTop: 2 }}>{s.date} · by @{s.submittedBy}</div>
+                <div style={{ fontWeight: 700, color: '#e2e5f0', fontSize: '0.9rem' }}>{s.title} {s.artist ? `— ${s.artist}` : ''} {i === 0 && <span style={{ fontSize: '0.68rem', color: '#43b581', marginLeft: 6 }}>CURRENT</span>}</div>
+                <div style={{ fontSize: '0.75rem', color: 'rgba(158,165,196,0.4)', marginTop: 2 }}>{new Date(s.created_at).toLocaleDateString()} · by @{s.submitted_by}</div>
               </div>
-              <button className="neon-button" style={{ fontSize: '0.72rem', padding: '4px 10px' }}
-                onClick={() => { localStorage.setItem('nova_song_of_day', JSON.stringify(s)); setMsg({ ok: true, text: 'Restored!' }); setTimeout(() => setMsg(null), 2000); }}>
-                Restore
-              </button>
+              {i !== 0 && (
+                <button className="neon-button" style={{ fontSize: '0.72rem', padding: '4px 10px' }}
+                  onClick={async () => { const dbMod = (await import('../../services/db')).default; await dbMod.postSongOfDay(s, s.submitted_by); loadHistory(); setMsg({ ok: true, text: 'Restored!' }); setTimeout(() => setMsg(null), 2000); }}>
+                  Restore
+                </button>
+              )}
             </div>
           ))}
         </div>

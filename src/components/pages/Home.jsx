@@ -116,11 +116,6 @@ const TILES = [
   { id: 'profile',   icon: 'profile', title: 'My Profile',    desc: 'Edit your bio, teams, faves & cosmetics',                 accent: 'blue'   },
 ];
 
-function getSongOfDay() {
-  try { return JSON.parse(localStorage.getItem('nova_song_of_day') || 'null'); }
-  catch { return null; }
-}
-
 function toSongEmbed(url) {
   if (!url) return null;
   if (url.includes('open.spotify.com') || url.includes('/embed/')) {
@@ -138,7 +133,7 @@ function toSongEmbed(url) {
 const Home = ({ onNavigate, user }) => {
   const [stats, setStats] = useState({ members: 0, online: 0 });
   const [onlineList, setOnlineList] = useState([]);
-  const [songOfDay, setSongOfDay] = useState(getSongOfDay);
+  const [songOfDay, setSongOfDay] = useState(null);
   const [announcements, setAnnouncements] = useState([]);
   const [showAllUpdates, setShowAllUpdates] = useState(false);
   const [staffOfMonth, setStaffOfMonth] = useState(null);
@@ -229,10 +224,17 @@ const Home = ({ onNavigate, user }) => {
   }, []);
 
   useEffect(() => {
-    const check = () => setSongOfDay(getSongOfDay());
+    let active = true;
+    const check = async () => {
+      try {
+        const { default: db } = await import('../../services/db');
+        const song = await db.getSongOfDay();
+        if (active) setSongOfDay(song);
+      } catch {}
+    };
     check();
     const id = setInterval(check, 60000);
-    return () => clearInterval(id);
+    return () => { active = false; clearInterval(id); };
   }, []);
 
   const go = (pageId, sub) => {

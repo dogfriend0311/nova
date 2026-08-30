@@ -1394,6 +1394,76 @@ export const db = {
     ls.set('nova_announcements', ls.get('nova_announcements').filter(a => a.id !== id));
   },
 
+  /* ── SONG OF THE DAY ──────────────────────────────────────────
+     Used to live only in localStorage (per-browser, per-device —
+     invisible to other members AND to the server-side weekly Discord
+     digest, which runs on Vercel and has no access to anyone's
+     browser storage). Moved to Supabase so it syncs everywhere and
+     shows up in the digest. Run this SQL once in Supabase:
+
+       CREATE TABLE IF NOT EXISTS nova_song_of_day (
+         id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+         title        TEXT,
+         artist       TEXT,
+         url          TEXT,
+         description  TEXT,
+         submitted_by TEXT,
+         created_at   TIMESTAMPTZ DEFAULT now()
+       );
+       ALTER TABLE nova_song_of_day ENABLE ROW LEVEL SECURITY;
+       CREATE POLICY "Public read"  ON nova_song_of_day FOR SELECT USING (true);
+       CREATE POLICY "Public write" ON nova_song_of_day FOR INSERT WITH CHECK (true);
+       CREATE POLICY "Public delete" ON nova_song_of_day FOR DELETE USING (true); */
+
+  async getSongHistory(limitN = 20) {
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase
+          .from('nova_song_of_day')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(limitN);
+        if (!error) return data || [];
+      } catch {}
+    }
+    return ls.get('nova_song_of_day').sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, limitN);
+  },
+
+  async getSongOfDay() {
+    const [latest] = await this.getSongHistory(1);
+    return latest || null;
+  },
+
+  async postSongOfDay(entry, username) {
+    const record = {
+      title: entry.title || null,
+      artist: entry.artist || null,
+      url: entry.url || null,
+      description: entry.description || null,
+      submitted_by: username || 'owner',
+      created_at: new Date().toISOString(),
+    };
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_song_of_day').insert([record]).select();
+        if (!error && data?.[0]) {
+          ls.set('nova_song_of_day', [...ls.get('nova_song_of_day'), data[0]]);
+          return data[0];
+        }
+      } catch {}
+    }
+    const local = { ...record, id: Date.now().toString() };
+    ls.set('nova_song_of_day', [...ls.get('nova_song_of_day'), local]);
+    return local;
+  },
+
+  async deleteSongOfDay(id) {
+    if (hasSupabase()) {
+      try { await supabase.from('nova_song_of_day').delete().eq('id', id); } catch {}
+    }
+    ls.set('nova_song_of_day', ls.get('nova_song_of_day').filter(s => s.id !== id));
+  },
+
   /* ── STAFF OF THE MONTH ──────────────────────────────────────
      A single spotlighted member set by an owner/co-founder — shown
      as a featured card on the home page and as a small badge next
