@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { uploadToBlob } from '../../services/blobUpload';
 import { TEAMS, SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl } from '../../data/teams';
+import { SPORTS as LEAGUE_SPORTS } from '../../data/sportsConfig';
 import { getWatchList } from '../../services/mediaService';
 import * as lfm from '../../services/lastfmService';
 import { BADGES, getEarnedBadges, syncBadges, getBadgeProgress } from '../../services/achievementsService';
@@ -48,11 +49,16 @@ const DEFAULT_PROFILE = {
   // guns.lol-style page customization
   bg_media_url: '', bg_media_type: '', // legacy single-item fields (kept so old profiles still work)
   audio_url: '', audio_title: '',
-  bg_media: [],     // [{ id, url, type: 'video'|'image' }] — cycles through, each video loops
+  bg_media: [],     // [{ id, url, type: 'video'|'image', position }] — cycles through, each video loops
   audio_tracks: [], // [{ id, url, title, artist }] — mini radio playlist, loops
   displayed_badges: [], // badge ids (from nova_badge_types) this member has chosen to show next to their name
   // guns.lol-style color customization — hex strings, empty = use role default
   accent_color: '', bg_color: '', text_color: '',
+  // Focal point ("center of interest") for cropped images/video, as a CSS
+  // object-position value e.g. "50% 30%" — lets a member re-center a photo
+  // that got cropped oddly by the fixed aspect ratio (avatar circle,
+  // banner strip, full-bleed background). Empty/missing = plain center.
+  avatar_position: '', banner_position: '',
 };
 
 // Old profiles only have the single bg_media_url/audio_url fields. New profiles
@@ -71,6 +77,69 @@ export function effectiveAudioList(profile) {
 }
 
 function _uid() { return Math.random().toString(36).slice(2, 10); }
+
+// ── Focal point picker — lets a member drag a crosshair over an image or
+// video to choose what stays centered when it gets cropped into a circle
+// (avatar), a wide strip (banner) or a full-bleed background. Stores a
+// plain CSS object-position string like "62% 20%" so it drops straight
+// into the object-position/background-position wherever the media renders.
+const DEFAULT_POSITION = '50% 50%';
+
+function parsePosition(pos) {
+  const m = /^([\d.]+)%\s+([\d.]+)%$/.exec((pos || '').trim());
+  if (!m) return { x: 50, y: 50 };
+  return { x: Math.min(100, Math.max(0, parseFloat(m[1]))), y: Math.min(100, Math.max(0, parseFloat(m[2]))) };
+}
+
+const FocalPointPicker = ({ url, isVideo, value, onChange, onClose }) => {
+  const boxRef = useRef(null);
+  const [dragging, setDragging] = useState(false);
+  const { x, y } = parsePosition(value || DEFAULT_POSITION);
+
+  const updateFromEvent = (e) => {
+    const box = boxRef.current;
+    if (!box) return;
+    const rect = box.getBoundingClientRect();
+    const px = ((e.clientX - rect.left) / rect.width) * 100;
+    const py = ((e.clientY - rect.top) / rect.height) * 100;
+    const nx = Math.round(Math.min(100, Math.max(0, px)));
+    const ny = Math.round(Math.min(100, Math.max(0, py)));
+    onChange(`${nx}% ${ny}%`);
+  };
+
+  const handlePointerDown = (e) => {
+    e.preventDefault();
+    setDragging(true);
+    e.target.setPointerCapture?.(e.pointerId);
+    updateFromEvent(e);
+  };
+  const handlePointerMove = (e) => { if (dragging) updateFromEvent(e); };
+  const handlePointerUp = () => setDragging(false);
+
+  return (
+    <div className="gl-focal-picker">
+      <div
+        ref={boxRef}
+        className="gl-focal-box"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+      >
+        {isVideo
+          ? <video src={url} muted loop playsInline style={{ objectPosition: `${x}% ${y}%` }} />
+          : <img src={url} alt="" style={{ objectPosition: `${x}% ${y}%` }} draggable={false} />}
+        <div className="gl-focal-crosshair" style={{ left: `${x}%`, top: `${y}%` }} />
+      </div>
+      <div className="gl-focal-actions">
+        <span className="gl-focal-hint">Drag the dot to what should stay centered</span>
+        {value && value !== DEFAULT_POSITION && (
+          <button type="button" className="gl-focal-reset" onClick={() => onChange('')}>Reset</button>
+        )}
+        <button type="button" className="gl-focal-done" onClick={onClose}>Done</button>
+      </div>
+    </div>
+  );
+};
 
 // ── Roblox URL helpers ────────────────────────────────────────
 function parseRobloxPlaceId(input) {
@@ -134,11 +203,12 @@ export const RobloxGameCard = ({ placeId, title, note, onRemove }) => {
 // table) — a major contributor to slow page loads. Now it uploads to
 // Supabase Storage like the background/audio fields do, and only a
 // small URL is stored on the profile.
-const ImageField = ({ label, fieldKey, value, onChange, username, aspect }) => {
+const ImageField = ({ label, fieldKey, value, onChange, username, aspect, positionKey, positionValue, onPositionChange }) => {
   const inputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [showUrlInput, setShowUrlInput] = useState(false);
+  const [adjustingPosition, setAdjustingPosition] = useState(false);
 
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
@@ -175,7 +245,7 @@ const ImageField = ({ label, fieldKey, value, onChange, username, aspect }) => {
         onClick={() => !uploading && inputRef.current?.click()}
       >
         {hasImage && !isBase64 && (
-          <img src={value} alt="preview" onError={(e) => { e.target.style.display = 'none'; }} />
+          <img src={value} alt="preview" style={{ objectPosition: positionValue || DEFAULT_POSITION }} onError={(e) => { e.target.style.display = 'none'; }} />
         )}
         {!hasImage && (
           <>
@@ -200,6 +270,24 @@ const ImageField = ({ label, fieldKey, value, onChange, username, aspect }) => {
       >
         {showUrlInput ? '– Hide URL field' : '+ Paste a URL instead'}
       </button>
+      {hasImage && !isBase64 && positionKey && (
+        <button
+          type="button"
+          onClick={() => setAdjustingPosition(s => !s)}
+          style={{ background: 'none', border: 'none', color: 'var(--gl-accent, #6c5ce7)', fontSize: '0.72rem', cursor: 'pointer', padding: '6px 0 0 12px', fontWeight: 700 }}
+        >
+          {adjustingPosition ? '– Hide centering tool' : '🎯 Center this photo'}
+        </button>
+      )}
+      {adjustingPosition && hasImage && !isBase64 && positionKey && (
+        <FocalPointPicker
+          url={value}
+          isVideo={false}
+          value={positionValue}
+          onChange={(pos) => onPositionChange(positionKey, pos)}
+          onClose={() => setAdjustingPosition(false)}
+        />
+      )}
       {showUrlInput && (
         <input
           type="text"
@@ -293,6 +381,7 @@ const MultiBgUploadField = ({ username, list, onChange, hint }) => {
   const inputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [adjustingId, setAdjustingId] = useState(null);
 
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
@@ -318,6 +407,8 @@ const MultiBgUploadField = ({ username, list, onChange, hint }) => {
     [next[i], next[j]] = [next[j], next[i]];
     onChange(next);
   };
+  const setItemPosition = (id, pos) => onChange(list.map(b => b.id === id ? { ...b, position: pos } : b));
+  const adjustingItem = list.find(b => b.id === adjustingId);
 
   return (
     <div className="form-group mp-image-field">
@@ -328,9 +419,14 @@ const MultiBgUploadField = ({ username, list, onChange, hint }) => {
         {list.map((b, i) => (
           <div key={b.id} className="gl-upload-tile has-media" style={{ position: 'relative' }}>
             {b.type === 'video'
-              ? <video src={b.url} muted loop playsInline />
-              : <img src={b.url} alt={`Background ${i + 1}`} onError={(e) => { e.target.style.display = 'none'; }} />}
+              ? <video src={b.url} muted loop playsInline style={{ objectPosition: b.position || DEFAULT_POSITION }} />
+              : <img src={b.url} alt={`Background ${i + 1}`} style={{ objectPosition: b.position || DEFAULT_POSITION }} onError={(e) => { e.target.style.display = 'none'; }} />}
             <button className="gl-upload-tile-remove" onClick={() => remove(b.id)} title="Remove">✕</button>
+            <button
+              onClick={() => setAdjustingId(adjustingId === b.id ? null : b.id)}
+              title="Center this background"
+              style={{ position: 'absolute', bottom: 6, right: 6, width: 24, height: 24, borderRadius: 6, border: 'none', background: adjustingId === b.id ? 'var(--gl-accent, #6c5ce7)' : 'rgba(0,0,0,0.65)', color: '#fff', fontSize: '0.75rem', cursor: 'pointer' }}
+            >🎯</button>
             {list.length > 1 && (
               <div style={{ position: 'absolute', top: 6, left: 6, display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <button onClick={() => move(i, -1)} disabled={i === 0} title="Move earlier"
@@ -352,6 +448,16 @@ const MultiBgUploadField = ({ username, list, onChange, hint }) => {
           <input ref={inputRef} type="file" accept="video/*,image/*" onChange={handleFile} style={{ display: 'none' }} disabled={uploading} />
         </label>
       </div>
+
+      {adjustingItem && (
+        <FocalPointPicker
+          url={adjustingItem.url}
+          isVideo={adjustingItem.type === 'video'}
+          value={adjustingItem.position}
+          onChange={(pos) => setItemPosition(adjustingItem.id, pos)}
+          onClose={() => setAdjustingId(null)}
+        />
+      )}
 
       {error && <div style={{ color: '#ff6b7a', fontSize: '0.75rem', marginTop: 8 }}>⚠ {error}</div>}
       {list.length > 1 && (
@@ -673,10 +779,10 @@ export const ProfileBackground = ({ list }) => {
           {current.type === 'video' ? (
             <video
               src={current.url} autoPlay muted loop playsInline
-              style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: current.position || '50% 50%' }}
             />
           ) : (
-            <img src={current.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} onError={(e) => { e.target.style.display = 'none'; }} />
+            <img src={current.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: current.position || '50% 50%' }} onError={(e) => { e.target.style.display = 'none'; }} />
           )}
         </div>
       </div>
@@ -854,6 +960,63 @@ export const RobloxLinkCard = ({ username }) => {
         </>
       )}
     </div>
+  );
+};
+
+// ── Showcase a member's league player page ──────────────────────
+// If a member has linked their Roblox account and that same username
+// is on a roster in one of the Roblox leagues (Baseball/Hockey/Football),
+// show a card linking straight to their existing stat page
+// (LeaguePlayerPage.jsx) — the same page you get to from the Leagues tab.
+// This is separate from the real-world ESPN athlete pages in Sports Hub.
+export const LeaguePlayerShowcase = ({ robloxUsername }) => {
+  const [match, setMatch] = useState(undefined); // undefined = loading, null = no match
+
+  useEffect(() => {
+    if (!robloxUsername) { setMatch(null); return; }
+    let active = true;
+    setMatch(undefined);
+    Promise.all(
+      Object.keys(LEAGUE_SPORTS).map(lg =>
+        db.getPlayers(lg).then(players => ({
+          lg,
+          found: (players || []).find(p => (p.roblox_username || '').toLowerCase() === robloxUsername.toLowerCase()),
+        })).catch(() => ({ lg, found: null }))
+      )
+    ).then(results => {
+      if (!active) return;
+      const hit = results.find(r => r.found);
+      setMatch(hit ? { ...hit.found, _league: hit.lg } : null);
+    });
+    return () => { active = false; };
+  }, [robloxUsername]);
+
+  if (!robloxUsername || match === null) return null;
+  if (match === undefined) return null; // don't flash a loading state for this optional card
+
+  const league = LEAGUE_SPORTS[match._league];
+  return (
+    <a
+      href={`#leagues/player/${match.id}`}
+      className="neon-card p-3"
+      style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, textDecoration: 'none' }}
+    >
+      {match.avatar_data
+        ? <img src={match.avatar_data} alt="" style={{ width: 48, height: 48, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
+        : <div style={{ width: 48, height: 48, borderRadius: 8, background: `${league?.accent || '#5e81f4'}22`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem', flexShrink: 0 }}>{league?.icon || '🎮'}</div>}
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(158,165,196,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>
+          {league?.icon} {league?.shortLabel || 'League'} Player Page
+        </div>
+        <div style={{ fontWeight: 700, color: '#e2e5f0', fontSize: '0.92rem' }}>
+          {match.player_name}{match.nickname ? <span style={{ color: 'rgba(158,165,196,0.45)', fontWeight: 400, fontSize: '0.82rem', marginLeft: 6 }}>"{match.nickname}"</span> : null}
+        </div>
+        <div style={{ fontSize: '0.78rem', color: 'rgba(158,165,196,0.5)' }}>
+          {match.team || 'Free Agent'} · {match.position || '--'} · OVR {match.overall ?? '--'}
+        </div>
+      </div>
+      <span style={{ flexShrink: 0, fontSize: '0.78rem', color: 'var(--color-cyan)', fontWeight: 600 }}>View →</span>
+    </a>
   );
 };
 
@@ -1229,7 +1392,7 @@ const MemberProfile = () => {
               <div className="gl-panel">
                 <div className="gl-panel-title">Profile</div>
                 <div className="gl-panel-sub">Your name, avatar and about-me text.</div>
-                <ImageField label="Avatar / Profile Pic" fieldKey="avatar_url" value={formData.avatar_url || ''} onChange={handleField} username={user?.username} />
+                <ImageField label="Avatar / Profile Pic" fieldKey="avatar_url" value={formData.avatar_url || ''} onChange={handleField} username={user?.username} positionKey="avatar_position" positionValue={formData.avatar_position} onPositionChange={handleField} />
                 <div className="form-group">
                   <label>About Me</label>
                   <textarea rows="4" value={formData.bio || ''} onChange={(e) => setFormData({ ...formData, bio: e.target.value })} placeholder="Tell us about yourself…" />
@@ -1268,7 +1431,7 @@ const MemberProfile = () => {
               <div className="gl-panel">
                 <div className="gl-panel-title">Assets Uploader</div>
                 <div className="gl-panel-sub">Your page banner and background media — the first thing visitors see.</div>
-                <ImageField label="Banner Image" fieldKey="top_banner_url" value={formData.top_banner_url || ''} onChange={handleField} username={user?.username} />
+                <ImageField label="Banner Image" fieldKey="top_banner_url" value={formData.top_banner_url || ''} onChange={handleField} username={user?.username} positionKey="banner_position" positionValue={formData.banner_position} onPositionChange={handleField} />
                 <div style={{ marginTop: 16 }}>
                   <MultiBgUploadField
                     username={user?.username}
@@ -1559,12 +1722,12 @@ const MemberProfile = () => {
         >
           {cardData.top_banner_url && (
             <div className="gl-public-banner">
-              <img src={cardData.top_banner_url} alt="" />
+              <img src={cardData.top_banner_url} alt="" style={{ objectPosition: cardData.banner_position || '50% 50%' }} />
             </div>
           )}
           <div className="gl-public-avatar-row">
             <div className="gl-public-avatar">
-              {cardData.avatar_url ? <img src={cardData.avatar_url} alt="avatar" /> : '🚀'}
+              {cardData.avatar_url ? <img src={cardData.avatar_url} alt="avatar" style={{ objectPosition: cardData.avatar_position || '50% 50%' }} /> : '🚀'}
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
               <div className="gl-public-name-row">
@@ -1623,6 +1786,7 @@ const MemberProfile = () => {
       {/* Info */}
       <div className="tw-info" style={{ padding: '0 20px' }}>
         {cardData.roblox_username && <RobloxLinkCard username={cardData.roblox_username} />}
+        {cardData.roblox_username && <LeaguePlayerShowcase robloxUsername={cardData.roblox_username} />}
 
         {socials.length > 0 && (
           <div className="tw-socials">

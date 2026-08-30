@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   fetchScoreboard, fetchStandings, fetchNews, fetchGameSummary,
-  fetchAllAthletes, fetchAthleteProfile, fetchAthleteStats,
+  fetchAllAthletes,
   normalizeGame, normalizeStandings, normalizeNews, normalizeGameSummary,
   fetchMiLBScoreboard, normalizeMiLBGame, fetchMiLBGameDetail,
   fetchSearch, normalizeSearchResults,
@@ -13,6 +13,7 @@ import PlayByPlay from './PlayByPlay';
 import WinProbabilityChart from './WinProbabilityChart';
 import GameChat from './GameChat';
 import PlayerOfGame from './PlayerOfGame';
+import AthletePage from './AthletePage';
 import InjuryReport from './InjuryReport';
 import AroundLeagueDigest from './AroundLeagueDigest';
 import OnThisDaySports from './OnThisDaySports';
@@ -576,7 +577,7 @@ const OddsPredictorPanel = ({ sport, game }) => {
 };
 
 /* ── Game Detail View ────────────────────────────────────────── */
-const GameDetailView = ({ game, sport, onBack }) => {
+const GameDetailView = ({ game, sport, onBack, onSelectAthlete }) => {
   const [summary, setSummary]   = useState(null);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
@@ -752,7 +753,11 @@ const GameDetailView = ({ game, sport, onBack }) => {
                                     <td style={{ ...tdStyle, textAlign:'left' }}>
                                       <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
                                         {a.photo&&<img src={a.photo} alt={a.name} style={{ width:'26px', height:'26px', borderRadius:'50%', objectFit:'cover', flexShrink:0 }} />}
-                                        <span style={{ color:'rgba(158, 165, 196,0.9)' }}>{a.name}</span>
+                                        {a.id && onSelectAthlete ? (
+                                          <button className="ap-player-link" onClick={()=>onSelectAthlete(sport, a.id)}>{a.name}</button>
+                                        ) : (
+                                          <span style={{ color:'rgba(158, 165, 196,0.9)' }}>{a.name}</span>
+                                        )}
                                         {a.position&&<span style={{ fontSize:'0.72rem', color:'rgba(158, 165, 196,0.35)' }}>{a.position}</span>}
                                       </div>
                                     </td>
@@ -781,7 +786,7 @@ const GameDetailView = ({ game, sport, onBack }) => {
    the categories ESPN tracks for the sport (passing, home runs, points,
    etc.), each with the leading players already embedded (no extra
    per-athlete fetches needed). */
-const LeadersPanel = ({ sport }) => {
+const LeadersPanel = ({ sport, onSelectAthlete }) => {
   const [categories, setCategories] = useState(null);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState(null);
@@ -809,7 +814,12 @@ const LeadersPanel = ({ sport }) => {
                 <span style={{ width:'20px', textAlign:'center', color:'rgba(158, 165, 196,0.4)', fontSize:'0.8rem', fontWeight:700 }}>{i+1}</span>
                 {l.athletePhoto && <img src={l.athletePhoto} alt={l.athleteName} style={{ width:'28px', height:'28px', borderRadius:'50%', objectFit:'cover' }} />}
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ color:'rgba(158, 165, 196,0.92)', fontSize:'0.85rem', fontWeight:600 }}>{l.athleteName} {l.teamAbbr && <span style={{ color:'rgba(158, 165, 196,0.4)', fontWeight:400 }}>· {l.teamAbbr}</span>}</div>
+                  <div style={{ color:'rgba(158, 165, 196,0.92)', fontSize:'0.85rem', fontWeight:600 }}>
+                    {l.athleteId && onSelectAthlete
+                      ? <button className="ap-player-link" onClick={()=>onSelectAthlete(sport, l.athleteId)}>{l.athleteName}</button>
+                      : l.athleteName}
+                    {l.teamAbbr && <span style={{ color:'rgba(158, 165, 196,0.4)', fontWeight:400 }}> · {l.teamAbbr}</span>}
+                  </div>
                 </div>
                 <span style={{ color:'var(--color-cyan)', fontWeight:700, fontSize:'0.85rem', whiteSpace:'nowrap' }}>{l.displayValue}</span>
               </div>
@@ -880,14 +890,11 @@ const SearchPanel = ({ sport }) => {
 };
 
 /* ── Player Search Panel ─────────────────────────────────────── */
-const PlayerSearchPanel = ({ sport }) => {
+const PlayerSearchPanel = ({ sport, onSelectAthlete }) => {
   const [query, setQuery]               = useState('');
   const [results, setResults]           = useState([]);
   const [loading, setLoading]           = useState(false);
   const [error, setError]               = useState(null);
-  const [selectedId, setSelectedId]     = useState(null);
-  const [playerData, setPlayerData]     = useState(null);
-  const [statsLoading, setStatsLoading] = useState(false);
 
   if (sport==='cbb') return (
     <div className="sh-players-panel">
@@ -898,7 +905,7 @@ const PlayerSearchPanel = ({ sport }) => {
 
   const handleSearch = async (e) => {
     e.preventDefault(); if (!query.trim()) return;
-    setLoading(true); setError(null); setResults([]); setSelectedId(null); setPlayerData(null);
+    setLoading(true); setError(null); setResults([]);
     try {
       const all = await fetchAllAthletes(sport);
       const q   = query.trim().toLowerCase();
@@ -909,24 +916,11 @@ const PlayerSearchPanel = ({ sport }) => {
     finally { setLoading(false); }
   };
 
-  const handleSelectAthlete = async (athlete) => {
-    if (selectedId===athlete.id) { setSelectedId(null); setPlayerData(null); return; }
-    setSelectedId(athlete.id); setPlayerData(null); setStatsLoading(true);
-    try {
-      const [profileRes,statsRes] = await Promise.allSettled([fetchAthleteProfile(sport,athlete.id),fetchAthleteStats(sport,athlete.id)]);
-      setPlayerData({ profile:profileRes.status==='fulfilled'?profileRes.value?.athlete:null, statsCat:statsRes.status==='fulfilled'?(statsRes.value?.categories||[]):[] });
-    } catch { setPlayerData({ profile:null, statsCat:[] }); }
-    finally { setStatsLoading(false); }
-  };
-
-  const thS={padding:'7px 10px',color:'rgba(158, 165, 196,0.45)',fontSize:'0.72rem',fontWeight:'700',textTransform:'uppercase',letterSpacing:'0.08em',borderBottom:'1px solid rgba(100,120,200,0.18)',textAlign:'center'};
-  const tdS={padding:'7px 10px',textAlign:'center',color:'rgba(158, 165, 196,0.82)',fontSize:'0.83rem',borderBottom:'1px solid rgba(100,120,200,0.07)'};
-
   return (
     <div className="sh-players-panel">
       <div className="sh-players-header">
         <h3 className="gradient-text-cyan">Player Lookup</h3>
-        <p style={{ color:'rgba(158, 165, 196,0.5)', fontSize:'0.85rem', marginTop:'6px' }}>Search by player name or team{sport==='cfb'?' (first search loads all rosters ~10s)':''}</p>
+        <p style={{ color:'rgba(158, 165, 196,0.5)', fontSize:'0.85rem', marginTop:'6px' }}>Search by player name or team{sport==='cfb'?' (first search loads all rosters ~10s)':''} — click a result to open their full player page.</p>
       </div>
       <form className="sh-search-form" onSubmit={handleSearch}>
         <input className="sh-search-input" type="text" placeholder="Search player or team name..." value={query} onChange={e=>setQuery(e.target.value)} />
@@ -938,7 +932,7 @@ const PlayerSearchPanel = ({ sport }) => {
           <p style={{ fontSize:'0.78rem', color:'rgba(158, 165, 196,0.4)', marginBottom:'10px' }}>{results.length} result{results.length!==1?'s':''} found</p>
           {results.map(athlete=>(
             <div key={athlete.id} className="sh-athlete-result">
-              <button className={`sh-athlete-btn ${selectedId===athlete.id?'selected':''}`} onClick={()=>handleSelectAthlete(athlete)}>
+              <button className="sh-athlete-btn" onClick={()=>onSelectAthlete(sport, athlete.id)}>
                 <div className="sh-athlete-left">
                   <img src={athlete.headshotUrl} alt={athlete.displayName} className="sh-athlete-photo" onError={e=>{e.target.style.display='none';}} />
                   <div className="sh-athlete-info">
@@ -946,57 +940,8 @@ const PlayerSearchPanel = ({ sport }) => {
                     <span className="sh-athlete-meta">{[athlete.teamName,athlete.position&&`#${athlete.jersey||''} ${athlete.position}`].filter(Boolean).join(' - ')}</span>
                   </div>
                 </div>
-                <span className="sh-athlete-toggle">{selectedId===athlete.id?'^':'v'}</span>
+                <span className="sh-athlete-toggle">›</span>
               </button>
-              {selectedId===athlete.id && (
-                <div className="sh-athlete-detail">
-                  {statsLoading && <div className="sh-loading" style={{ padding:'20px 0' }}><div className="sh-spinner" /></div>}
-                  {!statsLoading && playerData && (
-                    <>
-                      {playerData.profile && (
-                        <div className="sh-athlete-profile">
-                          {playerData.profile.headshot?.href && <img src={playerData.profile.headshot.href} alt={playerData.profile.displayName} className="sh-profile-photo" />}
-                          <div className="sh-profile-info">
-                            <h4 style={{ color:'var(--color-cyan)', margin:'0 0 6px', fontSize:'1rem' }}>{playerData.profile.displayName}</h4>
-                            {playerData.profile.team?.displayName && <p style={{ margin:'0 0 4px', color:'rgba(158, 165, 196,0.7)', fontSize:'0.85rem' }}>{playerData.profile.team.displayName}</p>}
-                            <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', marginTop:'6px' }}>
-                              {playerData.profile.position?.displayName && <span className="sh-profile-badge">{playerData.profile.position.displayName}</span>}
-                              {playerData.profile.jersey && <span className="sh-profile-badge">#{playerData.profile.jersey}</span>}
-                              {playerData.profile.age && <span className="sh-profile-badge">Age {playerData.profile.age}</span>}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      {playerData.statsCat.length>0 ? (
-                        <div style={{ marginTop:'16px' }}>
-                          <h4 style={{ fontSize:'0.8rem', color:'rgba(158, 165, 196,0.45)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:'12px' }}>Stats</h4>
-                          {playerData.statsCat.slice(0,1).map((cat,ci)=>(
-                            <div key={ci} style={{ marginBottom:'16px' }}>
-                              <h5 style={{ fontSize:'0.75rem', color:'rgba(158, 165, 196,0.35)', marginBottom:'8px' }}>{cat.displayName||cat.name}</h5>
-                              <div style={{ overflowX:'auto' }}>
-                                <table style={{ width:'100%', borderCollapse:'collapse' }}>
-                                  <thead><tr><th style={thS}>Year</th>{(cat.labels||[]).map((lbl,li)=><th key={li} style={thS}>{lbl}</th>)}</tr></thead>
-                                  <tbody>
-                                    {Object.values(cat.statistics||{}).slice(0,5).map((row,ri)=>(
-                                      <tr key={ri}><td style={tdS}>{row.season?.year||'--'}</td>{(row.stats||[]).map((val,vi)=><td key={vi} style={tdS}>{val}</td>)}</tr>
-                                    ))}
-                                    {cat.totals?.length>0&&(
-                                      <tr style={{ borderTop:'1px solid rgba(100,120,200,0.2)' }}>
-                                        <td style={{ ...tdS, color:'var(--color-cyan)', fontWeight:'700' }}>Career</td>
-                                        {cat.totals.map((val,vi)=><td key={vi} style={{ ...tdS, fontWeight:'600' }}>{val}</td>)}
-                                      </tr>
-                                    )}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : <p style={{ color:'rgba(158, 165, 196,0.4)', fontSize:'0.85rem', marginTop:'14px' }}>No stats available.</p>}
-                    </>
-                  )}
-                </div>
-              )}
             </div>
           ))}
         </div>
@@ -1138,6 +1083,11 @@ const SportsHub = ({ initialSport }) => {
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState('');
   const [refreshKey,  setRefreshKey]  = useState(0);
+  // ESPN-style player page — set whenever a player is clicked, from
+  // Player Lookup or from a box score. Takes over the whole tab body
+  // until "Back" is pressed, same pattern as selectedGame below.
+  const [viewingAthlete, setViewingAthlete] = useState(null); // { sport, id } | null
+  const handleSelectAthlete = (athleteSport, athleteId) => setViewingAthlete({ sport: athleteSport, id: athleteId });
   const [selectedGame, setSelectedGame] = useState(null);
 
   // Only poll the scoreboard while the user is actually looking at Scores
@@ -1233,8 +1183,10 @@ const SportsHub = ({ initialSport }) => {
       </div>
 
       <div className="sh-content">
-        {selectedGame ? (
-          <GameDetailView game={selectedGame} sport={activeSport} onBack={()=>setSelectedGame(null)} />
+        {viewingAthlete ? (
+          <AthletePage sport={viewingAthlete.sport} athleteId={viewingAthlete.id} onBack={()=>setViewingAthlete(null)} />
+        ) : selectedGame ? (
+          <GameDetailView game={selectedGame} sport={activeSport} onBack={()=>setSelectedGame(null)} onSelectAthlete={handleSelectAthlete} />
         ) : (
           <>
             {/* Note: key intentionally omits selectedDate — ScoresPanel/MiLBScoresPanel
@@ -1245,8 +1197,8 @@ const SportsHub = ({ initialSport }) => {
             {activeTab==='scores' && !isMiLB(activeSport) && <ScoresPanel key={`${activeSport}-scores`} sport={activeSport} refreshKey={refreshKey} onSelectGame={setSelectedGame} selectedDate={selectedDate} />}
             {activeTab==='standings' && <StandingsPanel key={`${activeSport}-standings`} sport={activeSport} />}
             {activeTab==='news'      && <NewsPanel key={`${activeSport}-news`} sport={activeSport} />}
-            {activeTab==='players'   && <PlayerSearchPanel key={`${activeSport}-players`} sport={activeSport} />}
-            {activeTab==='leaders'  && <LeadersPanel key={`${activeSport}-leaders`} sport={activeSport} />}
+            {activeTab==='players'   && <PlayerSearchPanel key={`${activeSport}-players`} sport={activeSport} onSelectAthlete={handleSelectAthlete} />}
+            {activeTab==='leaders'  && <LeadersPanel key={`${activeSport}-leaders`} sport={activeSport} onSelectAthlete={handleSelectAthlete} />}
             {activeTab==='search'   && <SearchPanel key={`${activeSport}-search`} sport={activeSport} />}
             {activeTab==='injuries' && <InjuryReport key={`${activeSport}-injuries`} sport={activeSport} />}
             {activeTab==='onthisday' && <OnThisDaySports key={`${activeSport}-otd`} sport={activeSport} onSelectGame={setSelectedGame} />}

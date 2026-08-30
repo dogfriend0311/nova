@@ -428,6 +428,7 @@ export function normalizeLeaders(data) {
     name:        cat.name,
     displayName: cat.displayName || cat.shortDisplayName || cat.name,
     leaders: (cat.leaders || []).slice(0, 10).map((l) => ({
+      athleteId:    l.athlete?.id || null,
       displayValue: l.displayValue,
       value:        l.value,
       athleteName:  l.athlete?.displayName || l.athlete?.shortName || '?',
@@ -519,6 +520,7 @@ export function normalizeGameSummary(data) {
         name:     cat.displayName || cat.name || '',
         keys:     cat.keys || [],
         athletes: (cat.athletes || []).map(a => ({
+          id:       a.athlete?.id || null,
           name:     a.athlete?.displayName || '?',
           photo:    a.athlete?.headshot?.href || null,
           position: a.athlete?.position?.abbreviation || '',

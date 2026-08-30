@@ -221,6 +221,28 @@
   font-size:0.72rem; cursor:pointer; display:flex; align-items:center; justify-content:center;
 }
 
+/* ── Focal point ("center this photo") picker ── */
+.gl-focal-picker { margin-top: 10px; padding: 12px; border-radius: 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--gl-accent-border); }
+.gl-focal-box { position: relative; width: 100%; aspect-ratio: 16/9; border-radius: 8px; overflow: hidden; cursor: crosshair; touch-action: none; background: #000; }
+.gl-focal-box img, .gl-focal-box video { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+.gl-focal-crosshair {
+  position: absolute; width: 22px; height: 22px; transform: translate(-50%, -50%);
+  border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 2px var(--gl-accent, #6c5ce7), 0 2px 8px rgba(0,0,0,0.6);
+  pointer-events: none;
+}
+.gl-focal-crosshair::before, .gl-focal-crosshair::after {
+  content: ''; position: absolute; background: #fff;
+}
+.gl-focal-crosshair::before { left: 50%; top: -6px; width: 1px; height: 6px; transform: translateX(-50%); }
+.gl-focal-crosshair::after { left: 50%; bottom: -6px; width: 1px; height: 6px; transform: translateX(-50%); }
+.gl-focal-actions { display: flex; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+.gl-focal-hint { font-size: 0.7rem; color: rgba(220,215,240,0.4); flex: 1; }
+.gl-focal-reset, .gl-focal-done {
+  border: none; border-radius: 6px; padding: 5px 12px; font-size: 0.72rem; font-weight: 700; cursor: pointer;
+}
+.gl-focal-reset { background: rgba(255,255,255,0.06); color: rgba(220,215,240,0.6); }
+.gl-focal-done { background: var(--gl-accent, #6c5ce7); color: #fff; }
+
 /* ── Section list rows (Links / socials grid) ── */
 .gl-social-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(78px,1fr)); gap:10px; }
 .gl-social-tile {

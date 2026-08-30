@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl, getTeamByAbbr } from '../../data/teams';
 import * as lfm from '../../services/lastfmService';
-import { ProfileBackground, ProfileAudioPlayer, effectiveBgList, effectiveAudioList, RobloxLinkCard, RobloxGameCard } from './MemberProfile';
+import { ProfileBackground, ProfileAudioPlayer, effectiveBgList, effectiveAudioList, RobloxLinkCard, RobloxGameCard, LeaguePlayerShowcase } from './MemberProfile';
 import { BadgeRow, DiscordVerifiedChip } from '../BadgeDisplay';
 import { checkAndAwardDiscordBadges } from '../../services/discordBadgeCheck';
 import { MemberGridSkeleton } from '../Skeleton';
@@ -438,7 +438,7 @@ const MemberCard = ({ member, badgeTypes, onClick }) => {
       <div style={{
         height: 120,
         background: hasBanner
-          ? `url(${member.top_banner_url}) center/cover no-repeat`
+          ? `url(${member.top_banner_url}) ${member.banner_position || '50% 50%'}/cover no-repeat`
           : defaultBanner(member.role),
         position: 'relative',
         overflow: 'hidden',
@@ -480,7 +480,7 @@ const MemberCard = ({ member, badgeTypes, onClick }) => {
           flexShrink: 0,
         }}>
           {hasAvatar
-            ? <img src={member.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ? <img src={member.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: member.avatar_position || '50% 50%' }} />
             : <span style={{ color: rc, fontWeight: 900, fontSize: '1.4rem', fontFamily: 'var(--font-display)' }}>
                 {(member.username?.[0] || '?').toUpperCase()}
               </span>
@@ -914,13 +914,13 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile }) => {
         >
           {member.top_banner_url && (
             <div className="gl-public-banner">
-              <img src={member.top_banner_url} alt="" />
+              <img src={member.top_banner_url} alt="" style={{ objectPosition: member.banner_position || '50% 50%' }} />
             </div>
           )}
           <div className="gl-public-avatar-row">
             <div className="gl-public-avatar">
               {member.avatar_url
-                ? <img src={member.avatar_url} alt="" />
+                ? <img src={member.avatar_url} alt="" style={{ objectPosition: member.avatar_position || '50% 50%' }} />
                 : (member.username?.[0] || '?').toUpperCase()}
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
@@ -1035,6 +1035,7 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile }) => {
           </div>
 
           {member.roblox_username && <div style={{ marginTop: 12 }}><RobloxLinkCard username={member.roblox_username} /></div>}
+          {member.roblox_username && <div style={{ marginTop: 12 }}><LeaguePlayerShowcase robloxUsername={member.roblox_username} /></div>}
 
           <div className="gl-public-meta-row">
             {socials.map(s => (

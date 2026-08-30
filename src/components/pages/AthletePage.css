@@ -1,0 +1,47 @@
+.ap-page { max-width: 1000px; margin: 0 auto; padding-bottom: 60px; }
+
+.ap-header {
+  position: relative;
+  margin-top: 14px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(94, 129, 244, 0.14), rgba(120, 80, 255, 0.08));
+  border: 1px solid rgba(100, 120, 200, 0.25);
+  padding: 22px;
+}
+.ap-team-bg-logo {
+  position: absolute;
+  right: -20px;
+  top: -20px;
+  width: 180px;
+  height: 180px;
+  object-fit: contain;
+  opacity: 0.08;
+  pointer-events: none;
+}
+.ap-header-inner { position: relative; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.ap-headshot { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(94, 129, 244, 0.5); background: rgba(20, 20, 55, 0.9); flex-shrink: 0; }
+.ap-headshot-ph { display: flex; align-items: center; justify-content: center; font-size: 2.2rem; color: rgba(158, 165, 196, 0.4); }
+.ap-header-info { min-width: 0; }
+.ap-name { margin: 0 0 8px; font-size: 1.5rem; color: #fff; letter-spacing: 0.01em; }
+.ap-meta-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.ap-badge { padding: 3px 10px; border-radius: 20px; background: rgba(100, 120, 200, 0.18); color: rgba(158, 165, 196, 0.85); font-size: 0.75rem; font-weight: 700; }
+.ap-badge-team { background: rgba(94, 129, 244, 0.25); color: #c7d4ff; }
+.ap-bio-line { color: rgba(158, 165, 196, 0.55); font-size: 0.82rem; }
+
+.ap-tab-body { margin-top: 18px; }
+.ap-empty { color: rgba(158, 165, 196, 0.4); font-size: 0.85rem; padding: 24px 0; text-align: center; }
+
+.ap-fact-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(100, 120, 200, 0.1); font-size: 0.85rem; color: rgba(158, 165, 196, 0.7); max-width: 360px; }
+.ap-fact-row strong { color: rgba(158, 165, 196, 0.95); }
+
+.ap-news-list { display: flex; flex-direction: column; gap: 10px; }
+.ap-news-item { display: flex; gap: 12px; align-items: center; text-decoration: none; padding: 10px; border-radius: 10px; background: rgba(15, 15, 40, 0.6); border: 1px solid rgba(100, 120, 200, 0.15); transition: border-color 0.15s; }
+.ap-news-item:hover { border-color: rgba(100, 150, 255, 0.4); }
+.ap-news-item img { width: 72px; height: 48px; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
+.ap-news-headline { color: rgba(158, 165, 196, 0.9); font-size: 0.85rem; font-weight: 600; }
+.ap-news-date { color: rgba(158, 165, 196, 0.4); font-size: 0.72rem; margin-top: 3px; }
+
+/* Clickable athlete names inside box scores / leaders */
+.ap-player-link { color: inherit; background: none; border: none; padding: 0; font: inherit; cursor: pointer; text-align: left; }
+.ap-player-link:hover { color: var(--color-cyan); text-decoration: underline; }
