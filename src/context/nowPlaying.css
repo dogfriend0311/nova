@@ -92,6 +92,15 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.nmp-queue-line {
+  font-size: 0.56rem;
+  font-weight: 700;
+  color: var(--color-cyan, #5e81f4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   margin-bottom: 4px;
 }
 
@@ -158,6 +167,30 @@
 }
 .nmp-center-btn:hover { box-shadow: 0 0 18px rgba(94, 129, 244, 0.45); }
 .nmp-center-btn:active { transform: scale(0.94); }
+
+/* ── prev/next/shuffle — small buttons around the wheel's rim, only
+   shown while a playlist queue is active ─────────────────────────── */
+.nmp-side-btn {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(158, 165, 196, 0.2);
+  color: rgba(226, 229, 240, 0.75);
+  font-size: 0.62rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.nmp-side-btn:hover { color: var(--color-cyan, #5e81f4); border-color: rgba(94, 129, 244, 0.4); }
+.nmp-side-btn:active { transform: scale(0.92); }
+.nmp-side-btn.active { color: var(--color-cyan, #5e81f4); border-color: var(--color-cyan, #5e81f4); background: rgba(94, 129, 244, 0.15); }
+.nmp-side-btn-left { left: -6px; top: 50%; transform: translateY(-50%); }
+.nmp-side-btn-right { right: -6px; top: 50%; transform: translateY(-50%); }
+.nmp-side-btn-bottom { bottom: -6px; left: 50%; transform: translateX(-50%); }
 
 /* ── collapsed "pod" — just the wheel, small, tucked in the corner ─── */
 .nmp-pod-collapsed {

@@ -6,6 +6,7 @@ import './NovaFeatures.css';
 // actually opens the tab, instead of bloating every Music Hub visit.
 const YTMusicPanel = React.lazy(() => import('./music/YTMusicPanel'));
 const MusicLeaderboard = React.lazy(() => import('./music/MusicLeaderboard'));
+const PlaylistsTab = React.lazy(() => import('./music/PlaylistsTab'));
 
 // ── Last.fm inline panel ─────────────────────────────────────
 const LastFmPanel = ({ user }) => {
@@ -158,6 +159,7 @@ const TABS = [
   { id: 'lastfm',      label: '🎧 Last.fm'      },
   { id: 'battle',      label: '🎵 Beat Battle'  },
   { id: 'ytmusic',     label: '🎶 Nova Music'    },
+  { id: 'playlists',   label: '📻 Playlists'    },
   { id: 'leaderboard', label: '🏆 Leaderboard'  },
 ];
 
@@ -198,6 +200,11 @@ const MusicHub = ({ user, initialTab, onSignIn }) => {
       {tab === 'ytmusic'    && (
         <React.Suspense fallback={<div className="nf-card nf-empty">Loading…</div>}>
           <YTMusicPanel />
+        </React.Suspense>
+      )}
+      {tab === 'playlists' && (
+        <React.Suspense fallback={<div className="nf-card nf-empty">Loading…</div>}>
+          <PlaylistsTab user={user} />
         </React.Suspense>
       )}
       {tab === 'leaderboard' && (

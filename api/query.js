@@ -87,6 +87,10 @@ const ALLOWED_TABLES = new Set([
   // Added for: Song of the Day, moved off localStorage so it's visible
   // cross-device and to the weekly Discord digest
   'nova_song_of_day',
+  // Added for: Playlists tab — member-created playlists (build by
+  // searching Nova Music and adding songs) plus owner/co-owner "official"
+  // playlists that are pinned to the top for every member
+  'nova_playlists', 'nova_playlist_songs',
 ]);
 
 const IDENT_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;

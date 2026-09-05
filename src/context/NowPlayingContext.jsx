@@ -40,9 +40,39 @@ export function NowPlayingProvider({ children }) {
   const [duration, setDuration] = useState(0);
   const [collapsed, setCollapsed] = useState(false);
 
+  // ── Playlist queue (Playlists tab: "play all", skip, back, shuffle) ──
+  // `queue` is always in the playlist's own order; `order` is the actual
+  // playback order (identity order normally, shuffled order when
+  // `shuffled` is on) — this way toggling shuffle off restores the
+  // original order instead of losing it. `pos` indexes into `order`.
+  const [queue, setQueue] = useState(null);     // [{ videoId, title, subtitle, thumbnail }] | null
+  const [queueName, setQueueName] = useState(''); // playlist name, for display
+  const [order, setOrder] = useState([]);       // indices into `queue`
+  const [pos, setPos] = useState(0);            // index into `order`
+  const [shuffled, setShuffled] = useState(false);
+
   const playerRef = useRef(null);
   const pendingRef = useRef(null);
   const tickRef = useRef(null);
+
+  // Refs mirroring the queue state above, so the YT onStateChange handler
+  // (registered once, at player creation) always sees the latest queue
+  // instead of a stale closure over the initial (empty) state.
+  const queueRef = useRef(null);
+  const orderRef = useRef([]);
+  const posRef = useRef(0);
+  useEffect(() => { queueRef.current = queue; }, [queue]);
+  useEffect(() => { orderRef.current = order; }, [order]);
+  useEffect(() => { posRef.current = pos; }, [pos]);
+
+  const shuffleArray = (arr) => {
+    const next = arr.slice();
+    for (let i = next.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [next[i], next[j]] = [next[j], next[i]];
+    }
+    return next;
+  };
 
   // ── Set up the single, persistent, hidden YT player ────────────────
   useEffect(() => {
@@ -67,8 +97,19 @@ export function NowPlayingProvider({ children }) {
             if (e.data === 1) {
               setIsPlaying(true);
               setDuration(playerRef.current?.getDuration?.() || 0);
-            } else if (e.data === 2 || e.data === 0) {
+            } else if (e.data === 2) {
               setIsPlaying(false);
+            } else if (e.data === 0) {
+              setIsPlaying(false);
+              // Track ended — if we're playing through a playlist, auto-
+              // advance to the next song instead of just going silent.
+              const q = queueRef.current;
+              if (q && q.length) {
+                const nextPos = posRef.current + 1;
+                if (nextPos < orderRef.current.length) {
+                  advanceToRef.current(nextPos);
+                }
+              }
             }
           },
         },
@@ -91,6 +132,11 @@ export function NowPlayingProvider({ children }) {
 
   const play = useCallback((videoId, title, extra = {}) => {
     if (!videoId) return;
+    // A one-off play (not "play this playlist") — leave queue mode.
+    setQueue(null);
+    setQueueName('');
+    setOrder([]);
+    setPos(0);
     setCurrent({ videoId, title, ...extra });
     setPosition(0);
     setDuration(0);
@@ -111,6 +157,90 @@ export function NowPlayingProvider({ children }) {
     }).catch(() => {});
   }, [isReady, user]);
 
+  // Loads whichever track sits at `orderPos` within the current queue's
+  // playback order — the one shared step used by playQueue/next/previous
+  // and by the auto-advance-on-end handler above.
+  const advanceTo = useCallback((orderPos, queueOverride, orderOverride) => {
+    const q = queueOverride || queueRef.current;
+    const ord = orderOverride || orderRef.current;
+    if (!q || !ord.length) return;
+    const clamped = ((orderPos % ord.length) + ord.length) % ord.length; // wrap around both ways
+    const track = q[ord[clamped]];
+    if (!track) return;
+    setPos(clamped);
+    setCurrent(track);
+    setPosition(0);
+    setDuration(0);
+    setCollapsed(false);
+    if (playerRef.current && isReady) {
+      playerRef.current.loadVideoById(track.videoId);
+    } else {
+      pendingRef.current = track.videoId;
+    }
+    db.recordMusicPlay({
+      username: user?.username,
+      video_id: track.videoId,
+      title: track.title,
+      artist: track.subtitle,
+      thumbnail: track.thumbnail,
+    }).catch(() => {});
+  }, [isReady, user]);
+
+  const advanceToRef = useRef(advanceTo);
+  useEffect(() => { advanceToRef.current = advanceTo; }, [advanceTo]);
+
+  /** Starts playing a playlist. `tracks` is [{ videoId, title, subtitle,
+   *  thumbnail }], `startIndex` is which track (in the playlist's own
+   *  order) to start on. */
+  const playQueue = useCallback((tracks, startIndex = 0, { name = '', shuffle = false } = {}) => {
+    if (!Array.isArray(tracks) || !tracks.length) return;
+    const identity = tracks.map((_, i) => i);
+    const startOrder = shuffle
+      ? [identity[startIndex], ...shuffleArray(identity.filter((i) => i !== startIndex))]
+      : identity;
+    const startPos = shuffle ? 0 : startIndex;
+    setQueue(tracks);
+    setQueueName(name);
+    setOrder(startOrder);
+    setShuffled(shuffle);
+    advanceTo(startPos, tracks, startOrder);
+  }, [advanceTo]);
+
+  const next = useCallback(() => {
+    if (!queueRef.current || !orderRef.current.length) return;
+    advanceTo(posRef.current + 1);
+  }, [advanceTo]);
+
+  const previous = useCallback(() => {
+    if (!queueRef.current || !orderRef.current.length) return;
+    // More than a couple seconds in: restart the current track first
+    // (standard music-player behavior), like a real "back" button.
+    if (playerRef.current?.getCurrentTime?.() > 3) {
+      playerRef.current.seekTo(0, true);
+      return;
+    }
+    advanceTo(posRef.current - 1);
+  }, [advanceTo]);
+
+  const toggleShuffle = useCallback(() => {
+    setShuffled((prevShuffled) => {
+      const q = queueRef.current;
+      if (!q) return prevShuffled;
+      const currentTrackIndex = order[posRef.current];
+      if (!prevShuffled) {
+        const rest = q.map((_, i) => i).filter((i) => i !== currentTrackIndex);
+        setOrder([currentTrackIndex, ...shuffleArray(rest)]);
+        setPos(0);
+      } else {
+        const identity = q.map((_, i) => i);
+        setOrder(identity);
+        setPos(identity.indexOf(currentTrackIndex));
+      }
+      return !prevShuffled;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order]);
+
   const togglePlayPause = useCallback(() => {
     if (!playerRef.current) return;
     if (isPlaying) playerRef.current.pauseVideo();
@@ -123,6 +253,10 @@ export function NowPlayingProvider({ children }) {
     setIsPlaying(false);
     setPosition(0);
     setDuration(0);
+    setQueue(null);
+    setQueueName('');
+    setOrder([]);
+    setPos(0);
   }, []);
 
   // ── Sync "listening to" status to the shared now_playing table so it
@@ -175,12 +309,21 @@ export function NowPlayingProvider({ children }) {
     return () => window.removeEventListener('beforeunload', onUnload);
   }, [user?.username]);
 
+  const hasQueue = !!(queue && queue.length);
+
   return (
-    <NowPlayingContext.Provider value={{ current, isPlaying, position, duration, collapsed, play, stop, togglePlayPause, setCollapsed }}>
+    <NowPlayingContext.Provider value={{
+      current, isPlaying, position, duration, collapsed, play, stop, togglePlayPause, setCollapsed,
+      // Playlist queue controls (Playlists tab)
+      queue, queueName, queueLength: queue?.length || 0, queuePosition: pos, shuffled,
+      playQueue, next, previous, toggleShuffle, hasQueue,
+    }}>
       {children}
       <GlobalNowPlayingPod
         current={current} isPlaying={isPlaying} position={position} duration={duration}
         collapsed={collapsed} onToggle={togglePlayPause} onStop={stop} onSetCollapsed={setCollapsed}
+        hasQueue={hasQueue} queueName={queueName} queuePosition={pos} queueLength={queue?.length || 0}
+        shuffled={shuffled} onNext={next} onPrevious={previous} onToggleShuffle={toggleShuffle}
       />
       {/* Hidden host for the YouTube IFrame Player API. Kept a tiny
           1x1px element rather than display:none — some browsers throttle
@@ -208,7 +351,10 @@ function fmtTime(sec) {
 // ── The "iPod": a small click-wheel widget pinned bottom-right on every
 // page, so a track keeps playing (and stays controllable) no matter
 // which tab you're on. ─────────────────────────────────────────────
-function GlobalNowPlayingPod({ current, isPlaying, position, duration, collapsed, onToggle, onStop, onSetCollapsed }) {
+function GlobalNowPlayingPod({
+  current, isPlaying, position, duration, collapsed, onToggle, onStop, onSetCollapsed,
+  hasQueue, queueName, queuePosition, queueLength, shuffled, onNext, onPrevious, onToggleShuffle,
+}) {
   if (!current) return null;
   const pct = duration > 0 ? Math.min(100, (position / duration) * 100) : 0;
 
@@ -235,7 +381,14 @@ function GlobalNowPlayingPod({ current, isPlaying, position, duration, collapsed
         </div>
         <div className="nmp-screen-info">
           <div className="nmp-title">{current.title || 'Unknown track'}</div>
-          <div className="nmp-artist">{current.subtitle || (current.kind === 'episode' ? 'Podcast' : 'Nova Music')}</div>
+          <div className="nmp-artist">
+            {current.subtitle || (current.kind === 'episode' ? 'Podcast' : 'Nova Music')}
+          </div>
+          {hasQueue && (
+            <div className="nmp-queue-line" title={queueName}>
+              {queueName ? `${queueName} · ` : ''}{queuePosition + 1}/{queueLength}
+            </div>
+          )}
           <div className="nmp-progress-track"><div className="nmp-progress-fill" style={{ width: `${pct}%` }} /></div>
           <div className="nmp-time-row">
             <span>{fmtTime(position)}</span>
@@ -246,9 +399,25 @@ function GlobalNowPlayingPod({ current, isPlaying, position, duration, collapsed
 
       <div className="nmp-wheel">
         <span className="nmp-wheel-label nmp-wheel-label-top">NOVA</span>
+        {hasQueue && (
+          <button className="nmp-side-btn nmp-side-btn-left" onClick={onPrevious} title="Previous" aria-label="Previous track">◀◀</button>
+        )}
         <button className="nmp-center-btn" onClick={onToggle} aria-label={isPlaying ? 'Pause' : 'Play'}>
           {isPlaying ? '❚❚' : '▶'}
         </button>
+        {hasQueue && (
+          <button className="nmp-side-btn nmp-side-btn-right" onClick={onNext} title="Next" aria-label="Next track">▶▶</button>
+        )}
+        {hasQueue && (
+          <button
+            className={`nmp-side-btn nmp-side-btn-bottom ${shuffled ? 'active' : ''}`}
+            onClick={onToggleShuffle}
+            title={shuffled ? 'Shuffle on' : 'Shuffle off'}
+            aria-label="Toggle shuffle"
+          >
+            🔀
+          </button>
+        )}
       </div>
     </div>
   );
