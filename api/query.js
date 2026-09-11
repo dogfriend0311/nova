@@ -91,6 +91,14 @@ const ALLOWED_TABLES = new Set([
   // searching Nova Music and adding songs) plus owner/co-owner "official"
   // playlists that are pinned to the top for every member
   'nova_playlists', 'nova_playlist_songs',
+  // Added for: Music Hub leaderboard (nova_music_plays was previously
+  // missing from this list entirely, which is why the leaderboard never
+  // synced across devices — see supabase/nova_music_plays.sql) plus
+  // owner-assigned genre tags that power the "Top Genre" leaderboard view
+  'nova_music_plays', 'nova_song_genres',
+  // Added for: owner dashboard "Twitter/X Feed" — tracked accounts +
+  // cached tweets polled in by api/twitter-poll.js
+  'nova_twitter_accounts', 'nova_tweets',
 ]);
 
 const IDENT_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;

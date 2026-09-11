@@ -2428,6 +2428,81 @@ const AnnouncementsAdminTab = () => {
 
 /* ── SITE SETTINGS TAB (Roblox live status widget, etc.) ─────── */
 /* ── ANALYTICS TAB (DAU/WAU + trend) ─────────────────────────── */
+/* ── TWITTER/X FEED ADMIN TAB ─────────────────────────────────
+   Manages which accounts show up on the public "Tweets" nav tab.
+   This is the free path: the public feed embeds X's own official
+   timeline widget per account (see src/components/TwitterFeed.jsx) —
+   no API key, no paid tier, nothing to sync or poll. This panel just
+   adds/removes rows in nova_twitter_accounts. */
+const TwitterFeedTab = () => {
+  const { user } = useAuth();
+  const [accounts, setAccounts] = useState(null);
+  const [handle, setHandle] = useState('');
+  const [msg, setMsg] = useState(null);
+
+  const load = () => db.getTwitterAccounts().then(setAccounts).catch(() => setAccounts([]));
+  useEffect(load, []);
+
+  const flash = (ok, text) => { setMsg({ ok, text }); setTimeout(() => setMsg(null), 4000); };
+
+  const add = async () => {
+    if (!handle.trim()) return;
+    try {
+      await db.addTwitterAccount(handle, user?.username);
+      setHandle('');
+      load();
+      flash(true, 'Account added — it will show up on the Tweets tab right away.');
+    } catch (e) {
+      flash(false, e.message || 'Failed to add account.');
+    }
+  };
+
+  const remove = async (acc) => {
+    if (!window.confirm(`Stop showing @${acc.handle} on the Tweets tab?`)) return;
+    await db.removeTwitterAccount(acc.id, acc.handle);
+    load();
+  };
+
+  return (
+    <div style={{ maxWidth: 680 }}>
+      <h3 style={{ color: '#e2e5f0', marginBottom: 6 }}>🐦 Twitter/X Feed</h3>
+      <p style={{ color: 'rgba(158,165,196,0.5)', fontSize: '0.85rem', marginBottom: 20, lineHeight: 1.5 }}>
+        Accounts added here show up as live, auto-updating embeds on the site's public "Tweets" tab — powered by X's own free embed widget, so there's no API key or cost involved. Each account shows in its own box rather than one merged feed (that would need combining accounts into an X List, which isn't set up here).
+      </p>
+
+      {msg && <div style={{ marginBottom: 14, padding: '8px 14px', borderRadius: 7, background: msg.ok ? 'rgba(67,181,129,0.12)' : 'rgba(255,107,122,0.12)', color: msg.ok ? '#43b581' : '#ff6b7a', fontSize: '0.85rem' }}>{msg.text}</div>}
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        <input
+          value={handle}
+          onChange={(e) => setHandle(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && add()}
+          placeholder="@handle or handle"
+          style={{ flex: 1, padding: '10px 12px', background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 8, fontSize: '0.88rem' }}
+        />
+        <button className="neon-button" onClick={add} disabled={!handle.trim()}>Add Account</button>
+      </div>
+
+      {accounts === null ? (
+        <div style={{ color: 'rgba(158,165,196,0.4)', fontSize: '0.85rem' }}>Loading…</div>
+      ) : accounts.length === 0 ? (
+        <div style={{ color: 'rgba(158,165,196,0.35)', fontSize: '0.85rem' }}>No accounts tracked yet.</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {accounts.map((acc) => (
+            <div key={acc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'rgba(94,129,244,0.04)', border: '1px solid rgba(94,129,244,0.1)', borderRadius: 8 }}>
+              <div style={{ fontWeight: 700, color: '#e2e5f0', fontSize: '0.9rem' }}>@{acc.handle}</div>
+              <button onClick={() => remove(acc)} style={{ flexShrink: 0, background: 'none', border: '1px solid rgba(255,107,122,0.3)', color: '#ff6b7a', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: '0.75rem' }}>
+                🗑 Remove
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const AnalyticsTab = () => {
   const [loading, setLoading] = useState(true);
   const [onlineNow, setOnlineNow] = useState(0);
@@ -2646,6 +2721,118 @@ const SongOfDayTab = () => {
           ))}
         </div>
       )}
+    </div>
+  );
+};
+
+/* ── SONG GENRES TAB (backs the Music Hub "Top Genres" leaderboard) ── */
+const SongGenresTab = () => {
+  const { user } = useAuth();
+  const [topSongs, setTopSongs] = useState(null);
+  const [tagged, setTagged] = useState([]);
+  const [manual, setManual] = useState({ video_id: '', title: '', artist: '', genre: '' });
+  const [msg, setMsg] = useState(null);
+
+  const load = () => {
+    db.getTopSongs(30).then(setTopSongs).catch(() => setTopSongs([]));
+    db.getSongGenres().then(setTagged).catch(() => setTagged([]));
+  };
+  useEffect(load, []);
+
+  const genreByVideo = new Map(tagged.map((g) => [g.video_id, g.genre]));
+
+  const flash = (ok, text) => { setMsg({ ok, text }); setTimeout(() => setMsg(null), 2500); };
+
+  const tagSong = async (song, genre) => {
+    if (!genre || !genre.trim()) return;
+    try {
+      await db.setSongGenre({ video_id: song.video_id, title: song.title, artist: song.artist, genre: genre.trim() }, user?.username);
+      load();
+      flash(true, `Tagged "${song.title}" as ${genre.trim()}.`);
+    } catch (e) {
+      flash(false, e.message || 'Failed to save.');
+    }
+  };
+
+  const tagManual = async () => {
+    if (!manual.video_id.trim() || !manual.genre.trim()) { flash(false, 'Video ID and genre are required.'); return; }
+    try {
+      await db.setSongGenre(manual, user?.username);
+      setManual({ video_id: '', title: '', artist: '', genre: '' });
+      load();
+      flash(true, 'Genre tagged.');
+    } catch (e) {
+      flash(false, e.message || 'Failed to save.');
+    }
+  };
+
+  const untag = async (video_id) => {
+    await db.deleteSongGenre(video_id);
+    load();
+  };
+
+  const F = (label, key, placeholder, width) => (
+    <div style={{ marginBottom: 10, flex: width || '1 1 140px', minWidth: 0 }}>
+      <label style={{ display: 'block', fontSize: '0.76rem', color: 'rgba(158,165,196,0.5)', marginBottom: 4 }}>{label}</label>
+      <input value={manual[key] || ''} onChange={e => setManual(f => ({ ...f, [key]: e.target.value }))}
+        placeholder={placeholder}
+        style={{ width: '100%', padding: '8px 10px', background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 7, fontSize: '0.85rem', boxSizing: 'border-box' }} />
+    </div>
+  );
+
+  return (
+    <div style={{ maxWidth: 760 }}>
+      <h3 style={{ color: '#e2e5f0', marginBottom: 6 }}>🎧 Song Genres</h3>
+      <p style={{ color: 'rgba(158,165,196,0.5)', fontSize: '0.85rem', marginBottom: 18 }}>
+        Nova Music doesn't get genre info from YouTube, so the Leaderboard's "Top Genres" view is built from tags set here.
+        Untagged songs still count toward Top Songs/Listeners/Artists — they just show as "Untagged" until you tag them.
+      </p>
+
+      {msg && <div style={{ marginBottom: 14, padding: '8px 14px', borderRadius: 7, background: msg.ok ? 'rgba(67,181,129,0.12)' : 'rgba(255,107,122,0.12)', color: msg.ok ? '#43b581' : '#ff6b7a', fontSize: '0.85rem' }}>{msg.text}</div>}
+
+      <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(158,165,196,0.4)', marginBottom: 10 }}>
+        Tag from Top Songs
+      </div>
+      {topSongs === null ? (
+        <div style={{ color: 'rgba(158,165,196,0.4)', fontSize: '0.85rem' }}>Loading…</div>
+      ) : topSongs.length === 0 ? (
+        <div style={{ color: 'rgba(158,165,196,0.35)', fontSize: '0.85rem' }}>No plays logged yet — songs will show up here once people listen in Nova Music.</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24, maxHeight: 360, overflowY: 'auto' }}>
+          {topSongs.map((s) => {
+            const currentGenre = genreByVideo.get(s.video_id);
+            return (
+              <div key={s.video_id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'rgba(94,129,244,0.04)', border: '1px solid rgba(94,129,244,0.1)', borderRadius: 8 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, color: '#e2e5f0', fontSize: '0.86rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</div>
+                  <div style={{ fontSize: '0.74rem', color: 'rgba(158,165,196,0.5)' }}>{s.artist || '—'} · {s.plays} plays</div>
+                </div>
+                <input
+                  defaultValue={currentGenre || ''}
+                  placeholder="Genre…"
+                  onKeyDown={(e) => { if (e.key === 'Enter') tagSong(s, e.currentTarget.value); }}
+                  onBlur={(e) => { if (e.currentTarget.value.trim() && e.currentTarget.value.trim() !== currentGenre) tagSong(s, e.currentTarget.value); }}
+                  style={{ width: 130, padding: '6px 9px', background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 6, fontSize: '0.8rem' }}
+                />
+                {currentGenre && (
+                  <button onClick={() => untag(s.video_id)} title="Remove tag" style={{ background: 'none', border: '1px solid rgba(255,107,122,0.3)', color: '#ff6b7a', borderRadius: 6, padding: '5px 8px', cursor: 'pointer', fontSize: '0.72rem' }}>✕</button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(158,165,196,0.4)', marginBottom: 10 }}>
+        Tag by Video ID (for a song not in Top Songs yet)
+      </div>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        {F('YouTube Video ID', 'video_id', 'e.g. dQw4w9WgXcQ')}
+        {F('Title (optional)', 'title', 'Song title')}
+        {F('Artist (optional)', 'artist', 'Artist name')}
+        {F('Genre', 'genre', 'e.g. Hip-Hop')}
+        <button className="neon-button" onClick={tagManual} style={{ marginBottom: 10 }}>Tag</button>
+      </div>
     </div>
   );
 };
@@ -3091,6 +3278,8 @@ const OwnerDashboard = ({ onExit }) => {
       case 'analytics':        return isOwner ? <AnalyticsTab /> : null;
       case 'site-settings':    return isOwner ? <SiteSettingsTab /> : null;
       case 'admin-sotd':       return <SongOfDayTab />;
+      case 'admin-song-genres': return <SongGenresTab />;
+      case 'admin-twitter':    return isOwner ? <TwitterFeedTab /> : null;
       case 'admin-sotm':       return isBadgeManager ? <StaffOfMonthTab /> : null;
       case 'admin-beatbattle': return <BeatBattleAdminTab />;
       case 'admin-propbets':   return <PropBetsAdminTab />;
@@ -3157,6 +3346,8 @@ const OwnerDashboard = ({ onExit }) => {
               {isOwner && <Btn id="analytics" label="📈 Analytics" />}
               {isOwner && <Btn id="site-settings" label="⚙️ Site Settings" />}
               <Btn id="admin-sotd"       label="🎶 Song of Day" />
+              <Btn id="admin-song-genres" label="🎧 Song Genres" />
+              {isOwner && <Btn id="admin-twitter" label="🐦 Twitter/X Feed" />}
               <Btn id="admin-beatbattle" label="🎵 Beat Battle" />
               <Btn id="admin-propbets"   label="🎯 Prop Bets" />
               <Btn id="admin-playoffs"   label="🏆 Playoff Pools" />

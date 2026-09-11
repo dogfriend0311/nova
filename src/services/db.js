@@ -2476,6 +2476,130 @@ export const db = {
       .slice(0, limit);
   },
 
+  // "Top Artists" — grouped by the artist string stored on each play.
+  // Same case/whitespace normalized as a grouping key so "Drake" and
+  // "drake " don't split into two rows, but the most recently-seen
+  // original casing is what's displayed.
+  async getTopArtists(limit = 10) {
+    const rows = await this._getMusicPlays();
+    const byArtist = new Map();
+    for (const r of rows) {
+      const raw = (r.artist || '').trim();
+      if (!raw) continue;
+      const key = raw.toLowerCase();
+      if (!byArtist.has(key)) byArtist.set(key, { artist: raw, plays: 0, songs: new Set(), listeners: new Set() });
+      const e = byArtist.get(key);
+      e.plays += 1;
+      e.artist = raw;
+      e.songs.add(r.video_id);
+      if (r.username) e.listeners.add(r.username);
+    }
+    return Array.from(byArtist.values())
+      .map((e) => ({ artist: e.artist, plays: e.plays, songs: e.songs.size, listeners: e.listeners.size }))
+      .sort((a, b) => b.plays - a.plays)
+      .slice(0, limit);
+  },
+
+  /* ── SONG GENRES (owner-tagged, backs "Top Genre" leaderboard) ────
+     Nova Music (YT Music search) never returns a genre for a track,
+     so there's no real genre signal anywhere in what the app already
+     records. This is a small owner-maintained video_id -> genre map,
+     managed from Owner Dashboard -> Song Genres. */
+  async getSongGenres() {
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_song_genres').select('*');
+        if (!error && Array.isArray(data)) return data;
+      } catch { /* fall through */ }
+    }
+    return ls.get('nova_song_genres');
+  },
+
+  async setSongGenre({ video_id, title, artist, genre }, taggedBy) {
+    if (!video_id || !genre) throw new Error('video_id and genre are required');
+    const record = { video_id, title: title || null, artist: artist || null, genre: genre.trim(), tagged_by: taggedBy || null, tagged_at: new Date().toISOString() };
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_song_genres').upsert([record], { onConflict: 'video_id' }).select();
+        if (!error) return data && data[0];
+      } catch { /* fall through */ }
+    }
+    const all = ls.get('nova_song_genres').filter((g) => g.video_id !== video_id);
+    all.push(record);
+    ls.set('nova_song_genres', all);
+    return record;
+  },
+
+  async deleteSongGenre(video_id) {
+    if (hasSupabase()) {
+      try {
+        const { error } = await supabase.from('nova_song_genres').delete().eq('video_id', video_id);
+        if (!error) return;
+      } catch { /* fall through */ }
+    }
+    ls.set('nova_song_genres', ls.get('nova_song_genres').filter((g) => g.video_id !== video_id));
+  },
+
+  // "Top Genres" — joins play counts (getTopSongs-style aggregation)
+  // against the owner-tagged genre map. Untagged songs count under
+  // "Untagged" rather than being silently dropped, so the total plays
+  // shown here always adds up to the same total as Top Songs.
+  async getTopGenres(limit = 10) {
+    const [rows, genreRows] = await Promise.all([this._getMusicPlays(), this.getSongGenres()]);
+    const genreByVideo = new Map(genreRows.map((g) => [g.video_id, g.genre]));
+    const byGenre = new Map();
+    for (const r of rows) {
+      if (!r.video_id) continue;
+      const genre = genreByVideo.get(r.video_id) || 'Untagged';
+      if (!byGenre.has(genre)) byGenre.set(genre, { genre, plays: 0, songs: new Set(), listeners: new Set() });
+      const e = byGenre.get(genre);
+      e.plays += 1;
+      e.songs.add(r.video_id);
+      if (r.username) e.listeners.add(r.username);
+    }
+    return Array.from(byGenre.values())
+      .map((e) => ({ genre: e.genre, plays: e.plays, songs: e.songs.size, listeners: e.listeners.size }))
+      .sort((a, b) => b.plays - a.plays)
+      .slice(0, limit);
+  },
+
+  /* ── TWITTER/X AUTO-FEED ───────────────────────────────────────
+     Owner-managed list of accounts (nova_twitter_accounts) that
+     api/twitter-poll.js keeps in sync into nova_tweets. Read-mostly
+     from the frontend; the poller does all the writing to nova_tweets. */
+  async getTwitterAccounts() {
+    try {
+      const { data, error } = await supabase.from('nova_twitter_accounts').select('*').order('created_at', { ascending: true });
+      if (!error && Array.isArray(data)) return data;
+    } catch { /* fall through */ }
+    return [];
+  },
+
+  async addTwitterAccount(handle, addedBy) {
+    const clean = (handle || '').trim().replace(/^@/, '');
+    if (!clean) throw new Error('Enter a Twitter/X handle');
+    const { data, error } = await supabase.from('nova_twitter_accounts').insert([{ handle: clean, added_by: addedBy || null }]).select();
+    if (error) throw new Error(error.message || 'Failed to add account');
+    logAudit('twitter_account.add', null, 'twitter_account', clean);
+    return data && data[0];
+  },
+
+  async removeTwitterAccount(id, handle) {
+    const { error } = await supabase.from('nova_twitter_accounts').delete().eq('id', id);
+    if (error) throw new Error(error.message || 'Failed to remove account');
+    logAudit('twitter_account.remove', null, 'twitter_account', handle || id);
+  },
+
+  async getTweets(limit = 50, handle = null) {
+    try {
+      let q = supabase.from('nova_tweets').select('*').order('posted_at', { ascending: false }).limit(limit);
+      if (handle) q = q.eq('handle', handle);
+      const { data, error } = await q;
+      if (!error && Array.isArray(data)) return data;
+    } catch { /* fall through */ }
+    return [];
+  },
+
 };
 
 /* ── Internal: keep localStorage in sync with Supabase ─────────── */

@@ -20,6 +20,7 @@ import PropBets from './components/pages/PropBets';
 import PlayoffPools from './components/pages/PlayoffPools';
 import CoinShop from './components/pages/CoinShop';
 import ArticlesPage from './components/pages/ArticlesPage';
+import TweetsPage from './components/pages/TweetsPage';
 import NovaWrapped from './components/pages/NovaWrapped';
 import RobloxTracker from './components/pages/RobloxTracker';
 import MusicHub from './components/pages/MusicHub';
@@ -328,6 +329,9 @@ const AppContent = () => {
 
       case 'articles':
         return <ArticlesPage initialArticleId={routeSub} onArticleSelect={handleArticleSelect} />;
+
+      case 'tweets':
+        return <TweetsPage />;
 
       // ── Store tab now includes Coin Shop ──
       case 'store':

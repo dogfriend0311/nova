@@ -13,6 +13,7 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, on
     { id: 'home',        label: 'Home',        icon: 'Home' },
     { id: 'leagues',     label: 'Leagues',     icon: 'Baseball' },
     { id: 'articles',    label: 'Articles',    icon: 'FileText' },
+    { id: 'tweets',      label: 'Tweets',      icon: 'Twitter' },
     { id: 'sports',      label: 'Sports',      icon: 'Trophy' },
     { id: 'games',       label: 'Games',       icon: 'Gamepad' },
     { id: 'music',       label: 'Music',       icon: 'Music' },
