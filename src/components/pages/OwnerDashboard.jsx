@@ -3317,113 +3317,158 @@ const OwnerDashboard = ({ onExit }) => {
     }
   };
 
-  const Btn = ({ id, label }) => (
-    <button className={`tab ${activeTab===id?'active':''}`} onClick={()=>setActiveTab(id)}>{label}</button>
-  );
+  /* ── Navigation structure ──────────────────────────────────
+     Same tabs/permissions as before, just described as data so the
+     sidebar can render, search, and collapse them instead of
+     dumping every pill into a wrapping wall of buttons. */
+  const leagueItems = (prefix) => ([
+    { id: `${prefix}-players`,   label: 'Players',        icon: '🧑' },
+    { id: `${prefix}-teams`,     label: 'Teams',          icon: '🛡️' },
+    { id: `${prefix}-rosters`,   label: 'Rosters',        icon: '📋' },
+    { id: `${prefix}-games`,     label: 'Games',          icon: '🗓️' },
+    { id: `${prefix}-boxscores`, label: 'Box Scores',     icon: '🧮' },
+    { id: `${prefix}-hof`,       label: 'HoF',            icon: '🏛️' },
+    { id: `${prefix}-awards`,    label: 'Awards',         icon: '🏆' },
+    { id: `${prefix}-allstar`,   label: 'All-Star Vote',  icon: '⭐' },
+    { id: `${prefix}-beatwire`,  label: 'Beat Wire',      icon: '📰' },
+  ].map(item => ({ ...item, visible: true })));
+
+  const sections = [
+    {
+      key: 'nova', label: 'Nova', icon: '🪐', visible: isOwnerLevel,
+      items: [
+        { id: 'member-pages',       label: 'Member Pages',           icon: '👤', visible: true },
+        { id: 'user-roles',         label: 'User Roles',             icon: '🔑', visible: true },
+        { id: 'audit-log',          label: 'Audit Log',              icon: '📜', visible: isAuditViewer },
+        { id: 'manage-stats',       label: 'Manage Stats',           icon: '📊', visible: isOwner },
+        { id: 'give-coins',         label: 'Give Coins',             icon: '🪙', visible: true },
+        { id: 'admin-announcements',label: 'Announcements',          icon: '📢', visible: isOwner },
+        { id: 'analytics',          label: 'Analytics',              icon: '📈', visible: isOwner },
+        { id: 'site-settings',      label: 'Site Settings',          icon: '⚙️', visible: isOwner },
+        { id: 'admin-sotd',         label: 'Song of Day',            icon: '🎶', visible: true },
+        { id: 'admin-song-genres',  label: 'Song Genres',            icon: '🎧', visible: true },
+        { id: 'admin-twitter',      label: 'Twitter/X Feed',         icon: '🐦', visible: isOwner },
+        { id: 'admin-beatbattle',   label: 'Beat Battle',            icon: '🎵', visible: true },
+        { id: 'admin-propbets',     label: 'Prop Bets',              icon: '🎯', visible: true },
+        { id: 'admin-playoffs',     label: 'Playoff Pools',          icon: '🏆', visible: true },
+        { id: 'admin-badges',       label: 'Badges',                 icon: '🏅', visible: isBadgeManager },
+        { id: 'admin-sotm',         label: 'Staff of the Month',     icon: '🌟', visible: isBadgeManager },
+        { id: 'perfect-athlete-ratings', label: 'Perfect Athlete Ratings', icon: '🐐', visible: isAthleteRatingsEditor },
+      ],
+    },
+    {
+      key: 'fantasy', label: 'Fantasy', icon: '🏈', visible: isOwnerLevel,
+      items: [{ id: 'fantasy-manage', label: 'Manage', icon: '🛠️', visible: true }],
+    },
+    {
+      key: 'schedules', label: 'Schedules', icon: '📅', visible: isOwnerLevel || isViztaHelper,
+      items: [{ id: 'fantasy-schedule', label: 'All Leagues Schedule', icon: '📅', visible: true }],
+    },
+    { key: 'vizta',    label: 'Roblox Baseball',   icon: '⚾', visible: isOwnerLevel || isViztaHelper, items: leagueItems('vizta') },
+    { key: 'hockey',   label: 'Roblox Hockey',     icon: '🏒', visible: isOwnerLevel || isViztaHelper, items: leagueItems('hockey') },
+    { key: 'football', label: 'Heavenly Football', icon: '🏈', visible: isOwnerLevel || isViztaHelper || isFootballHelper, items: leagueItems('football') },
+  ];
+
+  const visibleSections = sections.filter(s => s.visible);
+  const findSectionKey = (tabId) => (visibleSections.find(s => s.items.some(i => i.id === tabId)) || {}).key;
+
+  const [openSections, setOpenSections] = useState(() => new Set([findSectionKey(activeTab)].filter(Boolean)));
+  const [search, setSearch] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const toggleSection = (key) => {
+    setOpenSections(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+
+  const selectTab = (id) => {
+    setActiveTab(id);
+    setOpenSections(prev => new Set(prev).add(findSectionKey(id)));
+    setSidebarOpen(false);
+  };
+
+  const q = search.trim().toLowerCase();
+  const matches = (label) => !q || label.toLowerCase().includes(q);
+  const visibleSectionData = visibleSections
+    .map(s => ({ ...s, items: s.items.filter(i => i.visible && matches(i.label)) }))
+    .filter(s => s.items.length > 0);
+
+  const roleLabel = isFootballHelper ? 'Heavenly Football Stat Helper' : isViztaHelper ? 'Roblox Baseball Helper' : (role || '').toUpperCase();
 
   return (
     <div className="owner-dashboard">
+      {sidebarOpen && <div className="od-backdrop" onClick={() => setSidebarOpen(false)} />}
+
       <div className="dashboard-header">
-        <h1 className="gradient-text">Owner Dashboard</h1>
+        <div className="dashboard-header-left">
+          <button className="od-menu-toggle" onClick={() => setSidebarOpen(o => !o)} aria-label="Toggle navigation">☰</button>
+          <h1 className="gradient-text">Owner Dashboard</h1>
+        </div>
         <div className="header-actions">
-          <span style={{ color:'var(--color-cyan)', marginRight:'20px', fontSize:'0.85rem' }}>{isFootballHelper ? 'HEAVENLY FOOTBALL STAT HELPER' : isViztaHelper ? 'ROBLOX BASEBALL HELPER' : role?.toUpperCase()}</span>
-          <button className="neon-button" onClick={onExit} style={{ marginRight:'10px' }}>Back to Nova</button>
-          <button className="neon-button" onClick={logout}>Logout</button>
+          <span className="user-role-badge">{roleLabel}</span>
+          <button className="neon-button" onClick={onExit}>Back to Nova</button>
+          <button className="neon-button neon-button-magenta" onClick={logout}>Logout</button>
         </div>
       </div>
 
-      <div className="dashboard-sections">
-        {isOwnerLevel && (
-          <div className="dashboard-section">
-            <div className="section-label">NOVA</div>
-            <div className="dashboard-tabs">
-              <Btn id="member-pages"     label="Member Pages" />
-              <Btn id="user-roles"       label="User Roles" />
-              {isAuditViewer && <Btn id="audit-log" label="📜 Audit Log" />}
-              {isOwner && <Btn id="manage-stats" label="📊 Manage Stats" />}
-              <Btn id="give-coins"       label="Give Coins" />
-              {isOwner && <Btn id="admin-announcements" label="📢 Announcements" />}
-              {isOwner && <Btn id="analytics" label="📈 Analytics" />}
-              {isOwner && <Btn id="site-settings" label="⚙️ Site Settings" />}
-              <Btn id="admin-sotd"       label="🎶 Song of Day" />
-              <Btn id="admin-song-genres" label="🎧 Song Genres" />
-              {isOwner && <Btn id="admin-twitter" label="🐦 Twitter/X Feed" />}
-              <Btn id="admin-beatbattle" label="🎵 Beat Battle" />
-              <Btn id="admin-propbets"   label="🎯 Prop Bets" />
-              <Btn id="admin-playoffs"   label="🏆 Playoff Pools" />
-              {isBadgeManager && <Btn id="admin-badges" label="🏅 Badges" />}
-              {isBadgeManager && <Btn id="admin-sotm" label="🌟 Staff of the Month" />}
-              {isAthleteRatingsEditor && <Btn id="perfect-athlete-ratings" label="🐐 Perfect Athlete Ratings" />}
-            </div>
+      <div className="dashboard-body">
+        <aside className={`dashboard-sidebar ${sidebarOpen ? 'open' : ''}`}>
+          <div className="od-search-wrap">
+            <span className="od-search-icon">🔍</span>
+            <input
+              type="text"
+              className="od-search-input"
+              placeholder="Search tabs…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {search && (
+              <button className="od-search-clear" onClick={() => setSearch('')} aria-label="Clear search">✕</button>
+            )}
           </div>
-        )}
-        {isOwnerLevel && (
-          <div className="dashboard-section">
-            <div className="section-label">FANTASY</div>
-            <div className="dashboard-tabs">
-              <Btn id="fantasy-manage"   label="Manage" />
-            </div>
-          </div>
-        )}
-        {(isOwnerLevel || isViztaHelper) && (
-          <div className="dashboard-section">
-            <div className="section-label">SCHEDULES</div>
-            <div className="dashboard-tabs">
-              <Btn id="fantasy-schedule" label="📅 All Leagues Schedule" />
-            </div>
-          </div>
-        )}
-        {(isOwnerLevel || isViztaHelper) && (
-          <div className="dashboard-section">
-            <div className="section-label">ROBLOX BASEBALL</div>
-            <div className="dashboard-tabs">
-              <Btn id="vizta-players"   label="Players" />
-              <Btn id="vizta-teams"     label="Teams" />
-              <Btn id="vizta-rosters"   label="Rosters" />
-              <Btn id="vizta-games"     label="Games" />
-              <Btn id="vizta-boxscores" label="Box Scores" />
-              <Btn id="vizta-hof"       label="HoF" />
-              <Btn id="vizta-awards"    label="Awards" />
-              <Btn id="vizta-allstar"   label="⭐ All-Star Vote" />
-              <Btn id="vizta-beatwire"  label="📰 Beat Wire" />
-            </div>
-          </div>
-        )}
-        {(isOwnerLevel || isViztaHelper) && (
-          <div className="dashboard-section">
-            <div className="section-label">ROBLOX HOCKEY</div>
-            <div className="dashboard-tabs">
-              <Btn id="hockey-players"   label="Players" />
-              <Btn id="hockey-teams"     label="Teams" />
-              <Btn id="hockey-rosters"   label="Rosters" />
-              <Btn id="hockey-games"     label="Games" />
-              <Btn id="hockey-boxscores" label="Box Scores" />
-              <Btn id="hockey-hof"       label="HoF" />
-              <Btn id="hockey-awards"    label="Awards" />
-              <Btn id="hockey-allstar"   label="⭐ All-Star Vote" />
-              <Btn id="hockey-beatwire"  label="📰 Beat Wire" />
-            </div>
-          </div>
-        )}
-        {(isOwnerLevel || isViztaHelper || isFootballHelper) && (
-          <div className="dashboard-section">
-            <div className="section-label">HEAVENLY FOOTBALL</div>
-            <div className="dashboard-tabs">
-              <Btn id="football-players"   label="Players" />
-              <Btn id="football-teams"     label="Teams" />
-              <Btn id="football-rosters"   label="Rosters" />
-              <Btn id="football-games"     label="Games" />
-              <Btn id="football-boxscores" label="Box Scores" />
-              <Btn id="football-hof"       label="HoF" />
-              <Btn id="football-awards"    label="Awards" />
-              <Btn id="football-allstar"   label="⭐ All-Star Vote" />
-              <Btn id="football-beatwire"  label="📰 Beat Wire" />
-            </div>
-          </div>
-        )}
-      </div>
 
-      <div className="dashboard-content">{renderContent()}</div>
+          <nav className="dashboard-nav">
+            {visibleSectionData.length === 0 && (
+              <p className="nav-empty">No tabs match “{search}”.</p>
+            )}
+            {visibleSectionData.map((section) => {
+              const isOpen = q ? true : openSections.has(section.key);
+              return (
+                <div className="nav-section" key={section.key}>
+                  <button className="nav-section-header" onClick={() => toggleSection(section.key)}>
+                    <span className="nav-section-icon">{section.icon}</span>
+                    <span className="nav-section-label">{section.label}</span>
+                    <span className={`nav-section-chevron ${isOpen ? 'open' : ''}`}>▾</span>
+                  </button>
+                  {isOpen && (
+                    <div className="nav-section-items">
+                      {section.items.map((item) => (
+                        <button
+                          key={item.id}
+                          className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
+                          onClick={() => selectTab(item.id)}
+                        >
+                          <span className="nav-item-icon">{item.icon}</span>
+                          <span className="nav-item-label">{item.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </nav>
+        </aside>
+
+        <main className="dashboard-content">
+          <div className="dashboard-content-inner">
+            {renderContent()}
+          </div>
+        </main>
+      </div>
     </div>
   );
 };
