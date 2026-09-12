@@ -203,7 +203,7 @@ export const RobloxGameCard = ({ placeId, title, note, onRemove }) => {
 // table) — a major contributor to slow page loads. Now it uploads to
 // Supabase Storage like the background/audio fields do, and only a
 // small URL is stored on the profile.
-const ImageField = ({ label, fieldKey, value, onChange, username, aspect, positionKey, positionValue, onPositionChange }) => {
+const ImageField = ({ label, fieldKey, value, onChange, username, aspect, hint, positionKey, positionValue, onPositionChange }) => {
   const inputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
@@ -251,6 +251,7 @@ const ImageField = ({ label, fieldKey, value, onChange, username, aspect, positi
           <>
             <span className="gl-upload-tile-icon">🖼️</span>
             <span className="gl-upload-tile-label">{uploading ? 'Uploading…' : 'Click to upload a file'}</span>
+            {!uploading && hint && <span className="gl-upload-tile-hint">{hint}</span>}
           </>
         )}
         {hasImage && (
@@ -1396,7 +1397,7 @@ const MemberProfile = () => {
               <div className="gl-panel">
                 <div className="gl-panel-title">Profile</div>
                 <div className="gl-panel-sub">Your name, avatar and about-me text.</div>
-                <ImageField label="Avatar / Profile Pic" fieldKey="avatar_url" value={formData.avatar_url || ''} onChange={handleField} username={user?.username} positionKey="avatar_position" positionValue={formData.avatar_position} onPositionChange={handleField} />
+                <ImageField label="Avatar / Profile Pic" fieldKey="avatar_url" value={formData.avatar_url || ''} onChange={handleField} username={user?.username} hint="Square works best — at least 400×400px." positionKey="avatar_position" positionValue={formData.avatar_position} onPositionChange={handleField} />
                 <div className="form-group">
                   <label>About Me</label>
                   <textarea rows="4" value={formData.bio || ''} onChange={(e) => setFormData({ ...formData, bio: e.target.value })} placeholder="Tell us about yourself…" />
@@ -1435,13 +1436,13 @@ const MemberProfile = () => {
               <div className="gl-panel">
                 <div className="gl-panel-title">Assets Uploader</div>
                 <div className="gl-panel-sub">Your page banner and background media — the first thing visitors see.</div>
-                <ImageField label="Banner Image" fieldKey="top_banner_url" value={formData.top_banner_url || ''} onChange={handleField} username={user?.username} positionKey="banner_position" positionValue={formData.banner_position} onPositionChange={handleField} />
+                <ImageField label="Banner Image" fieldKey="top_banner_url" value={formData.top_banner_url || ''} onChange={handleField} username={user?.username} hint="Wide works best — around 1500×500px (3:1)." positionKey="banner_position" positionValue={formData.banner_position} onPositionChange={handleField} />
                 <div style={{ marginTop: 16 }}>
                   <MultiBgUploadField
                     username={user?.username}
                     list={formData.bg_media || []}
                     onChange={(list) => setFormData(prev => ({ ...prev, bg_media: list }))}
-                    hint="Shows behind your whole profile, like a guns.lol page. Video loops muted; under 40MB each."
+                    hint="Shows behind your whole profile, like a guns.lol page. Video loops muted; under 40MB each. Landscape, at least 1920×1080px, works best."
                   />
                 </div>
               </div>
