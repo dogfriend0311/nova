@@ -313,6 +313,7 @@ const CommentsSection = ({ toUsername, currentUser, isOwner, pinnedCommentId, on
   const [loading, setLoading]   = useState(true);
   const [posting, setPosting]   = useState(false);
   const [limitMsg, setLimitMsg] = useState('');
+  const [reportingComment, setReportingComment] = useState(null);
 
   const loadComments = async () => {
     setLoading(true);
@@ -413,6 +414,12 @@ const CommentsSection = ({ toUsername, currentUser, isOwner, pinnedCommentId, on
                       Delete
                     </button>
                   )}
+                  {currentUser && currentUser !== c.from_username && (
+                    <button onClick={() => setReportingComment(c)}
+                      style={{ background: 'none', border: 'none', color: 'rgba(255,107,122,0.4)', cursor: 'pointer', fontSize: '0.75rem', padding: 0 }}>
+                      🚩 Report
+                    </button>
+                  )}
                 </div>
               </div>
               <p style={{ margin: 0, color: 'rgba(220,230,255,0.85)', fontSize: '0.88rem', lineHeight: 1.5 }}>{c.content}</p>
@@ -420,6 +427,15 @@ const CommentsSection = ({ toUsername, currentUser, isOwner, pinnedCommentId, on
             );
           })}
         </div>
+      )}
+
+      {reportingComment && (
+        <ReportModal
+          targetType="comment" targetId={reportingComment.id} targetUsername={toUsername}
+          reporterUsername={currentUser}
+          contentSnapshot={reportingComment.content} fromUsernameSnapshot={reportingComment.from_username}
+          onClose={() => setReportingComment(null)}
+        />
       )}
     </div>
   );
@@ -944,6 +960,82 @@ const ProfileShareImageModal = ({ member, cardRef, onClose }) => {
   );
 };
 
+// ── Report a profile or comment ─────────────────────────────────────
+// Shared by the profile-level "🚩 Report" button (MemberProfileView) and
+// the per-comment report button (CommentsSection). Stores a content
+// snapshot at submit time so moderators can still review it even if the
+// comment is later edited or deleted — see submitReport in db.js.
+const REPORT_REASONS = ['Spam', 'Harassment or abuse', 'Inappropriate content', 'Impersonation', 'Other'];
+
+const ReportModal = ({ targetType, targetId, targetUsername, reporterUsername, contentSnapshot, fromUsernameSnapshot, onClose }) => {
+  const [reason, setReason]       = useState(REPORT_REASONS[0]);
+  const [details, setDetails]     = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [status, setStatus]       = useState('idle'); // idle | done | error
+  const [limitMsg, setLimitMsg]   = useState('');
+
+  const handleSubmit = async () => {
+    const verdict = checkRateLimit('report', reporterUsername);
+    if (!verdict.allowed) { setLimitMsg(verdict.message); return; }
+    setLimitMsg('');
+    setSubmitting(true);
+    setStatus('idle');
+    try {
+      const { default: db } = await import('../../services/db');
+      await db.submitReport({ targetType, targetId, targetUsername, reporterUsername, reason, details, contentSnapshot, fromUsernameSnapshot });
+      recordAction('report', reporterUsername);
+      setStatus('done');
+    } catch {
+      setStatus('error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+        <h2 style={{ fontSize: '1.05rem' }}>🚩 Report {targetType === 'profile' ? 'Profile' : 'Comment'}</h2>
+
+        {status === 'done' ? (
+          <>
+            <p style={{ color: 'rgba(226,229,240,0.7)', fontSize: '0.88rem', padding: '10px 0 20px' }}>
+              Thanks — this has been sent to the moderation team for review.
+            </p>
+            <div className="modal-actions">
+              <button className="neon-button" onClick={onClose} style={{ padding: '9px 18px' }}>Close</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="form-row">
+              <label>Reason</label>
+              <select value={reason} onChange={(e) => setReason(e.target.value)}>
+                {REPORT_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+            <div className="form-row">
+              <label>Details (optional)</label>
+              <textarea
+                rows={3} maxLength={500} value={details} onChange={(e) => setDetails(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 8, fontFamily: 'inherit', fontSize: '0.85rem', resize: 'vertical', boxSizing: 'border-box' }}
+              />
+            </div>
+            {limitMsg && <p style={{ color: '#ff9e57', fontSize: '0.78rem', marginTop: -6, marginBottom: 10 }}>{limitMsg}</p>}
+            {status === 'error' && <p style={{ color: '#ff8f9e', fontSize: '0.78rem', marginBottom: 10 }}>Couldn't submit the report — try again in a moment.</p>}
+            <div className="modal-actions">
+              <button className="btn-ghost" onClick={onClose}>Cancel</button>
+              <button className="neon-button" onClick={handleSubmit} disabled={submitting} style={{ opacity: submitting ? 0.6 : 1 }}>
+                {submitting ? 'Sending…' : 'Submit Report'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilterByBadge, onFilterByTeam }) => {
   // `member.role` is already resolved correctly upstream (MemberDirectory
   // fetches it from db.getUsers(), which reads Supabase — the shared,
@@ -991,6 +1083,7 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
   const [viewTab, setViewTab] = useState('overview');
   const [copied,  setCopied]  = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   const [streak,  setStreak]  = useState(0);
   const [kudos,        setKudos]        = useState([]);
   const [kudosNote,    setKudosNote]    = useState('');
@@ -1186,6 +1279,12 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
           <button onClick={() => { window.location.hash = `#messages/${member.username}`; }}
             style={{ padding: '9px 16px', background: 'rgba(108,92,231,0.08)', border: '1px solid rgba(108,92,231,0.3)', color: 'rgba(220,215,240,0.8)', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', minHeight: 40 }}>
             💬 Message
+          </button>
+        )}
+        {currentUser && currentUser !== member.username && (
+          <button onClick={() => setShowReportModal(true)}
+            style={{ padding: '9px 16px', background: 'rgba(255,107,122,0.06)', border: '1px solid rgba(255,107,122,0.25)', color: 'rgba(255,143,158,0.75)', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', minHeight: 40 }}>
+            🚩 Report
           </button>
         )}
       </div>
@@ -1482,6 +1581,13 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
 
       {showImageModal && (
         <ProfileShareImageModal member={member} cardRef={cardRef} onClose={() => setShowImageModal(false)} />
+      )}
+
+      {showReportModal && (
+        <ReportModal
+          targetType="profile" targetId={member.username} targetUsername={member.username}
+          reporterUsername={currentUser} onClose={() => setShowReportModal(false)}
+        />
       )}
     </div>
   );

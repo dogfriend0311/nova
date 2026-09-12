@@ -360,6 +360,102 @@ const AuditLogTab = () => {
   );
 };
 
+/* ── Reports (moderation queue) ──────────────────────────────────
+   Requires: nova_reports table (see supabase/reports.sql). Lists
+   profile and comment reports filed via the 🚩 Report button on
+   member pages, for owner/cofounder/mod review. Resolving/dismissing
+   just updates status — it never deletes the reported comment itself,
+   so a mod who wants that still deletes it from the profile's Comments
+   tab the normal way (matches how this app scopes moderation actions
+   elsewhere — e.g. PlayerComments/GameChat's canModerate delete). */
+const ReportsTab = () => {
+  const { user } = useAuth();
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState('open');
+  const [workingId, setWorkingId] = useState(null);
+
+  const load = () => {
+    setLoading(true);
+    db.getReports().then(rows => { setReports(rows || []); setLoading(false); });
+  };
+  useEffect(load, []);
+
+  const resolve = async (id, status) => {
+    setWorkingId(id);
+    try {
+      await db.updateReportStatus(id, status, user?.username);
+      setReports(prev => prev.map(r => (r.id === id ? { ...r, status, resolved_at: new Date().toISOString(), resolved_by: user?.username } : r)));
+    } finally {
+      setWorkingId(null);
+    }
+  };
+
+  const statusColor = (s) => ({ open: '#ffd700', resolved: '#43b581', dismissed: 'rgba(158,165,196,0.5)' }[s] || 'rgba(158,165,196,0.5)');
+  const filtered = filterStatus === 'all' ? reports : reports.filter(r => r.status === filterStatus);
+
+  return (
+    <div className="tab-content">
+      <h2 className="gradient-text-cyan">Reports</h2>
+      <p style={{ color: 'rgba(158,165,196,0.5)', fontSize: '0.85rem', marginTop: '4px' }}>
+        Profile and comment reports filed by members. Visible to owner, co-founder, and mod.
+      </p>
+      <div style={{ margin: '16px 0' }}>
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ ...SS, width: 'auto' }}>
+          <option value="open">Open</option>
+          <option value="resolved">Resolved</option>
+          <option value="dismissed">Dismissed</option>
+          <option value="all">All</option>
+        </select>
+      </div>
+      {loading && <div className="neon-card p-3"><p style={{ color: 'rgba(158,165,196,0.5)', textAlign: 'center' }}>Loading…</p></div>}
+      {!loading && filtered.length === 0 && (
+        <div className="neon-card p-3"><p style={{ color: 'rgba(158,165,196,0.5)', textAlign: 'center' }}>
+          No {filterStatus === 'all' ? '' : filterStatus + ' '}reports. (If this stays empty after someone reports something, the <code>nova_reports</code> table may not exist yet — run <code>supabase/reports.sql</code> against it.)
+        </p></div>
+      )}
+      <div style={{ display: 'grid', gap: '10px' }}>
+        {filtered.map(r => (
+          <div key={r.id} className="neon-card p-3">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
+              <div>
+                <span style={{ fontWeight: 700, color: '#e2e5f0' }}>
+                  {r.target_type === 'profile' ? `👤 Profile: ${r.target_username}` : `💬 Comment on ${r.target_username}'s profile`}
+                </span>
+                <div style={{ fontSize: '0.8rem', color: 'rgba(158,165,196,0.6)', marginTop: 4 }}>
+                  Reported by <span style={{ color: 'var(--color-cyan)' }}>{r.reporter_username}</span> · {r.reason}
+                </div>
+                {r.target_type === 'comment' && r.content_snapshot && (
+                  <div style={{ marginTop: 8, padding: '8px 12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, fontSize: '0.82rem', color: 'rgba(220,230,255,0.75)' }}>
+                    <strong style={{ color: '#e2e5f0' }}>{r.from_username_snapshot}:</strong> {r.content_snapshot}
+                  </div>
+                )}
+                {r.details && <div style={{ marginTop: 6, fontSize: '0.8rem', color: 'rgba(158,165,196,0.55)' }}>“{r.details}”</div>}
+                <div style={{ fontSize: '0.72rem', color: 'rgba(158,165,196,0.4)', marginTop: 6 }}>
+                  {r.created_at ? new Date(r.created_at).toLocaleString() : ''}
+                  {r.status !== 'open' && r.resolved_by && ` · ${r.status} by ${r.resolved_by}`}
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                <span style={{ fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: statusColor(r.status) }}>{r.status}</span>
+                {r.status === 'open' && (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button className="neon-button" style={{ fontSize: '0.75rem', padding: '5px 10px' }} disabled={workingId === r.id}
+                      onClick={() => resolve(r.id, 'resolved')}>Resolve</button>
+                    <button className="neon-button" style={{ fontSize: '0.75rem', padding: '5px 10px', opacity: 0.7 }} disabled={workingId === r.id}
+                      onClick={() => resolve(r.id, 'dismissed')}>Dismiss</button>
+                  </div>
+                )}
+                <a href={`#members/${r.target_username}`} style={{ fontSize: '0.75rem', color: 'rgba(158,165,196,0.5)' }}>View profile →</a>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const UserRolesTab = () => {
   const { updateUserRole } = useAuth();
   const [users, setUsers] = useState([]);
@@ -3269,6 +3365,7 @@ const OwnerDashboard = ({ onExit }) => {
     switch (activeTab) {
       case 'member-pages':      return <MemberPagesTab />;
       case 'user-roles':        return <UserRolesTab />;
+      case 'reports':          return isOwnerLevel ? <ReportsTab /> : null;
       case 'audit-log':        return isAuditViewer ? <AuditLogTab /> : null;
       case 'manage-stats':     return <ManageStatsTab />;
       case 'give-coins':        return <GiveCoinsTab />;
@@ -3339,6 +3436,7 @@ const OwnerDashboard = ({ onExit }) => {
       items: [
         { id: 'member-pages',       label: 'Member Pages',           icon: '👤', visible: true },
         { id: 'user-roles',         label: 'User Roles',             icon: '🔑', visible: true },
+        { id: 'reports',            label: 'Reports',                icon: '🚩', visible: isOwnerLevel },
         { id: 'audit-log',          label: 'Audit Log',              icon: '📜', visible: isAuditViewer },
         { id: 'manage-stats',       label: 'Manage Stats',           icon: '📊', visible: isOwner },
         { id: 'give-coins',         label: 'Give Coins',             icon: '🪙', visible: true },

@@ -1133,38 +1133,54 @@ export const db = {
     localStorage.setItem('nova_comments', JSON.stringify(all));
   },
 
-  // Edits a comment's content (or any other patch, e.g. reactions) in place.
-  // Comments only ever belong to one member's list, but that list is keyed
-  // by to_username in localStorage, so the fallback path has to search for
-  // which bucket holds this id rather than being told directly.
-  async updateComment(id, patch) {
+  /* ── REPORTS (flagging profiles/comments for moderator review) ──
+     Requires: nova_reports table (see supabase/reports.sql). Anyone
+     signed in can flag a profile or a profile comment; owner/cofounder/
+     mod review the queue from the Owner Dashboard's Reports tab.
+     content_snapshot/from_username_snapshot capture the comment as it
+     was AT REPORT TIME, so a report stays reviewable even if the
+     comment is later edited or deleted. */
+  async submitReport({ targetType, targetId, targetUsername, reporterUsername, reason, details, contentSnapshot, fromUsernameSnapshot }) {
+    const record = {
+      target_type: targetType, target_id: String(targetId), target_username: targetUsername || null,
+      reporter_username: reporterUsername, reason, details: (details || '').slice(0, 500),
+      content_snapshot: contentSnapshot || null, from_username_snapshot: fromUsernameSnapshot || null,
+      status: 'open', created_at: new Date().toISOString(),
+    };
     if (hasSupabase()) {
       try {
-        const { data, error } = await supabase.from('nova_comments').update(patch).eq('id', id).select();
+        const { data, error } = await supabase.from('nova_reports').insert([record]).select();
         if (!error) return data[0];
       } catch {}
     }
-    const all = JSON.parse(localStorage.getItem('nova_comments') || '{}');
-    for (const key of Object.keys(all)) {
-      const idx = (all[key] || []).findIndex(c => c.id === id);
-      if (idx >= 0) {
-        all[key][idx] = { ...all[key][idx], ...patch };
-        localStorage.setItem('nova_comments', JSON.stringify(all));
-        return all[key][idx];
-      }
-    }
-    return null;
+    const all = ls.get('nova_reports');
+    const local = { ...record, id: `local-${Date.now()}` };
+    ls.set('nova_reports', [...all, local]);
+    return local;
   },
 
-  // Toggles one member's reaction emoji on a comment. Read-modify-write
-  // rather than an atomic DB op — fine at this app's scale, and simpler
-  // than a Postgres function just to toggle entries in a small JSON map.
-  async toggleCommentReaction(id, emoji, username, currentReactions) {
-    const reactions = { ...(currentReactions || {}) };
-    const users = new Set(reactions[emoji] || []);
-    if (users.has(username)) users.delete(username); else users.add(username);
-    if (users.size) reactions[emoji] = Array.from(users); else delete reactions[emoji];
-    return this.updateComment(id, { reactions });
+  // Optional status filter ('open' | 'resolved' | 'dismissed'); omit for all.
+  async getReports(status) {
+    if (hasSupabase()) {
+      try {
+        let q = supabase.from('nova_reports').select('*').order('created_at', { ascending: false });
+        if (status) q = q.eq('status', status);
+        const { data, error } = await q;
+        if (!error) return data || [];
+      } catch {}
+    }
+    const all = ls.get('nova_reports');
+    return status ? all.filter(r => r.status === status) : all;
+  },
+
+  async updateReportStatus(id, status, resolvedBy) {
+    const patch = { status, resolved_at: new Date().toISOString(), resolved_by: resolvedBy || null };
+    if (hasSupabase()) {
+      try { await supabase.from('nova_reports').update(patch).eq('id', id); } catch {}
+    }
+    const all = ls.get('nova_reports').map(r => (r.id === id ? { ...r, ...patch } : r));
+    ls.set('nova_reports', all);
+    logAudit('report_review', null, 'report', String(id), status);
   },
 
   /* ── PLAYER COMMENTS (comments + GIFs on a league player's stat page) ── */
