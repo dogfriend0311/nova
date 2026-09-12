@@ -64,6 +64,10 @@ const DEFAULT_PROFILE = {
   // link/share), or 'members' (full page only shown to signed-in members;
   // logged-out visitors see a locked message instead).
   profile_visibility: 'public',
+  // One thing a member has chosen to feature at the top of their page —
+  // { type: 'game' | 'badge' | 'comment', id } — or null for nothing
+  // pinned. Only one item can be pinned at a time.
+  pinned_item: null,
 };
 
 // Old profiles only have the single bg_media_url/audio_url fields. New profiles
@@ -162,7 +166,7 @@ function extractRobloxGameName(url) {
 // ── Roblox game card — fetches a live thumbnail (the old client-side
 // thumbnail URL was a Roblox endpoint that's since been discontinued)
 // and links out to the actual game when clicked.
-export const RobloxGameCard = ({ placeId, title, note, onRemove }) => {
+export const RobloxGameCard = ({ placeId, title, note, onRemove, pinned, onTogglePin }) => {
   const [thumbUrl, setThumbUrl] = useState(null);
   const [failed,   setFailed]   = useState(false);
 
@@ -191,6 +195,13 @@ export const RobloxGameCard = ({ placeId, title, note, onRemove }) => {
           {note && <div style={{ fontSize: '0.7rem', color: 'rgba(158, 165, 196,0.5)', marginTop: '2px', fontStyle: 'italic' }}>"{note}"</div>}
         </div>
       </a>
+      {onTogglePin && (
+        <button onClick={(e) => { e.preventDefault(); onTogglePin(); }} title={pinned ? 'Unpin from top of profile' : 'Pin to top of profile'}
+          className="tap44"
+          style={{ position: 'absolute', top: '4px', left: '4px', background: 'rgba(0,0,0,0.6)', border: 'none', color: pinned ? 'var(--gl-accent, #6c5ce7)' : 'rgba(255,255,255,0.6)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem', padding: '2px 6px' }}>
+          📌
+        </button>
+      )}
       {onRemove && (
         <button onClick={onRemove}
           style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.6)', border: 'none', color: 'rgba(255, 107, 122,0.8)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.7rem', padding: '2px 6px' }}>
@@ -1276,6 +1287,14 @@ const MemberProfile = () => {
     persistFavGames(favGames.filter(g => g.id !== id));
   };
 
+  // ── Pinned content (one game, badge, or comment featured at the top
+  // of the public profile) ───────────────────────────────────────
+  const isPinned = (type, id) => formData.pinned_item?.type === type && String(formData.pinned_item?.id) === String(id);
+  const togglePin = (type, id) => {
+    const next = isPinned(type, id) ? null : { type, id: String(id) };
+    setFormData({ ...formData, pinned_item: next });
+  };
+
   const shareProfile = () => {
     // Path-based URL (not #hash) so Discord/iMessage/Slack/etc bots can
     // fetch it and see this specific person's name/team via the
@@ -1603,6 +1622,13 @@ const MemberProfile = () => {
                             style={{ margin: 0 }}
                           />
                           <span>{b.icon}</span> {b.name}
+                          {checked && (
+                            <span
+                              onClick={(e) => { e.preventDefault(); togglePin('badge', b.id); }}
+                              title={isPinned('badge', b.id) ? 'Unpin from top of profile' : 'Pin to top of profile'}
+                              style={{ marginLeft: 2, cursor: 'pointer', opacity: isPinned('badge', b.id) ? 1 : 0.35, fontSize: '0.85rem' }}
+                            >📌</span>
+                          )}
                         </label>
                       );
                     })}
@@ -1970,7 +1996,13 @@ const MemberProfile = () => {
                   {g.note && <div className="tw-fav-game-note">"{g.note}"</div>}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
                     <span className="tw-fav-game-meta">{g.date}</span>
-                    <button className="tw-fav-game-remove" onClick={() => removeFavGame(g.id)}>Remove</button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <button className="tap44" onClick={() => togglePin('game', g.id)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.78rem', color: isPinned('game', g.id) ? 'var(--gl-accent, #6c5ce7)' : 'rgba(158,165,196,0.4)' }}>
+                        📌 {isPinned('game', g.id) ? 'Pinned' : 'Pin'}
+                      </button>
+                      <button className="tw-fav-game-remove" onClick={() => removeFavGame(g.id)}>Remove</button>
+                    </div>
                   </div>
                 </div>
               ))
@@ -2019,7 +2051,8 @@ const MemberProfile = () => {
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px' }}>
                 {favGames.filter(g => g.placeId).map(g => (
-                  <RobloxGameCard key={g.id} placeId={g.placeId} title={g.text} note={g.note} onRemove={() => removeFavGame(g.id)} />
+                  <RobloxGameCard key={g.id} placeId={g.placeId} title={g.text} note={g.note} onRemove={() => removeFavGame(g.id)}
+                    pinned={isPinned('game', g.id)} onTogglePin={() => togglePin('game', g.id)} />
                 ))}
               </div>
             )}

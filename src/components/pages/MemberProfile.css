@@ -383,3 +383,16 @@
 .gl-scope .tw-np-live, .gl-scope .tw-np-pulse { color:var(--gl-accent); background:var(--gl-accent); }
 .gl-scope .neon-button { border-color:rgba(108,92,231,0.35); }
 .gl-scope .neon-button:hover { border-color:var(--gl-accent); box-shadow:0 0 16px -4px rgba(108,92,231,0.6); }
+
+/* ── Pinned profile content (one featured game/badge/comment) ── */
+.gl-pinned-card {
+  margin-top: 10px; padding: 10px 14px; border-radius: 10px;
+  background: rgba(108,92,231,0.08); border: 1px solid rgba(108,92,231,0.3);
+  text-align: left;
+}
+.gl-pinned-kicker {
+  display: block; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--gl-accent, #6c5ce7); margin-bottom: 4px;
+}
+.gl-pinned-game-title { font-size: 0.85rem; font-weight: 700; color: #e2e5f0; }
+.gl-pinned-game-note { font-size: 0.76rem; color: rgba(220,215,240,0.6); margin-top: 2px; font-style: italic; }

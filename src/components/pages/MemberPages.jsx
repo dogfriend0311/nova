@@ -301,7 +301,7 @@ const ListeningToPublic = ({ username }) => {
 };
 
 // ── Comments ──────────────────────────────────────────────────
-const CommentsSection = ({ toUsername, currentUser }) => {
+const CommentsSection = ({ toUsername, currentUser, isOwner, pinnedCommentId, onPin }) => {
   const [comments, setComments] = useState([]);
   const [text, setText]         = useState('');
   const [loading, setLoading]   = useState(true);
@@ -352,6 +352,8 @@ const CommentsSection = ({ toUsername, currentUser }) => {
       localStorage.setItem('nova_comments', JSON.stringify(all));
     }
     setComments(p => p.filter(c => c.id !== commentId));
+    // Don't leave a profile pinned to a comment that no longer exists.
+    if (onPin && String(commentId) === String(pinnedCommentId)) onPin(commentId);
   };
 
   const timeAgo = iso => {
@@ -385,12 +387,20 @@ const CommentsSection = ({ toUsername, currentUser }) => {
         <p style={{ color: 'rgba(158,165,196,0.3)', fontSize: '0.85rem', textAlign: 'center', padding: '20px 0' }}>No comments yet. Be the first!</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {comments.map(c => (
-            <div key={c.id} style={{ padding: '12px 14px', background: 'rgba(94,129,244,0.04)', border: '1px solid rgba(94,129,244,0.1)', borderRadius: 10 }}>
+          {[...comments].sort((a, b) => (String(a.id) === String(pinnedCommentId) ? -1 : String(b.id) === String(pinnedCommentId) ? 1 : 0)).map(c => {
+            const pinned = String(c.id) === String(pinnedCommentId);
+            return (
+            <div key={c.id} style={{ padding: '12px 14px', background: pinned ? 'rgba(108,92,231,0.08)' : 'rgba(94,129,244,0.04)', border: pinned ? '1px solid rgba(108,92,231,0.35)' : '1px solid rgba(94,129,244,0.1)', borderRadius: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
-                <span style={{ fontWeight: 700, color: 'var(--color-cyan)', fontSize: '0.88rem' }}>{c.from_username}</span>
+                <span style={{ fontWeight: 700, color: 'var(--color-cyan)', fontSize: '0.88rem' }}>{pinned && '📌 '}{c.from_username}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ color: 'rgba(158,165,196,0.35)', fontSize: '0.72rem' }}>{timeAgo(c.created_at)}</span>
+                  {isOwner && onPin && (
+                    <button onClick={() => onPin(c.id)} className="tap44"
+                      style={{ background: 'none', border: 'none', color: pinned ? 'var(--gl-accent, #6c5ce7)' : 'rgba(158,165,196,0.4)', cursor: 'pointer', fontSize: '0.75rem', padding: 0 }}>
+                      {pinned ? 'Unpin' : '📌 Pin'}
+                    </button>
+                  )}
                   {(currentUser === c.from_username || currentUser === toUsername) && (
                     <button onClick={() => handleDelete(c.id, c.from_username)}
                       style={{ background: 'none', border: 'none', color: 'rgba(255,107,122,0.5)', cursor: 'pointer', fontSize: '0.75rem', padding: 0 }}>
@@ -401,7 +411,8 @@ const CommentsSection = ({ toUsername, currentUser }) => {
               </div>
               <p style={{ margin: 0, color: 'rgba(220,230,255,0.85)', fontSize: '0.88rem', lineHeight: 1.5 }}>{c.content}</p>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -804,6 +815,50 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile }) => {
     try { sessionStorage.setItem(seenKey, JSON.stringify([...seen, member.username])); } catch {}
   }, [member?.username, me]);
 
+  // Resolve a pinned comment's content (game/badge pins resolve directly
+  // from data already on `member`, but a pinned comment lives in the
+  // separate comments store, so it needs its own small fetch). Kept as
+  // local state (seeded from member.pinned_item) so pinning/unpinning a
+  // comment from this page updates immediately without a full reload.
+  const [localPinnedItem, setLocalPinnedItem] = useState(member.pinned_item || null);
+  const [pinnedComment, setPinnedComment] = useState(null);
+  useEffect(() => {
+    if (localPinnedItem?.type !== 'comment') { setPinnedComment(null); return; }
+    let cancelled = false;
+    const pinnedId = localPinnedItem.id;
+    import('../../services/db').then(({ default: db }) => {
+      db.getComments(member.username).then(list => {
+        if (cancelled) return;
+        setPinnedComment((list || []).find(c => String(c.id) === String(pinnedId)) || null);
+      }).catch(() => {
+        const all = JSON.parse(localStorage.getItem('nova_comments') || '{}');
+        setPinnedComment((all[member.username] || []).find(c => String(c.id) === String(pinnedId)) || null);
+      });
+    });
+    return () => { cancelled = true; };
+  }, [member.username, localPinnedItem?.type, localPinnedItem?.id]);
+
+  // Lets a member pin one comment left on their own page — persisted onto
+  // their profile row alongside the game/badge pin option in the editor,
+  // since only one thing total can be pinned at a time.
+  const handlePinComment = async (commentId) => {
+    const next = (localPinnedItem?.type === 'comment' && String(localPinnedItem.id) === String(commentId))
+      ? null : { type: 'comment', id: String(commentId) };
+    setLocalPinnedItem(next);
+    try {
+      const { default: db } = await import('../../services/db');
+      // Strip fields that get merged onto `member` for display only
+      // (role comes from the users table, visible_badge_ids/is_staff_of_month
+      // are computed) — they aren't real nova_member_profiles columns, and
+      // saveMemberProfile fills in defaults for any *missing* fav_games/
+      // bg_media/etc, so sending a trimmed-but-otherwise-complete profile
+      // (rather than a bare {username, pinned_item}) avoids accidentally
+      // wiping those out.
+      const { role, visible_badge_ids, is_staff_of_month, ...safeProfile } = member;
+      await db.saveMemberProfile({ ...safeProfile, pinned_item: next });
+    } catch {}
+  };
+
   // Mutual indicators — real-world favorite teams (NBA/NFL/MLB/NHL/etc.)
   // the viewer and this member have both picked in their profile's Teams
   // section. Only meaningful when signed in and looking at someone
@@ -997,6 +1052,37 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile }) => {
             </div>
           )}
 
+          {localPinnedItem?.type === 'game' && (() => {
+            const g = favGames.find(fg => String(fg.id) === String(localPinnedItem.id));
+            if (!g) return null;
+            return (
+              <div className="gl-pinned-card">
+                <span className="gl-pinned-kicker">📌 Pinned Game</span>
+                <div className="gl-pinned-game-title">{g.text}</div>
+                {g.note && <div className="gl-pinned-game-note">"{g.note}"</div>}
+              </div>
+            );
+          })()}
+
+          {localPinnedItem?.type === 'badge' && (member.visible_badge_ids || []).map(String).includes(String(localPinnedItem.id)) && (() => {
+            const b = badgeTypes.find(bt => String(bt.id) === String(localPinnedItem.id));
+            if (!b) return null;
+            return (
+              <div className="gl-pinned-card">
+                <span className="gl-pinned-kicker">📌 Pinned Badge</span>
+                <div className="gl-pinned-game-title">{b.icon} {b.name}</div>
+              </div>
+            );
+          })()}
+
+          {localPinnedItem?.type === 'comment' && pinnedComment && (
+            <div className="gl-pinned-card">
+              <span className="gl-pinned-kicker">📌 Pinned Comment</span>
+              <div className="gl-pinned-game-title">{pinnedComment.content}</div>
+              <div className="gl-pinned-game-note">— {pinnedComment.from_username}</div>
+            </div>
+          )}
+
           {(joinedDate || member.birthday || profileViews > 0) && (
             <p style={{ margin: '8px 0 0', color: 'rgba(158,165,196,0.4)', fontSize: '0.76rem', textAlign: 'center' }}>
               {[
@@ -1183,7 +1269,9 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile }) => {
         )}
 
         {viewTab === 'comments' && (
-          <CommentsSection toUsername={member.username} currentUser={currentUser} />
+          <CommentsSection toUsername={member.username} currentUser={currentUser}
+            isOwner={isOwnProfile} pinnedCommentId={localPinnedItem?.type === 'comment' ? localPinnedItem.id : null}
+            onPin={handlePinComment} />
         )}
       </div>
     </div>
