@@ -391,6 +391,28 @@ const ColorField = ({ label, fieldKey, value, onChange, defaultSwatch }) => {
 };
 
 
+// A same-file retry after a timeout used to always kick off a brand new
+// upload — but Vercel Blob's client SDK can't be cancelled, so the
+// original upload keeps running in the background and can still land
+// successfully after the UI has already shown a timeout error. Retrying
+// in that case created a second (orphaned) blob instead of just using
+// the one that was already on its way. This cache, keyed by a content
+// hash of the file, lets a same-file retry reuse whichever upload
+// actually finishes first instead of duplicating it.
+const uploadDedupeCache = new Map(); // hash -> { status: 'pending' | 'done', url, isVideo, startedAt }
+
+async function hashFile(file) {
+  try {
+    const buf = await file.arrayBuffer();
+    const digest = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+  } catch {
+    // SubtleCrypto requires a secure context (https/localhost). Fall back
+    // to a weaker fingerprint rather than skipping de-dupe entirely.
+    return `${file.name}:${file.size}:${file.lastModified}`;
+  }
+}
+
 // These files can be large, so they upload straight to Vercel Blob
 // storage (browser → Blob directly, bypassing serverless body limits)
 // and only the resulting URL is saved on the profile.
@@ -400,6 +422,20 @@ async function uploadMemberMedia(file, kind, username) {
   if (file.size > maxMb * 1024 * 1024) {
     throw new Error(`File must be under ${maxMb} MB (this file is ${(file.size / 1024 / 1024).toFixed(1)} MB)`);
   }
+
+  const hash = await hashFile(file);
+  const cached = uploadDedupeCache.get(hash);
+  if (cached?.status === 'done') {
+    // The exact same file already finished uploading recently — most
+    // likely a retry after a timeout that actually succeeded in the
+    // background. Reuse it instead of uploading a duplicate copy.
+    return { publicUrl: cached.url, isVideo: cached.isVideo };
+  }
+  if (cached?.status === 'pending' && Date.now() - cached.startedAt < 5 * 60 * 1000) {
+    throw new Error('PENDING_DUPLICATE');
+  }
+  uploadDedupeCache.set(hash, { status: 'pending', startedAt: Date.now() });
+
   const ext  = file.name.split('.').pop();
   const path = `${kind}/${username || 'user'}-${Date.now()}-${_uid()}.${ext}`;
 
@@ -416,14 +452,23 @@ async function uploadMemberMedia(file, kind, username) {
   // since its URL was never attached to the profile.
   const mb = file.size / (1024 * 1024);
   const timeoutMs = Math.max(60000, mb * 2500);
+  const uploadPromise = uploadToBlob(file, path);
   const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), timeoutMs));
+
+  // Track the real upload independent of the race outcome, so a same-file
+  // retry (above) can find it once it actually lands.
+  uploadPromise.then(
+    (url) => uploadDedupeCache.set(hash, { status: 'done', url, isVideo }),
+    () => uploadDedupeCache.delete(hash)
+  );
 
   let publicUrl;
   try {
-    publicUrl = await Promise.race([uploadToBlob(file, path), timeoutPromise]);
+    publicUrl = await Promise.race([uploadPromise, timeoutPromise]);
   } catch (err) {
     if (err.message === 'TIMEOUT') throw err;
     console.error('member-media upload error:', err);
+    uploadDedupeCache.delete(hash);
     throw new Error(err.message || 'Upload failed — check the browser console for details.');
   }
 
@@ -446,7 +491,11 @@ const MultiBgUploadField = ({ username, list, onChange, hint }) => {
       const { publicUrl, isVideo } = await uploadMemberMedia(file, 'bg', username);
       onChange([...list, { id: _uid(), url: publicUrl, type: isVideo ? 'video' : 'image' }]);
     } catch (err) {
-      setError(err.message === 'TIMEOUT' ? 'Upload is taking a long time and may have stalled — check your connection. If it does complete, it may not be attached to your profile; try again in a moment.' : err.message);
+      setError(
+        err.message === 'TIMEOUT' ? "Upload is taking a long time and may have stalled — check your connection. If you retry with this same file, we'll reuse whichever upload lands first instead of creating a duplicate." :
+        err.message === 'PENDING_DUPLICATE' ? 'This exact file is already uploading from a moment ago — give it a little longer before trying again.' :
+        err.message
+      );
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = '';
@@ -540,7 +589,11 @@ const MultiAudioUploadField = ({ username, list, onChange, hint }) => {
       const base = file.name.replace(/\.[^/.]+$/, '');
       onChange([...list, { id: _uid(), url: publicUrl, title: base, artist: '' }]);
     } catch (err) {
-      setError(err.message === 'TIMEOUT' ? 'Upload is taking a long time and may have stalled — check your connection. If it does complete, it may not be attached to your profile; try again in a moment.' : err.message);
+      setError(
+        err.message === 'TIMEOUT' ? "Upload is taking a long time and may have stalled — check your connection. If you retry with this same file, we'll reuse whichever upload lands first instead of creating a duplicate." :
+        err.message === 'PENDING_DUPLICATE' ? 'This exact file is already uploading from a moment ago — give it a little longer before trying again.' :
+        err.message
+      );
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = '';
