@@ -158,7 +158,7 @@ const MemberActivityTimeline = ({ username, favGames }) => {
 };
 
 // ── Fav Teams ─────────────────────────────────────────────────
-const FavTeams = ({ favTeams }) => {
+const FavTeams = ({ favTeams, onTeamClick }) => {
   const hasSome = SPORT_KEYS.some(s => (favTeams?.[s] || []).length > 0);
   if (!hasSome) return null;
   return (
@@ -178,8 +178,14 @@ const FavTeams = ({ favTeams }) => {
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
               {picked.map(abbr => {
                 const logo = hasLogos ? getTeamLogoUrl(sport, abbr) : null;
+                const clickable = !!onTeamClick;
                 return (
-                  <span key={abbr} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 8, fontSize: '0.72rem', fontWeight: 800, background: 'rgba(94,129,244,0.08)', border: '1px solid rgba(94,129,244,0.3)', color: '#5e81f4', letterSpacing: '0.04em' }}>
+                  <span
+                    key={abbr}
+                    onClick={clickable ? () => onTeamClick(`${sport}:${abbr}`) : undefined}
+                    title={clickable ? `See other members who also root for ${abbr}` : undefined}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 8, fontSize: '0.72rem', fontWeight: 800, background: 'rgba(94,129,244,0.08)', border: '1px solid rgba(94,129,244,0.3)', color: '#5e81f4', letterSpacing: '0.04em', cursor: clickable ? 'pointer' : 'default' }}
+                  >
                     {logo && <img src={logo} alt="" style={{ width: 15, height: 15, objectFit: 'contain' }} onError={e => { e.target.style.display='none'; }} />}
                     {abbr}
                   </span>
@@ -631,6 +637,8 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
       onBack={handleBack}
       badgeTypes={badgeTypes}
       viewerProfile={viewerProfile}
+      onFilterByBadge={(badgeId) => { setBadgeFilter(String(badgeId)); handleBack(); }}
+      onFilterByTeam={(teamKey) => { setTeamFilter(teamKey); handleBack(); }}
     />
   );
 
@@ -792,7 +800,7 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
 };
 
 // ── Member Profile View (improved) ────────────────────────────
-const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile }) => {
+const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilterByBadge, onFilterByTeam }) => {
   // `member.role` is already resolved correctly upstream (MemberDirectory
   // fetches it from db.getUsers(), which reads Supabase — the shared,
   // cross-device source of truth). We used to override it here with a
@@ -1085,7 +1093,7 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile }) => {
                 }}>🔥 {streak} Day Streak</span>
               )}
               <DiscordVerifiedChip verifiedAt={member.discord_verified_at} size="lg" />
-              <BadgeRow badgeTypes={badgeTypes} ids={member.visible_badge_ids} size={16} />
+              <BadgeRow badgeTypes={badgeTypes} ids={member.visible_badge_ids} size={16} onBadgeClick={onFilterByBadge ? (b) => onFilterByBadge(b.id) : undefined} />
             </div>
           )}
 
@@ -1311,7 +1319,7 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile }) => {
 
         {viewTab === 'teams' && (
           <div style={{ padding: '20px 0' }}>
-            <FavTeams favTeams={member.fav_teams} />
+            <FavTeams favTeams={member.fav_teams} onTeamClick={onFilterByTeam} />
           </div>
         )}
 

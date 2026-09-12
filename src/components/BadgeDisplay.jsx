@@ -11,7 +11,7 @@ import React, { useState } from 'react';
  * and each member chooses which of their assigned badges to display.
  */
 
-export const BadgeChip = ({ badge, size = 15 }) => {
+export const BadgeChip = ({ badge, size = 15, onClick }) => {
   const [hover, setHover] = useState(false);
   if (!badge) return null;
   const color = badge.color || '#5e81f4';
@@ -19,7 +19,9 @@ export const BadgeChip = ({ badge, size = 15 }) => {
     <span
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'default', lineHeight: 1 }}
+      onClick={onClick ? (e) => { e.stopPropagation(); onClick(badge); } : undefined}
+      title={onClick ? `See other members with the ${badge.name} badge` : undefined}
+      style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: onClick ? 'pointer' : 'default', lineHeight: 1 }}
     >
       <span style={{ fontSize: size }}>{badge.icon || '🏅'}</span>
       {hover && (
@@ -51,14 +53,14 @@ export const BadgeChip = ({ badge, size = 15 }) => {
  * - badgeTypes: full badge catalog (from db.getBadgeTypes())
  * - ids: the badge ids this member wants displayed, in order
  */
-export const BadgeRow = ({ badgeTypes = [], ids = [], size = 15, gap = 5 }) => {
+export const BadgeRow = ({ badgeTypes = [], ids = [], size = 15, gap = 5, onBadgeClick }) => {
   if (!ids || ids.length === 0) return null;
   const map = Object.fromEntries((badgeTypes || []).map(b => [String(b.id), b]));
   const badges = ids.map(id => map[String(id)]).filter(Boolean);
   if (badges.length === 0) return null;
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap }}>
-      {badges.map(b => <BadgeChip key={b.id} badge={b} size={size} />)}
+      {badges.map(b => <BadgeChip key={b.id} badge={b} size={size} onClick={onBadgeClick ? () => onBadgeClick(b) : undefined} />)}
     </span>
   );
 };
