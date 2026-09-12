@@ -661,6 +661,22 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
   });
   const allFavTeamOptions = Array.from(favTeamSeen.values()).sort((a, b) => a.name.localeCompare(b.name));
 
+  // ── Upcoming birthdays (next 7 days, including today) ───────────
+  // `birthday` is stored as a full YYYY-MM-DD but only month/day is ever
+  // shown elsewhere (see MemberProfileView) — same rule here, no years.
+  const upcomingBirthdays = visibleMembers
+    .filter(m => m.birthday)
+    .map(m => {
+      const bday = new Date(`${m.birthday}T00:00:00`);
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const next = new Date(today.getFullYear(), bday.getMonth(), bday.getDate());
+      if (next < today) next.setFullYear(next.getFullYear() + 1);
+      const daysAway = Math.round((next - today) / 86400000);
+      return { member: m, daysAway, label: bday.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) };
+    })
+    .filter(x => x.daysAway <= 7)
+    .sort((a, b) => a.daysAway - b.daysAway);
+
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 12px' }}>
       {/* Header */}
@@ -677,6 +693,27 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
           {loading ? 'Loading…' : `${members.length} members in the Nova community`}
         </p>
       </div>
+
+      {upcomingBirthdays.length > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px 10px',
+          padding: '10px 16px', borderRadius: 12, marginBottom: 20,
+          background: 'rgba(255,158,87,0.08)', border: '1px solid rgba(255,158,87,0.25)',
+          fontSize: '0.85rem', color: 'rgba(255,224,190,0.9)',
+        }}>
+          <span style={{ fontWeight: 700 }}>
+            🎂 {upcomingBirthdays.length} member{upcomingBirthdays.length === 1 ? '' : 's'} {upcomingBirthdays.length === 1 ? 'has' : 'have'} a birthday this week:
+          </span>
+          {upcomingBirthdays.map(({ member: m, label, daysAway }, i) => (
+            <span key={m.username}>
+              <button onClick={() => handleSelect(m)} style={{ background: 'none', border: 'none', padding: 0, color: '#ff9e57', fontWeight: 700, cursor: 'pointer', fontSize: 'inherit', textDecoration: 'underline' }}>
+                {m.username}
+              </button>
+              {' '}({daysAway === 0 ? 'today!' : label}){i < upcomingBirthdays.length - 1 ? ',' : ''}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 28, flexWrap: 'wrap', alignItems: 'center' }}>
