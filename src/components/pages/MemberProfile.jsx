@@ -326,8 +326,24 @@ const ImageField = ({ label, fieldKey, value, onChange, username, aspect, hint, 
 };
 
 // ── Color customization field (guns.lol-style swatch + hex row) ──
+const HEX_COLOR_RE = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+
 const ColorField = ({ label, fieldKey, value, onChange, defaultSwatch }) => {
-  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(value || '') ? value : (defaultSwatch || '#000000');
+  const hex = HEX_COLOR_RE.test(value || '') ? value : (defaultSwatch || '#000000');
+  // The hex text input used to call onChange() with whatever was typed,
+  // unvalidated — typing "purple" (or any garbage) would get saved
+  // straight into a `background: <value>` CSS value on the live profile.
+  // `draft` lets the input feel normal to type in while only ever
+  // committing a value up to formData once it's empty or a real hex code.
+  const [draft, setDraft] = useState(value || '');
+  useEffect(() => { setDraft(value || ''); }, [value]);
+  const draftValid = draft === '' || HEX_COLOR_RE.test(draft);
+
+  const handleDraftChange = (raw) => {
+    setDraft(raw);
+    if (raw === '' || HEX_COLOR_RE.test(raw)) onChange(fieldKey, raw);
+  };
+
   return (
     <div className="gl-color-row">
       <div>
@@ -341,12 +357,17 @@ const ColorField = ({ label, fieldKey, value, onChange, defaultSwatch }) => {
         <input
           type="text"
           className="gl-color-hex-input"
-          value={value || ''}
-          onChange={(e) => onChange(fieldKey, e.target.value)}
+          value={draft}
+          onChange={(e) => handleDraftChange(e.target.value)}
+          onBlur={() => { if (!draftValid) setDraft(value || ''); }}
           placeholder={defaultSwatch || '#000000'}
+          style={draftValid ? undefined : { borderColor: '#ff6b7a', color: '#ff6b7a' }}
         />
+        {!draftValid && (
+          <span style={{ fontSize: '0.7rem', color: '#ff6b7a' }}>Needs a hex code, e.g. #6c5ce7</span>
+        )}
         {value && (
-          <button className="gl-upload-tile-remove" style={{ position: 'static' }} onClick={() => onChange(fieldKey, '')} title="Reset to default">✕</button>
+          <button className="gl-upload-tile-remove" style={{ position: 'static' }} onClick={() => { onChange(fieldKey, ''); setDraft(''); }} title="Reset to default">✕</button>
         )}
       </div>
     </div>
