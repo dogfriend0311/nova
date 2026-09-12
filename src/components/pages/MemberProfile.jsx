@@ -59,6 +59,11 @@ const DEFAULT_PROFILE = {
   // that got cropped oddly by the fixed aspect ratio (avatar circle,
   // banner strip, full-bleed background). Empty/missing = plain center.
   avatar_position: '', banner_position: '',
+  // Who can see this profile — 'public' (default, everyone), 'unlisted'
+  // (skips the member directory grid, but still viewable via direct
+  // link/share), or 'members' (full page only shown to signed-in members;
+  // logged-out visitors see a locked message instead).
+  profile_visibility: 'public',
 };
 
 // Old profiles only have the single bg_media_url/audio_url fields. New profiles
@@ -1427,6 +1432,22 @@ const MemberProfile = () => {
                   {slugStatus === 'available' && <div style={{ fontSize: '0.75rem', color: '#00ff88', marginTop: 4 }}>✓ That's available!</div>}
                   {slugStatus === 'taken' && <div style={{ fontSize: '0.75rem', color: '#ff6b7a', marginTop: 4 }}>⚠ Someone already has that one — try another.</div>}
                   {slugStatus === 'invalid' && <div style={{ fontSize: '0.75rem', color: '#ff6b7a', marginTop: 4 }}>⚠ 3–20 characters — lowercase letters, numbers and hyphens only.</div>}
+                </div>
+                <div className="form-group">
+                  <label>Profile Visibility</label>
+                  <select
+                    value={formData.profile_visibility || 'public'}
+                    onChange={(e) => setFormData({ ...formData, profile_visibility: e.target.value })}
+                  >
+                    <option value="public">Public — anyone can find and view it</option>
+                    <option value="unlisted">Unlisted — hidden from the member directory, viewable by direct link</option>
+                    <option value="members">Members only — only signed-in members can view it</option>
+                  </select>
+                  <small style={{ color: 'rgba(158,165,196,0.4)', fontSize: '0.75rem', display: 'block', marginTop: 4 }}>
+                    {(formData.profile_visibility || 'public') === 'public' && 'Anyone can find you in the directory and view your page.'}
+                    {formData.profile_visibility === 'unlisted' && "You won't show up in the member directory, but anyone with your profile link can still view it."}
+                    {formData.profile_visibility === 'members' && 'Only signed-in members can view your full page — everyone else sees a locked message.'}
+                  </small>
                 </div>
               </div>
             )}

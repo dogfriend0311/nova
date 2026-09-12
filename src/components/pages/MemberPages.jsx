@@ -604,6 +604,16 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
   const viewerUsername = currentUsername();
   const viewerProfile = members.find(m => m.username === viewerUsername) || null;
 
+  // "Unlisted"/"Members only" profiles are skipped in the browsable
+  // directory grid — unlisted ones are still reachable by direct link,
+  // and members-only ones show a locked message to logged-out visitors
+  // if they're opened directly (see MemberProfileView below). A member
+  // always sees their own card regardless of their visibility setting.
+  const visibleMembers = members.filter(m =>
+    m.username === viewerUsername ||
+    !m.profile_visibility || m.profile_visibility === 'public'
+  );
+
   if (selectedMember) return (
     <MemberProfileView
       member={selectedMember}
@@ -613,7 +623,7 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
     />
   );
 
-  const filtered = members.filter(m => {
+  const filtered = visibleMembers.filter(m => {
     const ms = m.username?.toLowerCase().includes(search.toLowerCase());
     const mr = roleFilter === 'all' || (m.role || 'member') === roleFilter;
     const mb = badgeFilter === 'all' || (m.visible_badge_ids || []).map(String).includes(String(badgeFilter));
@@ -879,6 +889,23 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile }) => {
 
   const robloxGames = favGames.filter(g => g.placeId);
   const sportsGames = favGames.filter(g => !g.placeId);
+
+  // "Members only" profiles show a locked message to anyone who isn't
+  // signed in — checked here (after all hooks above) rather than with an
+  // early return higher up, since hooks can't be called conditionally.
+  const isOwnProfile = me === member.username;
+  if (member.profile_visibility === 'members' && !me && !isOwnProfile) {
+    return (
+      <div className="gl-scope" style={{ maxWidth: 480, margin: '60px auto', textAlign: 'center', padding: '0 20px' }}>
+        <div style={{ fontSize: '2rem', marginBottom: 10 }}>🔒</div>
+        <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#e2e5f0', marginBottom: 6 }}>This profile is for members only</div>
+        <p style={{ color: 'rgba(158,165,196,0.6)', fontSize: '0.88rem', marginBottom: 18 }}>
+          {member.username} has set their page to be visible to signed-in members only. Sign in to view it.
+        </p>
+        <button onClick={onBack} className="neon-button" style={{ padding: '8px 20px' }}>← Back to Directory</button>
+      </div>
+    );
+  }
 
   return (
     <div className="gl-scope" style={{ maxWidth: 680, margin: '0 auto', paddingBottom: 60 }}>
