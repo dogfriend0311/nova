@@ -57,7 +57,7 @@ export const searchMedia = async (query, type) => {
 
 export const getWatchList = async (username) => {
   try {
-    const { db } = await import('./db');
+    const { default: db } = await import('./db');
     return await db.getWatchlist(username);
   } catch {
     const all = JSON.parse(localStorage.getItem('nova_watchlists') || '{}');
@@ -67,7 +67,7 @@ export const getWatchList = async (username) => {
 
 export const saveWatchList = async (username, list) => {
   try {
-    const { db } = await import('./db');
+    const { default: db } = await import('./db');
     await db.saveWatchlist(username, list);
   } catch {
     const all = JSON.parse(localStorage.getItem('nova_watchlists') || '{}');

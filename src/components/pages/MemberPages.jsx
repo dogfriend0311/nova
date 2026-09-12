@@ -249,7 +249,7 @@ const ListeningToPublic = ({ username }) => {
     let active = true;
     const poll = async () => {
       try {
-        const { db } = await import('../../services/db');
+        const { default: db } = await import('../../services/db');
         const s = await db.getNowPlaying(username);
         if (active) setStatus(s);
       } catch { /* ignore — just don't show the status */ }
@@ -311,7 +311,7 @@ const CommentsSection = ({ toUsername, currentUser, isOwner, pinnedCommentId, on
   const loadComments = async () => {
     setLoading(true);
     try {
-      const { db } = await import('../../services/db');
+      const { default: db } = await import('../../services/db');
       const data = await db.getComments(toUsername);
       setComments(Array.isArray(data) ? data : []);
     } catch {
@@ -330,7 +330,7 @@ const CommentsSection = ({ toUsername, currentUser, isOwner, pinnedCommentId, on
     setPosting(true);
     const nc = { id: Date.now().toString(), from_username: currentUser, to_username: toUsername, content: text.trim(), created_at: new Date().toISOString() };
     try {
-      const { db } = await import('../../services/db');
+      const { default: db } = await import('../../services/db');
       const saved = await db.addComment(nc);
       setComments(p => [saved || nc, ...p]);
     } catch {
@@ -346,7 +346,7 @@ const CommentsSection = ({ toUsername, currentUser, isOwner, pinnedCommentId, on
 
   const handleDelete = async (commentId, fromUsername) => {
     if (currentUser !== fromUsername && currentUser !== toUsername) return;
-    try { const { db } = await import('../../services/db'); await db.deleteComment(commentId); } catch {
+    try { const { default: db } = await import('../../services/db'); await db.deleteComment(commentId); } catch {
       const all = JSON.parse(localStorage.getItem('nova_comments') || '{}');
       all[toUsername] = (all[toUsername] || []).filter(c => c.id !== commentId);
       localStorage.setItem('nova_comments', JSON.stringify(all));
