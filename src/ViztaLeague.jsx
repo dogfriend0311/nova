@@ -20,7 +20,7 @@ import {
   TransactionsTab,
   WatchlistsTab,
 } from './LeagueFeatures';
-import RadarChart from './components/RadarChart';
+import PlayerComparisonTool from './components/PlayerComparisonTool';
 import TeamDepthChart from './components/pages/TeamDepthChart';
 import BeatWireFeed from './components/BeatWireFeed';
 import {
@@ -1132,10 +1132,6 @@ const CompareTab = ({ sport, cfg, presetPlayerId }) => {
   const [compareMode, setCompareMode] = useState('player');
   const [idA, setIdA] = useState('');
   const [idB, setIdB] = useState('');
-  const [mode, setMode]         = useState('season');
-  const [statFilter, setStatFilter] = useState(cfg.catA.id);
-
-  useEffect(() => { setStatFilter(cfg.catA.id); }, [cfg]);
 
   useEffect(() => {
     Promise.all([db.getPlayers(sport), db.getTeams(sport)])
@@ -1143,60 +1139,13 @@ const CompareTab = ({ sport, cfg, presetPlayerId }) => {
   }, [sport]);
 
   // A player handed off from elsewhere (e.g. the Overview tab's Player
-  // Spotlight card) preloads as Player A so the visitor lands on a ready
-  // comparison instead of an empty picker.
+  // Spotlight card) lands the visitor on the Players tab with that player
+  // preloaded, instead of an empty picker.
   useEffect(() => {
-    if (presetPlayerId) {
-      setCompareMode('player');
-      setIdA(String(presetPlayerId));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (presetPlayerId) setCompareMode('player');
   }, [presetPlayerId]);
 
   if (loading) return <RowsSkeleton rows={6} />;
-
-  const getTeamColor = (name) => teams.find(t=>t.team_name===name)?.team_color||null;
-  const pA = players.find(p=>String(p.id)===String(idA));
-  const pB = players.find(p=>String(p.id)===String(idB));
-  const colorA = (pA&&getTeamColor(pA.team))||cfg.accent;
-  const colorB = (pB&&getTeamColor(pB.team))||'#ff9e57';
-  const rgbA = hexToRgb(colorA) || accentRgbFromCfg(cfg);
-  const rgbB = hexToRgb(colorB) || '255,158,87';
-
-  const STAT_LIST = statFilter===cfg.catA.id ? cfg.compareA : cfg.compareB;
-  const LEADER_LIST = statFilter===cfg.catA.id ? cfg.leadersA : cfg.leadersB;
-  const lowerBetter = new Set(cfg.lowerBetter);
-
-  // League-wide max for each headline stat (in the current season/career
-  // mode) — used to scale the radar chart so it shows absolute standing,
-  // not just how the two selected players stack up against each other.
-  const leagueMaxFor = (field) => players.reduce((max, p) => {
-    const v = parseFloat(p[field]);
-    return Number.isFinite(v) && v > max ? v : max;
-  }, 0);
-  const radarAxes = (pA && pB) ? LEADER_LIST.map((l) => {
-    const field = mode === 'season' ? l.seasonField : l.careerField;
-    return {
-      label: l.label,
-      a: parseFloat(pA[field]) || 0,
-      b: parseFloat(pB[field]) || 0,
-      max: leagueMaxFor(field),
-      lowerBetter: !l.hi,
-    };
-  }) : null;
-
-  const getVal = (p, label, sKey, cKey) => {
-    if (!p) return null;
-    const raw = mode==='season'?p[sKey]:p[cKey];
-    if (raw===null||raw===undefined||raw==='') return '--';
-    return String(raw);
-  };
-  const numVal = (v) => { if (v==='--'||v===null||v===undefined) return null; return parseFloat(v); };
-  const isBetter = (key, a, b) => {
-    const na=numVal(a), nb=numVal(b);
-    if (na===null||nb===null||na===nb) return null;
-    return lowerBetter.has(key)?na<nb:na>nb;
-  };
 
   const teamA_obj = teams.find(t=>String(t.id)===String(idA));
   const teamB_obj = teams.find(t=>String(t.id)===String(idB));
@@ -1224,83 +1173,30 @@ const CompareTab = ({ sport, cfg, presetPlayerId }) => {
         </div>
       </div>
 
+      {compareMode==='player' ? (
+        <PlayerComparisonTool sport={sport} cfg={cfg} presetPlayerIds={presetPlayerId ? [String(presetPlayerId)] : undefined} />
+      ) : (
+      <>
       <div className="lh-vs-picker">
-        <div style={{ '--side-rgb': compareMode==='player'?rgbA:hexToRgb(colorTA)||accentRgbFromCfg(cfg) }}>
-          <label className="lh-vs-label">{compareMode==='player'?'Player A':'Team A'}</label>
-          {compareMode==='player' ? (
-            <select className="lh-vs-select" value={idA} onChange={e=>setIdA(e.target.value)}>
-              <option value="">Select player...</option>
-              {players.map(p=><option key={p.id} value={String(p.id)}>{p.player_name}{p.team?` (${p.team})`:''} OVR {p.overall}</option>)}
-            </select>
-          ) : (
-            <select className="lh-vs-select" value={idA} onChange={e=>setIdA(e.target.value)}>
-              <option value="">Select team...</option>
-              {teams.map(t=><option key={t.id} value={String(t.id)}>{t.team_name}</option>)}
-            </select>
-          )}
+        <div style={{ '--side-rgb': hexToRgb(colorTA)||accentRgbFromCfg(cfg) }}>
+          <label className="lh-vs-label">Team A</label>
+          <select className="lh-vs-select" value={idA} onChange={e=>setIdA(e.target.value)}>
+            <option value="">Select team...</option>
+            {teams.map(t=><option key={t.id} value={String(t.id)}>{t.team_name}</option>)}
+          </select>
         </div>
         <span className="lh-vs-badge">VS</span>
-        <div style={{ '--side-rgb': compareMode==='player'?rgbB:hexToRgb(colorTB)||'255,158,87' }}>
-          <label className="lh-vs-label">{compareMode==='player'?'Player B':'Team B'}</label>
-          {compareMode==='player' ? (
-            <select className="lh-vs-select" value={idB} onChange={e=>setIdB(e.target.value)}>
-              <option value="">Select player...</option>
-              {players.map(p=><option key={p.id} value={String(p.id)}>{p.player_name}{p.team?` (${p.team})`:''} OVR {p.overall}</option>)}
-            </select>
-          ) : (
-            <select className="lh-vs-select" value={idB} onChange={e=>setIdB(e.target.value)}>
-              <option value="">Select team...</option>
-              {teams.map(t=><option key={t.id} value={String(t.id)}>{t.team_name}</option>)}
-            </select>
-          )}
+        <div style={{ '--side-rgb': hexToRgb(colorTB)||'255,158,87' }}>
+          <label className="lh-vs-label">Team B</label>
+          <select className="lh-vs-select" value={idB} onChange={e=>setIdB(e.target.value)}>
+            <option value="">Select team...</option>
+            {teams.map(t=><option key={t.id} value={String(t.id)}>{t.team_name}</option>)}
+          </select>
         </div>
       </div>
 
-      <div style={{ display:'flex', justifyContent:'center', marginBottom:'10px' }}>
-        <div className="lh-toggle-group">
-          {['season','career'].map(m=><button key={m} className={`lh-toggle-btn ${mode===m?'active':''}`} onClick={()=>setMode(m)}>{m}</button>)}
-        </div>
-      </div>
-      {compareMode==='player' && (
-        <div style={{ display:'flex', justifyContent:'center', marginBottom:'22px' }}>
-          <div className="lh-toggle-group">
-            {[cfg.catA, cfg.catB].map(c=>(
-              <button key={c.id} className={`lh-toggle-btn ${statFilter===c.id?'active':''}`} onClick={()=>setStatFilter(c.id)}>{c.label}</button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {compareMode==='player' && pA && pB && (
-        <>
-          {radarAxes && (
-            <div style={{ marginBottom: 20 }}>
-              <RadarChart axes={radarAxes} colorA={colorA} colorB={colorB} nameA={pA.player_name} nameB={pB.player_name} />
-            </div>
-          )}
-          <div className="lh-compare-table">
-            <div className="lh-compare-head">
-              <span style={{ color: colorA }}>{pA.player_name}</span>
-              <span>STAT</span>
-              <span style={{ color: colorB }}>{pB.player_name}</span>
-            </div>
-            {STAT_LIST.map(([label,sKey,cKey]) => {
-              const valA=getVal(pA,label,sKey,cKey), valB=getVal(pB,label,sKey,cKey);
-              const aBetter=isBetter(label,valA,valB), bBetter=isBetter(label,valB,valA);
-              return (
-                <div key={label} className="lh-compare-row">
-                  <span className={`lh-compare-val ${aBetter?'better':''}`} style={{ color: aBetter?colorA:undefined, background: aBetter?`rgba(${rgbA},0.15)`:undefined }}>{valA}</span>
-                  <span className="lh-compare-label">{label}</span>
-                  <div className="lh-compare-right">
-                    <span className={`lh-compare-val ${bBetter?'better':''}`} style={{ color: bBetter?colorB:undefined, background: bBetter?`rgba(${rgbB},0.15)`:undefined }}>{valB}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         </>
       )}
-      {compareMode==='player' && (!pA||!pB) && <div className="lh-empty">Select two players to compare</div>}
 
       {compareMode==='team' && teamA_obj && teamB_obj && tA && tB && (
         <div className="lh-compare-table">

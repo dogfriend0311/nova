@@ -9,6 +9,7 @@ import VsFieldCard from './components/VsFieldCard';
 import { LeagueImpactMap } from './LeagueFeatures';
 import DevelopmentArcChart from './components/DevelopmentArcChart';
 import { gameLogTrend, seasonTrend, trendSummary } from './services/playerTrendService';
+import PlayerCard2Extras from './components/PlayerCard2Extras';
 
 // Converts any Spotify link to an embed URL and appends autoplay=1
 // so the song starts automatically when a player's page opens.
@@ -267,7 +268,7 @@ const PlayerAwardsPanel = ({ player, potmAwards, accolades }) => (
 );
 
 // ── Main Component ───────────────────────────────────────────
-const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
+const LeaguePlayerPage = ({ player, onBack, leaguePrefix, onSelectPlayer }) => {
   const [toggles, setToggles] = useState({
     hitBasic:   false,
     hitAdv:     false,
@@ -283,6 +284,7 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
   const [seasonArchiveRows, setSeasonArchiveRows] = useState([]);
+  const [leaguePlayers, setLeaguePlayers] = useState([]);
 
   const toggle = (key) => setToggles(prev => ({ ...prev, [key]: !prev[key] }));
 
@@ -297,6 +299,12 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
     if (!player?.id) { setSeasonArchiveRows([]); return; }
     db.getPlayerSeasonArchive(leaguePrefix || 'vizta', player.id).then(setSeasonArchiveRows);
   }, [player?.id, leaguePrefix]);
+
+  // Full league player pool — used for the "Comparable Players" panel,
+  // which needs to score this player against everyone else in the league.
+  useEffect(() => {
+    db.getPlayers(leaguePrefix || 'vizta').then(setLeaguePlayers).catch(() => setLeaguePlayers([]));
+  }, [leaguePrefix]);
 
   useEffect(() => {
     const rawUser = localStorage.getItem('nova_user');
@@ -344,6 +352,13 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
   const playerScores = boxScores.filter(b => b.player_id === player.id);
   const gamesPlayed  = playerScores.length;
   const gamesPitched = playerScores.filter(b => safe(b.innings_pitched) > 0).length;
+
+  // Representative counting stat for the "Player Card 2.0" panel (dynamic
+  // rating trend + head-to-head splits) — first box-scoreable field this
+  // sport tracks, e.g. 'hits' for baseball.
+  const insightsStatField = cfg.boxFields?.[0] || null;
+  const insightsStatLabel = insightsStatField ? (cfg.boxLabels?.[insightsStatField] || insightsStatField) : '';
+  const insightsGameLog = insightsStatField ? gameLogTrend(playerScores, bsGames, insightsStatField) : [];
 
   // Generic (config-driven) stat sections for non-baseball leagues
   const genericSeasonA = cfg.seasonA.map(([f, l]) => ({ label: l, value: player[f] || '—' }));
@@ -480,6 +495,7 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
     { id: 'gamelog', label: 'Game Log' },
     { id: 'trend', label: 'Development Arc' },
     { id: 'awards', label: 'Awards' },
+    { id: 'insights', label: 'Player Card 2.0' },
   ];
   const snapshotStats = isBaseball
     ? [
@@ -761,6 +777,17 @@ const LeaguePlayerPage = ({ player, onBack, leaguePrefix }) => {
           {activePanel === 'gamelog' && <PlayerGameLog playerScores={playerScores} cfg={cfg} />}
           {activePanel === 'trend' && <PlayerDevelopmentArcPanel player={player} playerScores={playerScores} bsGames={bsGames} seasonArchiveRows={seasonArchiveRows} cfg={cfg} />}
           {activePanel === 'awards' && <PlayerAwardsPanel player={player} potmAwards={potmAwards} accolades={accolades} />}
+          {activePanel === 'insights' && (
+            <PlayerCard2Extras
+              player={player}
+              allPlayers={leaguePlayers}
+              cfg={cfg}
+              seasonArchiveRows={seasonArchiveRows}
+              gameLogPoints={insightsGameLog}
+              statLabel={insightsStatLabel}
+              onSelectComparable={onSelectPlayer}
+            />
+          )}
 
           {activePanel === 'overview' && potmAwards.length > 0 && (
             <div className="potm-trophy-case">

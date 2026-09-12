@@ -357,6 +357,7 @@ const AppContent = () => {
             player={selectedLeaguePlayer}
             onBack={() => { setSelectedLeaguePlayer(null); setCurrentPage('leagues'); pushHash('leagues'); }}
             leaguePrefix={selectedLeague}
+            onSelectPlayer={(p) => setSelectedLeaguePlayer(p)}
           />
         );
 
