@@ -774,19 +774,29 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile }) => {
   // directly, which only ever reflects activity that happened in THIS
   // browser — so a friend online on their own device never showed up here.
   // db.getOnlineUsers() checks last_seen on the server instead.
-  const [isOnline, setIsOnline] = useState(false);
+  const [isOnline, setIsOnline] = useState(null); // null = not yet known
   useEffect(() => {
     let cancelled = false;
     import('../../services/db').then(({ default: db }) => {
       db.getOnlineUsers().then((online) => {
         if (!cancelled) setIsOnline(online.includes(member.username));
       }).catch(() => {
-        const onlineData = JSON.parse(localStorage.getItem('nova_online') || '{}');
-        if (!cancelled) setIsOnline(onlineData[member.username] > Date.now() - 5 * 60 * 1000);
+        // The server check failed. localStorage('nova_online') only ever
+        // reflects activity from THIS browser, so it's only meaningful for
+        // the signed-in user's own status — using it for anyone else would
+        // show a status that might be completely wrong for what's actually
+        // happening on their device. Only trust it for your own profile;
+        // for everyone else, fall back to "unknown" rather than guessing.
+        if (member.username === currentUser) {
+          const onlineData = JSON.parse(localStorage.getItem('nova_online') || '{}');
+          if (!cancelled) setIsOnline(onlineData[member.username] > Date.now() - 5 * 60 * 1000);
+        } else if (!cancelled) {
+          setIsOnline(null);
+        }
       });
     });
     return () => { cancelled = true; };
-  }, [member.username]);
+  }, [member.username, currentUser]);
 
   const [viewTab, setViewTab] = useState('overview');
   const [copied,  setCopied]  = useState(false);
@@ -922,7 +932,7 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile }) => {
   const presenceStatus = member.presence || 'online';
   const presenceMeta   = PRESENCE_META[presenceStatus] || PRESENCE_META.online;
   const presenceDot    = presenceMeta.color;
-  const presenceTxt    = isOnline ? presenceMeta.label : 'Offline';
+  const presenceTxt    = isOnline === true ? presenceMeta.label : isOnline === false ? 'Offline' : 'Status unknown';
 
   const socials = [
     { key: 'twitter_url',   label: 'Twitter',   icon: '𝕏', color: '#e2e5f0' },
@@ -1012,7 +1022,7 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile }) => {
               </div>
               <div className="gl-public-sub" title={member.bio || undefined} style={{ color: member.text_color ? `${member.text_color}99` : undefined }}>{roleLabel(role)}{member.bio ? ` · ${member.bio.slice(0, 40)}${member.bio.length > 40 ? '…' : ''}` : ''}</div>
               <div className="gl-public-joined">
-                <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', marginRight: 5, background: isOnline ? presenceDot : 'rgba(220,215,240,0.3)', boxShadow: isOnline ? `0 0 6px ${presenceDot}` : 'none' }} />
+                <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', marginRight: 5, background: isOnline === true ? presenceDot : 'rgba(220,215,240,0.3)', boxShadow: isOnline === true ? `0 0 6px ${presenceDot}` : 'none' }} />
                 {presenceTxt}
               </div>
               <ListeningToPublic username={member.username} />
@@ -1180,7 +1190,7 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile }) => {
                 <h3>{member.username}'s Nova profile</h3>
                 <p>{member.bio || 'A public member profile across Nova communities, games, and league culture.'}</p>
               </div>
-              <div className="member-overview-presence" style={{ '--presence-color': isOnline ? presenceDot : '#747f8d' }}>
+              <div className="member-overview-presence" style={{ '--presence-color': isOnline === true ? presenceDot : '#747f8d' }}>
                 <span /> {presenceTxt}
               </div>
             </div>
