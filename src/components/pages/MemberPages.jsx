@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl, getTeamByAbbr } from '../../data/teams';
 import * as lfm from '../../services/lastfmService';
 import { ProfileBackground, ProfileAudioPlayer, effectiveBgList, effectiveAudioList, RobloxLinkCard, RobloxGameCard, LeaguePlayerShowcase } from './MemberProfile';
@@ -800,6 +800,150 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
 };
 
 // ── Member Profile View (improved) ────────────────────────────
+// ── Share profile as image ─────────────────────────────────────────
+// Captures the live floating profile card (banner, avatar, badges, bio,
+// kudos, socials — everything inside gl-public-card-wrap) as a PNG.
+// Unlike PlayerTradingCard (which hand-draws a fixed layout on a canvas
+// since it only ever shows a handful of stats), a member's profile card
+// has too much variable, freeform content to redraw stroke-by-stroke —
+// so this captures the real DOM node instead via html-to-image.
+// Note: CSS backdrop-filter blur isn't captured (a known html-to-image/
+// browser limitation) and cross-origin banner/avatar images need the
+// host to allow CORS reads or they'll be dropped from the export —
+// both degrade gracefully rather than failing the whole capture.
+const ProfileShareImageModal = ({ member, cardRef, onClose }) => {
+  const [status, setStatus]     = useState('capturing'); // capturing | ready | error
+  const [imgUrl, setImgUrl]     = useState(null);
+  const [downloading, setDownloading] = useState(false);
+  const [sharing, setSharing]         = useState(false);
+  const [shareUnsupported, setShareUnsupported] = useState(false);
+  const canvasRef = useRef(null); // the captured canvas, reused for download/share so we don't re-render twice
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const node = cardRef.current;
+        if (!node) throw new Error('Profile card not found');
+        const { toCanvas } = await import('html-to-image');
+        const canvas = await toCanvas(node, { cacheBust: true, pixelRatio: 2, backgroundColor: '#05070d' });
+        if (cancelled) return;
+        canvasRef.current = canvas;
+        setImgUrl(canvas.toDataURL('image/png'));
+        setStatus('ready');
+      } catch {
+        if (!cancelled) setStatus('error');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [cardRef]);
+
+  const canvasToBlob = (canvas) => new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+  const safeName = (member.username || 'member').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+
+  const handleDownload = async () => {
+    if (!canvasRef.current) return;
+    setDownloading(true);
+    try {
+      const blob = await canvasToBlob(canvasRef.current);
+      if (!blob) { setStatus('error'); return; }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `nova-${safeName}-profile.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setStatus('error');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleShare = async () => {
+    const canShareFiles = typeof navigator.share === 'function' && typeof navigator.canShare === 'function';
+    if (!canShareFiles || !canvasRef.current) { setShareUnsupported(true); handleDownload(); return; }
+    setSharing(true);
+    try {
+      const blob = await canvasToBlob(canvasRef.current);
+      if (!blob) { setStatus('error'); return; }
+      const file = new File([blob], `nova-${safeName}-profile.png`, { type: 'image/png' });
+      if (!navigator.canShare({ files: [file] })) {
+        setShareUnsupported(true);
+        handleDownload();
+        return;
+      }
+      await navigator.share({
+        files: [file],
+        title: `${member.username} — Nova profile`,
+        text: `Check out ${member.username}'s Nova profile!`,
+      });
+    } catch (e) {
+      if (e && e.name !== 'AbortError') setStatus('error');
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420, textAlign: 'center' }}>
+        <h2 style={{ fontSize: '1.05rem' }}>📸 Share Profile Card</h2>
+
+        {status === 'capturing' && (
+          <p style={{ color: 'rgba(226,229,240,0.6)', fontSize: '0.85rem', padding: '30px 0' }}>Rendering your card…</p>
+        )}
+
+        {status === 'ready' && imgUrl && (
+          <img src={imgUrl} alt="" style={{ width: '100%', borderRadius: 12, border: '1px solid rgba(94,129,244,0.25)', marginBottom: 16, display: 'block' }} />
+        )}
+
+        {status === 'error' && (
+          <p style={{ color: '#ff8f9e', fontSize: '0.85rem', padding: '20px 0' }}>
+            Couldn't generate the image — this can happen when a banner or avatar image is hosted somewhere that blocks cross-origin access. Try again in a moment.
+          </p>
+        )}
+
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+          {status === 'ready' && typeof navigator !== 'undefined' && typeof navigator.share === 'function' && (
+            <button onClick={handleShare} disabled={sharing} className="neon-button" style={{ padding: '10px 20px', fontSize: '0.9rem' }}>
+              {sharing ? 'Preparing…' : '↗ Share'}
+            </button>
+          )}
+          {status === 'ready' && (
+            <button
+              onClick={handleDownload}
+              disabled={downloading}
+              style={{
+                padding: '10px 20px', borderRadius: 10, border: 'none',
+                background: 'linear-gradient(135deg, #5e81f4, #ff9e57)',
+                color: '#0a0d1a', fontWeight: 700, fontSize: '0.9rem',
+                cursor: downloading ? 'default' : 'pointer', opacity: downloading ? 0.7 : 1,
+              }}
+            >
+              {downloading ? 'Preparing…' : 'Download'}
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            style={{ padding: '10px 20px', borderRadius: 10, background: 'transparent', border: '1px solid rgba(226,229,240,0.3)', color: '#e2e5f0', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer' }}
+          >
+            Close
+          </button>
+        </div>
+
+        {shareUnsupported && status !== 'error' && (
+          <p style={{ marginTop: 10, color: 'rgba(226,229,240,0.5)', fontSize: '0.78rem' }}>
+            Sharing isn't supported in this browser — downloaded the image instead.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilterByBadge, onFilterByTeam }) => {
   // `member.role` is already resolved correctly upstream (MemberDirectory
   // fetches it from db.getUsers(), which reads Supabase — the shared,
@@ -843,8 +987,10 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
     return () => { cancelled = true; };
   }, [member.username, currentUser]);
 
+  const cardRef = useRef(null); // gl-public-card-wrap node, captured for the "share as image" export
   const [viewTab, setViewTab] = useState('overview');
   const [copied,  setCopied]  = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
   const [streak,  setStreak]  = useState(0);
   const [kudos,        setKudos]        = useState([]);
   const [kudosNote,    setKudosNote]    = useState('');
@@ -1032,6 +1178,10 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
           style={{ padding: '9px 16px', background: copied ? 'rgba(0,255,136,0.07)' : 'rgba(108,92,231,0.08)', border: `1px solid ${copied ? 'rgba(0,255,136,0.4)' : 'rgba(108,92,231,0.3)'}`, color: copied ? '#00ff88' : 'rgba(220,215,240,0.7)', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', minHeight: 40, transition: 'all 0.2s' }}>
           {copied ? '✓ Copied!' : '🔗 Share'}
         </button>
+        <button onClick={() => setShowImageModal(true)}
+          style={{ padding: '9px 16px', background: 'rgba(108,92,231,0.08)', border: '1px solid rgba(108,92,231,0.3)', color: 'rgba(220,215,240,0.8)', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', minHeight: 40 }}>
+          📸 Save Image
+        </button>
         {currentUser && currentUser !== member.username && (
           <button onClick={() => { window.location.hash = `#messages/${member.username}`; }}
             style={{ padding: '9px 16px', background: 'rgba(108,92,231,0.08)', border: '1px solid rgba(108,92,231,0.3)', color: 'rgba(220,215,240,0.8)', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', minHeight: 40 }}>
@@ -1041,7 +1191,7 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
       </div>
 
       {/* Floating glow profile card, guns.lol style */}
-      <div className="gl-public-card-wrap">
+      <div className="gl-public-card-wrap" ref={cardRef}>
         <div
           className="gl-public-card"
           style={{
@@ -1329,6 +1479,10 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
             onPin={handlePinComment} />
         )}
       </div>
+
+      {showImageModal && (
+        <ProfileShareImageModal member={member} cardRef={cardRef} onClose={() => setShowImageModal(false)} />
+      )}
     </div>
   );
 };

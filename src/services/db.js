@@ -1133,6 +1133,40 @@ export const db = {
     localStorage.setItem('nova_comments', JSON.stringify(all));
   },
 
+  // Edits a comment's content (or any other patch, e.g. reactions) in place.
+  // Comments only ever belong to one member's list, but that list is keyed
+  // by to_username in localStorage, so the fallback path has to search for
+  // which bucket holds this id rather than being told directly.
+  async updateComment(id, patch) {
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_comments').update(patch).eq('id', id).select();
+        if (!error) return data[0];
+      } catch {}
+    }
+    const all = JSON.parse(localStorage.getItem('nova_comments') || '{}');
+    for (const key of Object.keys(all)) {
+      const idx = (all[key] || []).findIndex(c => c.id === id);
+      if (idx >= 0) {
+        all[key][idx] = { ...all[key][idx], ...patch };
+        localStorage.setItem('nova_comments', JSON.stringify(all));
+        return all[key][idx];
+      }
+    }
+    return null;
+  },
+
+  // Toggles one member's reaction emoji on a comment. Read-modify-write
+  // rather than an atomic DB op — fine at this app's scale, and simpler
+  // than a Postgres function just to toggle entries in a small JSON map.
+  async toggleCommentReaction(id, emoji, username, currentReactions) {
+    const reactions = { ...(currentReactions || {}) };
+    const users = new Set(reactions[emoji] || []);
+    if (users.has(username)) users.delete(username); else users.add(username);
+    if (users.size) reactions[emoji] = Array.from(users); else delete reactions[emoji];
+    return this.updateComment(id, { reactions });
+  },
+
   /* ── PLAYER COMMENTS (comments + GIFs on a league player's stat page) ── */
   async getPlayerComments(league, playerId) {
     if (hasSupabase()) {
