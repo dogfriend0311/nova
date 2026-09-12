@@ -169,25 +169,41 @@ function extractRobloxGameName(url) {
 export const RobloxGameCard = ({ placeId, title, note, onRemove, pinned, onTogglePin }) => {
   const [thumbUrl, setThumbUrl] = useState(null);
   const [failed,   setFailed]   = useState(false);
+  // Bumped by the retry button below. A failed fetch (e.g. a transient
+  // API hiccup) used to permanently show the 🎮 fallback with no way to
+  // try again short of removing and re-adding the game.
+  const [retryTick, setRetryTick] = useState(0);
 
   useEffect(() => {
     if (!placeId) return;
     let active = true;
+    setFailed(false);
     fetch(`/api/roblox?action=game-thumb&placeId=${encodeURIComponent(placeId)}`)
       .then(res => res.json())
       .then(data => { if (active) { if (data?.thumbnailUrl) setThumbUrl(data.thumbnailUrl); else setFailed(true); } })
       .catch(() => { if (active) setFailed(true); });
     return () => { active = false; };
-  }, [placeId]);
+  }, [placeId, retryTick]);
 
   return (
     <div style={{ position: 'relative', background: 'rgba(94, 129, 244,0.04)', border: '1px solid rgba(94, 129, 244,0.1)', borderRadius: '10px', overflow: 'hidden' }}>
       <a href={`https://www.roblox.com/games/${placeId}`} target="_blank" rel="noopener noreferrer" style={{ display: 'block', textDecoration: 'none' }}>
         {thumbUrl ? (
           <img src={thumbUrl} alt={title} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} onError={() => setFailed(true)} />
+        ) : failed ? (
+          <button
+            type="button"
+            className="tap44"
+            title="Thumbnail failed to load — click to retry"
+            onClick={(e) => { e.preventDefault(); setFailed(false); setThumbUrl(null); setRetryTick(t => t + 1); }}
+            style={{ width: '100%', aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, background: 'rgba(94,129,244,0.08)', border: 'none', cursor: 'pointer', color: 'inherit' }}
+          >
+            <span style={{ fontSize: '1.8rem' }}>🎮</span>
+            <span style={{ fontSize: '0.62rem', color: 'rgba(158,165,196,0.6)' }}>↻ Retry</span>
+          </button>
         ) : (
           <div style={{ width: '100%', aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(94,129,244,0.08)', fontSize: '1.8rem' }}>
-            {failed ? '🎮' : '⏳'}
+            ⏳
           </div>
         )}
         <div style={{ padding: '8px' }}>
