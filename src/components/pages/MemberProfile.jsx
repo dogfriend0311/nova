@@ -276,7 +276,7 @@ const ImageField = ({ label, fieldKey, value, onChange, username, aspect, hint, 
         style={{ aspectRatio: aspect || '16/9', opacity: uploading ? 0.6 : 1, position: 'relative' }}
         onClick={() => !uploading && inputRef.current?.click()}
       >
-        {hasImage && !isBase64 && (
+        {hasImage && (
           <img src={value} alt="preview" style={{ objectPosition: positionValue || DEFAULT_POSITION }} onError={(e) => { e.target.style.display = 'none'; }} />
         )}
         {!hasImage && (
@@ -303,7 +303,7 @@ const ImageField = ({ label, fieldKey, value, onChange, username, aspect, hint, 
       >
         {showUrlInput ? '– Hide URL field' : '+ Paste a URL instead'}
       </button>
-      {hasImage && !isBase64 && positionKey && (
+      {hasImage && positionKey && (
         <button
           type="button"
           onClick={() => setAdjustingPosition(s => !s)}
@@ -312,7 +312,7 @@ const ImageField = ({ label, fieldKey, value, onChange, username, aspect, hint, 
           {adjustingPosition ? '– Hide centering tool' : '🎯 Center this photo'}
         </button>
       )}
-      {adjustingPosition && hasImage && !isBase64 && positionKey && (
+      {adjustingPosition && hasImage && positionKey && (
         <FocalPointPicker
           url={value}
           isVideo={false}
@@ -334,7 +334,7 @@ const ImageField = ({ label, fieldKey, value, onChange, username, aspect, hint, 
       {error && <div style={{ color: '#ff6b7a', fontSize: '0.75rem', marginTop: 4 }}>⚠ {error}</div>}
       {isBase64 && (
         <div style={{ fontSize: '0.72rem', color: 'rgba(255,180,80,0.7)', marginTop: 4 }}>
-          This image is stored the old (slower) way — re-upload it to speed up your page for visitors.
+          ⚠ This image is stored the old (slower) way and slows down your page for visitors. Click the image above to upload a replacement, or use "Paste a URL instead" below.
         </div>
       )}
     </div>
