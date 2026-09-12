@@ -8,6 +8,7 @@ import { MemberGridSkeleton } from '../Skeleton';
 import { checkRateLimit, recordAction } from '../../services/rateLimiter';
 import { awardXP } from '../../services/reputationService';
 import { currentUsername } from '../../services/favoritesService';
+import { PRESENCE_META } from '../../services/db';
 
 // ── role helpers ──────────────────────────────────────────────
 const SPORT_KEYS = ['mlb', 'nfl', 'nba', 'nhl', 'cfb', 'cbb'];
@@ -854,10 +855,9 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile }) => {
   // own localStorage — that key is only ever populated for yourself, never
   // for anyone else you look up.
   const presenceStatus = member.presence || 'online';
-  const presenceDot    = presenceStatus === 'online' ? '#43b581' : presenceStatus === 'idle' ? '#f04747' : '#747f8d';
-  const presenceTxt    = isOnline
-    ? (presenceStatus === 'online' ? 'Online' : presenceStatus === 'idle' ? 'Do Not Disturb' : 'Invisible')
-    : 'Offline';
+  const presenceMeta   = PRESENCE_META[presenceStatus] || PRESENCE_META.online;
+  const presenceDot    = presenceMeta.color;
+  const presenceTxt    = isOnline ? presenceMeta.label : 'Offline';
 
   const socials = [
     { key: 'twitter_url',   label: 'Twitter',   icon: '𝕏', color: '#e2e5f0' },

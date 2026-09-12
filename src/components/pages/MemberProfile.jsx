@@ -11,7 +11,7 @@ import { LevelBadge } from '../LevelBadge';
 import { checkAndAwardDiscordBadges } from '../../services/discordBadgeCheck';
 import { getCoins as getCoinsBalance, addCoins as addCoinsBalance } from '../../services/coinsStorage';
 import { getFavGames, setFavGames as persistFavGamesLS } from '../../services/favGamesStorage';
-import db from '../../services/db';
+import db, { PRESENCE_META } from '../../services/db';
 import { COSMETICS } from './CoinShop';
 import { ProfileCardSkeleton } from '../Skeleton';
 import './MemberProfile.css';
@@ -1655,7 +1655,7 @@ const MemberProfile = () => {
 
   const SI = { padding: '10px', background: 'rgba(94, 129, 244,0.05)', border: '1px solid rgba(94, 129, 244,0.2)', color: '#e2e5f0', borderRadius: '6px', width: '100%', marginBottom: '8px' };
 
-  const presenceMap = { online: { label: 'Online', color: '#43b581' }, idle: { label: 'Do Not Disturb', color: '#f04747' }, offline: { label: 'Invisible', color: '#747f8d' } };
+  const presenceMap = PRESENCE_META;
   // While previewing from inside the editor, show the in-progress formData
   // (background media + audio bar + colors together) instead of the last
   // saved snapshot, so members can check how their page will look without

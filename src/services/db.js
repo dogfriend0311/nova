@@ -9,6 +9,24 @@ import { generateBeatPost } from './beatWriterService';
 
 const hasSupabase = () => true; // Rivestack via /api/query — no client-side env vars needed
 
+/* ── Presence ──────────────────────────────────────────────────
+   Earlier versions only had 3 stored values (online/idle/offline) but
+   displayed 3 *different* concepts (Online/Do Not Disturb/Invisible) —
+   "idle" on disk actually meant "Do Not Disturb" and "offline" actually
+   meant "Invisible", which doesn't match how Discord (the whole profile
+   is styled after Discord/guns.lol) uses those words. The one-time SQL
+   migration (see supabase_migration.sql) rewrites every existing row to
+   these new dedicated keys, so from here on "idle" can mean a real Idle
+   status without colliding with old Do Not Disturb selections. Both
+   MemberProfile (self) and MemberPages (public view) read from this
+   single map so the labels/colors can never drift apart again. */
+export const PRESENCE_META = {
+  online:    { label: 'Online',         color: '#43b581' },
+  idle:      { label: 'Idle',           color: '#faa61a' },
+  dnd:       { label: 'Do Not Disturb', color: '#f04747' },
+  invisible: { label: 'Invisible',      color: '#747f8d' },
+};
+
 /* ── Generic localStorage helpers ─────────────────────────────── */
 const ls = {
   get: (key) => JSON.parse(localStorage.getItem(key) || '[]'),
