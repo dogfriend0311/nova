@@ -425,13 +425,14 @@ const MultiBgUploadField = ({ username, list, onChange, hint }) => {
             <button
               onClick={() => setAdjustingId(adjustingId === b.id ? null : b.id)}
               title="Center this background"
+              className="tap44"
               style={{ position: 'absolute', bottom: 6, right: 6, width: 24, height: 24, borderRadius: 6, border: 'none', background: adjustingId === b.id ? 'var(--gl-accent, #6c5ce7)' : 'rgba(0,0,0,0.65)', color: '#fff', fontSize: '0.75rem', cursor: 'pointer' }}
             >🎯</button>
             {list.length > 1 && (
               <div style={{ position: 'absolute', top: 6, left: 6, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <button onClick={() => move(i, -1)} disabled={i === 0} title="Move earlier"
+                <button onClick={() => move(i, -1)} disabled={i === 0} title="Move earlier" className="tap44"
                   style={{ width: 22, height: 22, borderRadius: 6, border: 'none', background: 'rgba(0,0,0,0.65)', color: '#e4defc', fontSize: '0.7rem', cursor: i === 0 ? 'default' : 'pointer', opacity: i === 0 ? 0.35 : 1 }}>▲</button>
-                <button onClick={() => move(i, 1)} disabled={i === list.length - 1} title="Move later"
+                <button onClick={() => move(i, 1)} disabled={i === list.length - 1} title="Move later" className="tap44"
                   style={{ width: 22, height: 22, borderRadius: 6, border: 'none', background: 'rgba(0,0,0,0.65)', color: '#e4defc', fontSize: '0.7rem', cursor: i === list.length - 1 ? 'default' : 'pointer', opacity: i === list.length - 1 ? 0.35 : 1 }}>▼</button>
               </div>
             )}
@@ -523,13 +524,13 @@ const MultiAudioUploadField = ({ username, list, onChange, hint }) => {
                 <span style={{ flex: 1, fontSize: '0.78rem', color: 'rgba(220,215,240,0.55)' }}>🎵 Uploaded track</span>
                 {list.length > 1 && (
                   <>
-                    <button onClick={() => move(i, -1)} disabled={i === 0} title="Move earlier in the playlist"
+                    <button onClick={() => move(i, -1)} disabled={i === 0} title="Move earlier in the playlist" className="tap44"
                       style={{ background: 'none', border: 'none', color: 'rgba(220,215,240,0.7)', cursor: i === 0 ? 'default' : 'pointer', fontSize: '0.85rem', opacity: i === 0 ? 0.3 : 1 }}>▲</button>
-                    <button onClick={() => move(i, 1)} disabled={i === list.length - 1} title="Move later in the playlist"
+                    <button onClick={() => move(i, 1)} disabled={i === list.length - 1} title="Move later in the playlist" className="tap44"
                       style={{ background: 'none', border: 'none', color: 'rgba(220,215,240,0.7)', cursor: i === list.length - 1 ? 'default' : 'pointer', fontSize: '0.85rem', opacity: i === list.length - 1 ? 0.3 : 1 }}>▼</button>
                   </>
                 )}
-                <button onClick={() => remove(t.id)} style={{ background: 'none', border: 'none', color: '#ff6b7a', cursor: 'pointer', fontSize: '0.85rem' }}>✕ Remove</button>
+                <button onClick={() => remove(t.id)} className="tap44" style={{ background: 'none', border: 'none', color: '#ff6b7a', cursor: 'pointer', fontSize: '0.85rem' }}>✕ Remove</button>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
                 <input value={t.title} onChange={(e) => updateField(t.id, 'title', e.target.value)} placeholder="Song title" style={{ flex: 1, padding: '5px 8px', fontSize: '0.78rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--gl-line, rgba(255,255,255,0.1))', color: '#e2e5f0', borderRadius: 5 }} />
@@ -614,11 +615,11 @@ const TeamSelector = ({ favTeams, onChange, favTeamNotifs, onNotifsChange }) => 
               return (
                 <div key={abbr} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: '0.82rem', color: '#e2e5f0' }}>
                   <strong style={{ width: 48 }}>{abbr}</strong>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', color: teamNotifs.finalScore ? 'var(--color-cyan)' : 'rgba(158,165,196,0.4)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', minHeight: 44, color: teamNotifs.finalScore ? 'var(--color-cyan)' : 'rgba(158,165,196,0.4)' }}>
                     <input type="checkbox" checked={!!teamNotifs.finalScore} onChange={() => toggleNotif(activeSport, abbr, 'finalScore')} />
                     Final scores
                   </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', color: teamNotifs.news ? 'var(--color-cyan)' : 'rgba(158,165,196,0.4)' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer', minHeight: 44, color: teamNotifs.news ? 'var(--color-cyan)' : 'rgba(158,165,196,0.4)' }}>
                     <input type="checkbox" checked={!!teamNotifs.news} onChange={() => toggleNotif(activeSport, abbr, 'news')} />
                     News
                   </label>
@@ -891,15 +892,15 @@ export const ProfileAudioPlayer = ({ list }) => {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
               {list.length > 1 && (
-                <button onClick={prev} title="Back" style={{ width: 30, height: 30, borderRadius: '50%', background: 'transparent', border: 'none', color: '#fff', fontSize: '0.85rem', cursor: 'pointer' }}>⏮</button>
+                <button onClick={prev} title="Back" className="tap44" style={{ width: 30, height: 30, borderRadius: '50%', background: 'transparent', border: 'none', color: '#fff', fontSize: '0.85rem', cursor: 'pointer' }}>⏮</button>
               )}
-              <button onClick={togglePlay} title={playing ? 'Pause' : 'Play'} style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(94,129,244,0.3)', border: 'none', color: '#fff', fontSize: '0.9rem', cursor: 'pointer' }}>
+              <button onClick={togglePlay} title={playing ? 'Pause' : 'Play'} className="tap44" style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(94,129,244,0.3)', border: 'none', color: '#fff', fontSize: '0.9rem', cursor: 'pointer' }}>
                 {playing ? '⏸' : '▶'}
               </button>
               {list.length > 1 && (
-                <button onClick={next} title="Skip" style={{ width: 30, height: 30, borderRadius: '50%', background: 'transparent', border: 'none', color: '#fff', fontSize: '0.85rem', cursor: 'pointer' }}>⏭</button>
+                <button onClick={next} title="Skip" className="tap44" style={{ width: 30, height: 30, borderRadius: '50%', background: 'transparent', border: 'none', color: '#fff', fontSize: '0.85rem', cursor: 'pointer' }}>⏭</button>
               )}
-              <button onClick={() => setOpen(false)} title="Minimize" style={{ width: 24, height: 24, borderRadius: '50%', background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '0.7rem', cursor: 'pointer', marginLeft: 2 }}>✕</button>
+              <button onClick={() => setOpen(false)} title="Minimize" className="tap44" style={{ width: 24, height: 24, borderRadius: '50%', background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '0.7rem', cursor: 'pointer', marginLeft: 2 }}>✕</button>
             </div>
           </>
         )}
@@ -1562,7 +1563,7 @@ const MemberProfile = () => {
                       return (
                         <label key={b.id} style={{
                           display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer',
-                          padding: '6px 12px', borderRadius: '20px',
+                          padding: '6px 12px', borderRadius: '20px', minHeight: 44, boxSizing: 'border-box',
                           border: `1px solid ${checked ? (b.color || '#6c5ce7') : 'rgba(255,255,255,0.12)'}`,
                           background: checked ? `${b.color || '#6c5ce7'}18` : 'transparent',
                           fontSize: '0.82rem', color: checked ? (b.color || '#6c5ce7') : 'rgba(220,215,240,0.55)',
