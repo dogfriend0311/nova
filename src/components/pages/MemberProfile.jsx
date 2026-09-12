@@ -602,8 +602,11 @@ const TeamSelector = ({ favTeams, onChange, favTeamNotifs, onNotifsChange }) => 
 
       {notifsSupported && (favTeams[activeSport] || []).length > 0 && (
         <div className="mp-team-notif-prefs" style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(94,129,244,0.12)' }}>
-          <div style={{ fontSize: '0.78rem', color: 'rgba(158,165,196,0.5)', marginBottom: 8 }}>
+          <div style={{ fontSize: '0.78rem', color: 'rgba(158,165,196,0.5)', marginBottom: 4 }}>
             🔔 Notifications for your {SPORT_SHORT[activeSport]} teams
+          </div>
+          <div style={{ fontSize: '0.72rem', color: 'rgba(158,165,196,0.4)', marginBottom: 10, lineHeight: 1.4 }}>
+            <strong style={{ color: 'rgba(158,165,196,0.6)' }}>Final scores</strong> notifies you when one of these teams finishes a game. <strong style={{ color: 'rgba(158,165,196,0.6)' }}>News</strong> notifies you about roster moves, injuries, and other team headlines.
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {(favTeams[activeSport] || []).map((abbr) => {
@@ -1926,6 +1929,7 @@ const MemberProfile = () => {
                   placeholder="Why is it your favorite? (optional)"
                   value={newGameNote}
                   onChange={(e) => setNewGameNote(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && addGameInputRef.current) addFavGame(addGameInputRef.current.value, false); }}
                   style={SI}
                 />
                 <button className="neon-button" style={{ width: '100%' }} onClick={() => {
@@ -1975,6 +1979,7 @@ const MemberProfile = () => {
                   placeholder="Why is it your favorite? (optional)"
                   value={newGameNote}
                   onChange={(e) => setNewGameNote(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && addGameInputRef.current) addFavGame(addGameInputRef.current.value, true); }}
                   style={SI}
                 />
                 <p style={{ margin: '0 0 8px', fontSize: '0.72rem', color: 'rgba(158, 165, 196,0.4)' }}>
