@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Archive, ArrowDown, ArrowUp, ArrowUpRight, Bookmark, Check, Database,
-  Minus, Radio, Repeat, Sparkles, Star, Trophy, Users,
+  Activity, Archive, ArrowDown, ArrowUp, ArrowUpRight, Bookmark, Check, Database,
+  Flame, Minus, Radio, Repeat, Snowflake, Sparkles, Star, Trophy, Users, Zap,
 } from 'lucide-react';
 import db from './services/db';
 import { awardXP } from './services/reputationService';
@@ -37,6 +37,23 @@ const readList = (key) => {
 const writeList = (key, list) => localStorage.setItem(key, JSON.stringify(list));
 
 const getPlayerLabel = (player) => player?.nickname || player?.player_name || 'Unknown player';
+
+// Statcast-style helpers: a percentile rank of `value` against a pool of
+// values from the whole league (100 = best in the league), and a
+// blue-to-red diverging color for that percentile — the same visual
+// language real Statcast percentile boards use.
+const percentileRank = (value, pool, hi = true) => {
+  if (value === null || value === undefined || Number.isNaN(value)) return null;
+  if (!pool.length) return null;
+  if (pool.length === 1) return 50;
+  const beat = pool.filter((v) => (hi ? v <= value : v >= value)).length;
+  return Math.max(1, Math.round((beat / pool.length) * 100));
+};
+const percentileColor = (pct) => {
+  if (pct === null || pct === undefined) return 'rgba(158,165,196,0.35)';
+  const hue = 210 - (Math.max(0, Math.min(100, pct)) / 100) * 210; // 210 blue → 0 red
+  return `hsl(${hue}, 72%, 56%)`;
+};
 
 /* ── League Record Book ───────────────────────────────────────── */
 export const LeagueRecordsTab = ({ sport, cfg }) => {
@@ -119,6 +136,276 @@ export const LeagueRecordsTab = ({ sport, cfg }) => {
         <div className="lh-card lh-feature-panel"><div className="lh-feature-panel-head"><div><span className="lh-panel-kicker">ALL TIME</span><h3>Career records</h3></div><Archive size={16} color="var(--accent)" /></div><RecordList rows={careerRows} empty="Career records appear once player history is entered." /></div>
       </div>
       <div className="lh-card lh-feature-panel"><div className="lh-feature-panel-head"><div><span className="lh-panel-kicker">BOX SCORE VAULT</span><h3>Single-game records</h3></div><Database size={16} color="var(--accent)" /></div><RecordList rows={gameRows} empty="Single-game records appear once box scores are logged." /></div>
+    </div>
+  );
+};
+
+/* ── Statcast Lab (advanced/percentile analytics) ────────────────
+   A sport-agnostic "Statcast-style" page: everything it shows is
+   derived from real stored numbers (no invented tracking data), driven
+   entirely by cfg.statcast so the exact same component powers baseball,
+   hockey, and football:
+     - Percentile Rankings — a selected player's key stats plotted as
+       percentile bars against the rest of the league (Statcast's
+       signature visual).
+     - Tendency Map — a two-stat scatter plot standing in for a spray
+       chart / shot chart (e.g. Power vs. Contact, Scoring vs.
+       Playmaking, Efficiency vs. Usage).
+     - Recent Form — last-5-logged-games rate vs. season rate, replacing
+       "hot/cold zones" with an actual hot/cold read from the box score
+       log.
+     - Team Efficiency Grid — a percentile heat-map of team-level stats,
+       reusing the same teamStats already defined per league.
+*/
+export const StatcastLabTab = ({ sport, cfg }) => {
+  const [players, setPlayers] = useState([]);
+  const [teams, setTeams] = useState([]);
+  const [bsGames, setBsGames] = useState([]);
+  const [boxScores, setBoxScores] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedId, setSelectedId] = useState('');
+
+  const sc = cfg.statcast;
+
+  useEffect(() => {
+    setLoading(true);
+    setSelectedId('');
+    Promise.all([db.getPlayers(sport), db.getTeams(sport), db.getBsGames(sport), db.getBoxScores(sport)])
+      .then(([p, t, g, b]) => {
+        setPlayers(Array.isArray(p) ? p : []);
+        setTeams(Array.isArray(t) ? t : []);
+        setBsGames(Array.isArray(g) ? g : []);
+        setBoxScores(Array.isArray(b) ? b : []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [sport]);
+
+  if (loading) return <div className="lh-loading">Booting up the lab…</div>;
+  if (!sc) return <div className="lh-empty">Advanced metrics aren't configured for this league yet.</div>;
+
+  // ── Percentile rankings for the selected player ──────────────
+  const metricPools = sc.metrics.map((m) => ({
+    ...m,
+    pool: players.map((p) => num(p[m.field])).filter((v) => v !== null),
+  }));
+  const eligiblePlayers = players
+    .filter((p) => sc.metrics.some((m) => num(p[m.field]) !== null))
+    .sort((a, b) => getPlayerLabel(a).localeCompare(getPlayerLabel(b)));
+  const selected = eligiblePlayers.find((p) => String(p.id) === String(selectedId)) || eligiblePlayers[0] || null;
+  const percentileRows = selected
+    ? metricPools
+        .map((m) => {
+          const value = num(selected[m.field]);
+          return value === null ? null : { ...m, value, pct: percentileRank(value, m.pool, m.hi) };
+        })
+        .filter(Boolean)
+    : [];
+  const percentileGroups = [...new Set(percentileRows.map((r) => r.group))].map((group) => ({
+    group,
+    rows: percentileRows.filter((r) => r.group === group),
+  }));
+
+  // ── Tendency map (two-stat scatter) ──────────────────────────
+  const tm = sc.tendencyMap;
+  const scatterPts = players
+    .map((p) => ({ player: p, x: num(p[tm.xField]), y: num(p[tm.yField]) }))
+    .filter((pt) => pt.x !== null && pt.y !== null);
+  const xs = scatterPts.map((pt) => pt.x);
+  const ys = scatterPts.map((pt) => pt.y);
+  const xMin = xs.length ? Math.min(...xs, 0) : 0;
+  const xMax = xs.length ? Math.max(...xs) : 1;
+  const yMin = ys.length ? Math.min(...ys, 0) : 0;
+  const yMax = ys.length ? Math.max(...ys) : 1;
+  const xAvg = xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0;
+  const yAvg = ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length : 0;
+  const SW = 640, SH = 300, SPAD = 30;
+  const xPos = (v) => SPAD + (xMax === xMin ? (SW - 2 * SPAD) / 2 : ((v - xMin) / (xMax - xMin)) * (SW - 2 * SPAD));
+  const yPos = (v) => SH - SPAD - (yMax === yMin ? (SH - 2 * SPAD) / 2 : ((v - yMin) / (yMax - yMin)) * (SH - 2 * SPAD));
+
+  // ── Recent form: last (up to) 5 logged games vs. season rate ──
+  const gamesById = new Map(bsGames.map((g) => [String(g.id), g]));
+  const scoresByPlayer = new Map();
+  boxScores.forEach((score) => {
+    const game = gamesById.get(String(score.game_id));
+    const key = String(score.player_id);
+    const list = scoresByPlayer.get(key) || [];
+    list.push({ score, date: game?.game_date ? new Date(game.game_date).getTime() : 0 });
+    scoresByPlayer.set(key, list);
+  });
+  const gamesPlayedField = ['season_g', 'season_gp', 'season_dgp', 'season_pg', 'season_ggp'].find((f) => sc && players.some((p) => num(p[f]) !== null));
+  const formRows = players.map((player) => {
+    const logged = (scoresByPlayer.get(String(player.id)) || []).sort((a, b) => b.date - a.date);
+    if (logged.length < 3) return null;
+    const recent = logged.slice(0, 5);
+    const recentAvg = recent.reduce((sum, g) => sum + (num(g.score[sc.formBox]) || 0), 0) / recent.length;
+    const seasonTotal = num(player[sc.formField]);
+    const seasonGames = num(player[gamesPlayedField]) || logged.length;
+    if (seasonTotal === null || !seasonGames) return null;
+    const seasonAvg = seasonTotal / seasonGames;
+    if (!Number.isFinite(seasonAvg) || seasonAvg <= 0) return null;
+    const pctDiff = ((recentAvg - seasonAvg) / seasonAvg) * 100;
+    return { player, recentAvg, seasonAvg, pctDiff, logged: logged.length };
+  }).filter(Boolean);
+  const hottest = [...formRows].sort((a, b) => b.pctDiff - a.pctDiff).slice(0, 5);
+  const coldest = [...formRows].sort((a, b) => a.pctDiff - b.pctDiff).slice(0, 5);
+
+  // ── Team efficiency grid ──────────────────────────────────────
+  const gridStats = cfg.teamStats.slice(0, 6);
+  const teamRows = teams.map((team) => {
+    const roster = players.filter((p) => p.team === team.team_name);
+    const values = gridStats.map((stat) => {
+      const vals = roster.map((p) => num(p[stat.field])).filter((v) => v !== null);
+      if (!vals.length) return null;
+      return stat.agg === 'avg' ? vals.reduce((a, b) => a + b, 0) / vals.length : vals.reduce((a, b) => a + b, 0);
+    });
+    return { team, values };
+  }).filter((row) => row.values.some((v) => v !== null));
+  const gridPools = gridStats.map((_, i) => teamRows.map((r) => r.values[i]).filter((v) => v !== null));
+  const gridHi = (stat) => !(cfg.lowerBetter || []).some((lb) => stat.label.endsWith(lb));
+
+  return (
+    <div className="lh-feature-page lh-statcast">
+      <div className="lh-section-head">
+        <div><h2>Statcast Lab</h2><p className="lh-section-note">{sc.tagline}</p></div>
+        <span className="lh-section-tag"><Activity size={12} /> {eligiblePlayers.length} players indexed</span>
+      </div>
+      <div className="lh-feature-hero">
+        <div className="lh-feature-hero-mark"><Zap size={20} /></div>
+        <div><span className="lh-panel-kicker">NOVA ARCHIVE / ADVANCED</span><h3>{cfg.label} Statcast Lab</h3><p>Every number below comes straight from the league's own stat sheet — no simulated tracking data.</p></div>
+        <div className="lh-feature-hero-count"><b>{sc.metrics.length}</b><span>tracked metrics</span></div>
+      </div>
+
+      {/* Percentile Rankings */}
+      <div className="lh-card lh-feature-panel">
+        <div className="lh-feature-panel-head">
+          <div><span className="lh-panel-kicker">PERCENTILE RANKINGS</span><h3>Where a player stacks up</h3></div>
+          {eligiblePlayers.length > 0 && (
+            <select
+              className="lh-statcast-select"
+              value={selected ? String(selected.id) : ''}
+              onChange={(e) => setSelectedId(e.target.value)}
+            >
+              {eligiblePlayers.map((p) => (
+                <option key={p.id} value={p.id}>{getPlayerLabel(p)}{p.team ? ` · ${p.team}` : ''}</option>
+              ))}
+            </select>
+          )}
+        </div>
+        {!selected ? (
+          <div className="lh-empty">Percentile rankings appear once players have stats entered.</div>
+        ) : (
+          <div className="lh-percentile-groups">
+            {percentileGroups.map((g) => (
+              <div key={g.group} className="lh-percentile-group">
+                <span className="lh-panel-subhead">{g.group}</span>
+                {g.rows.map((row) => (
+                  <div className="lh-percentile-row" key={row.label}>
+                    <span className="lh-percentile-label">{row.label}</span>
+                    <span className="lh-percentile-value">{valueOrDash(row.value, row.fmt)}</span>
+                    <div className="lh-percentile-track">
+                      <div className="lh-percentile-fill" style={{ width: `${row.pct ?? 0}%`, background: percentileColor(row.pct) }} />
+                    </div>
+                    <span className="lh-percentile-badge" style={{ color: percentileColor(row.pct), borderColor: percentileColor(row.pct) }}>{row.pct ?? '--'}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Tendency Map */}
+      <div className="lh-card lh-feature-panel">
+        <div className="lh-feature-panel-head"><div><span className="lh-panel-kicker">TENDENCY MAP</span><h3>{tm.title}</h3></div><Activity size={16} color="var(--accent)" /></div>
+        {scatterPts.length === 0 ? (
+          <div className="lh-empty">The tendency map fills in once players have both {tm.xLabel} and {tm.yLabel} logged.</div>
+        ) : (
+          <div className="lh-scatter-wrap">
+            <svg viewBox={`0 0 ${SW} ${SH}`} className="lh-scatter-svg">
+              <line x1={SPAD} y1={yPos(yAvg)} x2={SW - SPAD} y2={yPos(yAvg)} stroke="rgba(158,165,196,0.22)" strokeDasharray="4 3" />
+              <line x1={xPos(xAvg)} y1={SPAD} x2={xPos(xAvg)} y2={SH - SPAD} stroke="rgba(158,165,196,0.22)" strokeDasharray="4 3" />
+              {scatterPts.map((pt) => {
+                const isSelected = selected && String(pt.player.id) === String(selected.id);
+                const color = pt.player.team ? (teams.find((t) => t.team_name === pt.player.team)?.team_color || cfg.accent) : cfg.accent;
+                return (
+                  <circle
+                    key={pt.player.id}
+                    cx={xPos(pt.x)} cy={yPos(pt.y)}
+                    r={isSelected ? 6 : 3.4}
+                    fill={color}
+                    fillOpacity={isSelected ? 1 : 0.55}
+                    stroke={isSelected ? '#fff' : 'none'}
+                    strokeWidth={isSelected ? 1.5 : 0}
+                  >
+                    <title>{`${getPlayerLabel(pt.player)} — ${tm.xLabel}: ${valueOrDash(pt.x, tm.xFmt)}, ${tm.yLabel}: ${valueOrDash(pt.y, tm.yFmt)}`}</title>
+                  </circle>
+                );
+              })}
+            </svg>
+            <div className="lh-scatter-axes"><span>{tm.xLabel} →</span><span>↑ {tm.yLabel}</span></div>
+          </div>
+        )}
+      </div>
+
+      {/* Recent Form */}
+      <div className="lh-record-columns">
+        <div className="lh-card lh-feature-panel">
+          <div className="lh-feature-panel-head"><div><span className="lh-panel-kicker">RECENT FORM</span><h3>Heating up</h3></div><Flame size={16} color="#ff8a4c" /></div>
+          {hottest.length === 0 ? <div className="lh-empty">Form trends appear once a few games are logged per player.</div> : (
+            <div className="lh-form-list">
+              {hottest.map((row) => (
+                <div className="lh-form-row" key={row.player.id}>
+                  <Flame size={14} color="#ff8a4c" />
+                  <div className="lh-form-name"><strong>{getPlayerLabel(row.player)}</strong><small>{row.player.team || 'Unassigned'}</small></div>
+                  <span className="lh-form-diff up">+{row.pctDiff.toFixed(0)}%</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="lh-card lh-feature-panel">
+          <div className="lh-feature-panel-head"><div><span className="lh-panel-kicker">RECENT FORM</span><h3>Cooling off</h3></div><Snowflake size={16} color="#5ee6f4" /></div>
+          {coldest.length === 0 ? <div className="lh-empty">Form trends appear once a few games are logged per player.</div> : (
+            <div className="lh-form-list">
+              {coldest.map((row) => (
+                <div className="lh-form-row" key={row.player.id}>
+                  <Snowflake size={14} color="#5ee6f4" />
+                  <div className="lh-form-name"><strong>{getPlayerLabel(row.player)}</strong><small>{row.player.team || 'Unassigned'}</small></div>
+                  <span className="lh-form-diff down">{row.pctDiff.toFixed(0)}%</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Team Efficiency Grid */}
+      <div className="lh-card lh-feature-panel">
+        <div className="lh-feature-panel-head"><div><span className="lh-panel-kicker">LEAGUE HEAT MAP</span><h3>Team efficiency grid</h3></div><Database size={16} color="var(--accent)" /></div>
+        {teamRows.length === 0 ? <div className="lh-empty">The grid fills in once teams have rostered, statted players.</div> : (
+          <div className="lh-eff-scroll">
+            <table className="lh-eff-table">
+              <thead><tr><th>Team</th>{gridStats.map((s) => <th key={s.label}>{s.label}</th>)}</tr></thead>
+              <tbody>
+                {teamRows.map((row) => (
+                  <tr key={row.team.id || row.team.team_name}>
+                    <td className="lh-eff-team">{row.team.team_name}</td>
+                    {row.values.map((v, i) => {
+                      const pct = percentileRank(v, gridPools[i], gridHi(gridStats[i]));
+                      return (
+                        <td key={gridStats[i].label} style={{ background: `${percentileColor(pct)}26`, color: percentileColor(pct) }}>
+                          {v === null ? '--' : valueOrDash(v, gridStats[i].agg === 'avg' ? 'avg3' : 'int')}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

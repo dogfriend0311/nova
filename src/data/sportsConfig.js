@@ -59,6 +59,23 @@ const baseball = {
 
   boxFields: ['hits','runs','rbis','home_runs','strike_outs','innings_pitched','strikeouts_pitched','hits_allowed','earned_runs'],
   boxLabels: { hits:'H', runs:'R', rbis:'RBI', home_runs:'HR', strike_outs:'K', innings_pitched:'IP', strikeouts_pitched:'KP', hits_allowed:'HA', earned_runs:'ER' },
+
+  // ── Statcast Lab (advanced/percentile analytics) ────────────────
+  statcast: {
+    tagline: 'Percentile rankings, power-vs-contact tendencies, and hot/cold form built from the season\u2019s actual numbers.',
+    metrics: [
+      { field:'season_avg', label:'Batting Avg', fmt:'avg3', hi:true, group:'Hitting' },
+      { field:'season_ops', label:'OPS', fmt:'avg3', hi:true, group:'Hitting' },
+      { field:'season_slg', label:'Slugging', fmt:'avg3', hi:true, group:'Hitting' },
+      { field:'season_home_runs', label:'Home Runs', fmt:'int', hi:true, group:'Hitting' },
+      { field:'season_sb', label:'Stolen Bases', fmt:'int', hi:true, group:'Hitting' },
+      { field:'season_era', label:'ERA', fmt:'avg2', hi:false, group:'Pitching' },
+      { field:'season_whip', label:'WHIP', fmt:'avg2', hi:false, group:'Pitching' },
+      { field:'season_strikeouts_pitched', label:'Strikeouts', fmt:'int', hi:true, group:'Pitching' },
+    ],
+    tendencyMap: { title:'Power vs. Contact', xField:'season_avg', xLabel:'Contact (AVG)', xFmt:'avg3', yField:'season_home_runs', yLabel:'Power (HR)', yFmt:'int' },
+    formField: 'season_home_runs', formBox: 'home_runs', formLabel: 'HR/G',
+  },
 };
 
 // ── Roblox Hockey League (prefix 'hockey') ──────────────────────
@@ -115,6 +132,23 @@ const hockey = {
 
   boxFields: ['goals','assists','plus_minus','points','giveaways','minutes','saves','goals_against','shutouts'],
   boxLabels: { goals:'G', assists:'A', plus_minus:'+/-', points:'PTS', giveaways:'GV', minutes:'MIN', saves:'SV', goals_against:'GA', shutouts:'SHO' },
+
+  // ── Statcast Lab (advanced/percentile analytics) ────────────────
+  statcast: {
+    tagline: 'Percentile rankings, scoring-vs-playmaking tendencies, and hot/cold form built from the season\u2019s actual numbers.',
+    metrics: [
+      { field:'season_sh_pct', label:'Shooting %', fmt:'avg3', hi:true, group:'Skating' },
+      { field:'season_ppp', label:'Power-Play Pts', fmt:'int', hi:true, group:'Skating' },
+      { field:'season_points', label:'Points', fmt:'int', hi:true, group:'Skating' },
+      { field:'season_plus_minus', label:'Plus/Minus', fmt:'int', hi:true, group:'Skating' },
+      { field:'season_takeaways', label:'Takeaways', fmt:'int', hi:true, group:'Skating' },
+      { field:'season_gaa', label:'GAA', fmt:'avg2', hi:false, group:'Goaltending' },
+      { field:'season_sv_pct', label:'Save %', fmt:'avg3', hi:true, group:'Goaltending' },
+      { field:'season_shutouts', label:'Shutouts', fmt:'int', hi:true, group:'Goaltending' },
+    ],
+    tendencyMap: { title:'Scoring vs. Playmaking', xField:'season_assists', xLabel:'Playmaking (A)', xFmt:'int', yField:'season_goals', yLabel:'Scoring (G)', yFmt:'int' },
+    formField: 'season_points', formBox: 'points', formLabel: 'PTS/G',
+  },
 };
 
 // ── Heavenly Football League — American football (prefix 'football')
@@ -171,6 +205,23 @@ const football = {
 
   boxFields: ['rec','rush_yds','pass_td','total_td','fumbles','tfl','def_int','ff','fr'],
   boxLabels: { rec:'REC', rush_yds:'RUY', pass_td:'PTD', total_td:'TD', fumbles:'FUM', tfl:'TFL', def_int:'INT', ff:'FF', fr:'FR' },
+
+  // ── Statcast Lab (advanced/percentile analytics) ────────────────
+  statcast: {
+    tagline: 'Percentile rankings, usage-vs-efficiency tendencies, and hot/cold form built from the season\u2019s actual numbers.',
+    metrics: [
+      { field:'season_rating', label:'Passer Rating', fmt:'avg1', hi:true, group:'Offense' },
+      { field:'season_ypc', label:'Yards / Carry', fmt:'avg1', hi:true, group:'Offense' },
+      { field:'season_ypg', label:'Yards / Game', fmt:'avg1', hi:true, group:'Offense' },
+      { field:'season_total_td', label:'Touchdowns', fmt:'int', hi:true, group:'Offense' },
+      { field:'season_fumbles', label:'Fumbles', fmt:'int', hi:false, group:'Offense' },
+      { field:'season_sacks', label:'Sacks', fmt:'avg1', hi:true, group:'Defense' },
+      { field:'season_def_int', label:'Interceptions', fmt:'int', hi:true, group:'Defense' },
+      { field:'season_solo_tkl', label:'Tackles', fmt:'int', hi:true, group:'Defense' },
+    ],
+    tendencyMap: { title:'Efficiency vs. Usage', xField:'season_att', xLabel:'Usage (Touches)', xFmt:'int', yField:'season_rating', yLabel:'Efficiency (RTG)', yFmt:'avg1' },
+    formField: 'season_total_td', formBox: 'total_td', formLabel: 'TD/G',
+  },
 };
 
 export const SPORTS = { vizta: baseball, hockey, football };

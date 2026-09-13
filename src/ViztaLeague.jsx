@@ -16,6 +16,7 @@ import {
   LeagueRecordsTab,
   PowerRankingsTab,
   SeasonArchiveTab,
+  StatcastLabTab,
   TradeMachineTab,
   TransactionsTab,
   WatchlistsTab,
@@ -78,6 +79,7 @@ const TABS = [
   { id: 'compare',    label: 'Comparison Lab', Icon: GitCompare },
   { id: 'powerrankings', label: 'Power Rankings', Icon: Flame },
   { id: 'analytics',  label: 'Analytics',   Icon: BarChart3 },
+  { id: 'statcast',   label: 'Statcast Lab', Icon: Activity },
   { id: 'records',    label: 'Record Book', Icon: BookOpen },
   { id: 'transactions', label: 'Transactions', Icon: Radio },
   { id: 'trademachine', label: 'Trade Machine', Icon: Repeat },
@@ -152,6 +154,7 @@ const ViztaLeague = ({ onSelectPlayer, sport = 'vizta', initialTab = 'overview',
       case 'compare':    return <CompareTab sport={sport} cfg={cfg} presetPlayerId={compareSpotlightPlayerId} />;
       case 'powerrankings': return <PowerRankingsTab sport={sport} cfg={cfg} />;
       case 'analytics':  return <AnalyticsTab sport={sport} cfg={cfg} />;
+      case 'statcast':   return <StatcastLabTab sport={sport} cfg={cfg} />;
       case 'records':    return <LeagueRecordsTab sport={sport} cfg={cfg} />;
       case 'transactions': return <TransactionsTab sport={sport} cfg={cfg} />;
       case 'trademachine': return <TradeMachineTab sport={sport} cfg={cfg} />;

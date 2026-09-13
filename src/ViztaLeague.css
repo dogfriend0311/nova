@@ -675,6 +675,41 @@
 .lh-mini-leader-row strong { overflow: hidden; color: #e8ebf5; font-size: 0.72rem; text-overflow: ellipsis; white-space: nowrap; }
 .lh-mini-leader-row b { color: var(--accent); font-size: 0.76rem; font-variant-numeric: tabular-nums; }
 .lh-muted { color: rgba(158,165,196,0.35); font-size: 0.76rem; }
+/* ── Statcast Lab ─────────────────────────────────────────────── */
+.lh-statcast .lh-feature-panel { margin-bottom: 16px; }
+.lh-statcast-select {
+  padding: 8px 11px; background: rgba(6,8,16,0.85); border-radius: 9px; color: #e2e5f0;
+  font-size: 0.78rem; max-width: 260px; cursor: pointer; border: 1px solid rgba(var(--accent-rgb),0.35);
+}
+.lh-percentile-groups { display: flex; flex-direction: column; gap: 18px; }
+.lh-percentile-group { display: flex; flex-direction: column; gap: 8px; }
+.lh-percentile-row { display: grid; grid-template-columns: minmax(90px,0.9fr) 56px minmax(0,1fr) 34px; align-items: center; gap: 10px; }
+.lh-percentile-label { color: rgba(158,165,196,0.68); font-size: 0.72rem; }
+.lh-percentile-value { color: #e8ebf5; font-size: 0.76rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.lh-percentile-track { position: relative; height: 8px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden; }
+.lh-percentile-fill { height: 100%; border-radius: 999px; transition: width 0.3s ease; }
+.lh-percentile-badge { text-align: right; font-size: 0.72rem; font-weight: 900; border: 1px solid; border-radius: 999px; padding: 1px 6px; }
+.lh-scatter-wrap { position: relative; }
+.lh-scatter-svg { width: 100%; height: auto; display: block; }
+.lh-scatter-axes { display: flex; justify-content: space-between; margin-top: 4px; color: rgba(158,165,196,0.45); font-size: 0.62rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.lh-form-list { display: flex; flex-direction: column; gap: 6px; }
+.lh-form-row { display: grid; grid-template-columns: 16px minmax(0,1fr) auto; align-items: center; gap: 9px; padding: 7px 2px; border-bottom: 1px solid rgba(255,255,255,0.045); }
+.lh-form-name { min-width: 0; }
+.lh-form-name strong, .lh-form-name small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lh-form-name strong { color: #e8ebf5; font-size: 0.78rem; }
+.lh-form-name small { color: rgba(158,165,196,0.45); font-size: 0.64rem; margin-top: 1px; }
+.lh-form-diff { font-size: 0.8rem; font-weight: 900; font-variant-numeric: tabular-nums; }
+.lh-form-diff.up { color: #ff8a4c; }
+.lh-form-diff.down { color: #5ee6f4; }
+.lh-eff-scroll { overflow-x: auto; }
+.lh-eff-table { width: 100%; border-collapse: collapse; font-size: 0.74rem; white-space: nowrap; }
+.lh-eff-table th { padding: 8px 10px; text-align: left; color: rgba(158,165,196,0.5); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.lh-eff-table td { padding: 8px 10px; font-weight: 700; font-variant-numeric: tabular-nums; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.lh-eff-team { color: #e8ebf5 !important; font-weight: 600 !important; }
+@media (max-width: 720px) {
+  .lh-percentile-row { grid-template-columns: minmax(70px,0.8fr) 44px minmax(0,1fr) 30px; }
+}
+
 .lh-analytics-signal { display: flex; align-items: center; gap: 14px; }
 .lh-signal-icon { display: grid; place-items: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: 12px; color: var(--accent); background: rgba(var(--accent-rgb),0.1); }
 .lh-analytics-signal h3 { margin: 5px 0 4px; color: #eef0f9; font-size: 0.98rem; }
