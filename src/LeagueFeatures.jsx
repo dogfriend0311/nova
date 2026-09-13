@@ -4,6 +4,7 @@ import {
   Flame, Minus, Radio, Repeat, Snowflake, Sparkles, Star, Trophy, Users, Zap,
 } from 'lucide-react';
 import db from './services/db';
+import { getAccoladeTypes } from './data/accolades';
 import { awardXP } from './services/reputationService';
 import { computePowerRankings } from './services/powerRankingsService';
 import './ViztaLeague.css';
@@ -59,13 +60,17 @@ const percentileColor = (pct) => {
 export const LeagueRecordsTab = ({ sport, cfg }) => {
   const [players, setPlayers] = useState([]);
   const [boxScores, setBoxScores] = useState([]);
+  const [bsGames, setBsGames] = useState([]);
+  const [accolades, setAccolades] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([db.getPlayers(sport), db.getBoxScores(sport)])
-      .then(([nextPlayers, nextScores]) => {
+    Promise.all([db.getPlayers(sport), db.getBoxScores(sport), db.getBsGames(sport), db.getAccolades(sport)])
+      .then(([nextPlayers, nextScores, nextGames, nextAccolades]) => {
         setPlayers(Array.isArray(nextPlayers) ? nextPlayers : []);
         setBoxScores(Array.isArray(nextScores) ? nextScores : []);
+        setBsGames(Array.isArray(nextGames) ? nextGames : []);
+        setAccolades(Array.isArray(nextAccolades) ? nextAccolades : []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -103,6 +108,84 @@ export const LeagueRecordsTab = ({ sport, cfg }) => {
     };
   }).filter(row => row?.leader?.player);
 
+  // ── Chronological box scores per player (shared by streaks + milestones) ──
+  const rb = cfg.recordsBook;
+  const gamesById = useMemo(() => new Map(bsGames.map(g => [String(g.id), g])), [bsGames]);
+  const scoresByPlayer = useMemo(() => {
+    const map = new Map();
+    boxScores.forEach(score => {
+      const game = gamesById.get(String(score.game_id));
+      const key = String(score.player_id);
+      const list = map.get(key) || [];
+      list.push({ score, date: game?.game_date ? new Date(game.game_date).getTime() : 0 });
+      map.set(key, list);
+    });
+    map.forEach(list => list.sort((a, b) => a.date - b.date));
+    return map;
+  }, [boxScores, gamesById]);
+
+  // ── Streaks: longest run of consecutive logged games with streakBox > 0 ──
+  const streakRows = (() => {
+    if (!rb?.streakBox) return [];
+    const results = [];
+    scoresByPlayer.forEach((games, playerId) => {
+      const player = playerById.get(playerId);
+      if (!player) return;
+      let best = 0, current = 0;
+      games.forEach(g => {
+        const v = num(g.score[rb.streakBox]);
+        if (v !== null && v > 0) { current += 1; best = Math.max(best, current); }
+        else current = 0;
+      });
+      if (best > 0) results.push({ player, value: best });
+    });
+    return results.sort((a, b) => b.value - a.value).slice(0, 5);
+  })();
+
+  // ── Milestone chase: fewest games needed to cross each round-number total ──
+  const milestoneRows = (rb?.milestones || []).map(m => {
+    let fastest = null; // { player, games }
+    let closest = null; // { player, total } — furthest along without reaching it yet
+    scoresByPlayer.forEach((games, playerId) => {
+      const player = playerById.get(playerId);
+      if (!player) return;
+      let cumulative = 0, gamesPlayed = 0, reachedAt = null;
+      games.forEach(g => {
+        const v = num(g.score[m.box]);
+        gamesPlayed += 1;
+        if (v !== null) cumulative += v;
+        if (reachedAt === null && cumulative >= m.threshold) reachedAt = gamesPlayed;
+      });
+      if (reachedAt !== null && (!fastest || reachedAt < fastest.games)) fastest = { player, games: reachedAt };
+      if (reachedAt === null && cumulative > 0 && (!closest || cumulative > closest.total)) closest = { player, total: cumulative };
+    });
+    return { ...m, fastest, closest };
+  }).filter(m => m.fastest || m.closest);
+
+  // ── Award leaders: career accolade counts by type ───────────────
+  const awardTypes = getAccoladeTypes(sport);
+  const awardTypeLabel = (a) => {
+    if (a.type === 'custom') return a.custom_label || 'Custom Award';
+    return awardTypes.find(t => t.key === a.type)?.label || a.type;
+  };
+  const awardRows = (() => {
+    const tally = new Map(); // key: `${type}::${custom_label||''}` -> { label, counts: Map(playerId -> count) }
+    accolades.forEach(a => {
+      const groupKey = a.type === 'custom' ? `custom::${a.custom_label || 'Award'}` : a.type;
+      const entry = tally.get(groupKey) || { label: awardTypeLabel(a), counts: new Map() };
+      const pid = String(a.player_id);
+      entry.counts.set(pid, (entry.counts.get(pid) || 0) + 1);
+      tally.set(groupKey, entry);
+    });
+    return [...tally.values()].map(entry => {
+      const leader = [...entry.counts.entries()]
+        .map(([pid, count]) => ({ player: playerById.get(pid), count }))
+        .filter(row => row.player)
+        .sort((a, b) => b.count - a.count)[0];
+      return leader ? { label: entry.label, leader } : null;
+    }).filter(Boolean).sort((a, b) => b.leader.count - a.leader.count);
+  })();
+
   if (loading) return <div className="lh-loading">Opening the record book…</div>;
 
   const RecordList = ({ rows, empty }) => (
@@ -120,6 +203,8 @@ export const LeagueRecordsTab = ({ sport, cfg }) => {
     )
   );
 
+  const totalRecords = seasonRows.length + careerRows.length + gameRows.length + streakRows.length + milestoneRows.length + awardRows.length;
+
   return (
     <div className="lh-feature-page">
       <div className="lh-section-head">
@@ -128,14 +213,69 @@ export const LeagueRecordsTab = ({ sport, cfg }) => {
       </div>
       <div className="lh-feature-hero">
         <div className="lh-feature-hero-mark"><Trophy size={20} /></div>
-        <div><span className="lh-panel-kicker">NOVA ARCHIVE / RECORDS</span><h3>Make the number matter.</h3><p>Season, career, and single-game marks are calculated from the league data already logged.</p></div>
-        <div className="lh-feature-hero-count"><b>{seasonRows.length + careerRows.length + gameRows.length}</b><span>records surfaced</span></div>
+        <div><span className="lh-panel-kicker">NOVA ARCHIVE / RECORDS</span><h3>Make the number matter.</h3><p>Season, career, single-game, streak, milestone, and award marks — all calculated from the league data already logged.</p></div>
+        <div className="lh-feature-hero-count"><b>{totalRecords}</b><span>records surfaced</span></div>
       </div>
       <div className="lh-record-columns">
         <div className="lh-card lh-feature-panel"><div className="lh-feature-panel-head"><div><span className="lh-panel-kicker">CURRENT CAMPAIGN</span><h3>Season records</h3></div><Radio size={16} color="var(--accent)" /></div><RecordList rows={seasonRows} empty="Season records appear once player stats are entered." /></div>
         <div className="lh-card lh-feature-panel"><div className="lh-feature-panel-head"><div><span className="lh-panel-kicker">ALL TIME</span><h3>Career records</h3></div><Archive size={16} color="var(--accent)" /></div><RecordList rows={careerRows} empty="Career records appear once player history is entered." /></div>
       </div>
       <div className="lh-card lh-feature-panel"><div className="lh-feature-panel-head"><div><span className="lh-panel-kicker">BOX SCORE VAULT</span><h3>Single-game records</h3></div><Database size={16} color="var(--accent)" /></div><RecordList rows={gameRows} empty="Single-game records appear once box scores are logged." /></div>
+
+      {rb && (
+        <div className="lh-card lh-feature-panel">
+          <div className="lh-feature-panel-head"><div><span className="lh-panel-kicker">CONSISTENCY</span><h3>{rb.streakLabel}s</h3></div><Zap size={16} color="var(--accent)" /></div>
+          {streakRows.length === 0 ? <div className="lh-empty">Streaks appear once a few games are logged per player.</div> : (
+            <div className="lh-record-book-list">
+              {streakRows.map((row, index) => (
+                <div className="lh-record-book-row" key={row.player.id}>
+                  <span className="lh-record-rank">{String(index + 1).padStart(2, '0')}</span>
+                  <div className="lh-record-stat"><strong>{rb.streakLabel}</strong><small>Longest run</small></div>
+                  <div className="lh-record-holder"><b>{getPlayerLabel(row.player)}</b><small>{row.player.team || 'Unassigned'}</small></div>
+                  <strong className="lh-record-value">{row.value} G</strong>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {rb && (
+        <div className="lh-card lh-feature-panel">
+          <div className="lh-feature-panel-head"><div><span className="lh-panel-kicker">MILESTONE CHASE</span><h3>Fastest to the round numbers</h3></div><Sparkles size={16} color="var(--accent)" /></div>
+          {milestoneRows.length === 0 ? <div className="lh-empty">Milestone chases appear once players have enough logged games.</div> : (
+            <div className="lh-record-book-list">
+              {milestoneRows.map(m => (
+                <div className="lh-record-book-row" key={m.label}>
+                  <span className="lh-record-rank">{m.threshold}</span>
+                  <div className="lh-record-stat"><strong>{m.label}</strong><small>{m.fastest ? 'Fastest to milestone' : 'Closest, not there yet'}</small></div>
+                  <div className="lh-record-holder">
+                    <b>{getPlayerLabel(m.fastest ? m.fastest.player : m.closest.player)}</b>
+                    <small>{(m.fastest ? m.fastest.player : m.closest.player).team || 'Unassigned'}</small>
+                  </div>
+                  <strong className="lh-record-value">{m.fastest ? `${m.fastest.games} G` : `${Math.round(m.closest.total)}/${m.threshold}`}</strong>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="lh-card lh-feature-panel">
+        <div className="lh-feature-panel-head"><div><span className="lh-panel-kicker">TROPHY CASE</span><h3>Award leaders</h3></div><Star size={16} color="var(--accent)" /></div>
+        {awardRows.length === 0 ? <div className="lh-empty">Award leaders appear once accolades (MVP, All-Star, Champion, etc.) are logged for players.</div> : (
+          <div className="lh-record-book-list">
+            {awardRows.map(row => (
+              <div className="lh-record-book-row" key={row.label}>
+                <span className="lh-record-rank">{row.leader.count}x</span>
+                <div className="lh-record-stat"><strong>{row.label}</strong><small>Most all-time</small></div>
+                <div className="lh-record-holder"><b>{getPlayerLabel(row.leader.player)}</b><small>{row.leader.player.team || 'Unassigned'}</small></div>
+                <strong className="lh-record-value">{row.leader.count}</strong>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

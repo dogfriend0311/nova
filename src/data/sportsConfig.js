@@ -76,6 +76,16 @@ const baseball = {
     tendencyMap: { title:'Power vs. Contact', xField:'season_avg', xLabel:'Contact (AVG)', xFmt:'avg3', yField:'season_home_runs', yLabel:'Power (HR)', yFmt:'int' },
     formField: 'season_home_runs', formBox: 'home_runs', formLabel: 'HR/G',
   },
+
+  // ── Records Book — streaks, milestone chases, award leaders ─────
+  recordsBook: {
+    streakBox: 'hits', streakLabel: 'Hitting Streak',
+    milestones: [
+      { box: 'home_runs', label: 'Home Runs', careerField: 'home_runs', threshold: 50 },
+      { box: 'hits', label: 'Hits', careerField: 'hits', threshold: 200 },
+      { box: 'strikeouts_pitched', label: 'Strikeouts (P)', careerField: 'strikeouts_pitched', threshold: 100 },
+    ],
+  },
 };
 
 // ── Roblox Hockey League (prefix 'hockey') ──────────────────────
@@ -149,6 +159,16 @@ const hockey = {
     tendencyMap: { title:'Scoring vs. Playmaking', xField:'season_assists', xLabel:'Playmaking (A)', xFmt:'int', yField:'season_goals', yLabel:'Scoring (G)', yFmt:'int' },
     formField: 'season_points', formBox: 'points', formLabel: 'PTS/G',
   },
+
+  // ── Records Book — streaks, milestone chases, award leaders ─────
+  recordsBook: {
+    streakBox: 'points', streakLabel: 'Point Streak',
+    milestones: [
+      { box: 'goals', label: 'Goals', careerField: 'goals', threshold: 30 },
+      { box: 'points', label: 'Points', careerField: 'points', threshold: 75 },
+      { box: 'saves', label: 'Saves (G)', careerField: 'saves', threshold: 500 },
+    ],
+  },
 };
 
 // ── Heavenly Football League — American football (prefix 'football')
@@ -221,6 +241,16 @@ const football = {
     ],
     tendencyMap: { title:'Efficiency vs. Usage', xField:'season_att', xLabel:'Usage (Touches)', xFmt:'int', yField:'season_rating', yLabel:'Efficiency (RTG)', yFmt:'avg1' },
     formField: 'season_total_td', formBox: 'total_td', formLabel: 'TD/G',
+  },
+
+  // ── Records Book — streaks, milestone chases, award leaders ─────
+  recordsBook: {
+    streakBox: 'total_td', streakLabel: 'TD Streak',
+    milestones: [
+      { box: 'total_td', label: 'Touchdowns', careerField: 'total_td', threshold: 20 },
+      { box: 'rec', label: 'Receptions', careerField: 'rec', threshold: 100 },
+      { box: 'def_int', label: 'Interceptions', careerField: 'def_int', threshold: 10 },
+    ],
   },
 };
 
