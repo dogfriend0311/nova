@@ -1133,83 +1133,78 @@ export const db = {
     localStorage.setItem('nova_comments', JSON.stringify(all));
   },
 
-  /* ── REPORTS (flagging profiles/comments for moderator review) ──
-     Requires: nova_reports table (see supabase/reports.sql). Anyone
-     signed in can flag a profile or a profile comment; owner/cofounder/
-     mod review the queue from the Owner Dashboard's Reports tab.
-     content_snapshot/from_username_snapshot capture the comment as it
-     was AT REPORT TIME, so a report stays reviewable even if the
-     comment is later edited or deleted. */
-  async submitReport({ targetType, targetId, targetUsername, reporterUsername, reason, details, contentSnapshot, fromUsernameSnapshot }) {
-    const record = {
-      target_type: targetType, target_id: String(targetId), target_username: targetUsername || null,
-      reporter_username: reporterUsername, reason, details: (details || '').slice(0, 500),
-      content_snapshot: contentSnapshot || null, from_username_snapshot: fromUsernameSnapshot || null,
-      status: 'open', created_at: new Date().toISOString(),
-    };
+  // Edits a comment's content (or any other patch, e.g. reactions) in place.
+  // Comments only ever belong to one member's list, but that list is keyed
+  // by to_username in localStorage, so the fallback path has to search for
+  // which bucket holds this id rather than being told directly.
+  async updateComment(id, patch) {
     if (hasSupabase()) {
       try {
-        const { data, error } = await supabase.from('nova_reports').insert([record]).select();
+        const { data, error } = await supabase.from('nova_comments').update(patch).eq('id', id).select();
         if (!error) return data[0];
       } catch {}
     }
-    const all = ls.get('nova_reports');
-    const local = { ...record, id: `local-${Date.now()}` };
-    ls.set('nova_reports', [...all, local]);
-    return local;
+    const all = JSON.parse(localStorage.getItem('nova_comments') || '{}');
+    for (const key of Object.keys(all)) {
+      const idx = (all[key] || []).findIndex(c => c.id === id);
+      if (idx >= 0) {
+        all[key][idx] = { ...all[key][idx], ...patch };
+        localStorage.setItem('nova_comments', JSON.stringify(all));
+        return all[key][idx];
+      }
+    }
+    return null;
   },
 
-  // Optional status filter ('open' | 'resolved' | 'dismissed'); omit for all.
-  async getReports(status) {
+  // Toggles one member's reaction emoji on a comment. Read-modify-write
+  // rather than an atomic DB op — fine at this app's scale, and simpler
+  // than a Postgres function just to toggle entries in a small JSON map.
+  async toggleCommentReaction(id, emoji, username, currentReactions) {
+    const reactions = { ...(currentReactions || {}) };
+    const users = new Set(reactions[emoji] || []);
+    if (users.has(username)) users.delete(username); else users.add(username);
+    if (users.size) reactions[emoji] = Array.from(users); else delete reactions[emoji];
+    return this.updateComment(id, { reactions });
+  },
+
+  /* ── PLAYER COMMENTS (comments + GIFs on a league player's stat page) ── */
+  async getPlayerComments(league, playerId) {
     if (hasSupabase()) {
       try {
-        let q = supabase.from('nova_reports').select('*').order('created_at', { ascending: false });
-        if (status) q = q.eq('status', status);
-        const { data, error } = await q;
-        if (!error) return data || [];
+        const { data, error } = await supabase
+          .from('nova_player_comments')
+          .select('*')
+          .eq('league', league)
+          .eq('player_id', String(playerId))
+          .order('created_at', { ascending: false });
+        if (!error) return data;
       } catch {}
     }
-    const all = ls.get('nova_reports');
-    return status ? all.filter(r => r.status === status) : all;
-  },
-
-  async updateReportStatus(id, status, resolvedBy) {
-    const patch = { status, resolved_at: new Date().toISOString(), resolved_by: resolvedBy || null };
-    if (hasSupabase()) {
-      try { await supabase.from('nova_reports').update(patch).eq('id', id); } catch {}
-    }
-    const all = ls.get('nova_reports').map(r => (r.id === id ? { ...r, ...patch } : r));
-    ls.set('nova_reports', all);
-    logAudit('report_review', null, 'report', String(id), status);
-  },
-
-  /* ── PLAYER COMMENTS (comments + GIFs on a league player's stat page) ──
-     Backed by the unified "reactions" model (see addReaction/getReactions
-     below nova_kudos used to be a separate table with its own localStorage
-     key; both are now just rows in nova_reactions distinguished by `type` +
-     `target_type`. These names are kept as their own API so call sites
-     (PlayerComments.jsx) don't need to know the storage is shared. */
-  async getPlayerComments(league, playerId) {
-    const rows = await getReactions({ type: 'comment', target_type: 'player', league, target_id: String(playerId) });
-    return rows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const all = ls.get(`${league}_player_comments`);
+    return all.filter(c => String(c.player_id) === String(playerId));
   },
 
   async addPlayerComment(league, comment) {
-    return addReaction({
-      type: 'comment',
-      target_type: 'player',
-      target_id: String(comment.player_id),
-      league,
-      player_id: String(comment.player_id),
-      player_name: comment.player_name || null,
-      from_username: comment.from_username,
-      content: comment.content || null,
-      gif_url: comment.gif_url || null,
-    });
+    const record = { ...comment, league, player_id: String(comment.player_id), created_at: new Date().toISOString() };
+    if (hasSupabase()) {
+      try {
+        const insertRecord = { ...record };
+        delete insertRecord.id;
+        const { data, error } = await supabase.from('nova_player_comments').insert([insertRecord]).select();
+        if (!error) { _syncLs(league, 'player_comments', data[0], 'add'); return data[0]; }
+      } catch {}
+    }
+    const list = ls.get(`${league}_player_comments`);
+    const newItem = { ...record, id: Date.now().toString() };
+    ls.set(`${league}_player_comments`, [...list, newItem]);
+    return newItem;
   },
 
   async deletePlayerComment(league, id) {
-    return deleteReaction(id);
+    if (hasSupabase()) {
+      try { await supabase.from('nova_player_comments').delete().eq('id', id); } catch {}
+    }
+    ls.set(`${league}_player_comments`, ls.get(`${league}_player_comments`).filter(c => c.id !== id));
   },
 
   /* ── GAME CHAT (Sports Hub "watch party" — live chat scoped to one
@@ -1789,43 +1784,49 @@ export const db = {
   },
 
   /* ── KUDOS (member-to-member endorsements) ────────────────────
-     Backed by the unified "reactions" model — see addReaction/getReactions
-     below. A kudos is just a nova_reactions row with type: 'kudos',
-     target_type: 'member', target_id: the recipient's username. Spam
-     control is the same client-side rateLimiter already used for
-     comments (kind: 'kudos'), not a server-side rule, matching this
-     app's existing pattern. */
+     Requires: nova_kudos table (see supabase/kudos.sql). One row per
+     kudos given — a lightweight "thanks" with an optional note, shown
+     on the receiving member's profile. Spam control is the same
+     client-side rateLimiter already used for comments (kind: 'kudos'),
+     not a server-side rule, matching this app's existing pattern. */
   async giveKudos(fromUsername, toUsername, note) {
     if (!fromUsername || !toUsername || fromUsername === toUsername) return null;
-    return addReaction({
-      type: 'kudos',
-      target_type: 'member',
-      target_id: toUsername,
-      from_username: fromUsername,
-      to_username: toUsername,
-      note: (note || '').slice(0, 200),
-    });
+    const record = { from_username: fromUsername, to_username: toUsername, note: (note || '').slice(0, 200), created_at: new Date().toISOString() };
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_kudos').insert([record]).select();
+        if (!error && data?.[0]) return data[0];
+      } catch {}
+    }
+    const all = ls.get('nova_kudos');
+    const local = { ...record, id: `local-${Date.now()}` };
+    ls.set('nova_kudos', [...all, local]);
+    return local;
   },
 
   async getKudosReceived(username) {
     if (!username) return [];
-    const rows = await getReactions({ type: 'kudos', target_type: 'member', target_id: username });
-    return rows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase
+          .from('nova_kudos').select('*').eq('to_username', username).order('created_at', { ascending: false });
+        if (!error) return data || [];
+      } catch {}
+    }
+    return ls.get('nova_kudos').filter(k => k.to_username === username).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   },
 
-  // Unfiltered read of every kudos — used for a site-wide "most
+  // Unfiltered read of the whole table — used for a site-wide "most
   // kudos received" leaderboard, same pattern as getAllFollowedTeams.
   async getAllKudos() {
-    return getReactions({ type: 'kudos', target_type: 'member' });
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_kudos').select('*');
+        if (!error) return data || [];
+      } catch {}
+    }
+    return ls.get('nova_kudos');
   },
-
-  /* ── REACTIONS (generic) ───────────────────────────────────────
-     Thin passthrough to the module-level helpers below, exposed so new
-     reaction kinds (e.g. a 👍 on a comment, a reaction on a hub post)
-     can reuse nova_reactions instead of yet another one-off table. */
-  async addReaction(record) { return addReaction(record); },
-  async getReactions(filters) { return getReactions(filters); },
-  async deleteReaction(id) { return deleteReaction(id); },
 
   async addFollowedTeam(username, league, teamId, teamName) {
     const record = { member_username: username, league, team_id: teamId, team_name: teamName, created_at: new Date().toISOString() };
@@ -2652,58 +2653,6 @@ export const db = {
   },
 
 };
-
-/* ── Internal: unified "reactions" model ───────────────────────────
-   Requires: nova_reactions table (see supabase/reactions_migration.sql).
-   Kudos (member-to-member endorsements) and player comments (with
-   optional GIFs) used to be two separate tables/localStorage keys with
-   nearly identical shapes — one row per "someone reacted to something",
-   just with different labels. This collapses them into one generic
-   { type, target_type, target_id } model:
-     kudos   → type: 'kudos',   target_type: 'member', target_id: to_username
-     comment → type: 'comment', target_type: 'player', target_id: player_id
-   so a future reaction kind can reuse this table instead of spinning up
-   another one-off. Until the migration is run, falls back to a single
-   shared localStorage key ('nova_reactions'), matching the rest of the
-   app's data layer. */
-const REACTIONS_TABLE = 'nova_reactions';
-const REACTIONS_LS_KEY = 'nova_reactions';
-
-async function addReaction(record) {
-  const full = { ...record, target_id: String(record.target_id), created_at: new Date().toISOString() };
-  if (hasSupabase()) {
-    try {
-      const { data, error } = await supabase.from(REACTIONS_TABLE).insert([full]).select();
-      if (!error && data?.[0]) return data[0];
-    } catch {}
-  }
-  const local = { ...full, id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` };
-  ls.set(REACTIONS_LS_KEY, [...ls.get(REACTIONS_LS_KEY), local]);
-  return local;
-}
-
-// filters: any subset of { type, target_type, target_id, league } — every
-// provided key must match exactly (localStorage fallback mirrors this).
-async function getReactions(filters = {}) {
-  if (hasSupabase()) {
-    try {
-      let q = supabase.from(REACTIONS_TABLE).select('*');
-      Object.entries(filters).forEach(([k, v]) => { if (v !== undefined && v !== null) q = q.eq(k, String(v)); });
-      const { data, error } = await q;
-      if (!error) return data || [];
-    } catch {}
-  }
-  return ls.get(REACTIONS_LS_KEY).filter(r =>
-    Object.entries(filters).every(([k, v]) => v === undefined || v === null || String(r[k]) === String(v))
-  );
-}
-
-async function deleteReaction(id) {
-  if (hasSupabase()) {
-    try { await supabase.from(REACTIONS_TABLE).delete().eq('id', id); } catch {}
-  }
-  ls.set(REACTIONS_LS_KEY, ls.get(REACTIONS_LS_KEY).filter(r => r.id !== id));
-}
 
 /* ── Internal: keep localStorage in sync with Supabase ─────────── */
 function _syncLs(league, table, record, op) {

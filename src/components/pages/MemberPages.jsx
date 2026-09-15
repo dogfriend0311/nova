@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl, getTeamByAbbr } from '../../data/teams';
 import * as lfm from '../../services/lastfmService';
 import { ProfileBackground, ProfileAudioPlayer, effectiveBgList, effectiveAudioList, RobloxLinkCard, RobloxGameCard, LeaguePlayerShowcase } from './MemberProfile';
@@ -307,13 +307,19 @@ const ListeningToPublic = ({ username }) => {
 };
 
 // ── Comments ──────────────────────────────────────────────────
+const REACTION_EMOJIS = ['❤️', '👍', '😂', '😮', '😢'];
+
 const CommentsSection = ({ toUsername, currentUser, isOwner, pinnedCommentId, onPin }) => {
   const [comments, setComments] = useState([]);
   const [text, setText]         = useState('');
   const [loading, setLoading]   = useState(true);
   const [posting, setPosting]   = useState(false);
   const [limitMsg, setLimitMsg] = useState('');
-  const [reportingComment, setReportingComment] = useState(null);
+  const [replyingId, setReplyingId] = useState(null);
+  const [replyText,  setReplyText]  = useState('');
+  const [editingId,  setEditingId]  = useState(null);
+  const [editText,   setEditText]   = useState('');
+  const [openReactionPickerId, setOpenReactionPickerId] = useState(null);
 
   const loadComments = async () => {
     setLoading(true);
@@ -329,13 +335,11 @@ const CommentsSection = ({ toUsername, currentUser, isOwner, pinnedCommentId, on
 
   useEffect(() => { loadComments(); }, [toUsername]); // eslint-disable-line
 
-  const handlePost = async () => {
-    if (!text.trim() || !currentUser) return;
-    const verdict = checkRateLimit('comment', currentUser);
-    if (!verdict.allowed) { setLimitMsg(verdict.message); return; }
-    setLimitMsg('');
-    setPosting(true);
-    const nc = { id: Date.now().toString(), from_username: currentUser, to_username: toUsername, content: text.trim(), created_at: new Date().toISOString() };
+  const postComment = async (content, replyToId) => {
+    const nc = {
+      id: Date.now().toString(), from_username: currentUser, to_username: toUsername,
+      content, created_at: new Date().toISOString(), reply_to_id: replyToId || null, reactions: {},
+    };
     try {
       const { default: db } = await import('../../services/db');
       const saved = await db.addComment(nc);
@@ -348,7 +352,25 @@ const CommentsSection = ({ toUsername, currentUser, isOwner, pinnedCommentId, on
     }
     recordAction('comment', currentUser);
     awardXP(currentUser, 5);
+  };
+
+  const handlePost = async () => {
+    if (!text.trim() || !currentUser) return;
+    const verdict = checkRateLimit('comment', currentUser);
+    if (!verdict.allowed) { setLimitMsg(verdict.message); return; }
+    setLimitMsg('');
+    setPosting(true);
+    await postComment(text.trim(), null);
     setText(''); setPosting(false);
+  };
+
+  const handleReply = async (parentId) => {
+    if (!replyText.trim() || !currentUser) return;
+    const verdict = checkRateLimit('comment', currentUser);
+    if (!verdict.allowed) { setLimitMsg(verdict.message); return; }
+    setLimitMsg('');
+    await postComment(replyText.trim(), parentId);
+    setReplyText(''); setReplyingId(null);
   };
 
   const handleDelete = async (commentId, fromUsername) => {
@@ -358,9 +380,43 @@ const CommentsSection = ({ toUsername, currentUser, isOwner, pinnedCommentId, on
       all[toUsername] = (all[toUsername] || []).filter(c => c.id !== commentId);
       localStorage.setItem('nova_comments', JSON.stringify(all));
     }
-    setComments(p => p.filter(c => c.id !== commentId));
+    // Also drop any replies to this comment so the thread doesn't leave
+    // orphaned replies hanging under a deleted parent.
+    setComments(p => p.filter(c => c.id !== commentId && String(c.reply_to_id) !== String(commentId)));
     // Don't leave a profile pinned to a comment that no longer exists.
     if (onPin && String(commentId) === String(pinnedCommentId)) onPin(commentId);
+  };
+
+  const handleSaveEdit = async (commentId) => {
+    if (!editText.trim()) return;
+    const patch = { content: editText.trim(), edited_at: new Date().toISOString() };
+    try {
+      const { default: db } = await import('../../services/db');
+      await db.updateComment(commentId, patch);
+    } catch {
+      const all = JSON.parse(localStorage.getItem('nova_comments') || '{}');
+      const list = all[toUsername] || [];
+      const idx = list.findIndex(c => c.id === commentId);
+      if (idx >= 0) { list[idx] = { ...list[idx], ...patch }; all[toUsername] = list; localStorage.setItem('nova_comments', JSON.stringify(all)); }
+    }
+    setComments(p => p.map(c => c.id === commentId ? { ...c, ...patch } : c));
+    setEditingId(null); setEditText('');
+  };
+
+  const handleReact = async (comment, emoji) => {
+    if (!currentUser) return;
+    // Optimistic local update so it feels instant; toggleCommentReaction
+    // does the same read-modify-write server-side.
+    const reactions = { ...(comment.reactions || {}) };
+    const users = new Set(reactions[emoji] || []);
+    if (users.has(currentUser)) users.delete(currentUser); else users.add(currentUser);
+    if (users.size) reactions[emoji] = Array.from(users); else delete reactions[emoji];
+    setComments(p => p.map(c => c.id === comment.id ? { ...c, reactions } : c));
+    setOpenReactionPickerId(null);
+    try {
+      const { default: db } = await import('../../services/db');
+      await db.toggleCommentReaction(comment.id, emoji, currentUser, comment.reactions || {});
+    } catch {}
   };
 
   const timeAgo = iso => {
@@ -368,6 +424,118 @@ const CommentsSection = ({ toUsername, currentUser, isOwner, pinnedCommentId, on
     const s = Math.floor((Date.now() - new Date(iso)) / 1000);
     if (s < 60) return `${s}s ago`; if (s < 3600) return `${Math.floor(s/60)}m ago`;
     if (s < 86400) return `${Math.floor(s/3600)}h ago`; return `${Math.floor(s/86400)}d ago`;
+  };
+
+  const topLevel = comments.filter(c => !c.reply_to_id);
+  const repliesFor = (id) => comments.filter(c => String(c.reply_to_id) === String(id))
+    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+  const ReactionRow = ({ comment }) => {
+    const entries = Object.entries(comment.reactions || {}).filter(([, users]) => users?.length);
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, flexWrap: 'wrap', position: 'relative' }}>
+        {entries.map(([emoji, users]) => (
+          <button key={emoji} onClick={() => handleReact(comment, emoji)}
+            title={users.join(', ')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 20, fontSize: '0.75rem',
+              cursor: currentUser ? 'pointer' : 'default',
+              background: users.includes(currentUser) ? 'rgba(108,92,231,0.18)' : 'rgba(158,165,196,0.08)',
+              border: users.includes(currentUser) ? '1px solid rgba(108,92,231,0.5)' : '1px solid rgba(158,165,196,0.15)',
+              color: '#e2e5f0',
+            }}>
+            {emoji} {users.length}
+          </button>
+        ))}
+        {currentUser && (
+          <span style={{ position: 'relative' }}>
+            <button onClick={() => setOpenReactionPickerId(openReactionPickerId === comment.id ? null : comment.id)} className="tap44"
+              style={{ background: 'none', border: 'none', color: 'rgba(158,165,196,0.4)', cursor: 'pointer', fontSize: '0.8rem', padding: 0 }}>
+              ＋😊
+            </button>
+            {openReactionPickerId === comment.id && (
+              <div style={{ position: 'absolute', bottom: '120%', left: 0, display: 'flex', gap: 4, padding: '6px 8px', background: '#12162b', border: '1px solid rgba(94,129,244,0.25)', borderRadius: 10, boxShadow: '0 6px 20px rgba(0,0,0,0.5)', zIndex: 20 }}>
+                {REACTION_EMOJIS.map(e => (
+                  <button key={e} onClick={() => handleReact(comment, e)} className="tap44"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', padding: 2 }}>{e}</button>
+                ))}
+              </div>
+            )}
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  const CommentCard = ({ c, isReply }) => {
+    const pinned = !isReply && String(c.id) === String(pinnedCommentId);
+    const isEditing = editingId === c.id;
+    return (
+      <div style={{ padding: '12px 14px', background: pinned ? 'rgba(108,92,231,0.08)' : 'rgba(94,129,244,0.04)', border: pinned ? '1px solid rgba(108,92,231,0.35)' : '1px solid rgba(94,129,244,0.1)', borderRadius: 10 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
+          <span style={{ fontWeight: 700, color: 'var(--color-cyan)', fontSize: '0.88rem' }}>{pinned && '📌 '}{c.from_username}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ color: 'rgba(158,165,196,0.35)', fontSize: '0.72rem' }}>{timeAgo(c.created_at)}{c.edited_at ? ' · edited' : ''}</span>
+            {!isReply && isOwner && onPin && (
+              <button onClick={() => onPin(c.id)} className="tap44"
+                style={{ background: 'none', border: 'none', color: pinned ? 'var(--gl-accent, #6c5ce7)' : 'rgba(158,165,196,0.4)', cursor: 'pointer', fontSize: '0.75rem', padding: 0 }}>
+                {pinned ? 'Unpin' : '📌 Pin'}
+              </button>
+            )}
+            {!isReply && currentUser && (
+              <button onClick={() => { setReplyingId(replyingId === c.id ? null : c.id); setReplyText(''); }}
+                style={{ background: 'none', border: 'none', color: 'rgba(158,165,196,0.4)', cursor: 'pointer', fontSize: '0.75rem', padding: 0 }}>
+                Reply
+              </button>
+            )}
+            {currentUser === c.from_username && (
+              <button onClick={() => { setEditingId(c.id); setEditText(c.content); }}
+                style={{ background: 'none', border: 'none', color: 'rgba(158,165,196,0.4)', cursor: 'pointer', fontSize: '0.75rem', padding: 0 }}>
+                Edit
+              </button>
+            )}
+            {(currentUser === c.from_username || currentUser === toUsername) && (
+              <button onClick={() => handleDelete(c.id, c.from_username)}
+                style={{ background: 'none', border: 'none', color: 'rgba(255,107,122,0.5)', cursor: 'pointer', fontSize: '0.75rem', padding: 0 }}>
+                Delete
+              </button>
+            )}
+          </div>
+        </div>
+
+        {isEditing ? (
+          <div>
+            <textarea rows={2} value={editText} onChange={e => setEditText(e.target.value)} className="focus-ring"
+              style={{ width: '100%', padding: '8px 10px', background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 8, fontFamily: 'inherit', fontSize: '0.85rem', resize: 'vertical', boxSizing: 'border-box' }} />
+            <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+              <button className="neon-button" onClick={() => handleSaveEdit(c.id)} disabled={!editText.trim()} style={{ padding: '5px 14px', fontSize: '0.78rem' }}>Save</button>
+              <button onClick={() => { setEditingId(null); setEditText(''); }} style={{ background: 'none', border: 'none', color: 'rgba(158,165,196,0.5)', cursor: 'pointer', fontSize: '0.78rem' }}>Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <p style={{ margin: 0, color: 'rgba(220,230,255,0.85)', fontSize: '0.88rem', lineHeight: 1.5 }}>{c.content}</p>
+        )}
+
+        <ReactionRow comment={c} />
+
+        {replyingId === c.id && (
+          <div style={{ marginTop: 10, paddingLeft: 12, borderLeft: '2px solid rgba(94,129,244,0.15)' }}>
+            <textarea rows={2} placeholder={`Reply to ${c.from_username}...`} value={replyText} onChange={e => setReplyText(e.target.value)} className="focus-ring"
+              style={{ width: '100%', padding: '8px 10px', background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 8, fontFamily: 'inherit', fontSize: '0.85rem', resize: 'vertical', boxSizing: 'border-box' }} />
+            <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+              <button className="neon-button" onClick={() => handleReply(c.id)} disabled={!replyText.trim()} style={{ padding: '5px 14px', fontSize: '0.78rem' }}>Reply</button>
+              <button onClick={() => { setReplyingId(null); setReplyText(''); }} style={{ background: 'none', border: 'none', color: 'rgba(158,165,196,0.5)', cursor: 'pointer', fontSize: '0.78rem' }}>Cancel</button>
+            </div>
+          </div>
+        )}
+
+        {!isReply && repliesFor(c.id).length > 0 && (
+          <div style={{ marginTop: 10, paddingLeft: 14, borderLeft: '2px solid rgba(94,129,244,0.12)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {repliesFor(c.id).map(r => <CommentCard key={r.id} c={r} isReply />)}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -394,48 +562,10 @@ const CommentsSection = ({ toUsername, currentUser, isOwner, pinnedCommentId, on
         <p style={{ color: 'rgba(158,165,196,0.3)', fontSize: '0.85rem', textAlign: 'center', padding: '20px 0' }}>No comments yet. Be the first!</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {[...comments].sort((a, b) => (String(a.id) === String(pinnedCommentId) ? -1 : String(b.id) === String(pinnedCommentId) ? 1 : 0)).map(c => {
-            const pinned = String(c.id) === String(pinnedCommentId);
-            return (
-            <div key={c.id} style={{ padding: '12px 14px', background: pinned ? 'rgba(108,92,231,0.08)' : 'rgba(94,129,244,0.04)', border: pinned ? '1px solid rgba(108,92,231,0.35)' : '1px solid rgba(94,129,244,0.1)', borderRadius: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
-                <span style={{ fontWeight: 700, color: 'var(--color-cyan)', fontSize: '0.88rem' }}>{pinned && '📌 '}{c.from_username}</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ color: 'rgba(158,165,196,0.35)', fontSize: '0.72rem' }}>{timeAgo(c.created_at)}</span>
-                  {isOwner && onPin && (
-                    <button onClick={() => onPin(c.id)} className="tap44"
-                      style={{ background: 'none', border: 'none', color: pinned ? 'var(--gl-accent, #6c5ce7)' : 'rgba(158,165,196,0.4)', cursor: 'pointer', fontSize: '0.75rem', padding: 0 }}>
-                      {pinned ? 'Unpin' : '📌 Pin'}
-                    </button>
-                  )}
-                  {(currentUser === c.from_username || currentUser === toUsername) && (
-                    <button onClick={() => handleDelete(c.id, c.from_username)}
-                      style={{ background: 'none', border: 'none', color: 'rgba(255,107,122,0.5)', cursor: 'pointer', fontSize: '0.75rem', padding: 0 }}>
-                      Delete
-                    </button>
-                  )}
-                  {currentUser && currentUser !== c.from_username && (
-                    <button onClick={() => setReportingComment(c)}
-                      style={{ background: 'none', border: 'none', color: 'rgba(255,107,122,0.4)', cursor: 'pointer', fontSize: '0.75rem', padding: 0 }}>
-                      🚩 Report
-                    </button>
-                  )}
-                </div>
-              </div>
-              <p style={{ margin: 0, color: 'rgba(220,230,255,0.85)', fontSize: '0.88rem', lineHeight: 1.5 }}>{c.content}</p>
-            </div>
-            );
-          })}
+          {[...topLevel].sort((a, b) => (String(a.id) === String(pinnedCommentId) ? -1 : String(b.id) === String(pinnedCommentId) ? 1 : 0)).map(c => (
+            <CommentCard key={c.id} c={c} />
+          ))}
         </div>
-      )}
-
-      {reportingComment && (
-        <ReportModal
-          targetType="comment" targetId={reportingComment.id} targetUsername={toUsername}
-          reporterUsername={currentUser}
-          contentSnapshot={reportingComment.content} fromUsernameSnapshot={reportingComment.from_username}
-          onClose={() => setReportingComment(null)}
-        />
       )}
     </div>
   );
@@ -816,226 +946,6 @@ const MemberPages = ({ targetUsername, onMemberSelect }) => {
 };
 
 // ── Member Profile View (improved) ────────────────────────────
-// ── Share profile as image ─────────────────────────────────────────
-// Captures the live floating profile card (banner, avatar, badges, bio,
-// kudos, socials — everything inside gl-public-card-wrap) as a PNG.
-// Unlike PlayerTradingCard (which hand-draws a fixed layout on a canvas
-// since it only ever shows a handful of stats), a member's profile card
-// has too much variable, freeform content to redraw stroke-by-stroke —
-// so this captures the real DOM node instead via html-to-image.
-// Note: CSS backdrop-filter blur isn't captured (a known html-to-image/
-// browser limitation) and cross-origin banner/avatar images need the
-// host to allow CORS reads or they'll be dropped from the export —
-// both degrade gracefully rather than failing the whole capture.
-const ProfileShareImageModal = ({ member, cardRef, onClose }) => {
-  const [status, setStatus]     = useState('capturing'); // capturing | ready | error
-  const [imgUrl, setImgUrl]     = useState(null);
-  const [downloading, setDownloading] = useState(false);
-  const [sharing, setSharing]         = useState(false);
-  const [shareUnsupported, setShareUnsupported] = useState(false);
-  const canvasRef = useRef(null); // the captured canvas, reused for download/share so we don't re-render twice
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const node = cardRef.current;
-        if (!node) throw new Error('Profile card not found');
-        const { toCanvas } = await import('html-to-image');
-        const canvas = await toCanvas(node, { cacheBust: true, pixelRatio: 2, backgroundColor: '#05070d' });
-        if (cancelled) return;
-        canvasRef.current = canvas;
-        setImgUrl(canvas.toDataURL('image/png'));
-        setStatus('ready');
-      } catch {
-        if (!cancelled) setStatus('error');
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [cardRef]);
-
-  const canvasToBlob = (canvas) => new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
-  const safeName = (member.username || 'member').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
-
-  const handleDownload = async () => {
-    if (!canvasRef.current) return;
-    setDownloading(true);
-    try {
-      const blob = await canvasToBlob(canvasRef.current);
-      if (!blob) { setStatus('error'); return; }
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `nova-${safeName}-profile.png`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch {
-      setStatus('error');
-    } finally {
-      setDownloading(false);
-    }
-  };
-
-  const handleShare = async () => {
-    const canShareFiles = typeof navigator.share === 'function' && typeof navigator.canShare === 'function';
-    if (!canShareFiles || !canvasRef.current) { setShareUnsupported(true); handleDownload(); return; }
-    setSharing(true);
-    try {
-      const blob = await canvasToBlob(canvasRef.current);
-      if (!blob) { setStatus('error'); return; }
-      const file = new File([blob], `nova-${safeName}-profile.png`, { type: 'image/png' });
-      if (!navigator.canShare({ files: [file] })) {
-        setShareUnsupported(true);
-        handleDownload();
-        return;
-      }
-      await navigator.share({
-        files: [file],
-        title: `${member.username} — Nova profile`,
-        text: `Check out ${member.username}'s Nova profile!`,
-      });
-    } catch (e) {
-      if (e && e.name !== 'AbortError') setStatus('error');
-    } finally {
-      setSharing(false);
-    }
-  };
-
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420, textAlign: 'center' }}>
-        <h2 style={{ fontSize: '1.05rem' }}>📸 Share Profile Card</h2>
-
-        {status === 'capturing' && (
-          <p style={{ color: 'rgba(226,229,240,0.6)', fontSize: '0.85rem', padding: '30px 0' }}>Rendering your card…</p>
-        )}
-
-        {status === 'ready' && imgUrl && (
-          <img src={imgUrl} alt="" style={{ width: '100%', borderRadius: 12, border: '1px solid rgba(94,129,244,0.25)', marginBottom: 16, display: 'block' }} />
-        )}
-
-        {status === 'error' && (
-          <p style={{ color: '#ff8f9e', fontSize: '0.85rem', padding: '20px 0' }}>
-            Couldn't generate the image — this can happen when a banner or avatar image is hosted somewhere that blocks cross-origin access. Try again in a moment.
-          </p>
-        )}
-
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
-          {status === 'ready' && typeof navigator !== 'undefined' && typeof navigator.share === 'function' && (
-            <button onClick={handleShare} disabled={sharing} className="neon-button" style={{ padding: '10px 20px', fontSize: '0.9rem' }}>
-              {sharing ? 'Preparing…' : '↗ Share'}
-            </button>
-          )}
-          {status === 'ready' && (
-            <button
-              onClick={handleDownload}
-              disabled={downloading}
-              style={{
-                padding: '10px 20px', borderRadius: 10, border: 'none',
-                background: 'linear-gradient(135deg, #5e81f4, #ff9e57)',
-                color: '#0a0d1a', fontWeight: 700, fontSize: '0.9rem',
-                cursor: downloading ? 'default' : 'pointer', opacity: downloading ? 0.7 : 1,
-              }}
-            >
-              {downloading ? 'Preparing…' : 'Download'}
-            </button>
-          )}
-          <button
-            onClick={onClose}
-            style={{ padding: '10px 20px', borderRadius: 10, background: 'transparent', border: '1px solid rgba(226,229,240,0.3)', color: '#e2e5f0', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer' }}
-          >
-            Close
-          </button>
-        </div>
-
-        {shareUnsupported && status !== 'error' && (
-          <p style={{ marginTop: 10, color: 'rgba(226,229,240,0.5)', fontSize: '0.78rem' }}>
-            Sharing isn't supported in this browser — downloaded the image instead.
-          </p>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// ── Report a profile or comment ─────────────────────────────────────
-// Shared by the profile-level "🚩 Report" button (MemberProfileView) and
-// the per-comment report button (CommentsSection). Stores a content
-// snapshot at submit time so moderators can still review it even if the
-// comment is later edited or deleted — see submitReport in db.js.
-const REPORT_REASONS = ['Spam', 'Harassment or abuse', 'Inappropriate content', 'Impersonation', 'Other'];
-
-const ReportModal = ({ targetType, targetId, targetUsername, reporterUsername, contentSnapshot, fromUsernameSnapshot, onClose }) => {
-  const [reason, setReason]       = useState(REPORT_REASONS[0]);
-  const [details, setDetails]     = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [status, setStatus]       = useState('idle'); // idle | done | error
-  const [limitMsg, setLimitMsg]   = useState('');
-
-  const handleSubmit = async () => {
-    const verdict = checkRateLimit('report', reporterUsername);
-    if (!verdict.allowed) { setLimitMsg(verdict.message); return; }
-    setLimitMsg('');
-    setSubmitting(true);
-    setStatus('idle');
-    try {
-      const { default: db } = await import('../../services/db');
-      await db.submitReport({ targetType, targetId, targetUsername, reporterUsername, reason, details, contentSnapshot, fromUsernameSnapshot });
-      recordAction('report', reporterUsername);
-      setStatus('done');
-    } catch {
-      setStatus('error');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
-        <h2 style={{ fontSize: '1.05rem' }}>🚩 Report {targetType === 'profile' ? 'Profile' : 'Comment'}</h2>
-
-        {status === 'done' ? (
-          <>
-            <p style={{ color: 'rgba(226,229,240,0.7)', fontSize: '0.88rem', padding: '10px 0 20px' }}>
-              Thanks — this has been sent to the moderation team for review.
-            </p>
-            <div className="modal-actions">
-              <button className="neon-button" onClick={onClose} style={{ padding: '9px 18px' }}>Close</button>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="form-row">
-              <label>Reason</label>
-              <select value={reason} onChange={(e) => setReason(e.target.value)}>
-                {REPORT_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
-            </div>
-            <div className="form-row">
-              <label>Details (optional)</label>
-              <textarea
-                rows={3} maxLength={500} value={details} onChange={(e) => setDetails(e.target.value)}
-                style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 8, fontFamily: 'inherit', fontSize: '0.85rem', resize: 'vertical', boxSizing: 'border-box' }}
-              />
-            </div>
-            {limitMsg && <p style={{ color: '#ff9e57', fontSize: '0.78rem', marginTop: -6, marginBottom: 10 }}>{limitMsg}</p>}
-            {status === 'error' && <p style={{ color: '#ff8f9e', fontSize: '0.78rem', marginBottom: 10 }}>Couldn't submit the report — try again in a moment.</p>}
-            <div className="modal-actions">
-              <button className="btn-ghost" onClick={onClose}>Cancel</button>
-              <button className="neon-button" onClick={handleSubmit} disabled={submitting} style={{ opacity: submitting ? 0.6 : 1 }}>
-                {submitting ? 'Sending…' : 'Submit Report'}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-};
-
 const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilterByBadge, onFilterByTeam }) => {
   // `member.role` is already resolved correctly upstream (MemberDirectory
   // fetches it from db.getUsers(), which reads Supabase — the shared,
@@ -1079,11 +989,8 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
     return () => { cancelled = true; };
   }, [member.username, currentUser]);
 
-  const cardRef = useRef(null); // gl-public-card-wrap node, captured for the "share as image" export
   const [viewTab, setViewTab] = useState('overview');
   const [copied,  setCopied]  = useState(false);
-  const [showImageModal, setShowImageModal] = useState(false);
-  const [showReportModal, setShowReportModal] = useState(false);
   const [streak,  setStreak]  = useState(0);
   const [kudos,        setKudos]        = useState([]);
   const [kudosNote,    setKudosNote]    = useState('');
@@ -1271,26 +1178,16 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
           style={{ padding: '9px 16px', background: copied ? 'rgba(0,255,136,0.07)' : 'rgba(108,92,231,0.08)', border: `1px solid ${copied ? 'rgba(0,255,136,0.4)' : 'rgba(108,92,231,0.3)'}`, color: copied ? '#00ff88' : 'rgba(220,215,240,0.7)', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', minHeight: 40, transition: 'all 0.2s' }}>
           {copied ? '✓ Copied!' : '🔗 Share'}
         </button>
-        <button onClick={() => setShowImageModal(true)}
-          style={{ padding: '9px 16px', background: 'rgba(108,92,231,0.08)', border: '1px solid rgba(108,92,231,0.3)', color: 'rgba(220,215,240,0.8)', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', minHeight: 40 }}>
-          📸 Save Image
-        </button>
         {currentUser && currentUser !== member.username && (
           <button onClick={() => { window.location.hash = `#messages/${member.username}`; }}
             style={{ padding: '9px 16px', background: 'rgba(108,92,231,0.08)', border: '1px solid rgba(108,92,231,0.3)', color: 'rgba(220,215,240,0.8)', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', minHeight: 40 }}>
             💬 Message
           </button>
         )}
-        {currentUser && currentUser !== member.username && (
-          <button onClick={() => setShowReportModal(true)}
-            style={{ padding: '9px 16px', background: 'rgba(255,107,122,0.06)', border: '1px solid rgba(255,107,122,0.25)', color: 'rgba(255,143,158,0.75)', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', minHeight: 40 }}>
-            🚩 Report
-          </button>
-        )}
       </div>
 
       {/* Floating glow profile card, guns.lol style */}
-      <div className="gl-public-card-wrap" ref={cardRef}>
+      <div className="gl-public-card-wrap">
         <div
           className="gl-public-card"
           style={{
@@ -1578,17 +1475,6 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
             onPin={handlePinComment} />
         )}
       </div>
-
-      {showImageModal && (
-        <ProfileShareImageModal member={member} cardRef={cardRef} onClose={() => setShowImageModal(false)} />
-      )}
-
-      {showReportModal && (
-        <ReportModal
-          targetType="profile" targetId={member.username} targetUsername={member.username}
-          reporterUsername={currentUser} onClose={() => setShowReportModal(false)}
-        />
-      )}
     </div>
   );
 };
