@@ -1,0 +1,92 @@
+/* Season Hub — extends the shared lh-* design system in ViztaLeague.css
+   with the handful of layouts unique to this tab (season pills, sub-nav,
+   standings table, playoff bracket). Prefixed sh- to avoid collisions. */
+
+.sh-season-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.sh-season-pills { display: flex; flex-wrap: wrap; gap: 8px; flex: 1; }
+.sh-season-delete { border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; }
+.sh-season-pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 14px; border-radius: 999px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03);
+  color: rgba(205,215,241,0.7); font-size: 0.78rem; font-weight: 700;
+  transition: all 0.18s;
+}
+.sh-season-pill:hover { border-color: rgba(var(--accent-rgb),0.35); }
+.sh-season-pill.active { background: var(--accent); color: #050710; border-color: var(--accent); box-shadow: 0 6px 16px rgba(var(--accent-rgb),0.3); }
+.sh-season-add { border-style: dashed; color: var(--accent); background: transparent; }
+.sh-status-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+.sh-status-upcoming { background: rgba(158,165,196,0.5); }
+.sh-status-active { background: #43b581; }
+.sh-status-completed { background: var(--accent); }
+
+.sh-new-season-form { margin-bottom: 16px; display: flex; flex-direction: column; gap: 10px; }
+
+.sh-subnav { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 18px; padding-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.sh-subnav-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 12px; border-radius: 8px; cursor: pointer;
+  border: 1px solid transparent; background: transparent;
+  color: rgba(158,165,196,0.6); font-size: 0.72rem; font-weight: 800; letter-spacing: 0.02em;
+  transition: all 0.16s;
+}
+.sh-subnav-btn:hover { color: #e4e8f6; background: rgba(255,255,255,0.04); }
+.sh-subnav-btn.active { color: var(--accent); background: rgba(var(--accent-rgb),0.12); border-color: rgba(var(--accent-rgb),0.3); }
+
+.sh-section { animation: lh-fade-up 0.3s ease both; }
+.sh-section-toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+
+.sh-ghost-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 13px; border-radius: 9px; cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.12); background: transparent;
+  color: rgba(205,215,241,0.75); font-size: 0.72rem; font-weight: 800;
+}
+.sh-ghost-btn:hover { border-color: rgba(var(--accent-rgb),0.4); color: var(--accent); }
+
+.sh-form-actions { display: flex; gap: 8px; margin-top: 4px; }
+.sh-inline-form { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.sh-inline-form label { display: flex; flex-direction: column; gap: 5px; color: rgba(158,165,196,0.5); font-size: 0.65rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.sh-stat-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+
+.sh-table-wrap { overflow-x: auto; padding: 4px; }
+.sh-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+.sh-table th { text-align: left; padding: 9px 10px; color: rgba(158,165,196,0.5); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid rgba(255,255,255,0.08); }
+.sh-table td { padding: 9px 10px; color: #e4e8f6; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.sh-table tbody tr { cursor: pointer; transition: background 0.15s; }
+.sh-table tbody tr:hover { background: rgba(var(--accent-rgb),0.06); }
+.sh-team-cell { display: flex; align-items: center; gap: 6px; font-weight: 700; }
+
+.sh-row-delete { background: transparent; border: none; color: rgba(158,165,196,0.4); cursor: pointer; padding: 4px; border-radius: 6px; }
+.sh-row-delete:hover { color: #f04747; background: rgba(240,71,71,0.1); }
+
+.sh-leader-group { margin-bottom: 20px; }
+.sh-leader-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr)); gap: 12px; margin-top: 10px; }
+.sh-leader-card h3 { font-size: 0.85rem; margin: 0; color: #eef0f9; }
+.sh-leader-row-mini { display: flex; align-items: center; gap: 8px; padding: 7px 2px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.76rem; }
+.sh-leader-row-mini:last-child { border-bottom: none; }
+.sh-leader-name { flex: 1; color: rgba(216,224,247,0.85); }
+.sh-leader-row-mini strong { color: var(--accent); font-family: var(--font-mono); }
+
+.sh-award-icon { font-size: 1.1rem; }
+.sh-award-card h3 { font-size: 0.85rem; margin: 0; color: #eef0f9; }
+
+.sh-bracket { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 6px; }
+.sh-bracket-round { min-width: 280px; flex-shrink: 0; }
+.sh-bracket-round h3 { font-size: 0.82rem; margin: 0; color: #eef0f9; }
+.sh-matchup-row { display: grid; grid-template-columns: 1fr 52px auto 1fr 52px auto; align-items: center; gap: 6px; margin-bottom: 8px; }
+.sh-matchup-row input { padding: 7px 8px; font-size: 0.74rem; }
+.sh-matchup-row input.sh-winner { border-color: var(--accent); color: var(--accent); font-weight: 800; }
+.sh-add-matchup { width: 100%; justify-content: center; margin-top: 4px; }
+
+.sh-champion-card { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; padding: 28px 16px; margin-bottom: 16px; }
+.sh-champion-card h3 { margin: 8px 0 0; font-family: var(--font-display); font-size: 1.3rem; color: #f1f4fe; }
+.sh-champion-card p { margin: 0; color: rgba(158,165,196,0.55); font-size: 0.78rem; }
+.sh-champion-card small { margin-top: 6px; color: rgba(158,165,196,0.4); font-size: 0.7rem; }
+
+.sh-hint { color: rgba(158,165,196,0.4); font-size: 0.68rem; margin-top: 4px; }
+
+@media (max-width: 720px) {
+  .sh-stat-grid { grid-template-columns: repeat(3, 1fr); }
+  .sh-matchup-row { grid-template-columns: 1fr 44px; }
+}

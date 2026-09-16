@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, Search, Trophy, CalendarDays, ScrollText,
   GitCompare, Target, Award, ArrowLeft, ChevronLeft, ChevronRight, Medal,
   Activity, BarChart3, Database, TrendingUp,
-  Archive, BookOpen, Bookmark, Radio, Repeat, Sparkles, Star, Newspaper, Flame,
+  Archive, BookOpen, Bookmark, Radio, Repeat, Sparkles, Star, Newspaper, Flame, Layers,
 } from 'lucide-react';
 import {
   AllStarVoteTab,
@@ -21,6 +21,7 @@ import {
   TransactionsTab,
   WatchlistsTab,
 } from './LeagueFeatures';
+import { SeasonHubTab } from './SeasonHub';
 import PlayerComparisonTool from './components/PlayerComparisonTool';
 import TeamDepthChart from './components/pages/TeamDepthChart';
 import BeatWireFeed from './components/BeatWireFeed';
@@ -87,6 +88,7 @@ const TABS = [
   { id: 'allstar',    label: 'All-Star Vote', Icon: Star },
   { id: 'watchlist',  label: 'Watchlist',   Icon: Bookmark },
   { id: 'archive',    label: 'Season Archive', Icon: Archive },
+  { id: 'seasonhub',  label: 'Season Hub',  Icon: Layers },
   { id: 'propbets',   label: 'Prop Bets',   Icon: Target },
   { id: 'halloffame', label: 'Hall of Fame',Icon: Award },
 ];
@@ -162,6 +164,7 @@ const ViztaLeague = ({ onSelectPlayer, sport = 'vizta', initialTab = 'overview',
       case 'allstar':    return <AllStarVoteTab sport={sport} cfg={cfg} />;
       case 'watchlist':  return <WatchlistsTab sport={sport} cfg={cfg} onSelectPlayer={onSelectPlayer} />;
       case 'archive':    return <SeasonArchiveTab sport={sport} cfg={cfg} />;
+      case 'seasonhub':  return <SeasonHubTab sport={sport} cfg={cfg} />;
       case 'propbets':   return <PropBetsTab sport={sport} cfg={cfg} />;
       case 'halloffame': return <HallOfFameTab sport={sport} cfg={cfg} />;
       default:           return <OverviewTab sport={sport} cfg={cfg} />;

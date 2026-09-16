@@ -2454,6 +2454,175 @@ export const db = {
       .sort((a, b) => new Date(a.captured_at) - new Date(b.captured_at));
   },
 
+  /* ── SEASON HUB ─────────────────────────────────────────────────
+     A richer, browsable per-season record than the flat snapshots
+     above: each nova_seasons row is one season (e.g. "Season 7"),
+     and Standings/Playoffs/Records/Statistics/Transactions each hang
+     off it by season_id. Awards and All-Stars reuse the existing
+     nova_accolades table (already has a `season` column) instead of
+     a new one — see SeasonHub.jsx. */
+  async getSeasons(league) {
+    try {
+      const { data, error } = await supabase.from('nova_seasons')
+        .select('*').eq('league', league).order('season_number', { ascending: false });
+      if (!error && Array.isArray(data)) return data;
+    } catch { /* fall through */ }
+    return [...ls.get(`${league}_seasons`)].sort((a, b) => (b.season_number || 0) - (a.season_number || 0));
+  },
+
+  async saveSeason(league, season) {
+    const isNew = !season.id;
+    const record = { ...season, league, updated_at: new Date().toISOString() };
+    if (isNew) record.created_at = new Date().toISOString();
+    try {
+      if (isNew) {
+        delete record.id;
+        const { data, error } = await supabase.from('nova_seasons').insert([record]).select();
+        if (error) throw error;
+        logAudit('season.create', league, 'season', record.label);
+        return data && data[0];
+      }
+      const { data, error } = await supabase.from('nova_seasons').update(record).eq('id', season.id).select();
+      if (error) throw error;
+      logAudit('season.update', league, 'season', record.label);
+      return data && data[0];
+    } catch {
+      const list = ls.get(`${league}_seasons`);
+      const saved = { ...record, id: season.id || Date.now().toString() };
+      ls.set(`${league}_seasons`, isNew ? [...list, saved] : list.map(s => (s.id === season.id ? saved : s)));
+      return saved;
+    }
+  },
+
+  async deleteSeason(league, id) {
+    try { await supabase.from('nova_seasons').delete().eq('id', id); } catch { /* fall through */ }
+    ls.set(`${league}_seasons`, ls.get(`${league}_seasons`).filter(s => s.id !== id));
+  },
+
+  async getSeasonStandings(league, seasonId) {
+    try {
+      const { data, error } = await supabase.from('nova_season_standings')
+        .select('*').eq('league', league).eq('season_id', seasonId).order('wins', { ascending: false });
+      if (!error && Array.isArray(data)) return data;
+    } catch { /* fall through */ }
+    return ls.get(`${league}_season_standings`).filter(r => r.season_id === seasonId);
+  },
+
+  // rows: [{ team_name, wins, losses, ties, points_for, points_against, source }, ...]
+  // Upserts by (league, season_id, team_name) so an "auto-fill" pass can
+  // be run again later without duplicating rows.
+  async saveSeasonStandingRows(league, seasonId, rows) {
+    const records = rows.map(r => ({ ...r, league, season_id: seasonId, updated_at: new Date().toISOString() }));
+    try {
+      const { error } = await supabase.from('nova_season_standings')
+        .upsert(records, { onConflict: 'league,season_id,team_name' });
+      if (error) throw error;
+      return true;
+    } catch {
+      const key = `${league}_season_standings`;
+      const list = ls.get(key);
+      records.forEach(r => {
+        const idx = list.findIndex(x => x.season_id === seasonId && x.team_name === r.team_name);
+        const saved = { ...r, id: idx >= 0 ? list[idx].id : `${Date.now()}_${r.team_name}` };
+        if (idx >= 0) list[idx] = saved; else list.push(saved);
+      });
+      ls.set(key, list);
+      return true;
+    }
+  },
+
+  async deleteSeasonStanding(league, id) {
+    try { await supabase.from('nova_season_standings').delete().eq('id', id); } catch { /* fall through */ }
+    ls.set(`${league}_season_standings`, ls.get(`${league}_season_standings`).filter(r => r.id !== id));
+  },
+
+  async getSeasonPlayoffs(league, seasonId) {
+    try {
+      const { data, error } = await supabase.from('nova_season_playoffs')
+        .select('*').eq('league', league).eq('season_id', seasonId).limit(1);
+      if (!error && Array.isArray(data)) return data[0] || null;
+    } catch { /* fall through */ }
+    return ls.get(`${league}_season_playoffs`).find(r => r.season_id === seasonId) || null;
+  },
+
+  async saveSeasonPlayoffs(league, seasonId, bracket) {
+    const record = { league, season_id: seasonId, bracket, updated_at: new Date().toISOString() };
+    try {
+      const { data, error } = await supabase.from('nova_season_playoffs')
+        .upsert(record, { onConflict: 'league,season_id' }).select();
+      if (error) throw error;
+      return data && data[0];
+    } catch {
+      const key = `${league}_season_playoffs`;
+      const list = ls.get(key);
+      const idx = list.findIndex(r => r.season_id === seasonId);
+      const saved = { ...record, id: idx >= 0 ? list[idx].id : Date.now().toString() };
+      if (idx >= 0) list[idx] = saved; else list.push(saved);
+      ls.set(key, list);
+      return saved;
+    }
+  },
+
+  // section: 'records' | 'statistics'
+  async getSeasonRecords(league, seasonId, section) {
+    try {
+      const { data, error } = await supabase.from('nova_season_records')
+        .select('*').eq('league', league).eq('season_id', seasonId).eq('section', section)
+        .order('created_at', { ascending: false });
+      if (!error && Array.isArray(data)) return data;
+    } catch { /* fall through */ }
+    return ls.get(`${league}_season_records`).filter(r => r.season_id === seasonId && r.section === section);
+  },
+
+  async addSeasonRecord(league, record) {
+    const saved0 = { ...record, league, created_at: new Date().toISOString() };
+    try {
+      delete saved0.id;
+      const { data, error } = await supabase.from('nova_season_records').insert([saved0]).select();
+      if (error) throw error;
+      return data && data[0];
+    } catch {
+      const key = `${league}_season_records`;
+      const saved = { ...saved0, id: Date.now().toString() };
+      ls.set(key, [...ls.get(key), saved]);
+      return saved;
+    }
+  },
+
+  async deleteSeasonRecord(league, id) {
+    try { await supabase.from('nova_season_records').delete().eq('id', id); } catch { /* fall through */ }
+    ls.set(`${league}_season_records`, ls.get(`${league}_season_records`).filter(r => r.id !== id));
+  },
+
+  async getSeasonTransactions(league, seasonId) {
+    try {
+      const { data, error } = await supabase.from('nova_season_transactions')
+        .select('*').eq('league', league).eq('season_id', seasonId).order('created_at', { ascending: false });
+      if (!error && Array.isArray(data)) return data;
+    } catch { /* fall through */ }
+    return [...ls.get(`${league}_season_transactions`).filter(r => r.season_id === seasonId)].reverse();
+  },
+
+  async addSeasonTransaction(league, record) {
+    const saved0 = { ...record, league, created_at: new Date().toISOString() };
+    try {
+      delete saved0.id;
+      const { data, error } = await supabase.from('nova_season_transactions').insert([saved0]).select();
+      if (error) throw error;
+      return data && data[0];
+    } catch {
+      const key = `${league}_season_transactions`;
+      const saved = { ...saved0, id: Date.now().toString() };
+      ls.set(key, [...ls.get(key), saved]);
+      return saved;
+    }
+  },
+
+  async deleteSeasonTransaction(league, id) {
+    try { await supabase.from('nova_season_transactions').delete().eq('id', id); } catch { /* fall through */ }
+    ls.set(`${league}_season_transactions`, ls.get(`${league}_season_transactions`).filter(r => r.id !== id));
+  },
+
   /* ── MUSIC PLAYS (Nova Music listen tracking → leaderboard) ──────
      One row per "a member opened/played a track" — logged from
      NowPlayingContext (the global mini-player, used by Nova Music's
