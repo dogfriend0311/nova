@@ -16,7 +16,7 @@ export const LevelBadge = ({ username, showBar = false, size = 'md' }) => {
   }, [username]);
 
   if (xp === null) return null;
-  const { level, title, floor, ceil, pct } = levelProgress(xp);
+  const { level, title, floor, ceil, pct, maxedOut } = levelProgress(xp);
   const fontSize = size === 'sm' ? '0.68rem' : '0.78rem';
 
   return (
@@ -29,7 +29,7 @@ export const LevelBadge = ({ username, showBar = false, size = 'md' }) => {
         Lv. {level} · {title}
       </span>
       {showBar && (
-        <span style={{ display: 'block', width: 120, height: 4, borderRadius: 4, background: 'rgba(94,129,244,0.1)', overflow: 'hidden' }} title={`${xp - floor} / ${ceil - floor} XP to next level`}>
+        <span style={{ display: 'block', width: 120, height: 4, borderRadius: 4, background: 'rgba(94,129,244,0.1)', overflow: 'hidden' }} title={maxedOut ? 'Max level reached' : `${xp - floor} / ${ceil - floor} XP to next level`}>
           <span style={{ display: 'block', height: '100%', width: `${pct}%`, background: 'var(--color-cyan)' }} />
         </span>
       )}

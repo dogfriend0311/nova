@@ -12,6 +12,7 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, on
   const tabs = [
     { id: 'home',        label: 'Home',        icon: 'Home' },
     { id: 'leagues',     label: 'Leagues',     icon: 'Baseball' },
+    { id: 'feed',        label: 'Feed',        icon: 'Rss' },
     { id: 'articles',    label: 'Articles',    icon: 'FileText' },
     { id: 'tweets',      label: 'Tweets',      icon: 'Twitter' },
     { id: 'sports',      label: 'Sports',      icon: 'Trophy' },

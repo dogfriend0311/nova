@@ -8,6 +8,8 @@ import { MemberGridSkeleton } from '../Skeleton';
 import { checkRateLimit, recordAction } from '../../services/rateLimiter';
 import { awardXP } from '../../services/reputationService';
 import { currentUsername } from '../../services/favoritesService';
+import FollowButton from '../FollowButton';
+import { FOLLOW_TYPES } from '../../services/followService';
 import { PRESENCE_META } from '../../services/db';
 
 // ── role helpers ──────────────────────────────────────────────
@@ -1183,6 +1185,15 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
             style={{ padding: '9px 16px', background: 'rgba(108,92,231,0.08)', border: '1px solid rgba(108,92,231,0.3)', color: 'rgba(220,215,240,0.8)', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', minHeight: 40 }}>
             💬 Message
           </button>
+        )}
+        {currentUser && currentUser !== member.username && (
+          <FollowButton
+            type={FOLLOW_TYPES.USER}
+            id={member.username}
+            label={member.username}
+            size="md"
+            style={{ minHeight: 40 }}
+          />
         )}
       </div>
 

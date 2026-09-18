@@ -11,6 +11,7 @@ import StreakLeaderboard from './components/pages/StreakLeaderboard';
 import MessagesPage from './components/pages/MessagesPage';
 import MemberProfile from './components/pages/MemberProfile';
 import LeaguesPage from './components/pages/LeaguesPage';
+import FeedPage from './components/pages/FeedPage';
 import LeaguePlayerPage from './LeaguePlayerPage';
 import LoginModal from './components/auth/LoginModal';
 import OwnerDashboard from './components/pages/OwnerDashboard';
@@ -259,6 +260,14 @@ const AppContent = () => {
     }
   };
 
+  // Gives each Roblox league its own URL — e.g. #leagues/hockey — so
+  // switching leagues on the Leagues page is bookmarkable/shareable,
+  // the same way #leagues/player/<id> already deep-links a player.
+  const handleLeagueChange = (leagueId) => {
+    setRouteSub(leagueId);
+    pushHash('leagues', leagueId);
+  };
+
   const handleArticleSelect = (id) => {
     if (id) {
       setRouteSub(id);
@@ -294,7 +303,13 @@ const AppContent = () => {
         return <GamesPage key="games-pickems" onSignIn={() => setShowLoginModal(true)} initialTab="pickems" user={user} />;
 
       case 'leagues':
-        return <LeaguesPage onSelectPlayer={handleSelectPlayer} />;
+        return (
+          <LeaguesPage
+            onSelectPlayer={handleSelectPlayer}
+            initialLeague={routeSub && routeSub !== 'player' ? routeSub : null}
+            onLeagueChange={handleLeagueChange}
+          />
+        );
 
       case 'members':
         return (
@@ -303,6 +318,9 @@ const AppContent = () => {
             onMemberSelect={handleMemberSelect}
           />
         );
+
+      case 'feed':
+        return <FeedPage onSignIn={() => setShowLoginModal(true)} />;
 
       case 'staff':
         return <StaffDirectory onSelectMember={(username) => handlePageChange('members', username)} />;

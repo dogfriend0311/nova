@@ -21,6 +21,8 @@ import AllStarVoting from './AllStarVoting';
 import { ScoresGridSkeleton, StandingsSkeleton, NewsGridSkeleton } from '../Skeleton';
 import { getCurrentUsername, isGameStarred, addFavGame as addFavGameLS, removeFavGameByGameId } from '../../services/favGamesStorage';
 import { getMyFavTeamAbbrs, toEspnAbbr } from '../../services/favTeamsService';
+import FollowButton from '../FollowButton';
+import { FOLLOW_TYPES } from '../../services/followService';
 import { Flame, Snowflake } from 'lucide-react';
 
 const SPORTS = [
@@ -1008,6 +1010,13 @@ const StandingsPanel = ({ sport }) => {
                   {t.logo?<img src={t.logo} alt={t.team} className="sh-stand-logo" />:<span className="sh-stand-logo-ph">{t.team[0]}</span>}
                   <span className="sh-stand-abbr">{t.team}</span>
                   <span className="sh-stand-name">{t.name}</span>
+                  <FollowButton
+                    type={FOLLOW_TYPES.SPORTS_TEAM}
+                    id={`${sport}-${t.team}`}
+                    label={t.name || t.team}
+                    meta={{ sport, logo: t.logo }}
+                    style={{ marginLeft: 8 }}
+                  />
                 </span>
                 <span className="sh-col-num">{t.wins}</span><span className="sh-col-num">{t.losses}</span>
                 {isNHL&&<><span className="sh-col-num">{t.otl??'--'}</span><span className="sh-col-num">{t.pts??'--'}</span></>}
@@ -1150,6 +1159,18 @@ const SportsHub = ({ initialSport }) => {
           {' '}-{' '}Live scores - Standings - News - {' '}
           <span className="sh-updated">{lastUpdated.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</span>
         </p>
+      </div>
+
+      <div style={{ display:'flex', alignItems:'center', gap:'10px', margin:'0 0 10px' }}>
+        <span style={{ color:'rgba(158,165,196,0.6)', fontSize:'0.82rem', fontWeight:700 }}>
+          {SPORTS.find(s=>s.id===activeSport)?.icon} {SPORTS.find(s=>s.id===activeSport)?.label}
+        </span>
+        <FollowButton
+          type={FOLLOW_TYPES.SPORTS_LEAGUE}
+          id={activeSport}
+          label={SPORTS.find(s=>s.id===activeSport)?.label || activeSport}
+          meta={{ icon: SPORTS.find(s=>s.id===activeSport)?.icon }}
+        />
       </div>
 
       <div className="sh-sport-tabs">

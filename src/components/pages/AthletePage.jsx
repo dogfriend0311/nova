@@ -3,6 +3,8 @@ import {
   fetchAthleteProfile, fetchAthleteStats, fetchAthleteOverview,
   fetchAthleteSplits, fetchAthleteGameLog, fetchAthleteNews,
 } from '../../services/sportsDataService';
+import FollowButton from '../FollowButton';
+import { FOLLOW_TYPES } from '../../services/followService';
 import './AthletePage.css';
 
 const TABS = [
@@ -113,7 +115,16 @@ const AthletePage = ({ sport, athleteId, onBack }) => {
             ? <img src={headshot} alt={displayName} className="ap-headshot" onError={e => { e.target.style.visibility = 'hidden'; }} />
             : <div className="ap-headshot ap-headshot-ph">👤</div>}
           <div className="ap-header-info">
-            <h2 className="ap-name">{displayName}</h2>
+            <h2 className="ap-name">
+              {displayName}
+              <FollowButton
+                type={FOLLOW_TYPES.SPORTS_PLAYER}
+                id={`${sport}-${athleteId}`}
+                label={displayName}
+                meta={{ sport, headshot, teamName }}
+                style={{ marginLeft: 12, verticalAlign: 'middle' }}
+              />
+            </h2>
             <div className="ap-meta-row">
               {teamName && <span className="ap-badge ap-badge-team">{teamName}</span>}
               {position && <span className="ap-badge">{position}</span>}

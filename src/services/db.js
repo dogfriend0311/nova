@@ -1851,6 +1851,94 @@ export const db = {
     ls.set('favorite_teams', ls.get('favorite_teams').filter(t => String(t.id) !== String(id)));
   },
 
+  /* ── FOLLOWS (generic — everything else that can be followed) ───
+     Roblox league players use the dedicated nova_player_follows table
+     above (it also drives the award/stat-update notification fan-out)
+     and Roblox league teams use the dedicated favorite_teams table
+     above — both predate this table and keep working exactly as they
+     do today. Everything else Nova lets a member follow — a real-world
+     Sports Hub player/team/league, a whole Roblox league, or another
+     member — goes through this one generic table instead of a new
+     bespoke table per type. followService.js is the single place that
+     decides which of these three storage layers a given follow type
+     uses, so UI code never has to know the difference.
+     Requires: nova_follows table —
+       CREATE TABLE IF NOT EXISTS nova_follows (
+         id BIGSERIAL PRIMARY KEY,
+         username TEXT NOT NULL,
+         follow_type TEXT NOT NULL,   -- 'sports_player' | 'sports_team' | 'sports_league' | 'roblox_league' | 'user'
+         item_id TEXT NOT NULL,       -- e.g. 'mlb-4374561', 'nfl-KC', 'nfl', 'hockey', or a username
+         item_label TEXT,             -- display name/title for the feed and follow lists
+         meta JSONB,                  -- optional extra context (sport, logo url, etc.)
+         created_at TIMESTAMPTZ DEFAULT now(),
+         UNIQUE(username, follow_type, item_id)
+       );
+       ALTER TABLE nova_follows ENABLE ROW LEVEL SECURITY;
+       CREATE POLICY "Public read"   ON nova_follows FOR SELECT USING (true);
+       CREATE POLICY "Public write"  ON nova_follows FOR INSERT WITH CHECK (true);
+       CREATE POLICY "Public update" ON nova_follows FOR UPDATE USING (true);
+       CREATE POLICY "Public delete" ON nova_follows FOR DELETE USING (true);        */
+  async getFollows(username, followType = null) {
+    if (!username) return [];
+    if (hasSupabase()) {
+      try {
+        let q = supabase.from('nova_follows').select('*').eq('username', username);
+        if (followType) q = q.eq('follow_type', followType);
+        const { data, error } = await q.order('created_at', { ascending: false });
+        if (!error) return data || [];
+      } catch {}
+    }
+    const all = ls.get('nova_follows').filter(f => f.username === username);
+    return followType ? all.filter(f => f.follow_type === followType) : all;
+  },
+
+  async isFollowing(username, followType, itemId) {
+    if (!username || !itemId) return false;
+    const list = await this.getFollows(username, followType);
+    return list.some(f => String(f.item_id) === String(itemId));
+  },
+
+  async addFollow(username, followType, itemId, itemLabel, meta = {}) {
+    const record = {
+      username, follow_type: followType, item_id: String(itemId),
+      item_label: itemLabel || null, meta: meta || {}, created_at: new Date().toISOString(),
+    };
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_follows')
+          .upsert([record], { onConflict: 'username,follow_type,item_id' }).select();
+        if (!error && data?.[0]) return data[0];
+      } catch {}
+    }
+    const all = ls.get('nova_follows');
+    const idx = all.findIndex(f => f.username === username && f.follow_type === followType && String(f.item_id) === String(itemId));
+    const saved = { ...record, id: idx >= 0 ? all[idx].id : Date.now().toString() };
+    if (idx >= 0) all[idx] = saved; else all.push(saved);
+    ls.set('nova_follows', all);
+    return saved;
+  },
+
+  async removeFollow(username, followType, itemId) {
+    if (hasSupabase()) {
+      try { await supabase.from('nova_follows').delete().eq('username', username).eq('follow_type', followType).eq('item_id', String(itemId)); } catch {}
+    }
+    ls.set('nova_follows', ls.get('nova_follows').filter(f => !(f.username === username && f.follow_type === followType && String(f.item_id) === String(itemId))));
+  },
+
+  // Everyone following a given item — for a future notification
+  // fan-out and for "N followers" counts, same pattern as
+  // getPlayerFollowers above.
+  async getFollowersOf(followType, itemId) {
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_follows')
+          .select('*').eq('follow_type', followType).eq('item_id', String(itemId));
+        if (!error) return data || [];
+      } catch {}
+    }
+    return ls.get('nova_follows').filter(f => f.follow_type === followType && String(f.item_id) === String(itemId));
+  },
+
   /* ── NOW PLAYING (music "now listening" status) ───────────────
      Requires: now_playing table (see supabase/now_playing.sql).
      Powers the "🎧 Listening to" line shown under a member's name

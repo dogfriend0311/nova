@@ -78,6 +78,45 @@
   transform: translateY(-2px);
 }
 
+/* Follow button — used by FollowButton.jsx everywhere something can
+   be followed (Roblox league players/teams/leagues, Sports Hub
+   players/teams/leagues, other members). */
+.nova-follow-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  border: 1px solid rgba(94, 129, 244, 0.35);
+  background: rgba(94, 129, 244, 0.08);
+  color: var(--color-cyan);
+  transition: all 0.15s ease;
+}
+
+.nova-follow-btn:hover:not(:disabled) {
+  background: rgba(94, 129, 244, 0.18);
+  border-color: rgba(94, 129, 244, 0.6);
+}
+
+.nova-follow-btn.following {
+  background: rgba(0, 255, 136, 0.08);
+  border-color: rgba(0, 255, 136, 0.35);
+  color: #00ff88;
+}
+
+.nova-follow-btn.following:hover:not(:disabled) {
+  background: rgba(255, 80, 80, 0.1);
+  border-color: rgba(255, 80, 80, 0.4);
+  color: #ff5050;
+}
+
+.nova-follow-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .neon-button:hover::before { left: 100%; }
 .neon-button:active { transform: translateY(0); }
 

@@ -51,6 +51,7 @@ const Sidebar = ({ currentPage, onNavigate }) => {
 
   const quickLinks = [
     { id: 'leagues',     label: 'Leagues',      icon: '' },
+    { id: 'feed',        label: 'Your Feed',    icon: '📡' },
     { id: 'articles',    label: 'Articles',     icon: '📰' },
     { id: 'tweets',      label: 'Tweets',       icon: '🐦' },
     { id: 'sports',      label: 'Sports',       icon: '🏆' },

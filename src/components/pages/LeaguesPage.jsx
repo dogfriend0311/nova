@@ -3,6 +3,8 @@ import { Activity, ChevronRight, Radio, Star } from 'lucide-react';
 import ViztaLeague from '../../ViztaLeague';
 import db from '../../services/db';
 import { currentUsername, getFollowedTeams, getFavoritePlayers, onFavoritesChange } from '../../services/favoritesService';
+import FollowButton from '../FollowButton';
+import { FOLLOW_TYPES } from '../../services/followService';
 import { SPORTS, SPORT_ORDER } from '../../data/sportsConfig';
 import './LeaguesPage.css';
 
@@ -55,19 +57,32 @@ const FavoritesStrip = ({ league, onJumpToTeam, onSelectPlayer }) => {
   );
 };
 
-const LeaguesPage = ({ onSelectPlayer }) => {
+const LeaguesPage = ({ onSelectPlayer, initialLeague, onLeagueChange }) => {
   const [league, setLeagueState] = useState(() => {
+    if (initialLeague && SPORTS[initialLeague]) return initialLeague;
     try {
       const last = localStorage.getItem('nova_last_league_sport');
       return (last && SPORTS[last]) ? last : 'vizta';
     } catch { return 'vizta'; }
   });
   // Wraps setLeague so every switch (tab click or deep link) also updates
-  // the "continue where you left off" record read by Home's quick-launch tile.
-  const setLeague = (id) => {
+  // the "continue where you left off" record read by Home's quick-launch
+  // tile, and (via onLeagueChange) the URL hash so each league has its
+  // own shareable/bookmarkable link — e.g. #leagues/hockey.
+  const setLeague = (id, { skipUrlUpdate = false } = {}) => {
     setLeagueState(id);
     try { localStorage.setItem('nova_last_league_sport', id); } catch {}
+    if (!skipUrlUpdate) onLeagueChange?.(id);
   };
+  // Keep in sync with the URL when it changes from outside this
+  // component (browser back/forward, or a pasted #leagues/<league> link).
+  useEffect(() => {
+    if (initialLeague && SPORTS[initialLeague] && initialLeague !== league) {
+      setLeagueState(initialLeague);
+      try { localStorage.setItem('nova_last_league_sport', initialLeague); } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialLeague]);
   const [jumpTeam, setJumpTeam] = useState(() => {
     try {
       const pending = JSON.parse(localStorage.getItem('nova_pending_team_jump') || 'null');
@@ -138,6 +153,12 @@ const LeaguesPage = ({ onSelectPlayer }) => {
       <div className="league-context-strip" style={{ '--context-accent': activeSport.accent }}>
         <span className="league-context-kicker">CURRENT LEAGUE</span>
         <strong>{activeSport.icon} {activeSport.label}</strong>
+        <FollowButton
+          type={FOLLOW_TYPES.ROBLOX_LEAGUE}
+          id={league}
+          label={activeSport.label}
+          meta={{ icon: activeSport.icon }}
+        />
         <span className="league-context-divider" />
         <span>Live league center</span>
         <span className="league-context-spacer" />
