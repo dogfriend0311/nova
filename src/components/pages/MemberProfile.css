@@ -118,6 +118,45 @@
   .member-overview-grid { grid-template-columns:1fr; }
   .member-overview-links button { flex:1; justify-content:space-between; }
 }
+
+/* Followers/Following chips under the name in the profile banner */
+.member-follow-counts { display:flex; gap:14px; margin-top:6px; }
+.member-follow-counts button { background:none; border:none; padding:0; cursor:pointer; font-size:0.76rem; color:rgba(158,165,196,0.55); }
+.member-follow-counts button strong { color:#e7ebfa; font-weight:800; margin-right:3px; }
+.member-follow-counts button:hover strong { color:var(--color-cyan,#5e81f4); }
+
+/* Trophy Room — big showcase grid on the Overview tab */
+.member-trophy-room { margin:14px 0 18px; padding:16px; border:1px solid rgba(255,215,0,0.14); border-radius:14px; background:linear-gradient(145deg, rgba(255,215,0,0.05), rgba(255,255,255,0.01)); }
+.member-trophy-room-header { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+.member-trophy-customize-btn { padding:5px 12px; border-radius:8px; border:1px solid rgba(255,215,0,0.35); background:rgba(255,215,0,0.08); color:#ffd700; font-size:0.7rem; font-weight:700; cursor:pointer; }
+.member-trophy-customize-btn:hover { background:rgba(255,215,0,0.15); }
+.member-trophy-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(96px,1fr)); gap:10px; margin-top:12px; }
+.member-trophy-card {
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
+  padding:14px 8px; border-radius:12px; text-align:center;
+  border:1px solid var(--trophy-color, #6c5ce7); background:color-mix(in srgb, var(--trophy-color, #6c5ce7) 12%, transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--trophy-color, #6c5ce7) 25%, transparent);
+}
+.member-trophy-icon { font-size:1.6rem; }
+.member-trophy-name { font-size:0.68rem; font-weight:800; color:#f3f5ff; line-height:1.25; }
+
+/* Collection tab — stacked sections with a little breathing room */
+.member-collection-section { margin-bottom:26px; }
+.member-collection-section:last-child { margin-bottom:0; }
+
+/* Friends tab — followers/following side-by-side lists */
+.member-friends-columns { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.member-friend-chip {
+  display:block; width:100%; text-align:left; padding:8px 12px; border-radius:8px;
+  border:1px solid rgba(94,129,244,0.14); background:rgba(94,129,244,0.04);
+  color:#e2e5f0; font-size:0.8rem; font-weight:600; cursor:pointer;
+}
+.member-friend-chip:hover { border-color:rgba(94,129,244,0.4); color:var(--color-cyan,#5e81f4); }
+
+@media (max-width: 500px) {
+  .member-friends-columns { grid-template-columns:1fr; }
+  .member-trophy-grid { grid-template-columns:repeat(auto-fill, minmax(80px,1fr)); }
+}
 .mp-fav-sport-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
 .mp-fav-sport-label { font-size:0.8rem; color:rgba(158, 165, 196,0.5); min-width:40px; }
 .mp-fav-teams { display:flex; gap:6px; flex-wrap:wrap; }

@@ -41,6 +41,7 @@ const DEFAULT_PROFILE = {
   bio: '', top_banner_url: '', avatar_url: '', lastfm_username: '',
   twitter_url: '', twitch_url: '', youtube_url: '', instagram_url: '',
   discord_tag: '', fav_teams: DEFAULT_FAV_TEAMS,
+  fav_player: '', // optional — a single favorite athlete/player name, shown on the public Overview tab
   birthday: '', // optional, YYYY-MM-DD — shown as month/day only (see below), never the year, and only if the member sets it
   fav_team_notifs: {}, // { [sport]: { [abbr]: { finalScore: bool, news: bool } } }
   fav_games: [],
@@ -1145,6 +1146,7 @@ const MemberProfile = () => {
   const [presence,     setPresence]    = useState(() => localStorage.getItem(`nova_presence_${user?.username}`) || 'online');
   const [coins,        setCoins]       = useState(() => getCoinsBalance(user?.username));
   const [copied,       setCopied]      = useState(false);
+  const [draggedBadgeId, setDraggedBadgeId] = useState(null); // Trophy Room drag-to-reorder
   const [equippedTheme, setEquippedTheme] = useState(null);
   const [isStaffOfMonth, setIsStaffOfMonth] = useState(false);
   const [slugStatus,    setSlugStatus]   = useState(null); // null | 'checking' | 'available' | 'taken' | 'invalid'
@@ -1410,7 +1412,7 @@ const MemberProfile = () => {
       { id: 'colors',    icon: '🌈', label: 'Colors'     },
       { id: 'music',     icon: '🎵', label: 'Music'      },
       { id: 'links',     icon: '🔗', label: 'Links'      },
-      { id: 'badges',    icon: '🏅', label: 'Badges'     },
+      { id: 'badges',    icon: '🏅', label: 'Trophy Room' },
       { id: 'teams',     icon: '★', label: 'Teams'      },
     ];
     const section = favTab; // reused as a string section id now
@@ -1519,6 +1521,10 @@ const MemberProfile = () => {
                 <div className="form-group">
                   <label>Discord Tag</label>
                   <input type="text" value={formData.discord_tag || ''} onChange={(e) => setFormData({ ...formData, discord_tag: e.target.value })} placeholder="username#0000" />
+                </div>
+                <div className="form-group">
+                  <label>Favorite Player <span style={{ fontWeight: 400, opacity: 0.6 }}>(optional — shown on your public Overview tab)</span></label>
+                  <input type="text" value={formData.fav_player || ''} onChange={(e) => setFormData({ ...formData, fav_player: e.target.value })} placeholder="e.g. Mike Trout" />
                 </div>
                 <div className="form-group">
                   <label>Birthday <span style={{ fontWeight: 400, opacity: 0.6 }}>(optional — shown as month &amp; day only, never your age or birth year)</span></label>
@@ -1681,49 +1687,77 @@ const MemberProfile = () => {
             {/* BADGES */}
             {section === 'badges' && (
               <div className="gl-panel">
-                <div className="gl-panel-title">Badges</div>
-                <div className="gl-panel-sub">Pick which of your earned badges show up next to your name.</div>
+                <div className="gl-panel-title">Badges &amp; Trophy Room</div>
+                <div className="gl-panel-sub">Pick which of your earned badges show up next to your name and in your public Trophy Room. Drag a selected badge to reorder it.</div>
                 {assignedBadgeIds.length === 0 ? (
                   <p style={{ color: 'rgba(158, 165, 196,0.4)', fontSize: '0.82rem' }}>
                     No badges have been assigned to you yet. Owners and co-founders can assign badges from the dashboard.
                   </p>
-                ) : (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-                    {badgeTypes.filter(b => assignedBadgeIds.includes(String(b.id))).map(b => {
-                      const checked = (formData.displayed_badges || []).map(String).includes(String(b.id));
-                      return (
-                        <label key={b.id} style={{
-                          display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer',
-                          padding: '6px 12px', borderRadius: '20px', minHeight: 44, boxSizing: 'border-box',
-                          border: `1px solid ${checked ? (b.color || '#6c5ce7') : 'rgba(255,255,255,0.12)'}`,
-                          background: checked ? `${b.color || '#6c5ce7'}18` : 'transparent',
-                          fontSize: '0.82rem', color: checked ? (b.color || '#6c5ce7') : 'rgba(220,215,240,0.55)',
-                        }}>
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={(e) => {
-                              const cur = (formData.displayed_badges || []).map(String);
-                              const next = e.target.checked
-                                ? [...cur, String(b.id)]
-                                : cur.filter(id => id !== String(b.id));
-                              setFormData({ ...formData, displayed_badges: next });
-                            }}
-                            style={{ margin: 0 }}
-                          />
-                          <span>{b.icon}</span> {b.name}
-                          {checked && (
-                            <span
-                              onClick={(e) => { e.preventDefault(); togglePin('badge', b.id); }}
-                              title={isPinned('badge', b.id) ? 'Unpin from top of profile' : 'Pin to top of profile'}
-                              style={{ marginLeft: 2, cursor: 'pointer', opacity: isPinned('badge', b.id) ? 1 : 0.35, fontSize: '0.85rem' }}
-                            >📌</span>
-                          )}
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
+                ) : (() => {
+                  const cur = (formData.displayed_badges || []).map(String);
+                  // Selected badges first, in trophy-room order, then the
+                  // rest of the assigned-but-unselected badges after.
+                  const ordered = [
+                    ...cur.map(id => badgeTypes.find(b => String(b.id) === id)).filter(Boolean),
+                    ...badgeTypes.filter(b => assignedBadgeIds.includes(String(b.id)) && !cur.includes(String(b.id))),
+                  ];
+                  const reorder = (fromId, toId) => {
+                    if (fromId === toId) return;
+                    const list = [...cur];
+                    const fromIdx = list.indexOf(fromId);
+                    const toIdx = list.indexOf(toId);
+                    if (fromIdx === -1 || toIdx === -1) return;
+                    list.splice(fromIdx, 1);
+                    list.splice(toIdx, 0, fromId);
+                    setFormData({ ...formData, displayed_badges: list });
+                  };
+                  return (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                      {ordered.map(b => {
+                        const idStr = String(b.id);
+                        const checked = cur.includes(idStr);
+                        return (
+                          <label
+                            key={b.id}
+                            draggable={checked}
+                            onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDraggedBadgeId(idStr); }}
+                            onDragOver={(e) => { if (checked && draggedBadgeId) e.preventDefault(); }}
+                            onDrop={(e) => { e.preventDefault(); if (checked && draggedBadgeId) reorder(draggedBadgeId, idStr); setDraggedBadgeId(null); }}
+                            onDragEnd={() => setDraggedBadgeId(null)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '6px', cursor: checked ? 'grab' : 'pointer',
+                              padding: '6px 12px', borderRadius: '20px', minHeight: 44, boxSizing: 'border-box',
+                              border: `1px solid ${checked ? (b.color || '#6c5ce7') : 'rgba(255,255,255,0.12)'}`,
+                              background: checked ? `${b.color || '#6c5ce7'}18` : 'transparent',
+                              fontSize: '0.82rem', color: checked ? (b.color || '#6c5ce7') : 'rgba(220,215,240,0.55)',
+                              opacity: draggedBadgeId === idStr ? 0.4 : 1,
+                            }}>
+                            {checked && <span style={{ opacity: 0.5, fontSize: '0.75rem', cursor: 'grab' }}>⠿</span>}
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) => {
+                                const next = e.target.checked
+                                  ? [...cur, idStr]
+                                  : cur.filter(id => id !== idStr);
+                                setFormData({ ...formData, displayed_badges: next });
+                              }}
+                              style={{ margin: 0 }}
+                            />
+                            <span>{b.icon}</span> {b.name}
+                            {checked && (
+                              <span
+                                onClick={(e) => { e.preventDefault(); togglePin('badge', b.id); }}
+                                title={isPinned('badge', b.id) ? 'Unpin from top of profile' : 'Pin to top of profile'}
+                                style={{ marginLeft: 2, cursor: 'pointer', opacity: isPinned('badge', b.id) ? 1 : 0.35, fontSize: '0.85rem' }}
+                              >📌</span>
+                            )}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 

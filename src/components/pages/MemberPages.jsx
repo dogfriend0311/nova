@@ -6,11 +6,14 @@ import { BadgeRow, DiscordVerifiedChip } from '../BadgeDisplay';
 import { checkAndAwardDiscordBadges } from '../../services/discordBadgeCheck';
 import { MemberGridSkeleton } from '../Skeleton';
 import { checkRateLimit, recordAction } from '../../services/rateLimiter';
-import { awardXP } from '../../services/reputationService';
+import { awardXP, levelProgress } from '../../services/reputationService';
 import { currentUsername } from '../../services/favoritesService';
 import FollowButton from '../FollowButton';
-import { FOLLOW_TYPES } from '../../services/followService';
-import { PRESENCE_META } from '../../services/db';
+import { FOLLOW_TYPES, getFollowing } from '../../services/followService';
+import db, { PRESENCE_META } from '../../services/db';
+import pickemsDb from '../../services/pickemsDb';
+import { BADGES as ACH_BADGES, getEarnedBadges } from '../../services/achievementsService';
+import { LevelBadge } from '../LevelBadge';
 
 // ── role helpers ──────────────────────────────────────────────
 const SPORT_KEYS = ['mlb', 'nfl', 'nba', 'nhl', 'cfb', 'cbb'];
@@ -96,7 +99,7 @@ const formatTimeAgo = (iso) => {
 // the only game-related timestamp this app stores — there's no play-
 // session tracking, so this deliberately doesn't claim to show "last
 // active game").
-const MemberActivityTimeline = ({ username, favGames }) => {
+const MemberActivityTimeline = ({ username, favGames, limit = 8, emptyLabel }) => {
   const [items, setItems] = useState(null); // null = loading
 
   useEffect(() => {
@@ -127,14 +130,19 @@ const MemberActivityTimeline = ({ username, favGames }) => {
         const feed = [...kudosReceived, ...kudosGiven, ...badgesEarned, ...gamesAdded]
           .filter(i => i.ts)
           .sort((a, b) => new Date(b.ts) - new Date(a.ts))
-          .slice(0, 8);
+          .slice(0, limit);
         setItems(feed);
       }).catch(() => { if (!cancelled) setItems([]); });
     });
     return () => { cancelled = true; };
-  }, [username, favGames]);
+  }, [username, favGames, limit]);
 
-  if (items === null || items.length === 0) return null;
+  if (items === null) return null;
+  if (items.length === 0) {
+    return emptyLabel
+      ? <p style={{ color: 'rgba(158,165,196,0.25)', textAlign: 'center', padding: 30, fontStyle: 'italic' }}>{emptyLabel}</p>
+      : null;
+  }
 
   return (
     <div style={{ marginTop: 20 }}>
@@ -1082,11 +1090,58 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
   useEffect(() => {
     let cancelled = false;
     import('../../services/db').then(({ default: db }) => {
-      db.getUserStats(member.username).then((s) => { if (!cancelled) setStreak(s?.login_streak || 0); }).catch(() => {});
+      db.getUserStats(member.username).then((s) => { if (!cancelled) { setStreak(s?.login_streak || 0); setNovaXp(s?.xp || 0); } }).catch(() => {});
       db.getKudosReceived(member.username).then((list) => { if (!cancelled) setKudos(list || []); }).catch(() => {});
     });
     return () => { cancelled = true; };
   }, [member.username]);
+
+  // ── Overview dashboard data: followers/following counts and an
+  // all-time pick'em record for the Nova Stats grid. ─────────────────
+  const [followerList,  setFollowerList]  = useState([]);
+  const [followingList, setFollowingList] = useState([]);
+  const [novaXp,        setNovaXp]        = useState(0);
+  const [pickRecord,    setPickRecord]    = useState(null); // { correct, total } | null
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      db.getFollowersOf(FOLLOW_TYPES.USER, member.username).catch(() => []),
+      getFollowing(member.username, FOLLOW_TYPES.USER).catch(() => []),
+      pickemsDb.getAllTimeLeaderboard().catch(() => []),
+    ]).then(([followers, following, leaderboard]) => {
+      if (cancelled) return;
+      setFollowerList(followers || []);
+      setFollowingList(following || []);
+      const row = (leaderboard || []).find(r => r.username === member.username);
+      setPickRecord(row && row.total_picks > 0 ? { correct: row.correct_picks, total: row.total_picks } : null);
+    });
+    return () => { cancelled = true; };
+  }, [member.username]);
+
+  // Trophy Room — the member's own ordered pick of assigned badges to
+  // showcase (member.visible_badge_ids is already that list, filtered to
+  // badges they're actually still assigned — see withVisibleBadges above).
+  const trophies = (member.visible_badge_ids || []).map(id => badgeTypes.find(b => String(b.id) === String(id))).filter(Boolean);
+
+  // Best-effort achievement count. Earned "achievement" badges (Coin
+  // Collector, Pick'em Pro, etc. — distinct from the admin-assigned
+  // badges above) are tracked in localStorage per-browser (see
+  // achievementsService.js), so this is only accurate on a device where
+  // this member has actually been active.
+  const achievementCount = getEarnedBadges(member.username).length;
+  const levelInfo = levelProgress(novaXp);
+
+  const primaryFavTeam = (() => {
+    for (const sport of SPORT_KEYS) {
+      const list = member.fav_teams?.[sport] || [];
+      if (list.length) {
+        const abbr = list[0];
+        return { sport, abbr, name: getTeamByAbbr(sport, abbr)?.name || abbr };
+      }
+    }
+    return null;
+  })();
 
   const handleGiveKudos = async () => {
     if (!me || me === member.username) return;
@@ -1135,12 +1190,12 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
   ].filter(s => member[s.key]);
 
   const VTABS = [
-    { id: 'overview',    label: 'Overview'     },
-    { id: 'music',       label: '🎵 Music'     },
-    { id: 'favgames',    label: 'Fav Games'    },
-    { id: 'robloxgames', label: 'Roblox'       },
-    { id: 'teams',       label: '🏆 Teams'     },
-    { id: 'comments',    label: '💬 Comments'  },
+    { id: 'overview',   label: 'Overview'   },
+    { id: 'activity',   label: 'Activity'   },
+    { id: 'stats',      label: 'Stats'      },
+    { id: 'collection', label: 'Collection' },
+    { id: 'leagues',    label: 'Leagues'    },
+    { id: 'friends',    label: 'Friends'    },
   ];
 
   const shareUrl = `${window.location.origin}${window.location.pathname}#members/${member.profile_slug || member.username}`;
@@ -1228,6 +1283,10 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
                 {presenceTxt}
               </div>
               <ListeningToPublic username={member.username} />
+              <div className="member-follow-counts">
+                <button onClick={() => setViewTab('friends')}><strong>{followerList.length}</strong> Followers</button>
+                <button onClick={() => setViewTab('friends')}><strong>{followingList.length}</strong> Following</button>
+              </div>
             </div>
           </div>
 
@@ -1319,49 +1378,6 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
             </div>
           )}
 
-          {/* Kudos — member-to-member endorsements. Anyone signed in
-              except the profile owner can send one, with an optional
-              short note. */}
-          <div style={{ marginTop: 14, padding: '12px 16px', borderRadius: 12, background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.14)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontWeight: 700, color: '#e2e5f0', fontSize: '0.88rem' }}>👍 {kudos.length} Kudos</span>
-              {me && me !== member.username && (
-                <div style={{ display: 'flex', gap: 6, flex: '1 1 240px' }}>
-                  <input
-                    type="text"
-                    value={kudosNote}
-                    onChange={(e) => setKudosNote(e.target.value)}
-                    placeholder="Optional note…"
-                    maxLength={200}
-                    style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(94,129,244,0.15)', color: '#e2e5f0', fontSize: '0.8rem' }}
-                  />
-                  <button
-                    onClick={handleGiveKudos}
-                    disabled={givingKudos}
-                    className="neon-button"
-                    style={{ padding: '6px 14px', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
-                  >
-                    {givingKudos ? 'Sending…' : 'Give Kudos'}
-                  </button>
-                </div>
-              )}
-            </div>
-            {kudosMessage && <div style={{ marginTop: 6, fontSize: '0.75rem', color: 'var(--color-cyan)' }}>{kudosMessage}</div>}
-            {kudos.length > 0 && (
-              <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {kudos.slice(0, 5).map((k) => (
-                  <div key={k.id} style={{ fontSize: '0.78rem', color: 'rgba(200,210,240,0.65)' }}>
-                    <strong style={{ color: '#e2e5f0' }}>{k.from_username}</strong>
-                    {k.note ? <> — {k.note}</> : null}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {member.roblox_username && <div style={{ marginTop: 12 }}><RobloxLinkCard username={member.roblox_username} /></div>}
-          {member.roblox_username && <div style={{ marginTop: 12 }}><LeaguePlayerShowcase robloxUsername={member.roblox_username} /></div>}
-
           <div className="gl-public-meta-row">
             {socials.map(s => (
               <a key={s.key} href={member[s.key]} target="_blank" rel="noreferrer" className="gl-public-meta-item" style={{ textDecoration: 'none' }}>
@@ -1396,94 +1412,289 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
                 <span /> {presenceTxt}
               </div>
             </div>
-            <div className="member-overview-grid">
-              <div className="member-overview-card">
-                <span>COMMUNITY ROLE</span>
-                <strong>{roleLabel(role)}</strong>
-                <small>{member.visible_badge_ids?.length || 0} visible badges</small>
-              </div>
-              <div className="member-overview-card">
-                <span>ROBLOX PROFILE</span>
-                <strong>{member.roblox_username || 'Not linked'}</strong>
-                <small>{robloxGames.length} Roblox games listed</small>
-              </div>
-              <div className="member-overview-card">
-                <span>SPORTS IDENTITY</span>
-                <strong>{member.favorite_team || 'Open profile'}</strong>
-                <small>{member.favorite_teams?.length || 0} favorite teams</small>
-              </div>
-              <div className="member-overview-card">
-                <span>PROFILE SIGNAL</span>
-                <strong>{socials.length ? `${socials.length} linked socials` : 'Private by choice'}</strong>
-                <small>{member.lastfm_username || member.spotify_url ? 'Music connected' : 'No music service linked'}</small>
-              </div>
-            </div>
-            <div className="member-overview-links">
-              <span className="member-overview-kicker">QUICK ACCESS</span>
-              <button onClick={() => setViewTab('robloxgames')}>Roblox games <span>→</span></button>
-              <button onClick={() => setViewTab('teams')}>Favorite teams <span>→</span></button>
-              <button onClick={() => setViewTab('comments')}>Community comments <span>→</span></button>
-            </div>
-            <MemberActivityTimeline username={member.username} favGames={favGames} />
-          </div>
-        )}
 
-        {viewTab === 'music' && (
-          <div style={{ padding: '20px 0' }}>
-            {member.lastfm_username && <NowPlayingPublic lastfmUsername={member.lastfm_username} />}
-            {member.spotify_url && (
-              <iframe title="Spotify"
-                src={member.spotify_url.includes('/embed/') ? member.spotify_url : member.spotify_url.replace('open.spotify.com/', 'open.spotify.com/embed/')}
-                width="100%" height="80" frameBorder="0"
-                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                style={{ borderRadius: 10, display: 'block' }}
-              />
-            )}
-            {!member.lastfm_username && !member.spotify_url && (
-              <p style={{ color: 'rgba(158,165,196,0.25)', textAlign: 'center', padding: 30, fontStyle: 'italic' }}>No music linked.</p>
-            )}
-          </div>
-        )}
-
-        {viewTab === 'favgames' && (
-          <div style={{ padding: '20px 0' }}>
-            {sportsGames.length === 0
-              ? <p style={{ color: 'rgba(158,165,196,0.25)', textAlign: 'center', padding: 30, fontStyle: 'italic' }}>No favorite games yet.</p>
-              : sportsGames.map(g => (
-                  <div key={g.id} style={{ padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                    <p style={{ margin: '0 0 2px', fontWeight: 700, color: 'var(--color-cyan)', fontSize: '0.95rem' }}>{g.text}</p>
-                    {g.note && <p style={{ margin: 0, color: 'rgba(158,165,196,0.6)', fontSize: '0.83rem' }}>"{g.note}"</p>}
-                  </div>
-                ))
-            }
-          </div>
-        )}
-
-        {viewTab === 'robloxgames' && (
-          <div style={{ padding: '20px 0' }}>
-            {robloxGames.length === 0
-              ? <p style={{ color: 'rgba(158,165,196,0.25)', textAlign: 'center', padding: 30, fontStyle: 'italic' }}>No Roblox games added yet.</p>
-              : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
-                  {robloxGames.map(g => (
-                    <RobloxGameCard key={g.id} placeId={g.placeId} title={g.text} note={g.note} />
+            {/* TROPHY ROOM — the member's own ordered pick of assigned badges */}
+            <div className="member-trophy-room">
+              <div className="member-trophy-room-header">
+                <span className="member-overview-kicker">TROPHY ROOM</span>
+                {isOwnProfile && (
+                  <button className="member-trophy-customize-btn" onClick={() => { window.location.hash = '#profile'; }}>
+                    Customize Trophy Room
+                  </button>
+                )}
+              </div>
+              {trophies.length === 0 ? (
+                <p style={{ color: 'rgba(158,165,196,0.35)', fontSize: '0.8rem', fontStyle: 'italic', margin: '8px 0 0' }}>
+                  {isOwnProfile ? "You haven't featured any badges yet — customize your Trophy Room to show them off." : `${member.username} hasn't featured any badges yet.`}
+                </p>
+              ) : (
+                <div className="member-trophy-grid">
+                  {trophies.map(b => (
+                    <div key={b.id} className="member-trophy-card" style={{ '--trophy-color': b.color || '#6c5ce7' }}>
+                      <span className="member-trophy-icon">{b.icon}</span>
+                      <span className="member-trophy-name">{b.name}</span>
+                    </div>
                   ))}
                 </div>
-              )
-            }
+              )}
+            </div>
+
+            {(primaryFavTeam || member.fav_player) && (
+              <div className="member-overview-grid" style={{ gridTemplateColumns: primaryFavTeam && member.fav_player ? 'repeat(2,1fr)' : '1fr' }}>
+                {primaryFavTeam && (
+                  <div className="member-overview-card">
+                    <span>FAVORITE TEAM</span>
+                    <strong>{primaryFavTeam.name}</strong>
+                    <small>{SPORT_SHORT[primaryFavTeam.sport]}</small>
+                  </div>
+                )}
+                {member.fav_player && (
+                  <div className="member-overview-card">
+                    <span>FAVORITE PLAYER</span>
+                    <strong>{member.fav_player}</strong>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div style={{ marginTop: 16 }}>
+              <span className="member-overview-kicker">NOVA STATS</span>
+              <div className="member-overview-grid" style={{ marginTop: 10 }}>
+                <div className="member-overview-card">
+                  <span>LEVEL</span>
+                  <strong>Lv. {levelInfo.level} · {levelInfo.title}</strong>
+                  <small>{novaXp.toLocaleString()} XP</small>
+                </div>
+                <div className="member-overview-card">
+                  <span>PREDICTIONS</span>
+                  <strong>{pickRecord ? `${pickRecord.correct}–${pickRecord.total - pickRecord.correct}` : 'Not started'}</strong>
+                  <small>{pickRecord ? `${pickRecord.total} pick'ems made` : "No Pick'ems played yet"}</small>
+                </div>
+                <div className="member-overview-card">
+                  <span>ACHIEVEMENTS</span>
+                  <strong>{achievementCount}</strong>
+                  <small>{achievementCount === 1 ? 'badge earned' : 'badges earned'}</small>
+                </div>
+                <div className="member-overview-card">
+                  <span>COMMUNITY ROLE</span>
+                  <strong>{roleLabel(role)}</strong>
+                  <small>{trophies.length} featured trophies</small>
+                </div>
+              </div>
+            </div>
+
+            <div className="member-overview-links">
+              <span className="member-overview-kicker">QUICK ACCESS</span>
+              <button onClick={() => setViewTab('collection')}>Games &amp; music <span>→</span></button>
+              <button onClick={() => setViewTab('leagues')}>Roblox leagues <span>→</span></button>
+              <button onClick={() => setViewTab('friends')}>Friends &amp; comments <span>→</span></button>
+            </div>
+            <MemberActivityTimeline username={member.username} favGames={favGames} limit={5} />
           </div>
         )}
 
-        {viewTab === 'teams' && (
+        {viewTab === 'activity' && (
           <div style={{ padding: '20px 0' }}>
-            <FavTeams favTeams={member.fav_teams} onTeamClick={onFilterByTeam} />
+            <MemberActivityTimeline
+              username={member.username}
+              favGames={favGames}
+              limit={30}
+              emptyLabel={`No activity yet — badges earned, kudos, and favorite games will show up here.`}
+            />
           </div>
         )}
 
-        {viewTab === 'comments' && (
-          <CommentsSection toUsername={member.username} currentUser={currentUser}
-            isOwner={isOwnProfile} pinnedCommentId={localPinnedItem?.type === 'comment' ? localPinnedItem.id : null}
-            onPin={handlePinComment} />
+        {viewTab === 'stats' && (
+          <div style={{ padding: '20px 0' }}>
+            <div className="member-overview-card" style={{ marginBottom: 14 }}>
+              <span>LEVEL PROGRESS</span>
+              <div style={{ marginTop: 8 }}><LevelBadge username={member.username} showBar /></div>
+            </div>
+            <div className="member-overview-grid">
+              <div className="member-overview-card">
+                <span>PREDICTIONS</span>
+                <strong>{pickRecord ? `${pickRecord.correct}–${pickRecord.total - pickRecord.correct}` : 'Not started'}</strong>
+                <small>{pickRecord ? `${Math.round((pickRecord.correct / pickRecord.total) * 100)}% correct` : "No Pick'ems played yet"}</small>
+              </div>
+              <div className="member-overview-card">
+                <span>ACHIEVEMENTS</span>
+                <strong>{achievementCount}</strong>
+                <small>of {ACH_BADGES.length} available</small>
+              </div>
+              <div className="member-overview-card">
+                <span>LOGIN STREAK</span>
+                <strong>{streak} day{streak === 1 ? '' : 's'}</strong>
+                <small>current streak</small>
+              </div>
+              <div className="member-overview-card">
+                <span>PROFILE VIEWS</span>
+                <strong>{profileViews.toLocaleString()}</strong>
+                <small>all-time</small>
+              </div>
+              <div className="member-overview-card">
+                <span>KUDOS RECEIVED</span>
+                <strong>{kudos.length}</strong>
+                <small>member endorsements</small>
+              </div>
+              <div className="member-overview-card">
+                <span>ASSIGNED BADGES</span>
+                <strong>{(member.visible_badge_ids || []).length}</strong>
+                <small>{trophies.length} featured in Trophy Room</small>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {viewTab === 'collection' && (
+          <div style={{ padding: '20px 0' }}>
+            <div className="member-collection-section">
+              <span className="member-overview-kicker">MUSIC</span>
+              {member.lastfm_username && <NowPlayingPublic lastfmUsername={member.lastfm_username} />}
+              {member.spotify_url && (
+                <iframe title="Spotify"
+                  src={member.spotify_url.includes('/embed/') ? member.spotify_url : member.spotify_url.replace('open.spotify.com/', 'open.spotify.com/embed/')}
+                  width="100%" height="80" frameBorder="0"
+                  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                  style={{ borderRadius: 10, display: 'block', marginTop: 8 }}
+                />
+              )}
+              {!member.lastfm_username && !member.spotify_url && (
+                <p style={{ color: 'rgba(158,165,196,0.25)', fontStyle: 'italic', margin: '8px 0 0' }}>No music linked.</p>
+              )}
+            </div>
+
+            <div className="member-collection-section">
+              <FavTeams favTeams={member.fav_teams} onTeamClick={onFilterByTeam} />
+            </div>
+
+            <div className="member-collection-section">
+              <span className="member-overview-kicker">FAVORITE GAMES</span>
+              {sportsGames.length === 0
+                ? <p style={{ color: 'rgba(158,165,196,0.25)', fontStyle: 'italic', margin: '8px 0 0' }}>No favorite games yet.</p>
+                : sportsGames.map(g => (
+                    <div key={g.id} style={{ padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      <p style={{ margin: '0 0 2px', fontWeight: 700, color: 'var(--color-cyan)', fontSize: '0.95rem' }}>{g.text}</p>
+                      {g.note && <p style={{ margin: 0, color: 'rgba(158,165,196,0.6)', fontSize: '0.83rem' }}>"{g.note}"</p>}
+                    </div>
+                  ))
+              }
+            </div>
+
+            <div className="member-collection-section">
+              <span className="member-overview-kicker">ROBLOX GAMES</span>
+              {robloxGames.length === 0
+                ? <p style={{ color: 'rgba(158,165,196,0.25)', fontStyle: 'italic', margin: '8px 0 0' }}>No Roblox games added yet.</p>
+                : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10, marginTop: 8 }}>
+                    {robloxGames.map(g => (
+                      <RobloxGameCard key={g.id} placeId={g.placeId} title={g.text} note={g.note} />
+                    ))}
+                  </div>
+                )
+              }
+            </div>
+          </div>
+        )}
+
+        {viewTab === 'leagues' && (
+          <div style={{ padding: '20px 0' }}>
+            {member.roblox_username ? (
+              <>
+                <RobloxLinkCard username={member.roblox_username} />
+                <div style={{ marginTop: 12 }}><LeaguePlayerShowcase robloxUsername={member.roblox_username} /></div>
+              </>
+            ) : (
+              <p style={{ color: 'rgba(158,165,196,0.25)', textAlign: 'center', padding: 30, fontStyle: 'italic' }}>
+                {isOwnProfile ? 'Link your Roblox account from your profile editor to show your league stats here.' : `${member.username} hasn't linked a Roblox account yet.`}
+              </p>
+            )}
+          </div>
+        )}
+
+        {viewTab === 'friends' && (
+          <div style={{ padding: '20px 0' }}>
+            {/* Kudos — member-to-member endorsements. Anyone signed in
+                except the profile owner can send one, with an optional
+                short note. */}
+            <div style={{ padding: '12px 16px', borderRadius: 12, background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.14)', marginBottom: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: 700, color: '#e2e5f0', fontSize: '0.88rem' }}>👍 {kudos.length} Kudos</span>
+                {me && me !== member.username && (
+                  <div style={{ display: 'flex', gap: 6, flex: '1 1 240px' }}>
+                    <input
+                      type="text"
+                      value={kudosNote}
+                      onChange={(e) => setKudosNote(e.target.value)}
+                      placeholder="Optional note…"
+                      maxLength={200}
+                      style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(94,129,244,0.15)', color: '#e2e5f0', fontSize: '0.8rem' }}
+                    />
+                    <button
+                      onClick={handleGiveKudos}
+                      disabled={givingKudos}
+                      className="neon-button"
+                      style={{ padding: '6px 14px', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                    >
+                      {givingKudos ? 'Sending…' : 'Give Kudos'}
+                    </button>
+                  </div>
+                )}
+              </div>
+              {kudosMessage && <div style={{ marginTop: 6, fontSize: '0.75rem', color: 'var(--color-cyan)' }}>{kudosMessage}</div>}
+              {kudos.length > 0 && (
+                <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {kudos.slice(0, 5).map((k) => (
+                    <div key={k.id} style={{ fontSize: '0.78rem', color: 'rgba(200,210,240,0.65)' }}>
+                      <strong style={{ color: '#e2e5f0' }}>{k.from_username}</strong>
+                      {k.note ? <> — {k.note}</> : null}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="member-friends-columns">
+              <div>
+                <span className="member-overview-kicker">FOLLOWERS ({followerList.length})</span>
+                {followerList.length === 0
+                  ? <p style={{ color: 'rgba(158,165,196,0.25)', fontStyle: 'italic', margin: '8px 0 0' }}>No followers yet.</p>
+                  : (
+                    <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {followerList.map(f => (
+                        <button key={f.id || f.username} className="member-friend-chip" onClick={() => { window.location.hash = `#members/${f.username}`; }}>
+                          {f.username}
+                        </button>
+                      ))}
+                    </div>
+                  )
+                }
+              </div>
+              <div>
+                <span className="member-overview-kicker">FOLLOWING ({followingList.length})</span>
+                {followingList.length === 0
+                  ? <p style={{ color: 'rgba(158,165,196,0.25)', fontStyle: 'italic', margin: '8px 0 0' }}>Not following anyone yet.</p>
+                  : (
+                    <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {followingList.map(f => (
+                        <button key={f.id || f.item_id} className="member-friend-chip" onClick={() => { window.location.hash = `#members/${f.item_id}`; }}>
+                          {f.label || f.item_id}
+                        </button>
+                      ))}
+                    </div>
+                  )
+                }
+              </div>
+            </div>
+
+            <div style={{ marginTop: 22 }}>
+              <span className="member-overview-kicker">COMMENTS</span>
+              <div style={{ marginTop: 8 }}>
+                <CommentsSection toUsername={member.username} currentUser={currentUser}
+                  isOwner={isOwnProfile} pinnedCommentId={localPinnedItem?.type === 'comment' ? localPinnedItem.id : null}
+                  onPin={handlePinComment} />
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
