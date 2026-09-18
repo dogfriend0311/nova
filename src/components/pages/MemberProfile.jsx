@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { uploadToBlob } from '../../services/blobUpload';
-import { TEAMS, SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl } from '../../data/teams';
+import { TEAMS, SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl, getTeamByAbbr } from '../../data/teams';
 import { SPORTS as LEAGUE_SPORTS } from '../../data/sportsConfig';
 import { getWatchList } from '../../services/mediaService';
 import * as lfm from '../../services/lastfmService';
@@ -11,9 +11,13 @@ import { LevelBadge } from '../LevelBadge';
 import { checkAndAwardDiscordBadges } from '../../services/discordBadgeCheck';
 import { getCoins as getCoinsBalance, addCoins as addCoinsBalance } from '../../services/coinsStorage';
 import { getFavGames, setFavGames as persistFavGamesLS } from '../../services/favGamesStorage';
+import { levelProgress } from '../../services/reputationService';
+import { FOLLOW_TYPES, getFollowing } from '../../services/followService';
+import pickemsDb from '../../services/pickemsDb';
 import db, { PRESENCE_META } from '../../services/db';
 import { COSMETICS } from './CoinShop';
 import { ProfileCardSkeleton } from '../Skeleton';
+import { MemberActivityTimeline, CommentsSection } from './MemberShared';
 import './MemberProfile.css';
 
 // Free curated color presets — a one-click starting point for the Colors
@@ -774,7 +778,7 @@ const FavTeamsDisplay = ({ favTeams }) => {
 };
 
 // ── Watch List Preview ────────────────────────────────────────
-const WatchListPreview = ({ username }) => {
+export const WatchListPreview = ({ username }) => {
   const list = getWatchList(username);
   if (!list.length) return null;
   const pinned   = list.filter((i) => i.pinned);
@@ -1140,7 +1144,7 @@ const MemberProfile = () => {
   const [profile,      setProfile]     = useState(null);
   const [editing,      setEditing]     = useState(false);
   const [previewMode,  setPreviewMode] = useState(false); // "preview as visitor" toggle while still in edit mode
-  const [activeTab,    setActiveTab]   = useState('badges');
+  const [activeTab,    setActiveTab]   = useState('overview');
   const [formData,     setFormData]    = useState({});
   const [favTab,       setFavTab]      = useState('overview'); // active edit-dashboard section id
   const [presence,     setPresence]    = useState(() => localStorage.getItem(`nova_presence_${user?.username}`) || 'online');
@@ -1171,6 +1175,35 @@ const MemberProfile = () => {
   // Admin-assigned profile badges (created/assigned by owners & co-founders)
   const [badgeTypes,      setBadgeTypes]      = useState([]);
   const [assignedBadgeIds, setAssignedBadgeIds] = useState([]);
+
+  // ── Overview / Stats / Friends dashboard data — mirrors the same
+  // dashboard shown on the public member page (MemberPages.jsx) so both
+  // views stay in sync. ─────────────────────────────────────────────
+  const [followerList,  setFollowerList]  = useState([]);
+  const [followingList, setFollowingList] = useState([]);
+  const [novaXp,        setNovaXp]        = useState(0);
+  const [streak,        setStreak]        = useState(0);
+  const [pickRecord,    setPickRecord]    = useState(null); // { correct, total } | null
+  const [kudos,         setKudos]         = useState([]);
+
+  useEffect(() => {
+    if (!user?.username) return;
+    let cancelled = false;
+    db.getUserStats(user.username).then((s) => { if (!cancelled) { setStreak(s?.login_streak || 0); setNovaXp(s?.xp || 0); } }).catch(() => {});
+    db.getKudosReceived(user.username).then((list) => { if (!cancelled) setKudos(list || []); }).catch(() => {});
+    Promise.all([
+      db.getFollowersOf(FOLLOW_TYPES.USER, user.username).catch(() => []),
+      getFollowing(user.username, FOLLOW_TYPES.USER).catch(() => []),
+      pickemsDb.getAllTimeLeaderboard().catch(() => []),
+    ]).then(([followers, following, leaderboard]) => {
+      if (cancelled) return;
+      setFollowerList(followers || []);
+      setFollowingList(following || []);
+      const row = (leaderboard || []).find(r => r.username === user.username);
+      setPickRecord(row && row.total_picks > 0 ? { correct: row.correct_picks, total: row.total_picks } : null);
+    });
+    return () => { cancelled = true; };
+  }, [user]);
 
   // fav games — synced to Supabase profile
   const [favGames,     setFavGames]    = useState([]);
@@ -1385,6 +1418,17 @@ const MemberProfile = () => {
   const togglePin = (type, id) => {
     const next = isPinned(type, id) ? null : { type, id: String(id) };
     setFormData({ ...formData, pinned_item: next });
+  };
+
+  // Same as togglePin above, but for pinning a comment from the view-mode
+  // Friends tab (outside the edit form) — writes straight to `profile`
+  // and saves immediately, since there's no "Save" button to defer to there.
+  const handlePinComment = async (commentId) => {
+    const next = (profile.pinned_item?.type === 'comment' && String(profile.pinned_item.id) === String(commentId))
+      ? null : { type: 'comment', id: String(commentId) };
+    const updated = { ...profile, pinned_item: next };
+    setProfile(updated);
+    try { await db.saveMemberProfile(updated); } catch {}
   };
 
   const shareProfile = () => {
@@ -1817,14 +1861,36 @@ const MemberProfile = () => {
     { key: 'instagram_url', label: 'Instagram', icon: '📸' },
   ].filter((s) => profile[s.key]);
 
+  // Same tab set as the public member page (MemberPages.jsx) so your own
+  // profile and the page visitors see are laid out the same way.
   const TABS = [
-    { id: 'badges',      label: '🏅 Badges'    },
-    { id: 'music',       label: 'Music'        },
-    { id: 'favgames',    label: 'Fav Games'    },
-    { id: 'robloxgames', label: 'Roblox Games' },
-    { id: 'teams',       label: 'Teams'        },
-    { id: 'watchlist',   label: 'Watch List'   },
+    { id: 'overview',   label: 'Overview'    },
+    { id: 'trophies',   label: 'Trophy Room' },
+    { id: 'activity',   label: 'Activity'    },
+    { id: 'stats',      label: 'Stats'       },
+    { id: 'collection', label: 'Collection'  },
+    { id: 'leagues',    label: 'Leagues'     },
+    { id: 'friends',    label: 'Friends'     },
   ];
+
+  // Trophy Room — this member's own ordered pick of assigned badges to
+  // showcase (displayed_badges), filtered to ones they're still assigned.
+  const trophies = (profile.displayed_badges || [])
+    .filter(id => assignedBadgeIds.includes(String(id)))
+    .map(id => badgeTypes.find(b => String(b.id) === String(id)))
+    .filter(Boolean);
+  const achievementCount = getEarnedBadges(user?.username).length;
+  const levelInfo = levelProgress(novaXp);
+  const primaryFavTeam = (() => {
+    for (const sport of SPORT_KEYS) {
+      const list = profile.fav_teams?.[sport] || [];
+      if (list.length) {
+        const abbr = list[0];
+        return { sport, abbr, name: getTeamByAbbr(sport, abbr)?.name || abbr };
+      }
+    }
+    return null;
+  })();
 
   const SI = { padding: '10px', background: 'rgba(94, 129, 244,0.05)', border: '1px solid rgba(94, 129, 244,0.2)', color: '#e2e5f0', borderRadius: '6px', width: '100%', marginBottom: '8px' };
 
@@ -1961,9 +2027,6 @@ const MemberProfile = () => {
 
       {/* Info */}
       <div className="tw-info" style={{ padding: '0 20px' }}>
-        {cardData.roblox_username && <RobloxLinkCard username={cardData.roblox_username} />}
-        {cardData.roblox_username && <LeaguePlayerShowcase robloxUsername={cardData.roblox_username} />}
-
         {socials.length > 0 && (
           <div className="tw-socials">
             {socials.map(s => (
@@ -1987,213 +2050,401 @@ const MemberProfile = () => {
       {/* Tab content */}
       <div className="tw-feed">
 
-        {/* BADGES */}
-        {activeTab === 'badges' && (() => {
+        {/* OVERVIEW */}
+        {activeTab === 'overview' && (
+          <div className="member-profile-overview">
+            <div className="member-overview-hero">
+              <div>
+                <span className="member-overview-kicker">MY DOSSIER</span>
+                <h3>{profile.username}'s Nova profile</h3>
+                <p>{profile.bio || 'A public member profile across Nova communities, games, and league culture.'}</p>
+              </div>
+            </div>
+
+            {(primaryFavTeam || profile.fav_player) && (
+              <div className="member-overview-grid" style={{ gridTemplateColumns: primaryFavTeam && profile.fav_player ? 'repeat(2,1fr)' : '1fr' }}>
+                {primaryFavTeam && (
+                  <div className="member-overview-card">
+                    <span>FAVORITE TEAM</span>
+                    <strong>{primaryFavTeam.name}</strong>
+                    <small>{SPORT_SHORT[primaryFavTeam.sport]}</small>
+                  </div>
+                )}
+                {profile.fav_player && (
+                  <div className="member-overview-card">
+                    <span>FAVORITE PLAYER</span>
+                    <strong>{profile.fav_player}</strong>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div style={{ marginTop: 16 }}>
+              <span className="member-overview-kicker">NOVA STATS</span>
+              <div className="member-overview-grid" style={{ marginTop: 10 }}>
+                <div className="member-overview-card">
+                  <span>LEVEL</span>
+                  <strong>Lv. {levelInfo.level} · {levelInfo.title}</strong>
+                  <small>{novaXp.toLocaleString()} XP</small>
+                </div>
+                <div className="member-overview-card">
+                  <span>PREDICTIONS</span>
+                  <strong>{pickRecord ? `${pickRecord.correct}–${pickRecord.total - pickRecord.correct}` : 'Not started'}</strong>
+                  <small>{pickRecord ? `${pickRecord.total} pick'ems made` : "No Pick'ems played yet"}</small>
+                </div>
+                <div className="member-overview-card">
+                  <span>ACHIEVEMENTS</span>
+                  <strong>{achievementCount}</strong>
+                  <small>{achievementCount === 1 ? 'badge earned' : 'badges earned'}</small>
+                </div>
+                <div className="member-overview-card">
+                  <span>COMMUNITY ROLE</span>
+                  <strong>{roleLabel(user?.role)}</strong>
+                  <small>{trophies.length} featured trophies</small>
+                </div>
+              </div>
+            </div>
+
+            <div className="member-overview-links">
+              <span className="member-overview-kicker">QUICK ACCESS</span>
+              <button onClick={() => setActiveTab('trophies')}>Trophy Room <span>→</span></button>
+              <button onClick={() => setActiveTab('collection')}>Games &amp; music <span>→</span></button>
+              <button onClick={() => setActiveTab('leagues')}>Roblox leagues <span>→</span></button>
+              <button onClick={() => setActiveTab('friends')}>Friends &amp; comments <span>→</span></button>
+            </div>
+            <MemberActivityTimeline username={user?.username} favGames={favGames} limit={5} />
+          </div>
+        )}
+
+        {/* TROPHY ROOM */}
+        {activeTab === 'trophies' && (() => {
           const earnedIds = new Set(getEarnedBadges(user?.username));
           syncBadges(user?.username, { profile, coins });
-          const earned   = BADGES.filter(b => earnedIds.has(b.id));
-          const locked   = BADGES.filter(b => !earnedIds.has(b.id));
+          const earned = BADGES.filter(b => earnedIds.has(b.id));
+          const locked = BADGES.filter(b => !earnedIds.has(b.id));
           return (
-            <div className="tw-section">
-              <div className="tw-section-title">Earned Badges ({earned.length}/{BADGES.length})</div>
-              {earned.length === 0
-                ? <div className="tw-empty">No badges yet — keep playing!</div>
-                : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
-                    {earned.map(b => (
-                      <div key={b.id} title={b.desc} style={{
-                        display: 'flex', alignItems: 'center', gap: 8,
-                        padding: '8px 14px', borderRadius: 999,
-                        border: `1px solid ${b.color}55`, background: `${b.color}12`,
-                        color: b.color, fontSize: '0.85rem', fontWeight: 700,
-                        transition: 'transform 0.15s', cursor: 'default',
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-                      onMouseLeave={e => e.currentTarget.style.transform = ''}>
-                        <span style={{ fontSize: '1.1rem' }}>{b.emoji}</span>
-                        {b.name}
+            <div style={{ padding: '20px 0' }}>
+              {/* Admin-assigned badges you've chosen to feature */}
+              <div className="member-trophy-room" style={{ margin: 0 }}>
+                <div className="member-trophy-room-header">
+                  <span className="member-overview-kicker">FEATURED BADGES</span>
+                  <button className="member-trophy-customize-btn" onClick={() => { setEditing(true); setFavTab('badges'); }}>
+                    Customize Trophy Room
+                  </button>
+                </div>
+                {trophies.length === 0 ? (
+                  <p style={{ color: 'rgba(158,165,196,0.35)', fontSize: '0.8rem', fontStyle: 'italic', margin: '8px 0 0' }}>
+                    You haven't featured any badges yet — customize your Trophy Room to show them off.
+                  </p>
+                ) : (
+                  <div className="member-trophy-grid">
+                    {trophies.map(b => (
+                      <div key={b.id} className="member-trophy-card" style={{ '--trophy-color': b.color || '#6c5ce7' }}>
+                        <span className="member-trophy-icon">{b.icon}</span>
+                        <span className="member-trophy-name">{b.name}</span>
                       </div>
                     ))}
                   </div>
-              }
-              {locked.length > 0 && (
-                <>
-                  <div className="tw-section-title" style={{ marginTop: 20 }}>Locked ({locked.length})</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
-                    {locked.map(b => {
-                      const progress = getBadgeProgress(b.id, { coins });
-                      const pct = progress ? Math.min(100, Math.round((progress.current / progress.target) * 100)) : null;
-                      return (
+                )}
+              </div>
+
+              {/* Earned achievement badges (Coin Collector, Early Adopter, etc.) */}
+              <div className="tw-section" style={{ paddingTop: 20 }}>
+                <div className="tw-section-title">Earned Badges ({earned.length}/{BADGES.length})</div>
+                {earned.length === 0
+                  ? <div className="tw-empty">No badges yet — keep playing!</div>
+                  : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
+                      {earned.map(b => (
                         <div key={b.id} title={b.desc} style={{
-                          display: 'flex', flexDirection: 'column', gap: 4,
-                          padding: '8px 14px', borderRadius: 14, minWidth: progress ? 120 : undefined,
-                          border: '1px solid rgba(94,129,244,0.14)', background: 'rgba(94,129,244,0.04)',
-                          cursor: 'default',
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            {/* Silhouette: the badge's own emoji, desaturated — reads as
-                                "this badge, not yet yours" rather than a flat padlock. */}
-                            <span style={{ fontSize: '1.1rem', filter: 'grayscale(1)', opacity: 0.45 }}>{b.emoji}</span>
-                            <span style={{ color: 'rgba(158,165,196,0.55)', fontSize: '0.85rem', fontWeight: 600 }}>{b.name}</span>
-                          </div>
-                          {progress ? (
-                            <>
-                              <div style={{ height: 4, borderRadius: 999, background: 'rgba(158,165,196,0.15)', overflow: 'hidden' }}>
-                                <div style={{ height: '100%', width: `${pct}%`, borderRadius: 999, background: b.color }} />
-                              </div>
-                              <div style={{ fontSize: '0.68rem', color: 'rgba(158,165,196,0.45)', fontWeight: 600 }}>
-                                {progress.current.toLocaleString()}/{progress.target.toLocaleString()}
-                              </div>
-                            </>
-                          ) : (
-                            <div style={{ fontSize: '0.68rem', color: 'rgba(158,165,196,0.35)' }}>Not yet earned</div>
-                          )}
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          padding: '8px 14px', borderRadius: 999,
+                          border: `1px solid ${b.color}55`, background: `${b.color}12`,
+                          color: b.color, fontSize: '0.85rem', fontWeight: 700,
+                          transition: 'transform 0.15s', cursor: 'default',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                        onMouseLeave={e => e.currentTarget.style.transform = ''}>
+                          <span style={{ fontSize: '1.1rem' }}>{b.emoji}</span>
+                          {b.name}
                         </div>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
+                      ))}
+                    </div>
+                }
+                {locked.length > 0 && (
+                  <>
+                    <div className="tw-section-title" style={{ marginTop: 20 }}>Locked ({locked.length})</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
+                      {locked.map(b => {
+                        const progress = getBadgeProgress(b.id, { coins });
+                        const pct = progress ? Math.min(100, Math.round((progress.current / progress.target) * 100)) : null;
+                        return (
+                          <div key={b.id} title={b.desc} style={{
+                            display: 'flex', flexDirection: 'column', gap: 4,
+                            padding: '8px 14px', borderRadius: 14, minWidth: progress ? 120 : undefined,
+                            border: '1px solid rgba(94,129,244,0.14)', background: 'rgba(94,129,244,0.04)',
+                            cursor: 'default',
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontSize: '1.1rem', filter: 'grayscale(1)', opacity: 0.45 }}>{b.emoji}</span>
+                              <span style={{ color: 'rgba(158,165,196,0.55)', fontSize: '0.85rem', fontWeight: 600 }}>{b.name}</span>
+                            </div>
+                            {progress ? (
+                              <>
+                                <div style={{ height: 4, borderRadius: 999, background: 'rgba(158,165,196,0.15)', overflow: 'hidden' }}>
+                                  <div style={{ height: '100%', width: `${pct}%`, borderRadius: 999, background: b.color }} />
+                                </div>
+                                <div style={{ fontSize: '0.68rem', color: 'rgba(158,165,196,0.45)', fontWeight: 600 }}>
+                                  {progress.current.toLocaleString()}/{progress.target.toLocaleString()}
+                                </div>
+                              </>
+                            ) : (
+                              <div style={{ fontSize: '0.68rem', color: 'rgba(158,165,196,0.35)' }}>Not yet earned</div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           );
         })()}
 
-        {/* MUSIC */}
-        {activeTab === 'music' && (
-          <div className="tw-section">
-            <LastFmWidget lastfmUsername={cardData.lastfm_username} />
-            {cardData.spotify_url && (
-              <>
-                <div className="tw-section-title" style={{ marginTop: '16px' }}>Spotify</div>
-                <iframe
-                  src={cardData.spotify_url.includes('/embed/') ? cardData.spotify_url : cardData.spotify_url.replace('open.spotify.com/', 'open.spotify.com/embed/')}
-                  width="100%" height="80" frameBorder="0"
-                  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                  title="Spotify" style={{ borderRadius: '10px', display: 'block' }}
-                />
-              </>
-            )}
-            {!cardData.lastfm_username && !cardData.spotify_url && (
-              <div className="tw-empty">No music linked. Edit your profile to add Last.fm or Spotify.</div>
-            )}
+        {/* ACTIVITY */}
+        {activeTab === 'activity' && (
+          <div style={{ padding: '20px 0' }}>
+            <MemberActivityTimeline
+              username={user?.username}
+              favGames={favGames}
+              limit={30}
+              emptyLabel="No activity yet — badges earned, kudos, and favorite games will show up here."
+            />
           </div>
         )}
 
-        {/* FAV GAMES — sports / baseball events only */}
-        {activeTab === 'favgames' && (
+        {/* STATS */}
+        {activeTab === 'stats' && (
           <div className="tw-section">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <div className="tw-section-title" style={{ margin: 0 }}>Favorite Games</div>
-              <button className="neon-button" style={{ padding: '5px 14px', fontSize: '0.8rem' }} onClick={() => setShowAddGame(s => !s)}>
-                {showAddGame ? 'Cancel' : '+ Add Game'}
-              </button>
+            <div className="member-overview-card" style={{ marginBottom: 14 }}>
+              <span>LEVEL PROGRESS</span>
+              <div style={{ marginTop: 8 }}><LevelBadge username={user?.username} showBar /></div>
+            </div>
+            <div className="member-overview-grid">
+              <div className="member-overview-card">
+                <span>PREDICTIONS</span>
+                <strong>{pickRecord ? `${pickRecord.correct}–${pickRecord.total - pickRecord.correct}` : 'Not started'}</strong>
+                <small>{pickRecord ? `${Math.round((pickRecord.correct / pickRecord.total) * 100)}% correct` : "No Pick'ems played yet"}</small>
+              </div>
+              <div className="member-overview-card">
+                <span>ACHIEVEMENTS</span>
+                <strong>{achievementCount}</strong>
+                <small>of {BADGES.length} available</small>
+              </div>
+              <div className="member-overview-card">
+                <span>LOGIN STREAK</span>
+                <strong>{streak} day{streak === 1 ? '' : 's'}</strong>
+                <small>current streak</small>
+              </div>
+              <div className="member-overview-card">
+                <span>PROFILE VIEWS</span>
+                <strong>{(profile.profile_views || 0).toLocaleString()}</strong>
+                <small>all-time</small>
+              </div>
+              <div className="member-overview-card">
+                <span>KUDOS RECEIVED</span>
+                <strong>{kudos.length}</strong>
+                <small>member endorsements</small>
+              </div>
+              <div className="member-overview-card">
+                <span>ASSIGNED BADGES</span>
+                <strong>{assignedBadgeIds.length}</strong>
+                <small>{trophies.length} featured in Trophy Room</small>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* COLLECTION — music, teams, favorite games, Roblox games, watch list */}
+        {activeTab === 'collection' && (
+          <div className="tw-section">
+            <div className="member-collection-section">
+              <span className="member-overview-kicker">MUSIC</span>
+              <div style={{ marginTop: 8 }}>
+                <LastFmWidget lastfmUsername={cardData.lastfm_username} />
+                {cardData.spotify_url && (
+                  <iframe
+                    src={cardData.spotify_url.includes('/embed/') ? cardData.spotify_url : cardData.spotify_url.replace('open.spotify.com/', 'open.spotify.com/embed/')}
+                    width="100%" height="80" frameBorder="0"
+                    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                    title="Spotify" style={{ borderRadius: '10px', display: 'block', marginTop: 8 }}
+                  />
+                )}
+                {!cardData.lastfm_username && !cardData.spotify_url && (
+                  <p style={{ color: 'rgba(158,165,196,0.25)', fontStyle: 'italic', margin: '8px 0 0' }}>No music linked. Edit your profile to add Last.fm or Spotify.</p>
+                )}
+              </div>
             </div>
 
-            {showAddGame && (
-              <div style={{ marginBottom: '16px', padding: '14px', background: 'rgba(94, 129, 244,0.04)', borderRadius: '10px', border: '1px solid rgba(94, 129, 244,0.12)' }}>
-                <input
-                  ref={addGameInputRef}
-                  type="text"
-                  placeholder="Game or event name (e.g. Yankees vs Red Sox, April 20)"
-                  style={SI}
-                  onKeyDown={(e) => { if (e.key === 'Enter') addFavGame(e.target.value, false); }}
-                />
-                <input
-                  type="text"
-                  placeholder="Why is it your favorite? (optional)"
-                  value={newGameNote}
-                  onChange={(e) => setNewGameNote(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && addGameInputRef.current) addFavGame(addGameInputRef.current.value, false); }}
-                  style={SI}
-                />
-                <button className="neon-button" style={{ width: '100%' }} onClick={() => {
-                  if (addGameInputRef.current) addFavGame(addGameInputRef.current.value, false);
-                }}>Add to Favorites</button>
-              </div>
-            )}
+            <div className="member-collection-section">
+              <FavTeamsDisplay favTeams={cardData.fav_teams} />
+            </div>
 
-            {favGames.filter(g => !g.placeId).length === 0 ? (
-              <div className="tw-empty">No favorite games yet. Add your most memorable games or events!</div>
-            ) : (
-              favGames.filter(g => !g.placeId).map(g => (
-                <div key={g.id} className="tw-fav-game">
-                  <div className="tw-fav-game-title">{g.text}</div>
-                  {g.note && <div className="tw-fav-game-note">"{g.note}"</div>}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                    <span className="tw-fav-game-meta">{g.date}</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <button className="tap44" onClick={() => togglePin('game', g.id)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.78rem', color: isPinned('game', g.id) ? 'var(--gl-accent, #6c5ce7)' : 'rgba(158,165,196,0.4)' }}>
-                        📌 {isPinned('game', g.id) ? 'Pinned' : 'Pin'}
-                      </button>
-                      <button className="tw-fav-game-remove" onClick={() => removeFavGame(g.id)}>Remove</button>
+            <div className="member-collection-section">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <span className="member-overview-kicker">FAVORITE GAMES</span>
+                <button className="neon-button" style={{ padding: '5px 14px', fontSize: '0.8rem' }} onClick={() => setShowAddGame(s => !s)}>
+                  {showAddGame ? 'Cancel' : '+ Add Game'}
+                </button>
+              </div>
+
+              {showAddGame && (
+                <div style={{ marginBottom: '16px', padding: '14px', background: 'rgba(94, 129, 244,0.04)', borderRadius: '10px', border: '1px solid rgba(94, 129, 244,0.12)' }}>
+                  <input
+                    ref={addGameInputRef}
+                    type="text"
+                    placeholder="Game or event name (e.g. Yankees vs Red Sox, April 20)"
+                    style={SI}
+                    onKeyDown={(e) => { if (e.key === 'Enter') addFavGame(e.target.value, false); }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Why is it your favorite? (optional)"
+                    value={newGameNote}
+                    onChange={(e) => setNewGameNote(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && addGameInputRef.current) addFavGame(addGameInputRef.current.value, false); }}
+                    style={SI}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Or paste a Roblox game URL to add it as a Roblox game instead"
+                    style={{ ...SI, marginBottom: 0 }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') addFavGame(e.target.value, true); }}
+                  />
+                  <button className="neon-button" style={{ width: '100%', marginTop: 8 }} onClick={() => {
+                    if (addGameInputRef.current) addFavGame(addGameInputRef.current.value, false);
+                  }}>Add to Favorites</button>
+                </div>
+              )}
+
+              {favGames.filter(g => !g.placeId).length === 0 ? (
+                <p style={{ color: 'rgba(158,165,196,0.25)', fontStyle: 'italic', margin: '8px 0 0' }}>No favorite games yet. Add your most memorable games or events!</p>
+              ) : (
+                favGames.filter(g => !g.placeId).map(g => (
+                  <div key={g.id} className="tw-fav-game">
+                    <div className="tw-fav-game-title">{g.text}</div>
+                    {g.note && <div className="tw-fav-game-note">"{g.note}"</div>}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                      <span className="tw-fav-game-meta">{g.date}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <button className="tap44" onClick={() => togglePin('game', g.id)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.78rem', color: isPinned('game', g.id) ? 'var(--gl-accent, #6c5ce7)' : 'rgba(158,165,196,0.4)' }}>
+                          📌 {isPinned('game', g.id) ? 'Pinned' : 'Pin'}
+                        </button>
+                        <button className="tw-fav-game-remove" onClick={() => removeFavGame(g.id)}>Remove</button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-
-        {/* ROBLOX GAMES — Roblox links with thumbnails */}
-        {activeTab === 'robloxgames' && (
-          <div className="tw-section">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <div className="tw-section-title" style={{ margin: 0 }}>Favorite Roblox Games</div>
-              <button className="neon-button" style={{ padding: '5px 14px', fontSize: '0.8rem' }} onClick={() => setShowAddGame(s => !s)}>
-                {showAddGame ? 'Cancel' : '+ Add Game'}
-              </button>
+                ))
+              )}
             </div>
 
-            {showAddGame && (
-              <div style={{ marginBottom: '16px', padding: '14px', background: 'rgba(94, 129, 244,0.04)', borderRadius: '10px', border: '1px solid rgba(94, 129, 244,0.12)' }}>
-                <input
-                  ref={addGameInputRef}
-                  type="text"
-                  placeholder="Paste a Roblox game URL (e.g. roblox.com/games/12345)"
-                  style={SI}
-                  onKeyDown={(e) => { if (e.key === 'Enter') addFavGame(e.target.value, true); }}
-                />
-                <input
-                  type="text"
-                  placeholder="Why is it your favorite? (optional)"
-                  value={newGameNote}
-                  onChange={(e) => setNewGameNote(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && addGameInputRef.current) addFavGame(addGameInputRef.current.value, true); }}
-                  style={SI}
-                />
-                <p style={{ margin: '0 0 8px', fontSize: '0.72rem', color: 'rgba(158, 165, 196,0.4)' }}>
-                  Paste a Roblox game URL to auto-fetch its thumbnail.
-                </p>
-                <button className="neon-button" style={{ width: '100%' }} onClick={() => {
-                  if (addGameInputRef.current) addFavGame(addGameInputRef.current.value, true);
-                }}>Add Roblox Game</button>
-              </div>
-            )}
+            <div className="member-collection-section">
+              <span className="member-overview-kicker">ROBLOX GAMES</span>
+              {favGames.filter(g => g.placeId).length === 0 ? (
+                <p style={{ color: 'rgba(158,165,196,0.25)', fontStyle: 'italic', margin: '8px 0 0' }}>No Roblox games yet. Paste a Roblox game URL above to add one!</p>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px', marginTop: 8 }}>
+                  {favGames.filter(g => g.placeId).map(g => (
+                    <RobloxGameCard key={g.id} placeId={g.placeId} title={g.text} note={g.note} onRemove={() => removeFavGame(g.id)}
+                      pinned={isPinned('game', g.id)} onTogglePin={() => togglePin('game', g.id)} />
+                  ))}
+                </div>
+              )}
+            </div>
 
-            {favGames.filter(g => g.placeId).length === 0 ? (
-              <div className="tw-empty">No Roblox games yet. Paste a Roblox game URL to add one!</div>
+            <div className="member-collection-section">
+              <WatchListPreview username={cardData.username} />
+            </div>
+          </div>
+        )}
+
+        {/* LEAGUES */}
+        {activeTab === 'leagues' && (
+          <div className="tw-section">
+            {cardData.roblox_username ? (
+              <>
+                <RobloxLinkCard username={cardData.roblox_username} />
+                <div style={{ marginTop: 12 }}><LeaguePlayerShowcase robloxUsername={cardData.roblox_username} /></div>
+              </>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px' }}>
-                {favGames.filter(g => g.placeId).map(g => (
-                  <RobloxGameCard key={g.id} placeId={g.placeId} title={g.text} note={g.note} onRemove={() => removeFavGame(g.id)}
-                    pinned={isPinned('game', g.id)} onTogglePin={() => togglePin('game', g.id)} />
-                ))}
-              </div>
+              <div className="tw-empty">Link your Roblox account from Edit Profile to show your league stats here.</div>
             )}
           </div>
         )}
 
-        {/* TEAMS */}
-        {activeTab === 'teams' && (
-          <div className="tw-section">
-            <FavTeamsDisplay favTeams={cardData.fav_teams} />
-          </div>
-        )}
+        {/* FRIENDS — kudos received, followers/following, comments */}
+        {activeTab === 'friends' && (
+          <div style={{ padding: '20px 0' }}>
+            <div style={{ padding: '12px 16px', borderRadius: 12, background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.14)', marginBottom: 18 }}>
+              <span style={{ fontWeight: 700, color: '#e2e5f0', fontSize: '0.88rem' }}>👍 {kudos.length} Kudos</span>
+              {kudos.length > 0 && (
+                <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {kudos.slice(0, 5).map((k) => (
+                    <div key={k.id} style={{ fontSize: '0.78rem', color: 'rgba(200,210,240,0.65)' }}>
+                      <strong style={{ color: '#e2e5f0' }}>{k.from_username}</strong>
+                      {k.note ? <> — {k.note}</> : null}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-        {/* WATCH LIST */}
-        {activeTab === 'watchlist' && (
-          <div className="tw-section">
-            <WatchListPreview username={cardData.username} />
+            <div className="member-friends-columns">
+              <div>
+                <span className="member-overview-kicker">FOLLOWERS ({followerList.length})</span>
+                {followerList.length === 0
+                  ? <p style={{ color: 'rgba(158,165,196,0.25)', fontStyle: 'italic', margin: '8px 0 0' }}>No followers yet.</p>
+                  : (
+                    <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {followerList.map(f => (
+                        <button key={f.id || f.username} className="member-friend-chip" onClick={() => { window.location.hash = `#members/${f.username}`; }}>
+                          {f.username}
+                        </button>
+                      ))}
+                    </div>
+                  )
+                }
+              </div>
+              <div>
+                <span className="member-overview-kicker">FOLLOWING ({followingList.length})</span>
+                {followingList.length === 0
+                  ? <p style={{ color: 'rgba(158,165,196,0.25)', fontStyle: 'italic', margin: '8px 0 0' }}>Not following anyone yet.</p>
+                  : (
+                    <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {followingList.map(f => (
+                        <button key={f.id || f.item_id} className="member-friend-chip" onClick={() => { window.location.hash = `#members/${f.item_id}`; }}>
+                          {f.label || f.item_id}
+                        </button>
+                      ))}
+                    </div>
+                  )
+                }
+              </div>
+            </div>
+
+            <div style={{ marginTop: 22 }}>
+              <span className="member-overview-kicker">COMMENTS</span>
+              <div style={{ marginTop: 8 }}>
+                <CommentsSection
+                  toUsername={user?.username}
+                  currentUser={user?.username}
+                  isOwner
+                  pinnedCommentId={profile.pinned_item?.type === 'comment' ? profile.pinned_item.id : null}
+                  onPin={handlePinComment}
+                />
+              </div>
+            </div>
           </div>
         )}
       </div>

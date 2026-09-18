@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl, getTeamByAbbr } from '../../data/teams';
 import * as lfm from '../../services/lastfmService';
-import { ProfileBackground, ProfileAudioPlayer, effectiveBgList, effectiveAudioList, RobloxLinkCard, RobloxGameCard, LeaguePlayerShowcase } from './MemberProfile';
+import { ProfileBackground, ProfileAudioPlayer, effectiveBgList, effectiveAudioList, RobloxLinkCard, RobloxGameCard, LeaguePlayerShowcase, WatchListPreview } from './MemberProfile';
+import { getWatchList } from '../../services/mediaService';
+import { MemberActivityTimeline, CommentsSection } from './MemberShared';
 import { BadgeRow, DiscordVerifiedChip } from '../BadgeDisplay';
 import { checkAndAwardDiscordBadges } from '../../services/discordBadgeCheck';
 import { MemberGridSkeleton } from '../Skeleton';
@@ -12,8 +14,9 @@ import FollowButton from '../FollowButton';
 import { FOLLOW_TYPES, getFollowing } from '../../services/followService';
 import db, { PRESENCE_META } from '../../services/db';
 import pickemsDb from '../../services/pickemsDb';
-import { BADGES as ACH_BADGES, getEarnedBadges } from '../../services/achievementsService';
+import { BADGES as ACH_BADGES, getEarnedBadges, getBadgeProgress, syncBadges } from '../../services/achievementsService';
 import { LevelBadge } from '../LevelBadge';
+import { getCoins as getCoinsBalance } from '../../services/coinsStorage';
 
 // ── role helpers ──────────────────────────────────────────────
 const SPORT_KEYS = ['mlb', 'nfl', 'nba', 'nhl', 'cfb', 'cbb'];
@@ -76,510 +79,6 @@ const defaultBanner = (role) => {
   return m[role] || 'linear-gradient(135deg,#070b1a 0%,#0d1535 40%,#070b1a 100%)';
 };
 
-// Shared "3h ago" / "2d ago" label used by comments, kudos, and the
-// per-member activity timeline below.
-const formatTimeAgo = (iso) => {
-  if (!iso) return '';
-  const s = Math.floor((Date.now() - new Date(iso)) / 1000);
-  if (s < 60) return `${s}s ago`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  if (s < 604800) return `${Math.floor(s / 86400)}d ago`;
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-};
-
-// ── Per-member activity timeline ─────────────────────────────
-// A filtered, member-scoped cousin of the site-wide ActivityFeed.jsx on
-// Home. That feed is built from site content (articles, league POTM/
-// accolades/HOF, fantasy trades) that isn't tied to a specific member, so
-// it isn't reused here directly — instead this pulls only the events that
-// genuinely belong to *this* member and carry a real timestamp: kudos
-// given/received and badges earned. Favorite games are also included,
-// labeled as "added to favorites" (the date a member favorited a game is
-// the only game-related timestamp this app stores — there's no play-
-// session tracking, so this deliberately doesn't claim to show "last
-// active game").
-const MemberActivityTimeline = ({ username, favGames, limit = 8, emptyLabel }) => {
-  const [items, setItems] = useState(null); // null = loading
-
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([
-      import('../../services/db'),
-      import('../../services/achievementsService'),
-    ]).then(([{ default: db }, { BADGES: ACH_BADGES, getEarnedBadgesWithDates }]) => {
-      db.getAllKudos().then((allKudos) => {
-        if (cancelled) return;
-        const kudosReceived = (allKudos || []).filter(k => k.to_username === username).map(k => ({
-          key: `kr-${k.id}`, ts: k.created_at, icon: '👍',
-          title: `Received kudos from ${k.from_username}`, meta: k.note || 'Kudos',
-        }));
-        const kudosGiven = (allKudos || []).filter(k => k.from_username === username).map(k => ({
-          key: `kg-${k.id}`, ts: k.created_at, icon: '🙌',
-          title: `Gave kudos to ${k.to_username}`, meta: k.note || 'Kudos',
-        }));
-        const badgeMap = Object.fromEntries(ACH_BADGES.map(b => [b.id, b]));
-        const badgesEarned = getEarnedBadgesWithDates(username).filter(e => e.earned_at).map(e => ({
-          key: `b-${e.id}`, ts: e.earned_at, icon: badgeMap[e.id]?.emoji || '🏅',
-          title: `Earned the "${badgeMap[e.id]?.name || e.id}" badge`, meta: 'Badge',
-        }));
-        const gamesAdded = (favGames || []).filter(g => g.date).map(g => ({
-          key: `g-${g.id}`, ts: g.date, icon: g.placeId ? '🎮' : '🏟️',
-          title: `Added "${g.text}" to favorite games`, meta: 'Favorite Game',
-        }));
-        const feed = [...kudosReceived, ...kudosGiven, ...badgesEarned, ...gamesAdded]
-          .filter(i => i.ts)
-          .sort((a, b) => new Date(b.ts) - new Date(a.ts))
-          .slice(0, limit);
-        setItems(feed);
-      }).catch(() => { if (!cancelled) setItems([]); });
-    });
-    return () => { cancelled = true; };
-  }, [username, favGames, limit]);
-
-  if (items === null) return null;
-  if (items.length === 0) {
-    return emptyLabel
-      ? <p style={{ color: 'rgba(158,165,196,0.25)', textAlign: 'center', padding: 30, fontStyle: 'italic' }}>{emptyLabel}</p>
-      : null;
-  }
-
-  return (
-    <div style={{ marginTop: 20 }}>
-      <span className="member-overview-kicker">RECENT ACTIVITY</span>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
-        {items.map(item => (
-          <div key={item.key} style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            background: 'rgba(94,129,244,0.04)', border: '1px solid rgba(94,129,244,0.1)',
-            borderRadius: 10, padding: '10px 14px',
-          }}>
-            <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>{item.icon}</span>
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ color: '#e2e5f0', fontSize: '0.85rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title}</div>
-              {item.meta && <div style={{ color: 'rgba(158,165,196,0.45)', fontSize: '0.72rem' }}>{item.meta}</div>}
-            </span>
-            <span style={{ color: 'rgba(158,165,196,0.35)', fontSize: '0.7rem', flexShrink: 0 }}>{formatTimeAgo(item.ts)}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-// ── Fav Teams ─────────────────────────────────────────────────
-const FavTeams = ({ favTeams, onTeamClick }) => {
-  const hasSome = SPORT_KEYS.some(s => (favTeams?.[s] || []).length > 0);
-  if (!hasSome) return null;
-  return (
-    <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: 8, padding: '14px 16px', marginTop: 14 }}>
-      <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'rgba(158,165,196,0.4)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 10 }}>
-        ★ Favorite Teams
-      </div>
-      {SPORT_KEYS.map(sport => {
-        const picked = favTeams?.[sport] || [];
-        if (!picked.length) return null;
-        const hasLogos = ['mlb','nfl','nba','nhl'].includes(sport);
-        return (
-          <div key={sport} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 7 }}>
-            <span style={{ fontSize: '0.72rem', color: 'rgba(158,165,196,0.38)', minWidth: 88, flexShrink: 0 }}>
-              {SPORT_ICONS[sport]} {SPORT_SHORT[sport]}
-            </span>
-            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-              {picked.map(abbr => {
-                const logo = hasLogos ? getTeamLogoUrl(sport, abbr) : null;
-                const clickable = !!onTeamClick;
-                return (
-                  <span
-                    key={abbr}
-                    onClick={clickable ? () => onTeamClick(`${sport}:${abbr}`) : undefined}
-                    title={clickable ? `See other members who also root for ${abbr}` : undefined}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 8, fontSize: '0.72rem', fontWeight: 800, background: 'rgba(94,129,244,0.08)', border: '1px solid rgba(94,129,244,0.3)', color: '#5e81f4', letterSpacing: '0.04em', cursor: clickable ? 'pointer' : 'default' }}
-                  >
-                    {logo && <img src={logo} alt="" style={{ width: 15, height: 15, objectFit: 'contain' }} onError={e => { e.target.style.display='none'; }} />}
-                    {abbr}
-                  </span>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
-// ── Now Playing (public) ──────────────────────────────────────
-const NowPlayingPublic = ({ lastfmUsername }) => {
-  const [track, setTrack] = useState(null);
-  useEffect(() => {
-    if (!lastfmUsername || !lfm.hasApiKey()) return;
-    let active = true;
-    const poll = async () => { const t = await lfm.getNowPlaying(lastfmUsername); if (active) setTrack(t); };
-    poll();
-    const id = setInterval(poll, 30000);
-    return () => { active = false; clearInterval(id); };
-  }, [lastfmUsername]);
-  if (!track) return null;
-  return (
-    <a href={track.trackUrl || `https://www.last.fm/user/${lastfmUsername}`} target="_blank" rel="noreferrer"
-      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: 'rgba(213,16,7,0.07)', border: '1px solid rgba(213,16,7,0.25)', borderRadius: 10, textDecoration: 'none', marginBottom: 14 }}>
-      {track.albumArt
-        ? <img src={track.albumArt} alt="" style={{ width: 44, height: 44, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />
-        : <div style={{ width: 44, height: 44, borderRadius: 6, background: 'rgba(213,16,7,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>♪</div>
-      }
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: '0.68rem', color: '#d51007', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#d51007', display: 'inline-block' }} />
-          {track.isPlaying ? 'Listening Now' : 'Last Played'}
-        </div>
-        <div style={{ fontWeight: 700, color: '#e8efff', fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{track.trackName}</div>
-        <div style={{ fontSize: '0.76rem', color: 'rgba(158,165,196,0.5)' }}>{track.artistName}</div>
-      </div>
-    </a>
-  );
-};
-
-// ── Listening to (Nova Music "now playing" status) ──────────────
-// Shown right under the member's username. Backed by the shared
-// `now_playing` table (see db.getNowPlaying / supabase/now_playing.sql),
-// which the app-wide music player (src/context/NowPlayingContext.jsx)
-// keeps updated every ~15s while that member has something playing.
-const fmtListeningTime = (sec) => {
-  if (!Number.isFinite(sec) || sec < 0) return '0:00';
-  const m = Math.floor(sec / 60);
-  const s = Math.floor(sec % 60);
-  return `${m}:${String(s).padStart(2, '0')}`;
-};
-
-// Anything not refreshed in this long is treated as stale (browser
-// closed, tab crashed, etc.) rather than "still listening".
-const LISTENING_STALE_MS = 90000;
-
-const ListeningToPublic = ({ username }) => {
-  const [status, setStatus] = useState(null);
-  const [tickNow, setTickNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    if (!username) return;
-    let active = true;
-    const poll = async () => {
-      try {
-        const { default: db } = await import('../../services/db');
-        const s = await db.getNowPlaying(username);
-        if (active) setStatus(s);
-      } catch { /* ignore — just don't show the status */ }
-    };
-    poll();
-    const id = setInterval(poll, 10000);
-    return () => { active = false; clearInterval(id); };
-  }, [username]);
-
-  // Ticks the displayed "how far in" forward between polls, so it doesn't
-  // look frozen for the ~10s between refreshes.
-  useEffect(() => {
-    const id = setInterval(() => setTickNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  if (!status || !status.track_title) return null;
-  const updatedAt = status.updated_at ? new Date(status.updated_at).getTime() : 0;
-  if (!updatedAt || tickNow - updatedAt > LISTENING_STALE_MS) return null;
-
-  const elapsedSincePoll = status.is_paused ? 0 : Math.max(0, (tickNow - updatedAt) / 1000);
-  const position = Math.min((status.position_sec || 0) + elapsedSincePoll, status.duration_sec || Infinity);
-  const pct = status.duration_sec > 0 ? Math.min(100, (position / status.duration_sec) * 100) : 0;
-
-  return (
-    <div className="gl-listening-to">
-      <div className="gl-listening-thumb">
-        {status.thumbnail_url ? <img src={status.thumbnail_url} alt="" /> : <span>♪</span>}
-      </div>
-      <div className="gl-listening-main">
-        <div className="gl-listening-kicker">
-          <span className="gl-listening-dot" />
-          {status.is_paused ? 'Paused' : `Listening to ${status.kind === 'episode' ? 'a podcast' : 'a song'}`}
-        </div>
-        <div className="gl-listening-title">{status.track_title}</div>
-        {status.artist && <div className="gl-listening-artist">{status.artist}</div>}
-        {status.duration_sec > 0 && (
-          <>
-            <div className="gl-listening-bar"><div className="gl-listening-bar-fill" style={{ width: `${pct}%` }} /></div>
-            <div className="gl-listening-times">
-              <span>{fmtListeningTime(position)}</span>
-              <span>{fmtListeningTime(status.duration_sec)}</span>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// ── Comments ──────────────────────────────────────────────────
-const REACTION_EMOJIS = ['❤️', '👍', '😂', '😮', '😢'];
-
-const CommentsSection = ({ toUsername, currentUser, isOwner, pinnedCommentId, onPin }) => {
-  const [comments, setComments] = useState([]);
-  const [text, setText]         = useState('');
-  const [loading, setLoading]   = useState(true);
-  const [posting, setPosting]   = useState(false);
-  const [limitMsg, setLimitMsg] = useState('');
-  const [replyingId, setReplyingId] = useState(null);
-  const [replyText,  setReplyText]  = useState('');
-  const [editingId,  setEditingId]  = useState(null);
-  const [editText,   setEditText]   = useState('');
-  const [openReactionPickerId, setOpenReactionPickerId] = useState(null);
-
-  const loadComments = async () => {
-    setLoading(true);
-    try {
-      const { default: db } = await import('../../services/db');
-      const data = await db.getComments(toUsername);
-      setComments(Array.isArray(data) ? data : []);
-    } catch {
-      const all = JSON.parse(localStorage.getItem('nova_comments') || '{}');
-      setComments(all[toUsername] || []);
-    } finally { setLoading(false); }
-  };
-
-  useEffect(() => { loadComments(); }, [toUsername]); // eslint-disable-line
-
-  const postComment = async (content, replyToId) => {
-    const nc = {
-      id: Date.now().toString(), from_username: currentUser, to_username: toUsername,
-      content, created_at: new Date().toISOString(), reply_to_id: replyToId || null, reactions: {},
-    };
-    try {
-      const { default: db } = await import('../../services/db');
-      const saved = await db.addComment(nc);
-      setComments(p => [saved || nc, ...p]);
-    } catch {
-      const all = JSON.parse(localStorage.getItem('nova_comments') || '{}');
-      all[toUsername] = [nc, ...(all[toUsername] || [])];
-      localStorage.setItem('nova_comments', JSON.stringify(all));
-      setComments(p => [nc, ...p]);
-    }
-    recordAction('comment', currentUser);
-    awardXP(currentUser, 5);
-  };
-
-  const handlePost = async () => {
-    if (!text.trim() || !currentUser) return;
-    const verdict = checkRateLimit('comment', currentUser);
-    if (!verdict.allowed) { setLimitMsg(verdict.message); return; }
-    setLimitMsg('');
-    setPosting(true);
-    await postComment(text.trim(), null);
-    setText(''); setPosting(false);
-  };
-
-  const handleReply = async (parentId) => {
-    if (!replyText.trim() || !currentUser) return;
-    const verdict = checkRateLimit('comment', currentUser);
-    if (!verdict.allowed) { setLimitMsg(verdict.message); return; }
-    setLimitMsg('');
-    await postComment(replyText.trim(), parentId);
-    setReplyText(''); setReplyingId(null);
-  };
-
-  const handleDelete = async (commentId, fromUsername) => {
-    if (currentUser !== fromUsername && currentUser !== toUsername) return;
-    try { const { default: db } = await import('../../services/db'); await db.deleteComment(commentId); } catch {
-      const all = JSON.parse(localStorage.getItem('nova_comments') || '{}');
-      all[toUsername] = (all[toUsername] || []).filter(c => c.id !== commentId);
-      localStorage.setItem('nova_comments', JSON.stringify(all));
-    }
-    // Also drop any replies to this comment so the thread doesn't leave
-    // orphaned replies hanging under a deleted parent.
-    setComments(p => p.filter(c => c.id !== commentId && String(c.reply_to_id) !== String(commentId)));
-    // Don't leave a profile pinned to a comment that no longer exists.
-    if (onPin && String(commentId) === String(pinnedCommentId)) onPin(commentId);
-  };
-
-  const handleSaveEdit = async (commentId) => {
-    if (!editText.trim()) return;
-    const patch = { content: editText.trim(), edited_at: new Date().toISOString() };
-    try {
-      const { default: db } = await import('../../services/db');
-      await db.updateComment(commentId, patch);
-    } catch {
-      const all = JSON.parse(localStorage.getItem('nova_comments') || '{}');
-      const list = all[toUsername] || [];
-      const idx = list.findIndex(c => c.id === commentId);
-      if (idx >= 0) { list[idx] = { ...list[idx], ...patch }; all[toUsername] = list; localStorage.setItem('nova_comments', JSON.stringify(all)); }
-    }
-    setComments(p => p.map(c => c.id === commentId ? { ...c, ...patch } : c));
-    setEditingId(null); setEditText('');
-  };
-
-  const handleReact = async (comment, emoji) => {
-    if (!currentUser) return;
-    // Optimistic local update so it feels instant; toggleCommentReaction
-    // does the same read-modify-write server-side.
-    const reactions = { ...(comment.reactions || {}) };
-    const users = new Set(reactions[emoji] || []);
-    if (users.has(currentUser)) users.delete(currentUser); else users.add(currentUser);
-    if (users.size) reactions[emoji] = Array.from(users); else delete reactions[emoji];
-    setComments(p => p.map(c => c.id === comment.id ? { ...c, reactions } : c));
-    setOpenReactionPickerId(null);
-    try {
-      const { default: db } = await import('../../services/db');
-      await db.toggleCommentReaction(comment.id, emoji, currentUser, comment.reactions || {});
-    } catch {}
-  };
-
-  const timeAgo = iso => {
-    if (!iso) return '';
-    const s = Math.floor((Date.now() - new Date(iso)) / 1000);
-    if (s < 60) return `${s}s ago`; if (s < 3600) return `${Math.floor(s/60)}m ago`;
-    if (s < 86400) return `${Math.floor(s/3600)}h ago`; return `${Math.floor(s/86400)}d ago`;
-  };
-
-  const topLevel = comments.filter(c => !c.reply_to_id);
-  const repliesFor = (id) => comments.filter(c => String(c.reply_to_id) === String(id))
-    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-
-  const ReactionRow = ({ comment }) => {
-    const entries = Object.entries(comment.reactions || {}).filter(([, users]) => users?.length);
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, flexWrap: 'wrap', position: 'relative' }}>
-        {entries.map(([emoji, users]) => (
-          <button key={emoji} onClick={() => handleReact(comment, emoji)}
-            title={users.join(', ')}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 20, fontSize: '0.75rem',
-              cursor: currentUser ? 'pointer' : 'default',
-              background: users.includes(currentUser) ? 'rgba(108,92,231,0.18)' : 'rgba(158,165,196,0.08)',
-              border: users.includes(currentUser) ? '1px solid rgba(108,92,231,0.5)' : '1px solid rgba(158,165,196,0.15)',
-              color: '#e2e5f0',
-            }}>
-            {emoji} {users.length}
-          </button>
-        ))}
-        {currentUser && (
-          <span style={{ position: 'relative' }}>
-            <button onClick={() => setOpenReactionPickerId(openReactionPickerId === comment.id ? null : comment.id)} className="tap44"
-              style={{ background: 'none', border: 'none', color: 'rgba(158,165,196,0.4)', cursor: 'pointer', fontSize: '0.8rem', padding: 0 }}>
-              ＋😊
-            </button>
-            {openReactionPickerId === comment.id && (
-              <div style={{ position: 'absolute', bottom: '120%', left: 0, display: 'flex', gap: 4, padding: '6px 8px', background: '#12162b', border: '1px solid rgba(94,129,244,0.25)', borderRadius: 10, boxShadow: '0 6px 20px rgba(0,0,0,0.5)', zIndex: 20 }}>
-                {REACTION_EMOJIS.map(e => (
-                  <button key={e} onClick={() => handleReact(comment, e)} className="tap44"
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', padding: 2 }}>{e}</button>
-                ))}
-              </div>
-            )}
-          </span>
-        )}
-      </div>
-    );
-  };
-
-  const CommentCard = ({ c, isReply }) => {
-    const pinned = !isReply && String(c.id) === String(pinnedCommentId);
-    const isEditing = editingId === c.id;
-    return (
-      <div style={{ padding: '12px 14px', background: pinned ? 'rgba(108,92,231,0.08)' : 'rgba(94,129,244,0.04)', border: pinned ? '1px solid rgba(108,92,231,0.35)' : '1px solid rgba(94,129,244,0.1)', borderRadius: 10 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
-          <span style={{ fontWeight: 700, color: 'var(--color-cyan)', fontSize: '0.88rem' }}>{pinned && '📌 '}{c.from_username}</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ color: 'rgba(158,165,196,0.35)', fontSize: '0.72rem' }}>{timeAgo(c.created_at)}{c.edited_at ? ' · edited' : ''}</span>
-            {!isReply && isOwner && onPin && (
-              <button onClick={() => onPin(c.id)} className="tap44"
-                style={{ background: 'none', border: 'none', color: pinned ? 'var(--gl-accent, #6c5ce7)' : 'rgba(158,165,196,0.4)', cursor: 'pointer', fontSize: '0.75rem', padding: 0 }}>
-                {pinned ? 'Unpin' : '📌 Pin'}
-              </button>
-            )}
-            {!isReply && currentUser && (
-              <button onClick={() => { setReplyingId(replyingId === c.id ? null : c.id); setReplyText(''); }}
-                style={{ background: 'none', border: 'none', color: 'rgba(158,165,196,0.4)', cursor: 'pointer', fontSize: '0.75rem', padding: 0 }}>
-                Reply
-              </button>
-            )}
-            {currentUser === c.from_username && (
-              <button onClick={() => { setEditingId(c.id); setEditText(c.content); }}
-                style={{ background: 'none', border: 'none', color: 'rgba(158,165,196,0.4)', cursor: 'pointer', fontSize: '0.75rem', padding: 0 }}>
-                Edit
-              </button>
-            )}
-            {(currentUser === c.from_username || currentUser === toUsername) && (
-              <button onClick={() => handleDelete(c.id, c.from_username)}
-                style={{ background: 'none', border: 'none', color: 'rgba(255,107,122,0.5)', cursor: 'pointer', fontSize: '0.75rem', padding: 0 }}>
-                Delete
-              </button>
-            )}
-          </div>
-        </div>
-
-        {isEditing ? (
-          <div>
-            <textarea rows={2} value={editText} onChange={e => setEditText(e.target.value)} className="focus-ring"
-              style={{ width: '100%', padding: '8px 10px', background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 8, fontFamily: 'inherit', fontSize: '0.85rem', resize: 'vertical', boxSizing: 'border-box' }} />
-            <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-              <button className="neon-button" onClick={() => handleSaveEdit(c.id)} disabled={!editText.trim()} style={{ padding: '5px 14px', fontSize: '0.78rem' }}>Save</button>
-              <button onClick={() => { setEditingId(null); setEditText(''); }} style={{ background: 'none', border: 'none', color: 'rgba(158,165,196,0.5)', cursor: 'pointer', fontSize: '0.78rem' }}>Cancel</button>
-            </div>
-          </div>
-        ) : (
-          <p style={{ margin: 0, color: 'rgba(220,230,255,0.85)', fontSize: '0.88rem', lineHeight: 1.5 }}>{c.content}</p>
-        )}
-
-        <ReactionRow comment={c} />
-
-        {replyingId === c.id && (
-          <div style={{ marginTop: 10, paddingLeft: 12, borderLeft: '2px solid rgba(94,129,244,0.15)' }}>
-            <textarea rows={2} placeholder={`Reply to ${c.from_username}...`} value={replyText} onChange={e => setReplyText(e.target.value)} className="focus-ring"
-              style={{ width: '100%', padding: '8px 10px', background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 8, fontFamily: 'inherit', fontSize: '0.85rem', resize: 'vertical', boxSizing: 'border-box' }} />
-            <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-              <button className="neon-button" onClick={() => handleReply(c.id)} disabled={!replyText.trim()} style={{ padding: '5px 14px', fontSize: '0.78rem' }}>Reply</button>
-              <button onClick={() => { setReplyingId(null); setReplyText(''); }} style={{ background: 'none', border: 'none', color: 'rgba(158,165,196,0.5)', cursor: 'pointer', fontSize: '0.78rem' }}>Cancel</button>
-            </div>
-          </div>
-        )}
-
-        {!isReply && repliesFor(c.id).length > 0 && (
-          <div style={{ marginTop: 10, paddingLeft: 14, borderLeft: '2px solid rgba(94,129,244,0.12)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {repliesFor(c.id).map(r => <CommentCard key={r.id} c={r} isReply />)}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  return (
-    <div style={{ padding: '20px 0' }}>
-      {currentUser ? (
-        <div style={{ marginBottom: 20 }}>
-          <textarea rows={2} placeholder={`Leave a comment on ${toUsername}'s profile...`} value={text}
-            onChange={e => setText(e.target.value)}
-            className="focus-ring"
-            style={{ width: '100%', padding: '10px 12px', background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 8, fontFamily: 'inherit', fontSize: '0.9rem', resize: 'vertical', boxSizing: 'border-box' }} />
-          <button className="neon-button" onClick={handlePost} disabled={posting || !text.trim()}
-            style={{ marginTop: 8, padding: '8px 20px', opacity: (!text.trim() || posting) ? 0.4 : 1 }}>
-            {posting ? 'Posting...' : 'Post Comment'}
-          </button>
-          {limitMsg && <p style={{ color: '#ff9e57', fontSize: '0.78rem', marginTop: 8, marginBottom: 0 }}>{limitMsg}</p>}
-        </div>
-      ) : (
-        <p style={{ color: 'rgba(158,165,196,0.4)', fontSize: '0.85rem', marginBottom: 16 }}>Sign in to leave a comment.</p>
-      )}
-
-      {loading ? (
-        <p style={{ color: 'rgba(158,165,196,0.3)', fontSize: '0.85rem' }}>Loading comments…</p>
-      ) : comments.length === 0 ? (
-        <p style={{ color: 'rgba(158,165,196,0.3)', fontSize: '0.85rem', textAlign: 'center', padding: '20px 0' }}>No comments yet. Be the first!</p>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {[...topLevel].sort((a, b) => (String(a.id) === String(pinnedCommentId) ? -1 : String(b.id) === String(pinnedCommentId) ? 1 : 0)).map(c => (
-            <CommentCard key={c.id} c={c} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
 
 // ── guns.lol-style Member Card ────────────────────────────────
 const MemberCard = ({ member, badgeTypes, onClick }) => {
@@ -1008,6 +507,14 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
   const [kudosMessage, setKudosMessage] = useState('');
   const [profileViews, setProfileViews] = useState(member.profile_views || 0);
   const me = currentUsername();
+  const isOwnProfile = me === member.username;
+  // Achievement-badge progress (Coin Collector etc.) only makes sense for
+  // the profile owner, since it's keyed off their own coin balance — a
+  // visitor has no meaningful "progress" toward someone else's badge.
+  const [ownCoins, setOwnCoins] = useState(0);
+  useEffect(() => {
+    if (isOwnProfile) setOwnCoins(getCoinsBalance());
+  }, [isOwnProfile]);
 
   // Profile visit counter — count once per browser session per profile,
   // and never when someone is looking at their own page, so refreshing
@@ -1190,12 +697,13 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
   ].filter(s => member[s.key]);
 
   const VTABS = [
-    { id: 'overview',   label: 'Overview'   },
-    { id: 'activity',   label: 'Activity'   },
-    { id: 'stats',      label: 'Stats'      },
-    { id: 'collection', label: 'Collection' },
-    { id: 'leagues',    label: 'Leagues'    },
-    { id: 'friends',    label: 'Friends'    },
+    { id: 'overview',   label: 'Overview'    },
+    { id: 'trophies',   label: 'Trophy Room' },
+    { id: 'activity',   label: 'Activity'    },
+    { id: 'stats',      label: 'Stats'       },
+    { id: 'collection', label: 'Collection'  },
+    { id: 'leagues',    label: 'Leagues'     },
+    { id: 'friends',    label: 'Friends'     },
   ];
 
   const shareUrl = `${window.location.origin}${window.location.pathname}#members/${member.profile_slug || member.username}`;
@@ -1206,7 +714,6 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
   // "Members only" profiles show a locked message to anyone who isn't
   // signed in — checked here (after all hooks above) rather than with an
   // early return higher up, since hooks can't be called conditionally.
-  const isOwnProfile = me === member.username;
   if (member.profile_visibility === 'members' && !me && !isOwnProfile) {
     return (
       <div className="gl-scope" style={{ maxWidth: 480, margin: '60px auto', textAlign: 'center', padding: '0 20px' }}>
@@ -1413,32 +920,6 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
               </div>
             </div>
 
-            {/* TROPHY ROOM — the member's own ordered pick of assigned badges */}
-            <div className="member-trophy-room">
-              <div className="member-trophy-room-header">
-                <span className="member-overview-kicker">TROPHY ROOM</span>
-                {isOwnProfile && (
-                  <button className="member-trophy-customize-btn" onClick={() => { window.location.hash = '#profile'; }}>
-                    Customize Trophy Room
-                  </button>
-                )}
-              </div>
-              {trophies.length === 0 ? (
-                <p style={{ color: 'rgba(158,165,196,0.35)', fontSize: '0.8rem', fontStyle: 'italic', margin: '8px 0 0' }}>
-                  {isOwnProfile ? "You haven't featured any badges yet — customize your Trophy Room to show them off." : `${member.username} hasn't featured any badges yet.`}
-                </p>
-              ) : (
-                <div className="member-trophy-grid">
-                  {trophies.map(b => (
-                    <div key={b.id} className="member-trophy-card" style={{ '--trophy-color': b.color || '#6c5ce7' }}>
-                      <span className="member-trophy-icon">{b.icon}</span>
-                      <span className="member-trophy-name">{b.name}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {(primaryFavTeam || member.fav_player) && (
               <div className="member-overview-grid" style={{ gridTemplateColumns: primaryFavTeam && member.fav_player ? 'repeat(2,1fr)' : '1fr' }}>
                 {primaryFavTeam && (
@@ -1485,6 +966,7 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
 
             <div className="member-overview-links">
               <span className="member-overview-kicker">QUICK ACCESS</span>
+              <button onClick={() => setViewTab('trophies')}>Trophy Room <span>→</span></button>
               <button onClick={() => setViewTab('collection')}>Games &amp; music <span>→</span></button>
               <button onClick={() => setViewTab('leagues')}>Roblox leagues <span>→</span></button>
               <button onClick={() => setViewTab('friends')}>Friends &amp; comments <span>→</span></button>
@@ -1492,6 +974,98 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
             <MemberActivityTimeline username={member.username} favGames={favGames} limit={5} />
           </div>
         )}
+
+        {viewTab === 'trophies' && (() => {
+          if (isOwnProfile) syncBadges(member.username, { profile: member, coins: ownCoins });
+          const earnedIds = new Set(getEarnedBadges(member.username));
+          const earnedAch = ACH_BADGES.filter(b => earnedIds.has(b.id));
+          const lockedAch = ACH_BADGES.filter(b => !earnedIds.has(b.id));
+          return (
+            <div style={{ padding: '20px 0' }}>
+              {/* Admin-assigned badges this member has chosen to feature */}
+              <div className="member-trophy-room" style={{ margin: 0 }}>
+                <div className="member-trophy-room-header">
+                  <span className="member-overview-kicker">FEATURED BADGES</span>
+                  {isOwnProfile && (
+                    <button className="member-trophy-customize-btn" onClick={() => { window.location.hash = '#profile'; }}>
+                      Customize Trophy Room
+                    </button>
+                  )}
+                </div>
+                {trophies.length === 0 ? (
+                  <p style={{ color: 'rgba(158,165,196,0.35)', fontSize: '0.8rem', fontStyle: 'italic', margin: '8px 0 0' }}>
+                    {isOwnProfile ? "You haven't featured any badges yet — customize your Trophy Room to show them off." : `${member.username} hasn't featured any badges yet.`}
+                  </p>
+                ) : (
+                  <div className="member-trophy-grid">
+                    {trophies.map(b => (
+                      <div key={b.id} className="member-trophy-card" style={{ '--trophy-color': b.color || '#6c5ce7' }}>
+                        <span className="member-trophy-icon">{b.icon}</span>
+                        <span className="member-trophy-name">{b.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Earned achievement badges (Coin Collector, Early Adopter, etc.) */}
+              <div className="tw-section" style={{ paddingTop: 20 }}>
+                <div className="tw-section-title">Earned Badges ({earnedAch.length}/{ACH_BADGES.length})</div>
+                {earnedAch.length === 0
+                  ? <div className="tw-empty">{isOwnProfile ? 'No badges yet — keep playing!' : `${member.username} hasn't earned any badges yet.`}</div>
+                  : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
+                      {earnedAch.map(b => (
+                        <div key={b.id} title={b.desc} style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          padding: '8px 14px', borderRadius: 999,
+                          border: `1px solid ${b.color}55`, background: `${b.color}12`,
+                          color: b.color, fontSize: '0.85rem', fontWeight: 700,
+                        }}>
+                          <span style={{ fontSize: '1.1rem' }}>{b.emoji}</span>
+                          {b.name}
+                        </div>
+                      ))}
+                    </div>
+                }
+                {lockedAch.length > 0 && (
+                  <>
+                    <div className="tw-section-title" style={{ marginTop: 20 }}>Locked ({lockedAch.length})</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
+                      {lockedAch.map(b => {
+                        const progress = isOwnProfile ? getBadgeProgress(b.id, { coins: ownCoins }) : null;
+                        const pct = progress ? Math.min(100, Math.round((progress.current / progress.target) * 100)) : null;
+                        return (
+                          <div key={b.id} title={b.desc} style={{
+                            display: 'flex', flexDirection: 'column', gap: 4,
+                            padding: '8px 14px', borderRadius: 14, minWidth: progress ? 120 : undefined,
+                            border: '1px solid rgba(94,129,244,0.14)', background: 'rgba(94,129,244,0.04)',
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontSize: '1.1rem', filter: 'grayscale(1)', opacity: 0.45 }}>{b.emoji}</span>
+                              <span style={{ color: 'rgba(158,165,196,0.55)', fontSize: '0.85rem', fontWeight: 600 }}>{b.name}</span>
+                            </div>
+                            {progress ? (
+                              <>
+                                <div style={{ height: 4, borderRadius: 999, background: 'rgba(158,165,196,0.15)', overflow: 'hidden' }}>
+                                  <div style={{ height: '100%', width: `${pct}%`, borderRadius: 999, background: b.color }} />
+                                </div>
+                                <div style={{ fontSize: '0.68rem', color: 'rgba(158,165,196,0.45)', fontWeight: 600 }}>
+                                  {progress.current.toLocaleString()}/{progress.target.toLocaleString()}
+                                </div>
+                              </>
+                            ) : (
+                              <div style={{ fontSize: '0.68rem', color: 'rgba(158,165,196,0.35)' }}>Not yet earned</div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {viewTab === 'activity' && (
           <div style={{ padding: '20px 0' }}>
@@ -1591,6 +1165,14 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
                     ))}
                   </div>
                 )
+              }
+            </div>
+
+            <div className="member-collection-section">
+              <span className="member-overview-kicker">WATCH LIST</span>
+              {getWatchList(member.username).length === 0
+                ? <p style={{ color: 'rgba(158,165,196,0.25)', fontStyle: 'italic', margin: '8px 0 0' }}>{isOwnProfile ? 'No watch list yet.' : `${member.username} hasn't added anything yet.`}</p>
+                : <WatchListPreview username={member.username} />
               }
             </div>
           </div>
