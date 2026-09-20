@@ -1740,7 +1740,7 @@ const HallOfFameTab = ({ sport, cfg }) => {
         ) : (
           <>
             {!username && <div className="lh-feature-notice">Sign in to cast your Hall of Fame vote. You can back as many candidates as you like.</div>}
-            <p className="lh-section-note" style={{ marginBottom: 12 }}>Voting for the <strong>{ballot.class_label}</strong> — back every candidate you think belongs.</p>
+            <p className="lh-section-note" style={{ marginBottom: 12 }}>Voting for the <strong>{ballot.class_label}</strong> — back every candidate you think belongs. {votes.length > 0 && `${votes.length} vote${votes.length === 1 ? '' : 's'} cast so far.`}</p>
             {candidates.length === 0 ? (
               <div className="lh-empty">No candidates on this ballot yet.</div>
             ) : (

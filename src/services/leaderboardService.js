@@ -85,4 +85,5 @@ export async function getMemberRanks(username) {
   return { overall, prediction, fantasy, league };
 }
 
-export default { getMemberRanks };
+const leaderboardService = { getMemberRanks };
+export default leaderboardService;

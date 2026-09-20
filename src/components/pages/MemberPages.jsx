@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl, getTeamByAbbr } from '../../data/teams';
-import * as lfm from '../../services/lastfmService';
+import { SPORT_ICONS, SPORT_SHORT, getTeamByAbbr } from '../../data/teams';
 import { ProfileBackground, ProfileAudioPlayer, effectiveBgList, effectiveAudioList, RobloxLinkCard, RobloxGameCard, LeaguePlayerShowcase, WatchListPreview } from './MemberProfile';
 import { getWatchList } from '../../services/mediaService';
 import { MemberActivityTimeline, CommentsSection, MemberRankGrid, ListeningToPublic, NowPlayingPublic, FavTeams } from './MemberShared';
