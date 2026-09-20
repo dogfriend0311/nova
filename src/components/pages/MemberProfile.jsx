@@ -17,7 +17,7 @@ import pickemsDb from '../../services/pickemsDb';
 import db, { PRESENCE_META } from '../../services/db';
 import { COSMETICS } from './CoinShop';
 import { ProfileCardSkeleton } from '../Skeleton';
-import { MemberActivityTimeline, CommentsSection } from './MemberShared';
+import { MemberActivityTimeline, CommentsSection, MemberRankGrid } from './MemberShared';
 import './MemberProfile.css';
 
 // Free curated color presets — a one-click starting point for the Colors
@@ -2104,6 +2104,8 @@ const MemberProfile = () => {
                 </div>
               </div>
             </div>
+
+            <MemberRankGrid username={user?.username} />
 
             <div className="member-overview-links">
               <span className="member-overview-kicker">QUICK ACCESS</span>

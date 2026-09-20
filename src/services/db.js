@@ -540,6 +540,161 @@ export const db = {
     logAudit('hof.delete', league, 'hof', id);
   },
 
+  /* ── HALL OF FAME CANDIDATES (admin-nominated players eligible for
+     the current or next induction vote — separate from the nova_hof
+     table above, which only holds players already inducted).
+     Requires: supabase/hall_of_fame_voting.sql to be run once. ── */
+  async getHofCandidates(league) {
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase
+          .from('nova_hof_candidates').select('*').eq('league', league).order('created_at', { ascending: false });
+        if (!error) return data;
+      } catch {}
+    }
+    return ls.get(`${league}_hof_candidates`);
+  },
+
+  async addHofCandidate(league, candidate) {
+    const record = { ...candidate, league, player_id: candidate.player_id != null ? String(candidate.player_id) : null, created_at: new Date().toISOString() };
+    if (hasSupabase()) {
+      try {
+        const insertRecord = { ...record }; delete insertRecord.id;
+        const { data, error } = await supabase.from('nova_hof_candidates').insert([insertRecord]).select();
+        if (!error) { logAudit('hof_candidate.add', league, 'hof_candidate', data[0].player_name); return data[0]; }
+      } catch {}
+    }
+    const list = ls.get(`${league}_hof_candidates`);
+    const newItem = { ...record, id: Date.now().toString() };
+    ls.set(`${league}_hof_candidates`, [...list, newItem]);
+    logAudit('hof_candidate.add', league, 'hof_candidate', newItem.player_name);
+    return newItem;
+  },
+
+  async deleteHofCandidate(league, id) {
+    if (hasSupabase()) {
+      try { await supabase.from('nova_hof_candidates').delete().eq('id', id); } catch {}
+    }
+    ls.set(`${league}_hof_candidates`, ls.get(`${league}_hof_candidates`).filter(c => c.id !== id));
+    logAudit('hof_candidate.delete', league, 'hof_candidate', id);
+  },
+
+  /* ── HALL OF FAME VOTING (one "ballot" per league represents the
+     current/most-recent induction class vote — same open/closed/final
+     lifecycle as All-Star voting above. Unlike All-Star voting, a
+     member can back more than one candidate per ballot: votes are
+     upserted on (ballot_id, player_id, voter_username) so a member can
+     add/remove picks but only ever counts once per candidate. ── */
+  async getHofBallot(league) {
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase
+          .from('nova_hof_ballots').select('*').eq('league', league)
+          .order('created_at', { ascending: false }).limit(1);
+        if (!error && Array.isArray(data)) return data[0] || null;
+      } catch {}
+    }
+    const list = ls.get(`${league}_hof_ballots`);
+    return list.length ? list[list.length - 1] : null;
+  },
+
+  async getHofBallotHistory(league) {
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase
+          .from('nova_hof_ballots').select('*').eq('league', league).neq('status', 'open')
+          .order('created_at', { ascending: false });
+        if (!error) return data;
+      } catch {}
+    }
+    return ls.get(`${league}_hof_ballots`).filter(b => b.status !== 'open').reverse();
+  },
+
+  async startHofVote(league, classLabel, username) {
+    const current = await this.getHofBallot(league);
+    if (current && current.status === 'open') await this.closeHofVote(current.id, league);
+    const record = { league, class_label: classLabel, status: 'open', opened_by: username || 'admin', created_at: new Date().toISOString() };
+    let saved = null;
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_hof_ballots').insert([record]).select();
+        if (!error) saved = data[0];
+      } catch {}
+    }
+    if (!saved) {
+      const list = ls.get(`${league}_hof_ballots`);
+      saved = { ...record, id: Date.now().toString() };
+      ls.set(`${league}_hof_ballots`, [...list, saved]);
+    }
+    logAudit('hof_vote.open', league, 'hof_ballot', classLabel);
+    return saved;
+  },
+
+  async closeHofVote(id, league) {
+    if (hasSupabase()) {
+      try { await supabase.from('nova_hof_ballots').update({ status: 'closed', closed_at: new Date().toISOString() }).eq('id', id); } catch {}
+    }
+    ls.set(`${league}_hof_ballots`, ls.get(`${league}_hof_ballots`).map(b => (b.id === id ? { ...b, status: 'closed' } : b)));
+    logAudit('hof_vote.close', league, 'hof_ballot', id);
+  },
+
+  async finalizeHofVote(id, league) {
+    if (hasSupabase()) {
+      try { await supabase.from('nova_hof_ballots').update({ status: 'final', closed_at: new Date().toISOString() }).eq('id', id); } catch {}
+    }
+    ls.set(`${league}_hof_ballots`, ls.get(`${league}_hof_ballots`).map(b => (b.id === id ? { ...b, status: 'final' } : b)));
+    logAudit('hof_vote.finalize', league, 'hof_ballot', id);
+  },
+
+  async getHofVotes(league, ballotId) {
+    if (!ballotId) return [];
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase
+          .from('nova_hof_votes').select('*').eq('league', league).eq('ballot_id', ballotId);
+        if (!error) return data;
+      } catch {}
+    }
+    return ls.get(`${league}_hof_votes`).filter(v => v.ballot_id === ballotId);
+  },
+
+  async getMyHofVotes(league, ballotId, username) {
+    if (!ballotId || !username) return [];
+    const all = await this.getHofVotes(league, ballotId);
+    return all.filter(v => v.voter_username === username);
+  },
+
+  async castHofVote(league, ballotId, candidate, username) {
+    const record = {
+      ballot_id: ballotId, league,
+      player_id: String(candidate.player_id), player_name: candidate.player_name || 'Unknown', team: candidate.team || null,
+      voter_username: username, created_at: new Date().toISOString(),
+    };
+    if (hasSupabase()) {
+      try {
+        const { data, error } = await supabase.from('nova_hof_votes')
+          .upsert([record], { onConflict: 'ballot_id,player_id,voter_username' }).select();
+        if (!error) return data[0];
+      } catch {}
+    }
+    const list = ls.get(`${league}_hof_votes`)
+      .filter(v => !(v.ballot_id === ballotId && v.player_id === record.player_id && v.voter_username === username));
+    const saved = { ...record, id: Date.now().toString() };
+    ls.set(`${league}_hof_votes`, [...list, saved]);
+    return saved;
+  },
+
+  async uncastHofVote(league, ballotId, playerId, username) {
+    if (hasSupabase()) {
+      try {
+        await supabase.from('nova_hof_votes').delete()
+          .eq('ballot_id', ballotId).eq('player_id', String(playerId)).eq('voter_username', username);
+      } catch {}
+    }
+    ls.set(`${league}_hof_votes`, ls.get(`${league}_hof_votes`)
+      .filter(v => !(v.ballot_id === ballotId && v.player_id === String(playerId) && v.voter_username === username)));
+  },
+
   /* WATCHLIST */
   async getWatchlist(username) {
     if (hasSupabase()) {

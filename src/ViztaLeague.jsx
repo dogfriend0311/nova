@@ -6,7 +6,7 @@ import { getSport } from './data/sportsConfig';
 import {
   LayoutDashboard, Users, Search, Trophy, CalendarDays, ScrollText,
   GitCompare, Target, Award, ArrowLeft, ChevronLeft, ChevronRight, Medal,
-  Activity, BarChart3, Database, TrendingUp,
+  Activity, BarChart3, Database, TrendingUp, Check,
   Archive, BookOpen, Bookmark, Radio, Repeat, Sparkles, Star, Newspaper, Flame, Layers,
 } from 'lucide-react';
 import {
@@ -34,6 +34,8 @@ import {
 } from './services/favoritesService';
 import './ViztaLeague.css';
 import { RowsSkeleton } from './components/Skeleton';
+import { accoladeLabel, accoladeIcon } from './data/accolades';
+import { awardXP } from './services/reputationService';
 
 /* Small starred/unstarred toggle used next to players and teams
    throughout the league tabs. Stops click propagation so it never
@@ -1503,25 +1505,296 @@ const PropBetsTab = ({ cfg }) => {
 };
 
 /* ── Hall of Fame ─────────────────────────────────────────────── */
-const HallOfFameTab = ({ sport }) => {
+const tallyHofVotesPublic = (votes) => {
+  const counts = new Map();
+  (votes || []).forEach(v => {
+    const key = String(v.player_id);
+    const entry = counts.get(key) || { player_id: v.player_id, player_name: v.player_name, team: v.team, count: 0 };
+    entry.count += 1;
+    counts.set(key, entry);
+  });
+  return Array.from(counts.values()).sort((a, b) => b.count - a.count);
+};
+
+// A player's headline career numbers for the plaque detail view — reuses
+// the same per-sport careerA (batting/offense) + careerB (pitching/
+// defense) field lists the player stat page uses, so this works for
+// every sport this league system supports, not just baseball.
+const plaqueCareerStats = (player, cfg) => {
+  if (!player || !cfg) return [];
+  const fromList = (list) => (list || [])
+    .map(([f, l]) => ({ label: l, value: player[f] }))
+    .filter(s => s.value !== undefined && s.value !== null && s.value !== '' && s.value !== 0);
+  const batting = fromList(cfg.careerA).slice(0, 6);
+  const pitching = fromList(cfg.careerB).slice(0, 4);
+  return [...batting, ...pitching];
+};
+
+const HallOfFamePlaque = ({ entry, cfg, sport, players, expanded, onToggle }) => {
+  const [awards, setAwards] = useState(null); // null = not loaded yet
+
+  const resolvedPlayer = React.useMemo(() => {
+    const byId = entry.player_id && players.find(p => String(p.id) === String(entry.player_id));
+    if (byId) return byId;
+    return players.find(p => (p.player_name || '').toLowerCase() === (entry.player_name || '').toLowerCase()) || null;
+  }, [entry, players]);
+
+  const careerStats = React.useMemo(() => plaqueCareerStats(resolvedPlayer, cfg), [resolvedPlayer, cfg]);
+
+  useEffect(() => {
+    if (!expanded || awards !== null || !resolvedPlayer) return;
+    Promise.all([
+      db.getPotmAwards(sport, resolvedPlayer.id).catch(() => []),
+      db.getAccolades(sport, resolvedPlayer.id).catch(() => []),
+    ]).then(([potm, accolades]) => setAwards({ potm: potm || [], accolades: accolades || [] }));
+  }, [expanded, awards, resolvedPlayer, sport]);
+
+  return (
+    <div className="lh-hof-card" style={{ cursor: 'pointer' }} onClick={onToggle}>
+      <div className="lh-hof-icon">🏆</div>
+      <p className="lh-hof-name">{entry.player_name}</p>
+      {entry.team && <p className="lh-hof-team">{entry.team}</p>}
+      {entry.description && <p className="lh-hof-desc">{entry.description}</p>}
+
+      {expanded && (
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(94,129,244,0.15)', textAlign: 'left' }}>
+          {careerStats.length > 0 && (
+            <>
+              <span className="lh-panel-kicker">CAREER STATS</span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(60px, 1fr))', gap: 8, marginTop: 6 }}>
+                {careerStats.map(s => (
+                  <div key={s.label} style={{ textAlign: 'center' }}>
+                    <div style={{ color: '#e2e5f0', fontWeight: 800, fontSize: '0.92rem' }}>{s.value}</div>
+                    <div style={{ color: 'rgba(158,165,196,0.45)', fontSize: '0.62rem', fontWeight: 700 }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+          {!resolvedPlayer && <p style={{ color: 'rgba(158,165,196,0.4)', fontSize: '0.78rem' }}>No live player record on file — stats unavailable.</p>}
+
+          {awards === null ? (
+            resolvedPlayer && <p style={{ color: 'rgba(158,165,196,0.35)', fontSize: '0.78rem', marginTop: 10 }}>Loading awards…</p>
+          ) : (awards.potm.length + awards.accolades.length > 0) && (
+            <>
+              <span className="lh-panel-kicker" style={{ display: 'block', marginTop: 12 }}>AWARDS</span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                {awards.accolades.map(a => (
+                  <span key={a.id} style={{ padding: '3px 9px', borderRadius: 12, background: 'rgba(255,158,87,0.1)', border: '1px solid rgba(255,158,87,0.25)', color: '#ff9e57', fontSize: '0.72rem', fontWeight: 700 }}>
+                    {accoladeIcon(a)} {accoladeLabel(a)} · {a.season}
+                  </span>
+                ))}
+                {awards.potm.map(a => (
+                  <span key={a.id} style={{ padding: '3px 9px', borderRadius: 12, background: 'rgba(94,129,244,0.1)', border: '1px solid rgba(94,129,244,0.25)', color: 'var(--color-cyan)', fontSize: '0.72rem', fontWeight: 700 }}>
+                    ⭐ POTM · {a.month_label}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const HallOfFameTab = ({ sport, cfg }) => {
+  const username = currentUsername();
+  const [subTab, setSubTab] = useState('plaques'); // plaques | vote | history
+
   const [hof, setHof] = useState([]);
-  useEffect(() => { db.getHof(sport).then(setHof); }, [sport]);
+  const [players, setPlayers] = useState([]);
+  const [expandedId, setExpandedId] = useState(null);
+
+  const [candidates, setCandidates] = useState([]);
+  const [ballot, setBallot] = useState(null);
+  const [votes, setVotes] = useState([]);
+  const [myVotes, setMyVotes] = useState({}); // player_id -> vote record
+  const [history, setHistory] = useState([]);
+  const [historyTallies, setHistoryTallies] = useState({}); // ballot_id -> tally rows
+  const [loading, setLoading] = useState(true);
+
+  const loadPlaques = () => {
+    Promise.all([db.getHof(sport), db.getPlayers(sport)]).then(([h, p]) => {
+      setHof(h || []); setPlayers(p || []); setLoading(false);
+    });
+  };
+
+  const loadVote = () => {
+    db.getHofCandidates(sport).then(setCandidates);
+    db.getHofBallot(sport).then(b => {
+      setBallot(b);
+      if (!b) { setVotes([]); setMyVotes({}); return; }
+      db.getHofVotes(sport, b.id).then(setVotes);
+      if (username) {
+        db.getMyHofVotes(sport, b.id, username).then(mine => {
+          setMyVotes(Object.fromEntries((mine || []).map(v => [String(v.player_id), v])));
+        });
+      } else setMyVotes({});
+    });
+  };
+
+  useEffect(() => { loadPlaques(); loadVote(); }, [sport]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    db.getHofBallotHistory(sport).then(rows => {
+      setHistory(rows || []);
+      Promise.all((rows || []).map(b => db.getHofVotes(sport, b.id).then(vs => [b.id, tallyHofVotesPublic(vs)])))
+        .then(pairs => setHistoryTallies(Object.fromEntries(pairs)));
+    });
+  }, [sport]);
+
+  const toggleVote = async (candidate) => {
+    if (!username || !ballot || ballot.status !== 'open') return;
+    const key = String(candidate.player_id || candidate.id);
+    if (myVotes[key]) {
+      await db.uncastHofVote(sport, ballot.id, candidate.player_id || candidate.id, username);
+      setMyVotes(prev => { const next = { ...prev }; delete next[key]; return next; });
+    } else {
+      await db.castHofVote(sport, ballot.id, { player_id: candidate.player_id || candidate.id, player_name: candidate.player_name, team: candidate.team }, username);
+      awardXP(username, 3);
+      setMyVotes(prev => ({ ...prev, [key]: true }));
+    }
+  };
+
+  // Group inducted members by induction class, most recent first;
+  // legacy entries with no class go in an "Hall of Fame" catch-all.
+  const groupedHof = React.useMemo(() => {
+    const groups = new Map();
+    hof.forEach(m => {
+      const key = m.induction_class || (m.year ? `Class of ${m.year}` : 'Hall of Fame');
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(m);
+    });
+    return Array.from(groups.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [hof]);
+
+  if (loading) return <div className="lh-loading">Loading the Hall of Fame…</div>;
+
   return (
     <div>
-      <div className="lh-section-head"><h2>Hall of Fame</h2><span className="lh-section-tag">{hof.length} Inducted</span></div>
-      {hof.length===0 ? (
-        <div className="lh-empty">Hall of Fame players will appear here</div>
-      ) : (
-        <div className="lh-hof-grid">
-          {hof.map((entry,i) => (
-            <div key={i} className="lh-hof-card" style={{ animationDelay:`${i*40}ms` }}>
-              <div className="lh-hof-icon">🏆</div>
-              <p className="lh-hof-name">{entry.player_name}</p>
-              {entry.team && <p className="lh-hof-team">{entry.team}</p>}
-              {entry.description && <p className="lh-hof-desc">{entry.description}</p>}
-            </div>
-          ))}
-        </div>
+      <div className="lh-section-head">
+        <div><h2>Hall of Fame</h2><p className="lh-section-note">Career achievement, decided by the community.</p></div>
+        <span className="lh-section-tag">{hof.length} Inducted</span>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        {[['plaques', 'Plaques'], ['vote', 'Candidates & Voting'], ['history', 'Voting History']].map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setSubTab(key)}
+            style={{
+              padding: '8px 16px', borderRadius: 9, cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem',
+              border: subTab === key ? '1px solid var(--accent)' : '1px solid rgba(var(--accent-rgb),0.18)',
+              color: subTab === key ? 'var(--accent)' : 'rgba(210,218,241,0.7)',
+              background: subTab === key ? 'rgba(var(--accent-rgb),0.14)' : 'rgba(var(--accent-rgb),0.04)',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {subTab === 'plaques' && (
+        hof.length === 0 ? (
+          <div className="lh-empty">Hall of Fame players will appear here</div>
+        ) : (
+          <div>
+            {groupedHof.map(([classLabel, members]) => (
+              <div key={classLabel} style={{ marginBottom: 24 }}>
+                <span className="lh-panel-kicker">{classLabel.toUpperCase()}</span>
+                <div className="lh-hof-grid" style={{ marginTop: 8 }}>
+                  {members.map((entry, i) => (
+                    <HallOfFamePlaque
+                      key={entry.id || i}
+                      entry={entry}
+                      cfg={cfg}
+                      sport={sport}
+                      players={players}
+                      expanded={expandedId === (entry.id || i)}
+                      onToggle={() => setExpandedId(expandedId === (entry.id || i) ? null : (entry.id || i))}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      )}
+
+      {subTab === 'vote' && (
+        !ballot || ballot.status !== 'open' ? (
+          <div className="lh-empty">
+            {ballot?.status === 'closed' ? 'Voting has closed — results are being finalized.' : 'No Hall of Fame vote is open right now. Check back for the next induction class.'}
+            {candidates.length > 0 && (
+              <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8, textAlign: 'left' }}>
+                {candidates.map(c => (
+                  <div key={c.id} className="lh-card" style={{ padding: '10px 14px' }}>
+                    <strong style={{ color: '#e2e5f0' }}>{c.player_name}</strong>{c.team ? <span style={{ color: 'rgba(158,165,196,0.5)' }}> — {c.team}</span> : null}
+                    {c.blurb && <p style={{ margin: '4px 0 0', color: 'rgba(158,165,196,0.6)', fontSize: '0.82rem' }}>{c.blurb}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            {!username && <div className="lh-feature-notice">Sign in to cast your Hall of Fame vote. You can back as many candidates as you like.</div>}
+            <p className="lh-section-note" style={{ marginBottom: 12 }}>Voting for the <strong>{ballot.class_label}</strong> — back every candidate you think belongs.</p>
+            {candidates.length === 0 ? (
+              <div className="lh-empty">No candidates on this ballot yet.</div>
+            ) : (
+              <div className="lh-watchlist-grid">
+                {candidates.map(c => {
+                  const key = String(c.player_id || c.id);
+                  const voted = !!myVotes[key];
+                  return (
+                    <div className={`lh-watchlist-row ${voted ? 'watched' : ''}`} key={c.id}>
+                      <div className="lh-watchlist-player">
+                        <span className="lh-watchlist-avatar">{(c.player_name || '?')[0]}</span>
+                        <span><strong>{c.player_name}</strong><small>{c.team || 'Free Agent'}{c.blurb ? ` — ${c.blurb}` : ''}</small></span>
+                      </div>
+                      <button className="lh-watchlist-action" onClick={() => toggleVote(c)} disabled={!username} aria-pressed={voted}>
+                        {voted ? <><Check size={14} /> Voted</> : <><Star size={14} /> Vote</>}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )
+      )}
+
+      {subTab === 'history' && (
+        history.length === 0 ? (
+          <div className="lh-empty">No past induction votes yet.</div>
+        ) : (
+          <div className="lh-record-columns">
+            {history.map(b => {
+              const rows = historyTallies[b.id] || [];
+              return (
+                <div className="lh-card lh-feature-panel" key={b.id}>
+                  <div className="lh-feature-panel-head">
+                    <div><span className="lh-panel-kicker">{b.status === 'final' ? 'FINALIZED' : 'CLOSED'}</span><h3>{b.class_label}</h3></div>
+                    <Trophy size={16} color="var(--accent)" />
+                  </div>
+                  {rows.length === 0 ? <div className="lh-empty">No votes were cast.</div> : (
+                    <div className="lh-record-book-list">
+                      {rows.map((row, index) => (
+                        <div className="lh-record-book-row" key={row.player_id}>
+                          <span className="lh-record-rank">{String(index + 1).padStart(2, '0')}</span>
+                          <div className="lh-record-stat"><strong>{row.player_name}</strong></div>
+                          <strong className="lh-record-value">{row.count} vote{row.count === 1 ? '' : 's'}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )
       )}
     </div>
   );

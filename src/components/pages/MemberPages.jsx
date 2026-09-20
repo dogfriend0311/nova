@@ -3,7 +3,7 @@ import { SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl, getTeamByAbbr } from '../../d
 import * as lfm from '../../services/lastfmService';
 import { ProfileBackground, ProfileAudioPlayer, effectiveBgList, effectiveAudioList, RobloxLinkCard, RobloxGameCard, LeaguePlayerShowcase, WatchListPreview } from './MemberProfile';
 import { getWatchList } from '../../services/mediaService';
-import { MemberActivityTimeline, CommentsSection } from './MemberShared';
+import { MemberActivityTimeline, CommentsSection, MemberRankGrid } from './MemberShared';
 import { BadgeRow, DiscordVerifiedChip } from '../BadgeDisplay';
 import { checkAndAwardDiscordBadges } from '../../services/discordBadgeCheck';
 import { MemberGridSkeleton } from '../Skeleton';
@@ -609,6 +609,7 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
   const [followingList, setFollowingList] = useState([]);
   const [novaXp,        setNovaXp]        = useState(0);
   const [pickRecord,    setPickRecord]    = useState(null); // { correct, total } | null
+  const [viewerFollowerUsernames, setViewerFollowerUsernames] = useState([]); // who follows *me* — for mutuals
 
   useEffect(() => {
     let cancelled = false;
@@ -616,15 +617,26 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
       db.getFollowersOf(FOLLOW_TYPES.USER, member.username).catch(() => []),
       getFollowing(member.username, FOLLOW_TYPES.USER).catch(() => []),
       pickemsDb.getAllTimeLeaderboard().catch(() => []),
-    ]).then(([followers, following, leaderboard]) => {
+      (me && me !== member.username) ? db.getFollowersOf(FOLLOW_TYPES.USER, me).catch(() => []) : Promise.resolve([]),
+    ]).then(([followers, following, leaderboard, myFollowers]) => {
       if (cancelled) return;
       setFollowerList(followers || []);
       setFollowingList(following || []);
       const row = (leaderboard || []).find(r => r.username === member.username);
       setPickRecord(row && row.total_picks > 0 ? { correct: row.correct_picks, total: row.total_picks } : null);
+      setViewerFollowerUsernames((myFollowers || []).map(f => f.username));
     });
     return () => { cancelled = true; };
-  }, [member.username]);
+  }, [member.username, me]);
+
+  // Mutual followers — people who follow both the viewer and this member
+  // (a shared-follower "you might know each other" signal, distinct from
+  // mutualTeams above which is about shared favorite real-world teams).
+  const mutualFollowers = React.useMemo(() => {
+    if (!me || me === member.username || viewerFollowerUsernames.length === 0) return [];
+    const mine = new Set(viewerFollowerUsernames);
+    return followerList.map(f => f.username).filter(u => mine.has(u));
+  }, [me, member.username, followerList, viewerFollowerUsernames]);
 
   // Trophy Room — the member's own ordered pick of assigned badges to
   // showcase (member.visible_badge_ids is already that list, filtered to
@@ -885,6 +897,16 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
             </div>
           )}
 
+          {mutualFollowers.length > 0 && (
+            <div style={{
+              marginTop: 8, padding: '7px 14px', borderRadius: 20, textAlign: 'center',
+              background: 'rgba(255,158,87,0.08)', border: '1px solid rgba(255,158,87,0.25)',
+              color: '#ff9e57', fontSize: '0.76rem', fontWeight: 700, cursor: 'pointer',
+            }} onClick={() => setViewTab('friends')} title="View in Friends tab">
+              👥 {mutualFollowers.length} mutual follower{mutualFollowers.length === 1 ? '' : 's'}
+            </div>
+          )}
+
           <div className="gl-public-meta-row">
             {socials.map(s => (
               <a key={s.key} href={member[s.key]} target="_blank" rel="noreferrer" className="gl-public-meta-item" style={{ textDecoration: 'none' }}>
@@ -963,6 +985,8 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
                 </div>
               </div>
             </div>
+
+            <MemberRankGrid username={member.username} />
 
             <div className="member-overview-links">
               <span className="member-overview-kicker">QUICK ACCESS</span>
@@ -1234,6 +1258,19 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
                 </div>
               )}
             </div>
+
+            {mutualFollowers.length > 0 && (
+              <div style={{ marginBottom: 18 }}>
+                <span className="member-overview-kicker">MUTUAL FOLLOWERS ({mutualFollowers.length})</span>
+                <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {mutualFollowers.map(u => (
+                    <button key={u} className="member-friend-chip" onClick={() => { window.location.hash = `#members/${u}`; }}>
+                      {u}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="member-friends-columns">
               <div>

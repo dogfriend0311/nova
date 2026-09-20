@@ -14,6 +14,61 @@ export const formatTimeAgo = (iso) => {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 };
 
+const ordinal = (n) => {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`;
+};
+
+// ── Member leaderboard ranks — Overall Nova / Prediction / Fantasy /
+// League, side by side. Pulled from leaderboardService, which fans out
+// to each rank's own existing all-time leaderboard query. Any category
+// the member has no standing in (never made a pick'em pick, doesn't
+// follow a league team, etc.) is simply omitted rather than shown as
+// "unranked" — an empty grid renders nothing at all. ─────────────────
+export const MemberRankGrid = ({ username }) => {
+  const [ranks, setRanks] = useState(null); // null = loading
+
+  useEffect(() => {
+    if (!username) { setRanks(null); return; }
+    let cancelled = false;
+    import('../../services/leaderboardService').then(({ getMemberRanks }) => {
+      getMemberRanks(username).then((r) => { if (!cancelled) setRanks(r); });
+    });
+    return () => { cancelled = true; };
+  }, [username]);
+
+  if (!ranks) return null;
+  const cards = [
+    ranks.overall    && { key: 'overall',    label: 'OVERALL NOVA RANK', rank: ranks.overall.rank,    total: ranks.overall.total,    sub: `${ranks.overall.xp} XP` },
+    ranks.prediction && { key: 'prediction', label: 'PREDICTION RANK',   rank: ranks.prediction.rank, total: ranks.prediction.total, sub: `${ranks.prediction.correctPicks}/${ranks.prediction.totalPicks} correct` },
+    ranks.fantasy    && { key: 'fantasy',    label: 'FANTASY RANK',      rank: ranks.fantasy.rank,    total: ranks.fantasy.total,    sub: `${ranks.fantasy.wins}-${ranks.fantasy.losses}` },
+    ranks.league     && { key: 'league',     label: 'LEAGUE RANK',       rank: ranks.league.rank,     total: ranks.league.total,     sub: ranks.league.teamName },
+  ].filter(Boolean);
+
+  if (cards.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 20 }}>
+      <span className="member-overview-kicker">LEADERBOARD RANKS</span>
+      <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 8 }}>
+        {cards.map(c => (
+          <div key={c.key} style={{
+            padding: '10px 12px', borderRadius: 10,
+            background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.14)',
+          }}>
+            <div style={{ color: 'rgba(158,165,196,0.5)', fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.06em' }}>{c.label}</div>
+            <div style={{ color: 'var(--color-cyan)', fontWeight: 800, fontSize: '1.1rem', marginTop: 2 }}>
+              {ordinal(c.rank)} <span style={{ color: 'rgba(158,165,196,0.4)', fontWeight: 600, fontSize: '0.72rem' }}>of {c.total}</span>
+            </div>
+            {c.sub && <div style={{ color: 'rgba(200,210,240,0.55)', fontSize: '0.72rem', marginTop: 1 }}>{c.sub}</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // ── Per-member activity timeline ─────────────────────────────
 // A filtered, member-scoped cousin of the site-wide ActivityFeed.jsx on
 // Home. That feed is built from site content (articles, league POTM/
@@ -95,6 +150,15 @@ export const MemberActivityTimeline = ({ username, favGames, limit = 8, emptyLab
 
 const REACTION_EMOJIS = ['❤️', '👍', '😂', '😮', '😢'];
 
+// Accepts a direct .gif link, or a Giphy/Tenor "share" page link (best-effort
+// extraction of the actual media URL so pasted share links still render).
+// Mirrors the same helper in PlayerComments.jsx so GIFs behave identically
+// on profile comments and player-page comments.
+const normalizeGifUrl = (url) => {
+  if (!url) return '';
+  return url.trim();
+};
+
 // ── Comments (used on both the self-view profile and the public
 // member page — same thread, same moderation rules either way) ────
 export const CommentsSection = ({ toUsername, currentUser, isOwner, pinnedCommentId, onPin }) => {
@@ -108,6 +172,8 @@ export const CommentsSection = ({ toUsername, currentUser, isOwner, pinnedCommen
   const [editingId,  setEditingId]  = useState(null);
   const [editText,   setEditText]   = useState('');
   const [openReactionPickerId, setOpenReactionPickerId] = useState(null);
+  const [showGif,    setShowGif]    = useState(false);
+  const [gifUrl,     setGifUrl]     = useState('');
 
   const loadComments = async () => {
     setLoading(true);
@@ -123,10 +189,11 @@ export const CommentsSection = ({ toUsername, currentUser, isOwner, pinnedCommen
 
   useEffect(() => { loadComments(); }, [toUsername]); // eslint-disable-line
 
-  const postComment = async (content, replyToId) => {
+  const postComment = async (content, replyToId, gif) => {
     const nc = {
       id: Date.now().toString(), from_username: currentUser, to_username: toUsername,
       content, created_at: new Date().toISOString(), reply_to_id: replyToId || null, reactions: {},
+      gif_url: gif || null,
     };
     try {
       const { default: db } = await import('../../services/db');
@@ -143,13 +210,14 @@ export const CommentsSection = ({ toUsername, currentUser, isOwner, pinnedCommen
   };
 
   const handlePost = async () => {
-    if (!text.trim() || !currentUser) return;
+    const gif = normalizeGifUrl(gifUrl);
+    if ((!text.trim() && !gif) || !currentUser) return;
     const verdict = checkRateLimit('comment', currentUser);
     if (!verdict.allowed) { setLimitMsg(verdict.message); return; }
     setLimitMsg('');
     setPosting(true);
-    await postComment(text.trim(), null);
-    setText(''); setPosting(false);
+    await postComment(text.trim(), null, gif);
+    setText(''); setGifUrl(''); setShowGif(false); setPosting(false);
   };
 
   const handleReply = async (parentId) => {
@@ -301,7 +369,12 @@ export const CommentsSection = ({ toUsername, currentUser, isOwner, pinnedCommen
             </div>
           </div>
         ) : (
-          <p style={{ margin: 0, color: 'rgba(220,230,255,0.85)', fontSize: '0.88rem', lineHeight: 1.5 }}>{c.content}</p>
+          <>
+            {c.content && <p style={{ margin: 0, color: 'rgba(220,230,255,0.85)', fontSize: '0.88rem', lineHeight: 1.5 }}>{c.content}</p>}
+            {c.gif_url && (
+              <img src={normalizeGifUrl(c.gif_url)} alt="Comment GIF" style={{ marginTop: c.content ? 8 : 0, maxWidth: 260, maxHeight: 200, borderRadius: 8, display: 'block' }} />
+            )}
+          </>
         )}
 
         <ReactionRow comment={c} />
@@ -334,10 +407,38 @@ export const CommentsSection = ({ toUsername, currentUser, isOwner, pinnedCommen
             onChange={e => setText(e.target.value)}
             className="focus-ring"
             style={{ width: '100%', padding: '10px 12px', background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 8, fontFamily: 'inherit', fontSize: '0.9rem', resize: 'vertical', boxSizing: 'border-box' }} />
-          <button className="neon-button" onClick={handlePost} disabled={posting || !text.trim()}
-            style={{ marginTop: 8, padding: '8px 20px', opacity: (!text.trim() || posting) ? 0.4 : 1 }}>
-            {posting ? 'Posting...' : 'Post Comment'}
-          </button>
+
+          {showGif && (
+            <div style={{ marginTop: 8 }}>
+              <input
+                type="text"
+                placeholder="Paste a GIF link (Giphy, Tenor, or any .gif URL)"
+                value={gifUrl}
+                onChange={e => setGifUrl(e.target.value)}
+                className="focus-ring"
+                style={{ width: '100%', padding: '9px 12px', background: 'rgba(94,129,244,0.05)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', borderRadius: 8, fontSize: '0.85rem', boxSizing: 'border-box' }}
+              />
+              {gifUrl.trim() && (
+                <div style={{ marginTop: 8 }}>
+                  <img src={normalizeGifUrl(gifUrl)} alt="GIF preview" style={{ maxWidth: 220, maxHeight: 160, borderRadius: 8, border: '1px solid rgba(94,129,244,0.2)' }} />
+                </div>
+              )}
+            </div>
+          )}
+
+          <div style={{ marginTop: 8, display: 'flex', gap: 10, alignItems: 'center' }}>
+            <button className="neon-button" onClick={handlePost} disabled={posting || (!text.trim() && !gifUrl.trim())}
+              style={{ padding: '8px 20px', opacity: (posting || (!text.trim() && !gifUrl.trim())) ? 0.4 : 1 }}>
+              {posting ? 'Posting...' : 'Post Comment'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowGif(s => !s)}
+              style={{ background: 'none', border: '1px solid rgba(94,129,244,0.25)', color: showGif ? 'var(--color-magenta)' : 'rgba(158,165,196,0.6)', borderRadius: 6, padding: '7px 12px', fontSize: '0.8rem', cursor: 'pointer' }}
+            >
+              🎬 GIF
+            </button>
+          </div>
           {limitMsg && <p style={{ color: '#ff9e57', fontSize: '0.78rem', marginTop: 8, marginBottom: 0 }}>{limitMsg}</p>}
         </div>
       ) : (

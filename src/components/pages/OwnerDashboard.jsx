@@ -1630,26 +1630,183 @@ const LeagueBoxScoresTab = ({ prefix }) => {
   );
 };
 
+// Tally votes for the current/a given ballot: one row per candidate,
+// sorted by vote count. Shared by the live ballot view and the voting
+// history view below.
+const tallyHofVotes = (votes) => {
+  const counts = new Map();
+  (votes || []).forEach(v => {
+    const key = String(v.player_id);
+    const entry = counts.get(key) || { player_id: v.player_id, player_name: v.player_name, team: v.team, count: 0 };
+    entry.count += 1;
+    counts.set(key, entry);
+  });
+  return Array.from(counts.values()).sort((a, b) => b.count - a.count);
+};
+
 const LeagueHofTab = ({ prefix }) => {
+  const { user } = useAuth();
   const label = getSport(prefix).label;
   const [hofMembers, setHofMembers] = useState([]);
   const [players, setPlayers]       = useState([]);
-  const [form, setForm] = useState({ player_name:'', year:new Date().getFullYear() });
+  const [form, setForm] = useState({ player_name:'', team:'', description:'', induction_class:'' });
 
-  useEffect(() => { db.getHof(prefix).then(setHofMembers); db.getPlayers(prefix).then(setPlayers); }, [prefix]);
+  const [candidates, setCandidates] = useState([]);
+  const [candForm, setCandForm]     = useState({ player_name:'', team:'', blurb:'' });
+
+  const [ballot, setBallot]         = useState(null);
+  const [votes, setVotes]           = useState([]);
+  const [history, setHistory]       = useState([]); // past ballots
+  const [newClassLabel, setNewClassLabel] = useState(`${new Date().getFullYear()} Class`);
+
+  const loadCore = () => {
+    db.getHof(prefix).then(setHofMembers);
+    db.getPlayers(prefix).then(setPlayers);
+    db.getHofCandidates(prefix).then(setCandidates);
+    db.getHofBallotHistory(prefix).then(setHistory);
+  };
+  useEffect(() => { loadCore(); }, [prefix]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadBallot = () => {
+    db.getHofBallot(prefix).then(b => {
+      setBallot(b);
+      if (b) db.getHofVotes(prefix, b.id).then(setVotes);
+      else setVotes([]);
+    });
+  };
+  useEffect(() => { loadBallot(); }, [prefix]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const add = async () => {
     if (!form.player_name) return;
     const saved = await db.addHof(prefix, form);
-    setHofMembers(prev=>[...prev,saved]); setForm({ player_name:'', year:new Date().getFullYear() });
+    setHofMembers(prev=>[...prev,saved]);
+    setForm({ player_name:'', team:'', description:'', induction_class:'' });
   };
   const remove = async (id) => { await db.deleteHof(prefix, id); setHofMembers(prev=>prev.filter(m=>m.id!==id)); };
+
+  const addCandidate = async () => {
+    if (!candForm.player_name) return;
+    const match = players.find(p => p.player_name === candForm.player_name);
+    const saved = await db.addHofCandidate(prefix, { ...candForm, player_id: match?.id || null, nominated_by: user?.username });
+    setCandidates(prev => [saved, ...prev]);
+    setCandForm({ player_name:'', team:'', blurb:'' });
+  };
+  const removeCandidate = async (id) => {
+    await db.deleteHofCandidate(prefix, id);
+    setCandidates(prev => prev.filter(c => c.id !== id));
+  };
+
+  const openVote = async () => {
+    if (!newClassLabel.trim()) return;
+    const saved = await db.startHofVote(prefix, newClassLabel.trim(), user?.username);
+    setBallot(saved); setVotes([]);
+    loadCore();
+  };
+  const closeVote = async () => { await db.closeHofVote(ballot.id, prefix); loadBallot(); };
+  const finalizeVote = async () => { await db.finalizeHofVote(ballot.id, prefix); loadBallot(); loadCore(); };
+
+  const inductFromTally = async (row) => {
+    const cand = candidates.find(c => String(c.player_id) === String(row.player_id) || c.player_name === row.player_name);
+    const saved = await db.addHof(prefix, {
+      player_name: row.player_name,
+      team: row.team || cand?.team || '',
+      description: cand?.blurb || `Inducted with ${row.count} vote${row.count === 1 ? '' : 's'} in the ${ballot.class_label}.`,
+      induction_class: ballot.class_label,
+      player_id: row.player_id,
+    });
+    setHofMembers(prev => [...prev, saved]);
+    if (cand) removeCandidate(cand.id);
+  };
+
+  const tally = tallyHofVotes(votes);
 
   return (
     <div className="tab-content">
       <h2 className="gradient-text-cyan">{label} Hall of Fame</h2>
-      <div className="neon-card p-3" style={{ marginTop:'20px', marginBottom:'30px' }}>
-        <h3 className="gradient-text-magenta">Induct Player</h3>
+
+      {/* ── Candidates ────────────────────────────────────────── */}
+      <div className="neon-card p-3" style={{ marginTop:'20px', marginBottom:'20px' }}>
+        <h3 className="gradient-text-magenta">Hall of Fame Candidates</h3>
+        <p style={{ color:'rgba(158,165,196,0.6)', fontSize:'0.85rem', marginTop:0 }}>Nominate players the community can vote on for the next induction class.</p>
+        <div className="edit-form">
+          <div className="form-field">
+            <label>Player</label>
+            <select value={candForm.player_name} onChange={e=>setCandForm({...candForm, player_name:e.target.value, team: players.find(p=>p.player_name===e.target.value)?.team || candForm.team})} style={SS}>
+              <option value="">Select player</option>
+              {players.map(p=><option key={p.id} value={p.player_name}>{p.player_name}</option>)}
+            </select>
+          </div>
+          <div className="form-field"><label>Team</label><input value={candForm.team} onChange={e=>setCandForm({...candForm,team:e.target.value})} style={SI} /></div>
+          <div className="form-field"><label>Why they belong (optional)</label><input value={candForm.blurb} onChange={e=>setCandForm({...candForm,blurb:e.target.value})} style={SI} placeholder="Career highlight, e.g. '.340 career AVG, 3x MVP'" /></div>
+          <button className="neon-button" onClick={addCandidate}>Add Candidate</button>
+        </div>
+        {candidates.length > 0 && (
+          <div style={{ marginTop:'16px', display:'flex', flexDirection:'column', gap:'8px' }}>
+            {candidates.map(c => (
+              <div key={c.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 12px', background:'rgba(94,129,244,0.04)', borderRadius:'8px' }}>
+                <span style={{ color:'#e2e5f0', fontSize:'0.88rem' }}><strong>{c.player_name}</strong>{c.team ? ` — ${c.team}` : ''}</span>
+                <button onClick={()=>removeCandidate(c.id)} style={{ background:'none', border:'none', color:'#ff6b7a', cursor:'pointer', fontSize:'0.8rem' }}>Remove</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Voting ────────────────────────────────────────────── */}
+      <div className="neon-card p-3" style={{ marginBottom:'20px' }}>
+        <h3 className="gradient-text-magenta">Induction Vote</h3>
+        {!ballot || ballot.status === 'final' ? (
+          <div className="edit-form">
+            <div className="form-field"><label>Induction Class Label</label><input value={newClassLabel} onChange={e=>setNewClassLabel(e.target.value)} style={SI} placeholder="e.g. 2027 Class" /></div>
+            <button className="neon-button" onClick={openVote} disabled={candidates.length === 0}>Open Voting</button>
+            {candidates.length === 0 && <p style={{ color:'rgba(158,165,196,0.5)', fontSize:'0.8rem' }}>Add at least one candidate above first.</p>}
+          </div>
+        ) : (
+          <>
+            <p style={{ color:'rgba(158,165,196,0.7)', fontSize:'0.9rem' }}>
+              <strong style={{ color:'#e2e5f0' }}>{ballot.class_label}</strong> — {ballot.status === 'open' ? 'voting is open' : 'voting closed, ready to induct'}
+            </p>
+            {tally.length === 0 ? (
+              <p style={{ color:'rgba(158,165,196,0.4)' }}>No votes cast yet.</p>
+            ) : (
+              <div style={{ display:'flex', flexDirection:'column', gap:'8px', marginTop:'12px' }}>
+                {tally.map(row => (
+                  <div key={row.player_id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 12px', background:'rgba(94,129,244,0.04)', borderRadius:'8px' }}>
+                    <span style={{ color:'#e2e5f0', fontSize:'0.88rem' }}><strong>{row.player_name}</strong> — {row.count} vote{row.count === 1 ? '' : 's'}</span>
+                    {ballot.status === 'closed' && (
+                      <button className="neon-button" style={{ padding:'5px 14px', fontSize:'0.78rem' }} onClick={()=>inductFromTally(row)}>Induct</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ display:'flex', gap:'10px', marginTop:'16px' }}>
+              {ballot.status === 'open' && <button className="neon-button" onClick={closeVote}>Close Voting</button>}
+              {ballot.status === 'closed' && <button className="neon-button" style={{ borderColor:'#ff9e57', color:'#ff9e57' }} onClick={finalizeVote}>Finalize Class</button>}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── Voting history ────────────────────────────────────── */}
+      {history.length > 0 && (
+        <div className="neon-card p-3" style={{ marginBottom:'20px' }}>
+          <h3 className="gradient-text-magenta">Voting History</h3>
+          <div style={{ display:'flex', flexDirection:'column', gap:'6px' }}>
+            {history.map(b => (
+              <div key={b.id} style={{ padding:'8px 12px', background:'rgba(94,129,244,0.04)', borderRadius:'8px', color:'#e2e5f0', fontSize:'0.85rem' }}>
+                <strong>{b.class_label}</strong> — {b.status === 'final' ? 'Finalized' : 'Closed'}
+                {b.closed_at ? ` on ${new Date(b.closed_at).toLocaleDateString()}` : ''}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Already inducted (manual add still available for legacy members) ── */}
+      <div className="neon-card p-3" style={{ marginBottom:'30px' }}>
+        <h3 className="gradient-text-magenta">Manually Induct a Player</h3>
+        <p style={{ color:'rgba(158,165,196,0.6)', fontSize:'0.85rem', marginTop:0 }}>For legacy inductees not run through a vote.</p>
         <div className="edit-form">
           <div className="form-field">
             <label>Player</label>
@@ -1658,16 +1815,19 @@ const LeagueHofTab = ({ prefix }) => {
               {players.map(p=><option key={p.id} value={p.player_name}>{p.player_name}</option>)}
             </select>
           </div>
-          <div className="form-field"><label>Induction Year</label><input type="number" value={form.year} onChange={e=>setForm({...form,year:+e.target.value})} style={SI} /></div>
+          <div className="form-field"><label>Team</label><input value={form.team} onChange={e=>setForm({...form,team:e.target.value})} style={SI} /></div>
+          <div className="form-field"><label>Induction Class</label><input value={form.induction_class} onChange={e=>setForm({...form,induction_class:e.target.value})} style={SI} placeholder="e.g. 2027 Class" /></div>
+          <div className="form-field"><label>Plaque Note</label><input value={form.description} onChange={e=>setForm({...form,description:e.target.value})} style={SI} /></div>
           <button className="neon-button" onClick={add}>Induct Player</button>
         </div>
       </div>
+
       <div className="hof-grid">
         {hofMembers.map(m=>(
           <div key={m.id} className="neon-card p-3">
             <div style={{ textAlign:'center' }}>
               <h4 className="gradient-text-magenta" style={{ marginBottom:'5px' }}>{m.player_name}</h4>
-              <p style={{ margin:0, color:'rgba(158, 165, 196,0.7)', fontSize:'0.9rem' }}>Class of {m.year}</p>
+              <p style={{ margin:0, color:'rgba(158, 165, 196,0.7)', fontSize:'0.9rem' }}>{m.induction_class || (m.year ? `Class of ${m.year}` : '')}</p>
             </div>
             <button className="neon-button" style={{ width:'100%', marginTop:'15px', borderColor:'#ff6b7a', color:'#ff6b7a' }} onClick={()=>remove(m.id)}>Remove</button>
           </div>
