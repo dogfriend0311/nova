@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { checkRateLimit, recordAction } from '../../services/rateLimiter';
 import { awardXP } from '../../services/reputationService';
+import * as lfm from '../../services/lastfmService';
+import { SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl } from '../../data/teams';
+
+const SPORT_KEYS = ['mlb', 'nfl', 'nba', 'nhl', 'cfb', 'cbb'];
 
 // Shared "3h ago" / "2d ago" label used by comments, kudos, and the
 // per-member activity timeline below.
@@ -12,6 +16,83 @@ export const formatTimeAgo = (iso) => {
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   if (s < 604800) return `${Math.floor(s / 86400)}d ago`;
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+};
+
+// ── Last.fm "currently playing" widgets — both pull from the same
+// lastfmService.getNowPlaying() the full Last.fm page's banner uses;
+// these are just compact enough to sit in a profile header or a
+// dedicated music section. Render nothing if the member isn't
+// actively playing something right now (or hasn't linked Last.fm).
+const NowPlayingPill = ({ lastfmUsername, size = 'sm' }) => {
+  const [track, setTrack] = useState(null);
+
+  useEffect(() => {
+    if (!lastfmUsername) { setTrack(null); return; }
+    let active = true;
+    const poll = async () => {
+      const t = await lfm.getNowPlaying(lastfmUsername).catch(() => null);
+      if (active) setTrack(t?.isPlaying ? t : null);
+    };
+    poll();
+    const id = setInterval(poll, 30000);
+    return () => { active = false; clearInterval(id); };
+  }, [lastfmUsername]);
+
+  if (!track) return null;
+  const big = size === 'lg';
+  return (
+    <a href={track.trackUrl || '#'} target="_blank" rel="noreferrer"
+      style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, textDecoration: 'none', maxWidth: '100%' }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ff9e57', boxShadow: '0 0 6px #ff9e57', flexShrink: 0 }} />
+      <span style={{ color: 'rgba(200,210,240,0.75)', fontSize: big ? '0.82rem' : '0.72rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        ♪ {track.trackName} — {track.artistName}
+      </span>
+    </a>
+  );
+};
+
+// Compact "listening now" pill for a profile header. `username` here
+// is the member's linked Last.fm username (pass member.lastfm_username,
+// not their Nova username).
+export const ListeningToPublic = ({ username }) => <NowPlayingPill lastfmUsername={username} />;
+
+// Slightly larger now-playing display for a dedicated music/media section.
+export const NowPlayingPublic = ({ lastfmUsername }) => <NowPlayingPill lastfmUsername={lastfmUsername} size="lg" />;
+
+// ── Favorite teams badge row, click-to-filter. Same data shape and
+// styling family as FavTeamsDisplay on the self-view profile
+// (MemberProfile.jsx), with an onTeamClick handler added so a badge
+// can jump back to the member directory filtered to that team. ──
+export const FavTeams = ({ favTeams, onTeamClick }) => {
+  const hasSome = SPORT_KEYS.some((s) => (favTeams?.[s] || []).length > 0);
+  if (!hasSome) return null;
+  return (
+    <div style={{ marginTop: 10 }}>
+      <span className="member-overview-kicker">FAVORITE TEAMS</span>
+      <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {SPORT_KEYS.map((sport) => (favTeams?.[sport] || []).map((abbr) => {
+          const logo = ['mlb', 'nfl', 'nba', 'nhl'].includes(sport) ? getTeamLogoUrl(sport, abbr) : null;
+          return (
+            <button
+              key={`${sport}-${abbr}`}
+              onClick={() => onTeamClick && onTeamClick(abbr)}
+              title={`${SPORT_SHORT[sport]} · ${abbr}`}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 14,
+                background: 'rgba(94,129,244,0.08)', border: '1px solid rgba(94,129,244,0.2)',
+                color: '#e2e5f0', fontSize: '0.74rem', fontWeight: 700, cursor: onTeamClick ? 'pointer' : 'default',
+              }}
+            >
+              {logo
+                ? <img src={logo} alt="" style={{ width: 14, height: 14, objectFit: 'contain' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                : <span>{SPORT_ICONS[sport]}</span>}
+              {abbr}
+            </button>
+          );
+        }))}
+      </div>
+    </div>
+  );
 };
 
 const ordinal = (n) => {

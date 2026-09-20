@@ -3,7 +3,7 @@ import { SPORT_ICONS, SPORT_SHORT, getTeamLogoUrl, getTeamByAbbr } from '../../d
 import * as lfm from '../../services/lastfmService';
 import { ProfileBackground, ProfileAudioPlayer, effectiveBgList, effectiveAudioList, RobloxLinkCard, RobloxGameCard, LeaguePlayerShowcase, WatchListPreview } from './MemberProfile';
 import { getWatchList } from '../../services/mediaService';
-import { MemberActivityTimeline, CommentsSection, MemberRankGrid } from './MemberShared';
+import { MemberActivityTimeline, CommentsSection, MemberRankGrid, ListeningToPublic, NowPlayingPublic, FavTeams } from './MemberShared';
 import { BadgeRow, DiscordVerifiedChip } from '../BadgeDisplay';
 import { checkAndAwardDiscordBadges } from '../../services/discordBadgeCheck';
 import { MemberGridSkeleton } from '../Skeleton';
@@ -801,7 +801,7 @@ const MemberProfileView = ({ member, onBack, badgeTypes, viewerProfile, onFilter
                 <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', marginRight: 5, background: isOnline === true ? presenceDot : 'rgba(220,215,240,0.3)', boxShadow: isOnline === true ? `0 0 6px ${presenceDot}` : 'none' }} />
                 {presenceTxt}
               </div>
-              <ListeningToPublic username={member.username} />
+              <ListeningToPublic username={member.lastfm_username} />
               <div className="member-follow-counts">
                 <button onClick={() => setViewTab('friends')}><strong>{followerList.length}</strong> Followers</button>
                 <button onClick={() => setViewTab('friends')}><strong>{followingList.length}</strong> Following</button>
