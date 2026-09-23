@@ -1,11 +1,14 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Send, ArrowLeft, X } from 'lucide-react';
+import { Send, ArrowLeft, X, Paperclip } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { checkRateLimit, recordAction } from '../../services/rateLimiter';
 import messagingService from '../../services/messagingService';
 import ConversationSidebar from '../messages/ConversationSidebar';
 import MessageBubble from '../messages/MessageBubble';
 import MiniProfilePopover from '../messages/MiniProfilePopover';
+import GifPicker from '../messages/GifPicker';
+import VoiceRecorderButton from '../messages/VoiceRecorderButton';
+import { uploadToBlob } from '../../services/blobUpload';
 import './Pages.css';
 
 const GROUP_GAP_MS = 5 * 60 * 1000; // consecutive messages within 5 min from the same sender are grouped
@@ -20,7 +23,11 @@ const MessagesPage = ({ initialUsername, onSignIn }) => {
   const [limitMsg, setLimitMsg] = useState('');
   const [replyTo, setReplyTo] = useState(null);
   const [profilePopover, setProfilePopover] = useState(null); // username being viewed
+  const [gifPickerOpen, setGifPickerOpen] = useState(false);
+  const [voiceRecording, setVoiceRecording] = useState(false);
+  const [attaching, setAttaching] = useState(false);
   const bottomRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const loadConversations = useCallback(() => {
     if (!user) return Promise.resolve([]);
@@ -98,6 +105,98 @@ const MessagesPage = ({ initialUsername, onSignIn }) => {
       setLimitMsg(`Couldn't send — ${err?.message || 'unexpected error'}.`);
     } finally {
       setSending(false);
+    }
+  };
+
+  const sendGif = async (gif) => {
+    if (!active) return;
+    setGifPickerOpen(false);
+    const verdict = checkRateLimit('dm', user.username);
+    if (!verdict.allowed) { setLimitMsg(verdict.message); return; }
+    setLimitMsg('');
+    try {
+      const saved = await messagingService.sendMessage({
+        from: user.username,
+        toUsername: active.type === 'dm' ? active.other_username : null,
+        groupId: active.type === 'group' ? active.group_id : null,
+        content: gif.description || 'GIF',
+        messageType: 'gif',
+        payload: { url: gif.url, width: gif.width, height: gif.height },
+        replyToId: replyTo ? replyTo.id : null,
+      });
+      if (saved.__failed) { setLimitMsg(`Couldn't send — ${saved.__error || 'server error'}.`); return; }
+      recordAction('dm', user.username);
+      setReplyTo(null);
+      loadMessages();
+    } catch (err) {
+      setLimitMsg(`Couldn't send — ${err?.message || 'unexpected error'}.`);
+    }
+  };
+
+  const sendVoice = async ({ blob, durationMs, peaks }) => {
+    if (!active) return;
+    const verdict = checkRateLimit('dm', user.username);
+    if (!verdict.allowed) { setLimitMsg(verdict.message); return; }
+    setLimitMsg('');
+    try {
+      const ext = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('ogg') ? 'ogg' : 'webm';
+      const file = new File([blob], `voice-${Date.now()}.${ext}`, { type: blob.type || 'audio/webm' });
+      const path = `voice/${user.username}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const url = await uploadToBlob(file, path);
+      const saved = await messagingService.sendMessage({
+        from: user.username,
+        toUsername: active.type === 'dm' ? active.other_username : null,
+        groupId: active.type === 'group' ? active.group_id : null,
+        content: 'Voice message',
+        messageType: 'voice',
+        payload: { url, duration_ms: durationMs, peaks },
+        replyToId: replyTo ? replyTo.id : null,
+      });
+      if (saved.__failed) { setLimitMsg(`Couldn't send — ${saved.__error || 'server error'}.`); return; }
+      recordAction('dm', user.username);
+      setReplyTo(null);
+      loadMessages();
+    } catch (err) {
+      setLimitMsg(`Couldn't send voice message — ${err?.message || 'unexpected error'}.`);
+    }
+  };
+
+  const MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024; // 50MB
+
+  const handleFileSelected = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file later
+    if (!file || !active) return;
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      setLimitMsg("Couldn't attach — that file is over the 50MB limit.");
+      return;
+    }
+    const verdict = checkRateLimit('dm', user.username);
+    if (!verdict.allowed) { setLimitMsg(verdict.message); return; }
+    setLimitMsg('');
+    setAttaching(true);
+    try {
+      const messageType = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'file';
+      const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
+      const path = `${messageType}/${user.username}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const url = await uploadToBlob(file, path);
+      const saved = await messagingService.sendMessage({
+        from: user.username,
+        toUsername: active.type === 'dm' ? active.other_username : null,
+        groupId: active.type === 'group' ? active.group_id : null,
+        content: file.name,
+        messageType,
+        payload: { url, name: file.name, size: file.size },
+        replyToId: replyTo ? replyTo.id : null,
+      });
+      if (saved.__failed) { setLimitMsg(`Couldn't send — ${saved.__error || 'server error'}.`); return; }
+      recordAction('dm', user.username);
+      setReplyTo(null);
+      loadMessages();
+    } catch (err) {
+      setLimitMsg(`Couldn't attach — ${err?.message || 'unexpected error'}.`);
+    } finally {
+      setAttaching(false);
     }
   };
 
@@ -242,17 +341,61 @@ const MessagesPage = ({ initialUsername, onSignIn }) => {
                     </button>
                   </div>
                 )}
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
-                    placeholder="Type a message…"
-                    style={{ flex: 1, padding: '9px 12px', borderRadius: 8, background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', fontSize: '0.86rem' }}
-                  />
-                  <button className="neon-button" disabled={sending || !text.trim()} onClick={send} style={{ padding: '9px 14px', opacity: (!text.trim() || sending) ? 0.5 : 1 }}>
-                    <Send size={16} />
-                  </button>
+                <div style={{ display: 'flex', gap: 8, position: 'relative' }}>
+                  {!voiceRecording && (
+                    <>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        onChange={handleFileSelected}
+                        style={{ display: 'none' }}
+                      />
+                      <button
+                        title="Attach an image, video, or file"
+                        disabled={attaching}
+                        onClick={() => fileInputRef.current?.click()}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40, flexShrink: 0,
+                          borderRadius: 8, background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.2)',
+                          cursor: 'pointer', color: 'rgba(158,165,196,0.8)', opacity: attaching ? 0.5 : 1,
+                        }}
+                      >
+                        <Paperclip size={15} />
+                      </button>
+                    </>
+                  )}
+                  {!voiceRecording && (
+                    <button
+                      title="Send a GIF"
+                      onClick={() => setGifPickerOpen(o => !o)}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40, flexShrink: 0,
+                        borderRadius: 8, background: gifPickerOpen ? 'rgba(94,129,244,0.2)' : 'rgba(94,129,244,0.06)',
+                        border: '1px solid rgba(94,129,244,0.2)', cursor: 'pointer', color: 'rgba(158,165,196,0.8)',
+                        fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.02em',
+                      }}
+                    >
+                      GIF
+                    </button>
+                  )}
+                  {gifPickerOpen && <GifPicker onSelect={sendGif} onClose={() => setGifPickerOpen(false)} />}
+
+                  <VoiceRecorderButton onSend={sendVoice} onRecordingChange={setVoiceRecording} disabled={sending} />
+
+                  {!voiceRecording && (
+                    <>
+                      <input
+                        value={text}
+                        onChange={(e) => setText(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
+                        placeholder="Type a message…"
+                        style={{ flex: 1, padding: '9px 12px', borderRadius: 8, background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', fontSize: '0.86rem' }}
+                      />
+                      <button className="neon-button" disabled={sending || !text.trim()} onClick={send} style={{ padding: '9px 14px', opacity: (!text.trim() || sending) ? 0.5 : 1 }}>
+                        <Send size={16} />
+                      </button>
+                    </>
+                  )}
                 </div>
                 {limitMsg && <p style={{ color: '#ff9e57', fontSize: '0.76rem', marginTop: 6, marginBottom: 0 }}>{limitMsg}</p>}
               </div>

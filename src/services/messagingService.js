@@ -77,6 +77,11 @@ const messagingService = {
       if (!m) return '';
       if (m.deleted_at) return 'Message deleted';
       if (m.message_type === 'shared_object') return `Shared ${(m.payload && m.payload.object_type) || 'something'}`;
+      if (m.message_type === 'gif') return 'Sent a GIF';
+      if (m.message_type === 'voice') return 'Sent a voice message';
+      if (m.message_type === 'image') return 'Sent an image';
+      if (m.message_type === 'video') return 'Sent a video';
+      if (m.message_type === 'file') return `Sent a file: ${m.content || ''}`.trim();
       return m.content;
     };
 

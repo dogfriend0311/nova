@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Reply, Smile, Copy, Pencil, Trash2 } from 'lucide-react';
+import { Reply, Smile, Copy, Pencil, Trash2, FileText, Download } from 'lucide-react';
 import SharedObjectCard from './SharedObjectCard';
+import VoiceMessagePlayer from './VoiceMessagePlayer';
 import messagingService from '../../services/messagingService';
 
 const EMOJI_SHORTCODES = {
@@ -24,6 +25,34 @@ const renderContent = (content) => {
 
 const timeLabel = (iso) => new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 
+const formatBytes = (bytes) => {
+  if (!bytes) return '';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let i = 0; let n = bytes;
+  while (n >= 1024 && i < units.length - 1) { n /= 1024; i += 1; }
+  return `${n.toFixed(n < 10 && i > 0 ? 1 : 0)} ${units[i]}`;
+};
+
+// Full-screen viewer opened by tapping an image attachment.
+const ImageLightbox = ({ url, alt, onClose }) => (
+  <div
+    onClick={onClose}
+    style={{
+      position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(6,8,16,0.92)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out', padding: 24,
+    }}
+  >
+    <img src={url} alt={alt || ''} style={{ maxWidth: '92vw', maxHeight: '92vh', borderRadius: 8, boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }} />
+    <button
+      onClick={onClose}
+      style={{
+        position: 'absolute', top: 18, right: 22, background: 'rgba(255,255,255,0.08)', border: 'none',
+        color: '#fff', width: 34, height: 34, borderRadius: '50%', cursor: 'pointer', fontSize: '1.1rem',
+      }}
+    >×</button>
+  </div>
+);
+
 const MessageBubble = ({
   message, isOwn, showSender, showTimestamp, currentUsername,
   onReply, onReact, onEdit, onDelete, onOpenSharedObject, onOpenProfile,
@@ -32,6 +61,7 @@ const MessageBubble = ({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(message.content);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   if (message.deleted_at) {
     return (
@@ -80,14 +110,54 @@ const MessageBubble = ({
         )}
 
         <div style={{
-          padding: message.message_type === 'shared_object' ? 6 : '8px 12px',
+          padding: ['shared_object', 'gif', 'voice', 'image', 'video'].includes(message.message_type) ? 4 : (message.message_type === 'file' ? 8 : '8px 12px'),
           borderRadius: 14,
           background: isOwn ? 'rgba(94,129,244,0.2)' : 'rgba(94,129,244,0.06)',
           border: '1px solid rgba(94,129,244,0.15)',
-          minWidth: message.message_type === 'shared_object' ? 220 : 'auto',
+          minWidth: (message.message_type === 'shared_object' || message.message_type === 'file') ? 220 : 'auto',
         }}>
           {message.message_type === 'shared_object' ? (
             <SharedObjectCard payload={message.payload} onOpen={onOpenSharedObject} />
+          ) : message.message_type === 'gif' ? (
+            <img
+              src={message.payload?.url}
+              alt={message.content || 'GIF'}
+              style={{ display: 'block', maxWidth: 220, maxHeight: 220, borderRadius: 10 }}
+            />
+          ) : message.message_type === 'image' ? (
+            <>
+              <img
+                src={message.payload?.url}
+                alt={message.content || 'Image'}
+                onClick={() => setLightboxOpen(true)}
+                style={{ display: 'block', maxWidth: 240, maxHeight: 300, borderRadius: 10, cursor: 'zoom-in' }}
+              />
+              {lightboxOpen && (
+                <ImageLightbox url={message.payload?.url} alt={message.content} onClose={() => setLightboxOpen(false)} />
+              )}
+            </>
+          ) : message.message_type === 'video' ? (
+            <video src={message.payload?.url} controls style={{ display: 'block', maxWidth: 260, maxHeight: 300, borderRadius: 10 }} />
+          ) : message.message_type === 'file' ? (
+            <a
+              href={message.payload?.url} target="_blank" rel="noreferrer" download={message.payload?.name}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}
+            >
+              <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(94,129,244,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <FileText size={17} color="var(--color-cyan, #5e81f4)" />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ color: '#e2e5f0', fontWeight: 700, fontSize: '0.82rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {message.payload?.name || 'File'}
+                </div>
+                {message.payload?.size ? (
+                  <div style={{ color: 'rgba(158,165,196,0.5)', fontSize: '0.7rem' }}>{formatBytes(message.payload.size)}</div>
+                ) : null}
+              </div>
+              <Download size={15} color="rgba(158,165,196,0.5)" style={{ flexShrink: 0 }} />
+            </a>
+          ) : message.message_type === 'voice' ? (
+            <VoiceMessagePlayer payload={message.payload} />
           ) : editing ? (
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <input
@@ -159,7 +229,7 @@ const BubbleActions = ({ isOwn, message, pickerOpen, setPickerOpen, onReply, onR
       <IconBtn title="Reply" onClick={() => onReply(message)}><Reply size={13} /></IconBtn>
       <IconBtn title="React" onClick={() => setPickerOpen(!pickerOpen)}><Smile size={13} /></IconBtn>
       <IconBtn title="Copy" onClick={() => navigator.clipboard?.writeText(message.content || '')}><Copy size={13} /></IconBtn>
-      {isOwn && message.message_type !== 'shared_object' && <IconBtn title="Edit" onClick={onEdit}><Pencil size={13} /></IconBtn>}
+      {isOwn && message.message_type === 'text' && <IconBtn title="Edit" onClick={onEdit}><Pencil size={13} /></IconBtn>}
       {isOwn && <IconBtn title="Delete" onClick={() => onDelete(message.id)}><Trash2 size={13} /></IconBtn>}
 
       {pickerOpen && (
