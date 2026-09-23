@@ -78,18 +78,27 @@ const MessagesPage = ({ initialUsername, onSignIn }) => {
     if (!verdict.allowed) { setLimitMsg(verdict.message); return; }
     setLimitMsg('');
     setSending(true);
-    await messagingService.sendMessage({
-      from: user.username,
-      toUsername: active.type === 'dm' ? active.other_username : null,
-      groupId: active.type === 'group' ? active.group_id : null,
-      content,
-      replyToId: replyTo ? replyTo.id : null,
-    });
-    recordAction('dm', user.username);
-    setText('');
-    setReplyTo(null);
-    setSending(false);
-    loadMessages();
+    try {
+      const saved = await messagingService.sendMessage({
+        from: user.username,
+        toUsername: active.type === 'dm' ? active.other_username : null,
+        groupId: active.type === 'group' ? active.group_id : null,
+        content,
+        replyToId: replyTo ? replyTo.id : null,
+      });
+      if (saved.__failed) {
+        setLimitMsg(`Couldn't send — ${saved.__error || 'server error'}. Your message wasn't cleared, try again.`);
+        return; // keep the text so nothing gets lost
+      }
+      recordAction('dm', user.username);
+      setText('');
+      setReplyTo(null);
+      loadMessages();
+    } catch (err) {
+      setLimitMsg(`Couldn't send — ${err?.message || 'unexpected error'}.`);
+    } finally {
+      setSending(false);
+    }
   };
 
   const openThread = (convo) => {
@@ -114,7 +123,8 @@ const MessagesPage = ({ initialUsername, onSignIn }) => {
   };
 
   const handleReact = async (messageId, emoji) => {
-    await messagingService.toggleReaction(messageId, user.username, emoji);
+    const result = await messagingService.toggleReaction(messageId, user.username, emoji);
+    if (!result.ok) { setLimitMsg(`Couldn't react — ${result.error || 'server error'}.`); return; }
     loadMessages();
   };
   const handleEdit = async (messageId, content) => { await messagingService.editMessage(messageId, content); loadMessages(); };

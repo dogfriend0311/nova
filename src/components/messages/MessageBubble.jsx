@@ -142,26 +142,58 @@ const MessageBubble = ({
   );
 };
 
-const BubbleActions = ({ isOwn, message, pickerOpen, setPickerOpen, onReply, onReact, onEdit, onDelete }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: 2, position: 'relative' }}>
-    <IconBtn title="Reply" onClick={() => onReply(message)}><Reply size={13} /></IconBtn>
-    <IconBtn title="React" onClick={() => setPickerOpen(!pickerOpen)}><Smile size={13} /></IconBtn>
-    <IconBtn title="Copy" onClick={() => navigator.clipboard?.writeText(message.content || '')}><Copy size={13} /></IconBtn>
-    {isOwn && message.message_type !== 'shared_object' && <IconBtn title="Edit" onClick={onEdit}><Pencil size={13} /></IconBtn>}
-    {isOwn && <IconBtn title="Delete" onClick={() => onDelete(message.id)}><Trash2 size={13} /></IconBtn>}
+const BubbleActions = ({ isOwn, message, pickerOpen, setPickerOpen, onReply, onReact, onEdit, onDelete }) => {
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customEmoji, setCustomEmoji] = useState('');
 
-    {pickerOpen && (
-      <div style={{
-        position: 'absolute', bottom: '110%', [isOwn ? 'right' : 'left']: 0, display: 'flex', gap: 4,
-        background: 'var(--color-bg-light, #131729)', border: '1px solid rgba(94,129,244,0.25)', borderRadius: 10, padding: 6, zIndex: 10,
-      }}>
-        {messagingService.REACTION_SET.map(e => (
-          <button key={e} onClick={() => { onReact(message.id, e); setPickerOpen(false); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem' }}>{e}</button>
-        ))}
-      </div>
-    )}
-  </div>
-);
+  const submitCustom = (e) => {
+    e.preventDefault();
+    const val = customEmoji.trim();
+    if (!val) return;
+    onReact(message.id, val);
+    setCustomEmoji(''); setCustomOpen(false); setPickerOpen(false);
+  };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 2, position: 'relative' }}>
+      <IconBtn title="Reply" onClick={() => onReply(message)}><Reply size={13} /></IconBtn>
+      <IconBtn title="React" onClick={() => setPickerOpen(!pickerOpen)}><Smile size={13} /></IconBtn>
+      <IconBtn title="Copy" onClick={() => navigator.clipboard?.writeText(message.content || '')}><Copy size={13} /></IconBtn>
+      {isOwn && message.message_type !== 'shared_object' && <IconBtn title="Edit" onClick={onEdit}><Pencil size={13} /></IconBtn>}
+      {isOwn && <IconBtn title="Delete" onClick={() => onDelete(message.id)}><Trash2 size={13} /></IconBtn>}
+
+      {pickerOpen && (
+        <div style={{
+          position: 'absolute', bottom: '110%', [isOwn ? 'right' : 'left']: 0, zIndex: 10,
+          background: 'var(--color-bg-light, #131729)', border: '1px solid rgba(94,129,244,0.25)', borderRadius: 10, padding: 6,
+          display: 'flex', flexDirection: 'column', gap: 6, width: customOpen ? 170 : 'auto',
+        }}>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {messagingService.REACTION_SET.map(e => (
+              <button key={e} onClick={() => { onReact(message.id, e); setPickerOpen(false); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem' }}>{e}</button>
+            ))}
+            <button
+              title="Other emoji" onClick={() => setCustomOpen(!customOpen)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.95rem', color: 'rgba(158,165,196,0.6)' }}
+            >+</button>
+          </div>
+          {customOpen && (
+            <form onSubmit={submitCustom} style={{ display: 'flex', gap: 4 }}>
+              <input
+                autoFocus
+                value={customEmoji}
+                onChange={(e) => setCustomEmoji(e.target.value)}
+                placeholder="Paste any emoji…"
+                style={{ flex: 1, minWidth: 0, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(94,129,244,0.3)', borderRadius: 6, color: '#e2e5f0', fontSize: '0.9rem', padding: '3px 6px' }}
+              />
+              <button type="submit" style={{ fontSize: '0.7rem', color: 'var(--color-cyan, #5e81f4)', background: 'none', border: 'none', cursor: 'pointer' }}>Add</button>
+            </form>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const IconBtn = ({ children, title, onClick }) => (
   <button

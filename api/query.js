@@ -99,6 +99,10 @@ const ALLOWED_TABLES = new Set([
   // Added for: owner dashboard "Twitter/X Feed" — tracked accounts +
   // cached tweets polled in by api/twitter-poll.js
   'nova_twitter_accounts', 'nova_tweets',
+  // Added for: Messages overhaul — reactions, groups, blocks/mutes,
+  // and per-conversation read receipts (see supabase/messaging_upgrade.sql)
+  'nova_message_reactions', 'nova_group_conversations', 'nova_group_members',
+  'nova_user_blocks', 'nova_conversation_mutes', 'nova_conversation_reads',
 ]);
 
 const IDENT_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;

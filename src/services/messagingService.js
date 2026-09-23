@@ -174,8 +174,19 @@ const messagingService = {
       reply_to_id: replyToId,
       created_at: new Date().toISOString(),
     };
-    const { data, error } = await supabase.from('nova_direct_messages').insert([record]).select();
-    const saved = (!error && data && data[0]) ? data[0] : { ...record, id: `local-${Date.now()}` };
+
+    let data, error;
+    try {
+      ({ data, error } = await supabase.from('nova_direct_messages').insert([record]).select());
+    } catch (err) {
+      error = { message: err?.message || 'Network error reaching /api/query' };
+    }
+
+    if (error) {
+      console.error('[messagingService.sendMessage] failed:', error);
+      return { ...record, id: `failed-${Date.now()}`, __failed: true, __error: error.message || String(error) };
+    }
+    const saved = (data && data[0]) ? data[0] : { ...record, id: `local-${Date.now()}` };
 
     if (!groupId && toUsername) {
       db.createNotification(toUsername, {
@@ -217,13 +228,20 @@ const messagingService = {
 
   /* ── Reactions ──────────────────────────────────────────────── */
   async toggleReaction(messageId, username, emoji) {
-    const existing = await safeSelect('nova_message_reactions', (q) => q.eq('message_id', messageId).eq('username', username).eq('emoji', emoji));
-    if (existing.length) {
-      await supabase.from('nova_message_reactions').delete().eq('id', existing[0].id);
-      return false;
+    try {
+      const existing = await safeSelect('nova_message_reactions', (q) => q.eq('message_id', messageId).eq('username', username).eq('emoji', emoji));
+      if (existing.length) {
+        const { error } = await supabase.from('nova_message_reactions').delete().eq('id', existing[0].id);
+        if (error) throw error;
+        return { ok: true, added: false };
+      }
+      const { error } = await supabase.from('nova_message_reactions').insert([{ message_id: messageId, username, emoji }]);
+      if (error) throw error;
+      return { ok: true, added: true };
+    } catch (err) {
+      console.error('[messagingService.toggleReaction] failed:', err);
+      return { ok: false, error: err?.message || String(err) };
     }
-    await supabase.from('nova_message_reactions').insert([{ message_id: messageId, username, emoji }]);
-    return true;
   },
 
   /* ── Read state ─────────────────────────────────────────────── */
