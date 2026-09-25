@@ -56,12 +56,20 @@ const MessagesPage = ({ initialUsername, onSignIn }) => {
 
   // Keep the open thread's streak fresh as the conversation list re-polls,
   // without touching any of the thread's other (poll-independent) state.
+  // Reads the current `active` via the setState updater (prev) rather than
+  // from the outer closure, so the effect only needs `conversations` as a
+  // dependency — avoids a stale closure without pulling `active` in and
+  // re-running this on every unrelated active-thread change.
   useEffect(() => {
-    if (!active || active.type !== 'dm' || !conversations) return;
-    const fresh = conversations.find(c => c.conversation_id === active.conversation_id);
-    if (fresh?.streak && fresh.streak.count !== active.streak?.count) {
-      setActive((prev) => (prev ? { ...prev, streak: fresh.streak } : prev));
-    }
+    if (!conversations) return;
+    setActive((prev) => {
+      if (!prev || prev.type !== 'dm') return prev;
+      const fresh = conversations.find(c => c.conversation_id === prev.conversation_id);
+      if (fresh?.streak && fresh.streak.count !== prev.streak?.count) {
+        return { ...prev, streak: fresh.streak };
+      }
+      return prev;
+    });
   }, [conversations]);
 
   // Deep-link from e.g. a member profile's "Message" button (#messages/username)
