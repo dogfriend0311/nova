@@ -61,6 +61,8 @@ const fmtVal = (v, fmt) => {
   return Math.round(n) || 0;
 };
 
+const getPlayerLabel = (player) => player?.nickname || player?.player_name || 'Unknown player';
+
 const hexToRgb = (hex) => {
   if (!hex || typeof hex !== 'string') return null;
   const h = hex.replace('#', '');
@@ -95,13 +97,42 @@ const TABS = [
   { id: 'halloffame', label: 'Hall of Fame',Icon: Award },
 ];
 
+// Grouped into categories so the tab bar reads as an organized database
+// section-by-section instead of one 22-item scroll. A tab's group is
+// looked up once here (TAB_TO_GROUP) so jumping to any tab — including
+// programmatic jumps like the Player Spotlight's cross-tab handoff —
+// automatically opens the right category.
+const TAB_GROUPS = [
+  { id: 'overview',    label: 'Overview',       Icon: LayoutDashboard, tabIds: ['overview', 'rosters', 'depthchart'] },
+  { id: 'stats',       label: 'Stats & Analytics', Icon: BarChart3,    tabIds: ['players', 'leaders', 'compare', 'statcast', 'analytics', 'records', 'powerrankings'] },
+  { id: 'games',       label: 'Games',          Icon: CalendarDays,   tabIds: ['schedule', 'scores', 'beatwire'] },
+  { id: 'frontoffice', label: 'Front Office',   Icon: Repeat,         tabIds: ['transactions', 'trademachine', 'watchlist'] },
+  { id: 'community',   label: 'Community',      Icon: Sparkles,       tabIds: ['predictions', 'allstar', 'propbets'] },
+  { id: 'history',     label: 'League History', Icon: Archive,        tabIds: ['archive', 'seasonhub', 'halloffame'] },
+];
+const TAB_TO_GROUP = TAB_GROUPS.reduce((acc, g) => {
+  g.tabIds.forEach(id => { acc[id] = g.id; });
+  return acc;
+}, {});
+
 const ViztaLeague = ({ onSelectPlayer, sport = 'vizta', initialTab = 'overview', initialTeam = null }) => {
   const cfg = getSport(sport);
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [activeGroup, setActiveGroup] = useState(() => TAB_TO_GROUP[initialTab] || 'overview');
   const [counts, setCounts] = useState({ teams: 0, players: 0, games: 0 });
   const tabsRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
+
+  // Keep the group selector in sync whenever activeTab changes via any path
+  // (clicking a tab directly, or a programmatic jump like the spotlight
+  // handoff below) so the right category is always showing.
+  useEffect(() => {
+    const g = TAB_TO_GROUP[activeTab];
+    if (g) setActiveGroup(g);
+  }, [activeTab]);
+
+  const visibleTabs = TABS.filter(t => (TAB_TO_GROUP[t.id] || 'overview') === activeGroup);
 
   // Cross-tab handoff for the Overview tab's Player Spotlight card — lets a
   // single click jump straight into Rosters (that player's team), Leaders,
@@ -212,6 +243,22 @@ const ViztaLeague = ({ onSelectPlayer, sport = 'vizta', initialTab = 'overview',
         </div>
       </div>
 
+      <div className="lh-group-tabs">
+        {TAB_GROUPS.map(group => (
+          <button
+            key={group.id}
+            className={`lh-group-tab ${activeGroup === group.id ? 'active' : ''}`}
+            onClick={() => {
+              setActiveGroup(group.id);
+              if (!group.tabIds.includes(activeTab)) setActiveTab(group.tabIds[0]);
+            }}
+          >
+            <group.Icon size={14} strokeWidth={2.4} />
+            {group.label}
+          </button>
+        ))}
+      </div>
+
       <div className="lh-tabs-wrap">
         <button
           type="button"
@@ -226,7 +273,7 @@ const ViztaLeague = ({ onSelectPlayer, sport = 'vizta', initialTab = 'overview',
         <div className={`lh-tabs-fade lh-tabs-fade-left ${canScrollLeft ? 'visible' : ''}`} />
 
         <div className="lh-tabs" ref={tabsRef}>
-          {TABS.map(tab => (
+          {visibleTabs.map(tab => (
             <button
               key={tab.id}
               className={`lh-tab ${activeTab === tab.id ? 'active' : ''}`}
@@ -336,6 +383,7 @@ const OverviewTab = ({ sport, cfg, onSelectPlayer, onJumpToTab }) => {
   const [players, setPlayers] = useState([]);
   const [bsGames, setBsGames] = useState([]);
   const [favTeamNames, setFavTeamNames] = useState(new Set());
+  const [standings, setStandings] = useState(null); // null = loading/no seasons yet
   const username = currentUsername();
   useEffect(() => {
     db.getTeams(sport).then(setTeams);
@@ -343,8 +391,33 @@ const OverviewTab = ({ sport, cfg, onSelectPlayer, onJumpToTab }) => {
     db.getBsGames(sport).then(setBsGames);
     if (username) getFollowedTeams(username, sport).then(list => setFavTeamNames(new Set(list.map(t => t.team_name))));
     else setFavTeamNames(new Set());
+    // Standings snapshot pulls from the most recent season (Season Hub's
+    // getSeasons already orders newest-first) — no new data model needed,
+    // just surfacing what Season Hub already tracks, one level up.
+    setStandings(null);
+    db.getSeasons(sport).then(seasons => {
+      const latest = seasons?.[0];
+      if (!latest) { setStandings([]); return; }
+      db.getSeasonStandings(sport, latest.id).then(rows => {
+        setStandings([...(rows || [])].sort((a, b) => (b.wins || 0) - (a.wins || 0)).slice(0, 5));
+      }).catch(() => setStandings([]));
+    }).catch(() => setStandings([]));
   }, [sport, username]);
   const recentGames = [...bsGames].reverse().slice(0, 8);
+
+  // One top player per configured leader stat (both sides of the sport,
+  // e.g. hitting + pitching) — reuses the same seasonField/hi definitions
+  // that already drive the Leaders tab, so this is guaranteed to match.
+  const topPerformers = [...(cfg.leadersA || []), ...(cfg.leadersB || [])]
+    .map((leader) => {
+      const ranked = players
+        .map((p) => ({ player: p, value: parseFloat(p[leader.seasonField]) }))
+        .filter((x) => !isNaN(x.value));
+      if (!ranked.length) return null;
+      ranked.sort((a, b) => (leader.hi ? b.value - a.value : a.value - b.value));
+      return { leader, ...ranked[0] };
+    })
+    .filter(Boolean);
 
   const toggleTeamFav = async (team) => {
     if (!username) return;
@@ -363,26 +436,62 @@ const OverviewTab = ({ sport, cfg, onSelectPlayer, onJumpToTab }) => {
     <div>
       <PlayerSpotlight sport={sport} cfg={cfg} players={players} teams={teams} onSelectPlayer={onSelectPlayer} onJumpToTab={onJumpToTab} />
 
-      <div className="lh-pulse-row">
-        <div className="lh-pulse-card">
-          <span className="lh-pulse-label">Teams</span>
-          <span className="lh-pulse-value">{teams.length}</span>
-        </div>
-        <div className="lh-pulse-card">
-          <span className="lh-pulse-label">Players</span>
-          <span className="lh-pulse-value">{players.length}</span>
-        </div>
-        <div className="lh-pulse-card">
-          <span className="lh-pulse-label">Games Played</span>
-          <span className="lh-pulse-value">{bsGames.length}</span>
-        </div>
-        <div className="lh-pulse-card">
-          <span className="lh-pulse-label">Status</span>
-          <span className="lh-pulse-value lh-status-live"><span className="lh-live-dot" />Ongoing</span>
-        </div>
-      </div>
+      {/* ── Top Performers ─────────────────────────────────────── */}
+      {topPerformers.length > 0 && (
+        <>
+          <div className="lh-section-head">
+            <h3>Top Performers</h3>
+            <span className="lh-section-tag">This Season</span>
+          </div>
+          <div className="lh-performer-grid">
+            {topPerformers.map(({ leader, player, value }) => (
+              <button
+                key={leader.label}
+                className="lh-card lh-performer-card hoverable"
+                onClick={() => onSelectPlayer && onSelectPlayer(player)}
+              >
+                <span className="lh-performer-label">{leader.label}</span>
+                <span className="lh-performer-value">{fmtVal(value, leader.fmt)}</span>
+                <span className="lh-performer-name">{getPlayerLabel(player)}</span>
+                {player.team && <span className="lh-performer-team">{player.team}</span>}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
-      <div className="lh-section-head">
+      {/* ── Standings Snapshot ──────────────────────────────────── */}
+      {standings === null ? null : (
+        <>
+          <div className="lh-section-head" style={{ marginTop: '32px' }}>
+            <h3>Standings Snapshot</h3>
+            {onJumpToTab && <button className="lh-section-tag lh-section-tag-btn" onClick={() => onJumpToTab('seasonhub')}>Full Standings →</button>}
+          </div>
+          {standings.length === 0 ? (
+            <div className="lh-empty">No standings tracked yet for this season — check Season Hub once games are logged.</div>
+          ) : (
+            <div className="lh-standings-snapshot">
+              {standings.map((row, i) => {
+                const played = (row.wins || 0) + (row.losses || 0) + (row.ties || 0);
+                const pct = played ? (row.wins || 0) / played : 0;
+                return (
+                  <div key={row.id || row.team_name} className="lh-standings-row">
+                    <span className="lh-standings-rank">{i + 1}</span>
+                    {getTeamLogo(row.team_name)
+                      ? <img className="lh-standings-logo" src={getTeamLogo(row.team_name)} alt="" />
+                      : <div className="lh-standings-logo lh-score-logo-fallback" style={{ background: getTeamColor(row.team_name) || 'var(--accent)' }} />}
+                    <span className="lh-standings-team">{row.team_name}</span>
+                    <span className="lh-standings-record">{row.wins || 0}-{row.losses || 0}{row.ties ? `-${row.ties}` : ''}</span>
+                    <span className="lh-standings-pct">{pct.toFixed(3).replace(/^0/, '')}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      <div className="lh-section-head" style={{ marginTop: '32px' }}>
         <h3>Recent Results</h3>
         <span className="lh-section-tag">Scoreboard</span>
       </div>

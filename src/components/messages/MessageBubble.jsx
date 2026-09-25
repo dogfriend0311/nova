@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Reply, Smile, Copy, Pencil, Trash2, FileText, Download } from 'lucide-react';
+import { Reply, Smile, Copy, Pencil, Trash2, FileText, Download, Pin, PinOff } from 'lucide-react';
 import SharedObjectCard from './SharedObjectCard';
 import VoiceMessagePlayer from './VoiceMessagePlayer';
 import messagingService from '../../services/messagingService';
@@ -55,7 +55,7 @@ const ImageLightbox = ({ url, alt, onClose }) => (
 
 const MessageBubble = ({
   message, isOwn, showSender, showTimestamp, currentUsername,
-  onReply, onReact, onEdit, onDelete, onOpenSharedObject, onOpenProfile,
+  onReply, onReact, onEdit, onDelete, onTogglePin, onOpenSharedObject, onOpenProfile,
 }) => {
   const [hovered, setHovered] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -105,7 +105,7 @@ const MessageBubble = ({
         {isOwn && hovered && !editing && (
           <BubbleActions
             isOwn message={message} pickerOpen={pickerOpen} setPickerOpen={setPickerOpen}
-            onReply={onReply} onReact={onReact} onEdit={() => setEditing(true)} onDelete={onDelete}
+            onReply={onReply} onReact={onReact} onEdit={() => setEditing(true)} onDelete={onDelete} onTogglePin={onTogglePin}
           />
         )}
 
@@ -113,9 +113,14 @@ const MessageBubble = ({
           padding: ['shared_object', 'gif', 'voice', 'image', 'video'].includes(message.message_type) ? 4 : (message.message_type === 'file' ? 8 : '8px 12px'),
           borderRadius: 14,
           background: isOwn ? 'rgba(94,129,244,0.2)' : 'rgba(94,129,244,0.06)',
-          border: '1px solid rgba(94,129,244,0.15)',
+          border: message.pinned ? '1px solid rgba(255,215,0,0.4)' : '1px solid rgba(94,129,244,0.15)',
           minWidth: (message.message_type === 'shared_object' || message.message_type === 'file') ? 220 : 'auto',
         }}>
+          {message.pinned && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: '0.62rem', color: '#ffd700', marginBottom: 3, fontWeight: 700 }}>
+              <Pin size={9} /> PINNED
+            </div>
+          )}
           {message.message_type === 'shared_object' ? (
             <SharedObjectCard payload={message.payload} onOpen={onOpenSharedObject} />
           ) : message.message_type === 'gif' ? (
@@ -180,7 +185,7 @@ const MessageBubble = ({
         {!isOwn && hovered && !editing && (
           <BubbleActions
             isOwn={false} message={message} pickerOpen={pickerOpen} setPickerOpen={setPickerOpen}
-            onReply={onReply} onReact={onReact}
+            onReply={onReply} onReact={onReact} onTogglePin={onTogglePin}
           />
         )}
       </div>
@@ -212,7 +217,7 @@ const MessageBubble = ({
   );
 };
 
-const BubbleActions = ({ isOwn, message, pickerOpen, setPickerOpen, onReply, onReact, onEdit, onDelete }) => {
+const BubbleActions = ({ isOwn, message, pickerOpen, setPickerOpen, onReply, onReact, onEdit, onDelete, onTogglePin }) => {
   const [customOpen, setCustomOpen] = useState(false);
   const [customEmoji, setCustomEmoji] = useState('');
 
@@ -229,6 +234,11 @@ const BubbleActions = ({ isOwn, message, pickerOpen, setPickerOpen, onReply, onR
       <IconBtn title="Reply" onClick={() => onReply(message)}><Reply size={13} /></IconBtn>
       <IconBtn title="React" onClick={() => setPickerOpen(!pickerOpen)}><Smile size={13} /></IconBtn>
       <IconBtn title="Copy" onClick={() => navigator.clipboard?.writeText(message.content || '')}><Copy size={13} /></IconBtn>
+      {onTogglePin && (
+        <IconBtn title={message.pinned ? 'Unpin' : 'Pin'} onClick={() => onTogglePin(message.id)}>
+          {message.pinned ? <PinOff size={13} /> : <Pin size={13} />}
+        </IconBtn>
+      )}
       {isOwn && message.message_type === 'text' && <IconBtn title="Edit" onClick={onEdit}><Pencil size={13} /></IconBtn>}
       {isOwn && <IconBtn title="Delete" onClick={() => onDelete(message.id)}><Trash2 size={13} /></IconBtn>}
 

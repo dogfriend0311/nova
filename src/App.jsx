@@ -20,6 +20,7 @@ import PickemsHub from './components/pages/PickemsHub';
 import PropBets from './components/pages/PropBets';
 import PlayoffPools from './components/pages/PlayoffPools';
 import CoinShop from './components/pages/CoinShop';
+import MyCollection from './components/pages/MyCollection';
 import ArticlesPage from './components/pages/ArticlesPage';
 import TweetsPage from './components/pages/TweetsPage';
 import NovaWrapped from './components/pages/NovaWrapped';
@@ -107,9 +108,36 @@ const GamesPage = ({ onSignIn, initialTab = 'fantasy', user: gamesUser }) => {
   );
 };
 
-// ── Store tab — Coin Shop + future store items ──────────────
+// ── Store tab — Coin Shop + My Collection ────────────────────
 const StorePage = ({ user }) => {
-  return <CoinShop user={user} />;
+  const [subTab, setSubTab] = React.useState('shop');
+  const tb = (id, label) => (
+    <button
+      onClick={() => setSubTab(id)}
+      style={{
+        padding: '10px 16px',
+        background: subTab === id ? 'rgba(94,129,244,0.12)' : 'none',
+        border: 'none',
+        borderBottom: subTab === id ? '2px solid var(--color-cyan)' : '2px solid transparent',
+        color: subTab === id ? 'var(--color-cyan)' : 'rgba(158,165,196,0.5)',
+        fontWeight: 700,
+        cursor: 'pointer',
+        whiteSpace: 'nowrap',
+        fontSize: '0.88rem',
+        minHeight: '44px',
+      }}
+    >{label}</button>
+  );
+  return (
+    <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 16px' }}>
+      <div style={{ display: 'flex', gap: '4px', borderBottom: '1px solid rgba(94,129,244,0.1)', overflowX: 'auto', marginBottom: '20px', scrollbarWidth: 'none' }}>
+        {tb('shop', '🛍️ Shop')}
+        {tb('collection', '🎒 My Collection')}
+      </div>
+      {subTab === 'shop' && <CoinShop user={user} />}
+      {subTab === 'collection' && <MyCollection user={user} onOpenShop={() => setSubTab('shop')} />}
+    </div>
+  );
 };
 
 // ── Main app content ─────────────────────────────────────────

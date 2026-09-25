@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bell, BellRing } from 'lucide-react';
+import { Bell, BellRing, Volume2, VolumeX } from 'lucide-react';
 import db from '../services/db';
 import { useAuth } from '../context/AuthContext';
 
@@ -26,6 +26,35 @@ import { useAuth } from '../context/AuthContext';
 
 const POLL_MS = 20000;
 
+const soundKey = (username) => `nova_notif_sound_${username}`;
+
+// A short, pleasant two-note chime synthesized with the Web Audio API —
+// no audio file to bundle/host, and it works offline. Plays at most once
+// per poll cycle (not once per notification) so a burst of messages
+// doesn't turn into a stack of overlapping beeps.
+function playChime() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const note = (freq, start, dur) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, ctx.currentTime + start);
+      gain.gain.linearRampToValueAtTime(0.18, ctx.currentTime + start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + start + dur + 0.02);
+    };
+    note(880, 0, 0.12);
+    note(1318.5, 0.1, 0.18);
+    setTimeout(() => ctx.close().catch(() => {}), 500);
+  } catch { /* ignore — sound is a nice-to-have, never block notifications on it */ }
+}
+
 const timeAgo = (iso) => {
   const s = Math.floor((Date.now() - new Date(iso)) / 1000);
   if (s < 60) return 'now';
@@ -42,8 +71,26 @@ const NotificationBell = () => {
   const [unread, setUnread] = useState(0);
   const [items, setItems] = useState([]);
   const [browserEnabled, setBrowserEnabled] = useState(() => typeof Notification !== 'undefined' && Notification.permission === 'granted');
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const seenIds = useRef(new Set());
   const rootRef = useRef(null);
+
+  // Load the per-user sound preference once we know who's logged in
+  // (default on — the toggle is for turning it off, not opting in).
+  useEffect(() => {
+    if (!user) return;
+    const saved = localStorage.getItem(soundKey(user.username));
+    setSoundEnabled(saved === null ? true : saved === 'true');
+  }, [user]);
+
+  const toggleSound = () => {
+    if (!user) return;
+    setSoundEnabled((prev) => {
+      const next = !prev;
+      localStorage.setItem(soundKey(user.username), String(next));
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!user || user.role === 'guest') return;
@@ -53,22 +100,27 @@ const NotificationBell = () => {
       setUnread(unreadList.length);
       setItems(list);
 
-      // Fire a native browser notification for anything new since last poll.
+      // New-since-last-poll items — used for both the desktop notification
+      // and the sound, which are independent toggles (you can have one
+      // without the other).
+      const freshItems = unreadList.filter(n => !seenIds.current.has(n.id));
+      freshItems.forEach(n => seenIds.current.add(n.id));
+
       if (browserEnabled) {
-        unreadList.forEach(n => {
-          if (!seenIds.current.has(n.id)) {
-            seenIds.current.add(n.id);
-            try { new Notification(n.title, { body: n.body || '', tag: String(n.id) }); } catch { /* ignore */ }
-          }
+        freshItems.forEach(n => {
+          try { new Notification(n.title, { body: n.body || '', tag: String(n.id) }); } catch { /* ignore */ }
         });
-      } else {
-        unreadList.forEach(n => seenIds.current.add(n.id));
+      }
+      // Skip the chime on the very first poll after opening the app —
+      // otherwise every pre-existing unread notification "arrives" at once.
+      if (soundEnabled && freshItems.length > 0 && seenIds.current.size > freshItems.length) {
+        playChime();
       }
     };
     poll();
     const interval = setInterval(poll, POLL_MS);
     return () => clearInterval(interval);
-  }, [user, browserEnabled]);
+  }, [user, browserEnabled, soundEnabled]);
 
   useEffect(() => {
     const onClickOutside = (e) => { if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false); };
@@ -127,7 +179,16 @@ const NotificationBell = () => {
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderBottom: '1px solid rgba(94,129,244,0.12)' }}>
             <strong style={{ color: '#e2e5f0', fontSize: '0.85rem' }}>Notifications</strong>
-            {unread > 0 && <button onClick={markAllRead} style={{ background: 'none', border: 'none', color: 'var(--color-cyan)', fontSize: '0.72rem', cursor: 'pointer' }}>Mark all read</button>}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button
+                onClick={toggleSound}
+                title={soundEnabled ? 'Mute notification sound' : 'Unmute notification sound'}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: soundEnabled ? 'var(--color-cyan)' : 'rgba(158,165,196,0.45)', display: 'flex' }}
+              >
+                {soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
+              </button>
+              {unread > 0 && <button onClick={markAllRead} style={{ background: 'none', border: 'none', color: 'var(--color-cyan)', fontSize: '0.72rem', cursor: 'pointer' }}>Mark all read</button>}
+            </div>
           </div>
 
           {!browserEnabled && typeof Notification !== 'undefined' && Notification.permission !== 'denied' && (

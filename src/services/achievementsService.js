@@ -22,6 +22,8 @@ export const BADGES = [
   { id: 'discord_verified', emoji: '💬', name: 'Discord Regular',      desc: 'Confirmed member of the Discord server', color: '#5865F2' },
   { id: 'potg_voter',       emoji: '🏅', name: 'Talent Scout',         desc: 'Voted for a Player of the Game',        color: '#43b581' },
   { id: 'allstar_voter',    emoji: '⭐', name: 'All-Star Ballot Cast', desc: 'Submitted an All-Star Voting ballot',   color: '#ffd700' },
+  { id: 'streak_7',         emoji: '🔥', name: 'On a Roll',            desc: '7-day DM streak with someone',          color: '#ff6b4a' },
+  { id: 'streak_30',        emoji: '🔥', name: 'Inseparable',          desc: '30-day DM streak with someone',         color: '#ff3b1f' },
 ];
 
 const BADGE_MAP = Object.fromEntries(BADGES.map(b => [b.id, b]));

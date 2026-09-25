@@ -18,6 +18,49 @@ import db from './db';
 
 const REACTION_SET = ['❤️', '😂', '🔥', '💀', '👍', '👎', '⚾'];
 
+// Short, fixed reason set for reporting a user — keeps the UI to a single
+// tap and gives whoever reviews reports a consistent category to filter on.
+const REPORT_REASONS = ['Spam', 'Harassment or abuse', 'Inappropriate content', 'Impersonation', 'Other'];
+
+// A typing row older than this is treated as "stopped typing" — covers the
+// case where a tab is closed/crashes mid-type without ever clearing its row.
+const TYPING_FRESH_MS = 6000;
+
+// DM streak — Snapchat-style: counts consecutive calendar days (local time)
+// on which BOTH participants sent at least one message to each other. Pure
+// function over messages already in memory, so no extra query is needed —
+// getConversations() already fetches full DM history per user, and it's
+// reused here rather than re-fetched.
+//
+// Grace period: if today has no mutual messages yet but yesterday did, the
+// streak still reports yesterday's count (activeToday: false) instead of
+// snapping to 0 — the streak only actually breaks once a full day passes
+// with no reply from either side, same as it reads to a user checking mid-day.
+function computeMutualStreak(messages) {
+  const dayKey = (iso) => new Date(iso).toDateString();
+  const sendersByDay = new Map();
+  for (const m of messages) {
+    if (m.deleted_at) continue;
+    const day = dayKey(m.created_at);
+    if (!sendersByDay.has(day)) sendersByDay.set(day, new Set());
+    sendersByDay.get(day).add(m.from_username);
+  }
+  const mutualDays = new Set([...sendersByDay.entries()].filter(([, s]) => s.size >= 2).map(([day]) => day));
+  if (!mutualDays.size) return { count: 0, activeToday: false };
+
+  const todayKey = new Date().toDateString();
+  const yesterdayKey = new Date(Date.now() - 86400000).toDateString();
+  if (!mutualDays.has(todayKey) && !mutualDays.has(yesterdayKey)) return { count: 0, activeToday: false };
+
+  let cursor = mutualDays.has(todayKey) ? new Date() : new Date(Date.now() - 86400000);
+  let count = 0;
+  while (mutualDays.has(cursor.toDateString())) {
+    count += 1;
+    cursor = new Date(cursor.getTime() - 86400000);
+  }
+  return { count, activeToday: mutualDays.has(todayKey) };
+}
+
 const dmConversationId = (a, b) => [a, b].sort().join('::');
 const groupConversationId = (groupId) => `group:${groupId}`;
 const isGroupConversationId = (id) => typeof id === 'string' && id.startsWith('group:');
@@ -34,6 +77,8 @@ async function safeSelect(table, build) {
 
 const messagingService = {
   REACTION_SET,
+  REPORT_REASONS,
+  computeMutualStreak,
   dmConversationId,
   groupConversationId,
   isGroupConversationId,
@@ -95,6 +140,7 @@ const messagingService = {
     for (const [convoId, latest] of byConvo.entries()) {
       const other = latest.from_username === username ? latest.to_username : latest.from_username;
       if (!other || blocked.has(other)) continue;
+      const convoMessages = allDm.filter(m => m.conversation_id === convoId);
       dmList.push({
         conversation_id: convoId,
         type: 'dm',
@@ -104,6 +150,7 @@ const messagingService = {
         last_at: latest.created_at,
         unread: isUnread(convoId, latest),
         is_request: !sentByConvo.has(convoId),
+        streak: computeMutualStreak(convoMessages),
       });
     }
 
@@ -151,11 +198,14 @@ const messagingService = {
       if (!reactionsByMsg.has(r.message_id)) reactionsByMsg.set(r.message_id, []);
       reactionsByMsg.get(r.message_id).push(r);
     }
+    const pins = await safeSelect('nova_pinned_messages', (q) => q.eq('conversation_id', conversationId));
+    const pinnedIds = new Set(pins.map(p => p.message_id));
     const byId = new Map(rows.map(r => [r.id, r]));
 
     return rows.map(m => ({
       ...m,
       reply_to: m.reply_to_id ? byId.get(m.reply_to_id) || null : null,
+      pinned: pinnedIds.has(String(m.id)),
       reactions: (reactionsByMsg.get(m.id) || []).reduce((acc, r) => {
         const entry = acc.find(e => e.emoji === r.emoji);
         if (entry) { entry.count += 1; entry.usernames.push(r.username); }
@@ -228,7 +278,41 @@ const messagingService = {
   async deleteMessage(messageId) {
     const { error } = await supabase.from('nova_direct_messages')
       .update({ content: '', deleted_at: new Date().toISOString() }).eq('id', messageId);
+    if (!error) {
+      supabase.from('nova_pinned_messages').delete().eq('message_id', String(messageId)).then(() => {}).catch(() => {});
+    }
     return !error;
+  },
+
+  /* ── Pinned messages ────────────────────────────────────────── */
+  // No hard cap — the conversation header just shows a count and a
+  // scrollable panel, same as the mockup ("📌 3 pinned messages").
+  async togglePinMessage(conversationId, messageId, username) {
+    try {
+      const existing = await safeSelect('nova_pinned_messages', (q) => q.eq('conversation_id', conversationId).eq('message_id', String(messageId)));
+      if (existing.length) {
+        const { error } = await supabase.from('nova_pinned_messages').delete().eq('id', existing[0].id);
+        if (error) throw error;
+        return { ok: true, pinned: false };
+      }
+      const { error } = await supabase.from('nova_pinned_messages').insert([{
+        conversation_id: conversationId, message_id: String(messageId), pinned_by: username,
+      }]);
+      if (error) throw error;
+      return { ok: true, pinned: true };
+    } catch (err) {
+      console.error('[messagingService.togglePinMessage] failed:', err);
+      return { ok: false, error: err?.message || String(err) };
+    }
+  },
+  async getPinnedMessages(conversationId) {
+    const pins = await safeSelect('nova_pinned_messages', (q) => q.eq('conversation_id', conversationId).order('pinned_at', { ascending: false }));
+    if (!pins.length) return [];
+    const messages = await safeSelect('nova_direct_messages', (q) => q.in('id', pins.map(p => p.message_id)));
+    const byId = new Map(messages.map(m => [String(m.id), m]));
+    return pins
+      .map(p => ({ ...p, message: byId.get(p.message_id) || null }))
+      .filter(p => p.message && !p.message.deleted_at); // drop pins pointing at a since-deleted message
   },
 
   /* ── Reactions ──────────────────────────────────────────────── */
@@ -299,6 +383,50 @@ const messagingService = {
     }
     await supabase.from('nova_conversation_mutes').insert([{ username, conversation_id: conversationId }]);
     return true;
+  },
+
+  /* ── Reports ────────────────────────────────────────────────── */
+  // Distinct from blocking: a report doesn't change what the reporter sees,
+  // it just logs the complaint (with an optional message snippet for
+  // context) for staff to review from Supabase directly. One row per
+  // report — the same user/reason can be reported more than once (e.g. by
+  // different people, or again after repeat behavior).
+  async reportUser(reporter, reportedUsername, reason, context = null) {
+    const { error } = await supabase.from('nova_user_reports').insert([{
+      reporter_username: reporter,
+      reported_username: reportedUsername,
+      reason,
+      context,
+    }]);
+    return !error;
+  },
+
+  /* ── Typing status ──────────────────────────────────────────── */
+  // Ephemeral, so no localStorage fallback: a typing indicator that's
+  // stale by even a few seconds is worse than none, and the whole point
+  // is cross-device visibility (you typing on your phone should show up
+  // on the other person's laptop), which localStorage can't do anyway.
+  // Rows are upserted (one per conversation+username) and read back only
+  // if fresh — see TYPING_FRESH_MS.
+  async setTyping(conversationId, username) {
+    try {
+      await supabase.from('nova_typing_status').upsert(
+        [{ conversation_id: conversationId, username, updated_at: new Date().toISOString() }],
+        { onConflict: 'conversation_id,username' }
+      );
+    } catch {}
+  },
+  async clearTyping(conversationId, username) {
+    try {
+      await supabase.from('nova_typing_status').delete().eq('conversation_id', conversationId).eq('username', username);
+    } catch {}
+  },
+  async getTypingUsers(conversationId, excludeUsername) {
+    const rows = await safeSelect('nova_typing_status', (q) => q.eq('conversation_id', conversationId));
+    const cutoff = Date.now() - TYPING_FRESH_MS;
+    return rows
+      .filter((r) => r.username !== excludeUsername && new Date(r.updated_at).getTime() > cutoff)
+      .map((r) => r.username);
   },
 
   /* ── Mini profile ───────────────────────────────────────────── */

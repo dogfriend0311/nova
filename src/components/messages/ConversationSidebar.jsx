@@ -150,7 +150,14 @@ const ConversationSidebar = ({ conversations, activeId, onSelect, currentUsernam
             }}>{c.type === 'group' ? c.emoji : c.title.charAt(0).toUpperCase()}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
-                <span style={{ fontWeight: c.unread ? 800 : 600, color: '#e2e5f0', fontSize: '0.85rem' }}>{c.title}</span>
+                <span style={{ fontWeight: c.unread ? 800 : 600, color: '#e2e5f0', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</span>
+                  {c.streak?.count > 0 && (
+                    <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#ff6b4a', flexShrink: 0, opacity: c.streak.activeToday ? 1 : 0.55 }}>
+                      🔥{c.streak.count}
+                    </span>
+                  )}
+                </span>
                 <span style={{ fontSize: '0.68rem', color: 'rgba(158,165,196,0.4)', flexShrink: 0 }}>{timeAgo(c.last_at)}</span>
               </div>
               <div style={{

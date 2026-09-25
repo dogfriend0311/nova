@@ -3,6 +3,8 @@ import { Send, ArrowLeft, X, Paperclip } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { checkRateLimit, recordAction } from '../../services/rateLimiter';
 import messagingService from '../../services/messagingService';
+import { awardBadge } from '../../services/achievementsService';
+import db from '../../services/db';
 import ConversationSidebar from '../messages/ConversationSidebar';
 import MessageBubble from '../messages/MessageBubble';
 import MiniProfilePopover from '../messages/MiniProfilePopover';
@@ -26,8 +28,14 @@ const MessagesPage = ({ initialUsername, onSignIn }) => {
   const [gifPickerOpen, setGifPickerOpen] = useState(false);
   const [voiceRecording, setVoiceRecording] = useState(false);
   const [attaching, setAttaching] = useState(false);
+  const [otherOnline, setOtherOnline] = useState(null); // null = unknown, true/false — DMs only
+  const [typingUsers, setTypingUsers] = useState([]);
+  const [pinnedMessages, setPinnedMessages] = useState([]);
+  const [pinnedOpen, setPinnedOpen] = useState(false);
   const bottomRef = useRef(null);
   const fileInputRef = useRef(null);
+  const lastTypingSentRef = useRef(0);
+  const messageRefs = useRef({});
 
   const loadConversations = useCallback(() => {
     if (!user) return Promise.resolve([]);
@@ -35,6 +43,26 @@ const MessagesPage = ({ initialUsername, onSignIn }) => {
   }, [user]);
 
   useEffect(() => { loadConversations(); }, [loadConversations]);
+
+  // Streak badges — checked opportunistically whenever the conversation
+  // list refreshes, same "recheck on load, idempotent" pattern the rest of
+  // the app uses for badges (e.g. syncBadges on profile load).
+  useEffect(() => {
+    if (!user || !conversations) return;
+    const best = Math.max(0, ...conversations.filter(c => c.type === 'dm').map(c => c.streak?.count || 0));
+    if (best >= 7) awardBadge(user.username, 'streak_7');
+    if (best >= 30) awardBadge(user.username, 'streak_30');
+  }, [conversations, user]);
+
+  // Keep the open thread's streak fresh as the conversation list re-polls,
+  // without touching any of the thread's other (poll-independent) state.
+  useEffect(() => {
+    if (!active || active.type !== 'dm' || !conversations) return;
+    const fresh = conversations.find(c => c.conversation_id === active.conversation_id);
+    if (fresh?.streak && fresh.streak.count !== active.streak?.count) {
+      setActive((prev) => (prev ? { ...prev, streak: fresh.streak } : prev));
+    }
+  }, [conversations]);
 
   // Deep-link from e.g. a member profile's "Message" button (#messages/username)
   useEffect(() => {
@@ -49,10 +77,14 @@ const MessagesPage = ({ initialUsername, onSignIn }) => {
   const loadMessages = useCallback(() => {
     if (!user || !active) return;
     messagingService.getMessages(active.conversation_id).then(setMessages);
+    messagingService.getPinnedMessages(active.conversation_id).then(setPinnedMessages);
     messagingService.markConversationRead(user.username, active.conversation_id).then(loadConversations);
   }, [active, user, loadConversations]);
 
   useEffect(() => { loadMessages(); }, [loadMessages]);
+
+  // Reset pinned-panel UI state when switching threads.
+  useEffect(() => { setPinnedOpen(false); messageRefs.current = {}; }, [active?.conversation_id]);
 
   // Lightweight polling — matches the rest of the app's "realtime via polling" approach
   useEffect(() => {
@@ -65,6 +97,59 @@ const MessagesPage = ({ initialUsername, onSignIn }) => {
     const id = setInterval(loadConversations, 15000);
     return () => clearInterval(id);
   }, [loadConversations]);
+
+  // Online presence for the DM's other member — reuses the same cross-device
+  // last_seen heartbeat (db.updateLastSeen, already running app-wide from
+  // AuthContext) that already powers the "online" dot on member profiles.
+  useEffect(() => {
+    if (!active || active.type !== 'dm') { setOtherOnline(null); return; }
+    let cancelled = false;
+    const check = () => {
+      db.getOnlineUsers().then((online) => {
+        if (!cancelled) setOtherOnline(online.includes(active.other_username));
+      }).catch(() => { if (!cancelled) setOtherOnline(null); });
+    };
+    check();
+    const id = setInterval(check, 20000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [active]);
+
+  // Typing indicator — polled, matching the rest of the app's realtime
+  // approach. 3s is faster than the 8s message poll since "is typing"
+  // needs to feel responsive; the query itself is a single small table.
+  useEffect(() => {
+    if (!active || !user) { setTypingUsers([]); return; }
+    let cancelled = false;
+    const poll = () => {
+      messagingService.getTypingUsers(active.conversation_id, user.username)
+        .then((list) => { if (!cancelled) setTypingUsers(list); })
+        .catch(() => {});
+    };
+    poll();
+    const id = setInterval(poll, 3000);
+    return () => { cancelled = true; clearInterval(id); setTypingUsers([]); };
+  }, [active, user]);
+
+  // Throttled so every keystroke doesn't fire a request — one write per
+  // ~2.5s while actively typing is plenty to keep the indicator alive
+  // against the 6s freshness window in messagingService.
+  const handleTextChange = (e) => {
+    const value = e.target.value;
+    setText(value);
+    if (!active || !user || !value.trim()) return;
+    const now = Date.now();
+    if (now - lastTypingSentRef.current > 2500) {
+      lastTypingSentRef.current = now;
+      messagingService.setTyping(active.conversation_id, user.username);
+    }
+  };
+
+  const typingLabel = (() => {
+    if (typingUsers.length === 0) return null;
+    if (typingUsers.length === 1) return `${typingUsers[0]} is typing…`;
+    if (typingUsers.length === 2) return `${typingUsers[0]} and ${typingUsers[1]} are typing…`;
+    return `${typingUsers[0]} and ${typingUsers.length - 1} others are typing…`;
+  })();
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
@@ -100,6 +185,7 @@ const MessagesPage = ({ initialUsername, onSignIn }) => {
       recordAction('dm', user.username);
       setText('');
       setReplyTo(null);
+      messagingService.clearTyping(active.conversation_id, user.username);
       loadMessages();
     } catch (err) {
       setLimitMsg(`Couldn't send — ${err?.message || 'unexpected error'}.`);
@@ -228,6 +314,16 @@ const MessagesPage = ({ initialUsername, onSignIn }) => {
   };
   const handleEdit = async (messageId, content) => { await messagingService.editMessage(messageId, content); loadMessages(); };
   const handleDelete = async (messageId) => { await messagingService.deleteMessage(messageId); loadMessages(); };
+  const handleTogglePin = async (messageId) => {
+    if (!user || !active) return;
+    const result = await messagingService.togglePinMessage(active.conversation_id, messageId, user.username);
+    if (!result.ok) { setLimitMsg(`Couldn't update pin — ${result.error || 'server error'}.`); return; }
+    loadMessages();
+  };
+  const scrollToMessage = (messageId) => {
+    setPinnedOpen(false);
+    messageRefs.current[messageId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
   const openSharedObject = (payload) => { if (payload.link) window.location.hash = payload.link; };
   const openProfile = (username) => { window.location.hash = `#members/${username}`; };
 
@@ -237,6 +333,12 @@ const MessagesPage = ({ initialUsername, onSignIn }) => {
     setActive(null);
     loadConversations();
   };
+
+  // Reporting doesn't block/hide anything client-side — it's a distinct
+  // action from Block, just logging the complaint for staff to review.
+  // The popover shows its own "Reported" confirmation, so there's nothing
+  // else to do here besides letting the member keep browsing the thread.
+  const handleReported = () => {};
 
   return (
     <div className="page-container">
@@ -279,10 +381,37 @@ const MessagesPage = ({ initialUsername, onSignIn }) => {
                     <span style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(94,129,244,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: 'var(--color-cyan)', fontSize: '0.78rem' }}>
                       {active.other_username.charAt(0).toUpperCase()}
                     </span>
-                    <strong style={{ color: '#e2e5f0' }}>{active.other_username}</strong>
+                    <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <strong style={{ color: '#e2e5f0' }}>{active.other_username}</strong>
+                        {active.streak?.count > 0 && (
+                          <span
+                            title={active.streak.activeToday ? 'Streak active today' : 'Message today to keep it going'}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 2, fontSize: '0.68rem', fontWeight: 700,
+                              padding: '1px 6px', borderRadius: 999, background: 'rgba(255,107,74,0.12)',
+                              color: '#ff6b4a', opacity: active.streak.activeToday ? 1 : 0.6,
+                            }}
+                          >🔥{active.streak.count}</span>
+                        )}
+                      </span>
+                      {typingLabel ? (
+                        <span style={{ fontSize: '0.68rem', color: 'var(--color-cyan, #5e81f4)', fontStyle: 'italic' }}>{typingLabel}</span>
+                      ) : otherOnline !== null ? (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.68rem', color: otherOnline ? '#43b581' : 'rgba(158,165,196,0.45)' }}>
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: otherOnline ? '#43b581' : 'rgba(158,165,196,0.35)', boxShadow: otherOnline ? '0 0 4px #43b581' : 'none' }} />
+                          {otherOnline ? 'Online' : 'Offline'}
+                        </span>
+                      ) : null}
+                    </span>
                   </button>
                 ) : (
-                  <strong style={{ color: '#e2e5f0' }}>{active.emoji} {active.title}</strong>
+                  <span style={{ display: 'flex', flexDirection: 'column' }}>
+                    <strong style={{ color: '#e2e5f0' }}>{active.emoji} {active.title}</strong>
+                    {typingLabel && (
+                      <span style={{ fontSize: '0.68rem', color: 'var(--color-cyan, #5e81f4)', fontStyle: 'italic' }}>{typingLabel}</span>
+                    )}
+                  </span>
                 )}
 
                 {profilePopover && active.type === 'dm' && (
@@ -294,10 +423,47 @@ const MessagesPage = ({ initialUsername, onSignIn }) => {
                       onClose={() => setProfilePopover(null)}
                       onViewProfile={openProfile}
                       onBlocked={handleBlocked}
+                      onReported={handleReported}
                     />
                   </div>
                 )}
               </div>
+
+              {pinnedMessages.length > 0 && (
+                <div style={{ borderBottom: '1px solid rgba(94,129,244,0.12)', background: 'rgba(255,215,0,0.04)' }}>
+                  <button
+                    onClick={() => setPinnedOpen(!pinnedOpen)}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px',
+                      background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.76rem', color: '#ffd700', fontWeight: 700,
+                    }}
+                  >
+                    📌 PINNED ({pinnedMessages.length})
+                    <span style={{ marginLeft: 'auto', color: 'rgba(158,165,196,0.5)', fontWeight: 400 }}>{pinnedOpen ? 'Hide' : 'Show'}</span>
+                  </button>
+                  {pinnedOpen && (
+                    <div style={{ maxHeight: 180, overflowY: 'auto', padding: '0 16px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {pinnedMessages.map((p) => (
+                        <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.03)' }}>
+                          <button
+                            onClick={() => scrollToMessage(p.message_id)}
+                            style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }}
+                          >
+                            <span style={{ color: 'var(--color-cyan, #5e81f4)', fontWeight: 700, fontSize: '0.76rem' }}>{p.message.from_username}: </span>
+                            <span style={{ color: '#c9cee0', fontSize: '0.78rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {p.message.message_type === 'text' ? p.message.content : `📎 ${p.message.message_type}`}
+                            </span>
+                          </button>
+                          <button
+                            title="Unpin" onClick={() => handleTogglePin(p.message_id)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(158,165,196,0.5)', flexShrink: 0 }}
+                          >✕</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {messages.map((m, i) => {
@@ -310,7 +476,7 @@ const MessagesPage = ({ initialUsername, onSignIn }) => {
                   const nextGrouped = next && next.from_username === m.from_username && !m.deleted_at && (new Date(next.created_at) - new Date(m.created_at)) < GROUP_GAP_MS;
 
                   return (
-                    <div key={m.id} style={{ marginTop: grouped ? 2 : 14 }}>
+                    <div key={m.id} ref={(el) => { messageRefs.current[m.id] = el; }} style={{ marginTop: grouped ? 2 : 14 }}>
                       <MessageBubble
                         message={m}
                         isOwn={m.from_username === user.username}
@@ -321,6 +487,7 @@ const MessagesPage = ({ initialUsername, onSignIn }) => {
                         onReact={handleReact}
                         onEdit={handleEdit}
                         onDelete={handleDelete}
+                        onTogglePin={handleTogglePin}
                         onOpenSharedObject={openSharedObject}
                         onOpenProfile={(u) => setProfilePopover(u)}
                       />
@@ -386,7 +553,7 @@ const MessagesPage = ({ initialUsername, onSignIn }) => {
                     <>
                       <input
                         value={text}
-                        onChange={(e) => setText(e.target.value)}
+                        onChange={(e) => handleTextChange(e)}
                         onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
                         placeholder="Type a message…"
                         style={{ flex: 1, padding: '9px 12px', borderRadius: 8, background: 'rgba(94,129,244,0.06)', border: '1px solid rgba(94,129,244,0.2)', color: '#e2e5f0', fontSize: '0.86rem' }}
