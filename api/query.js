@@ -103,6 +103,12 @@ const ALLOWED_TABLES = new Set([
   // and per-conversation read receipts (see supabase/messaging_upgrade.sql)
   'nova_message_reactions', 'nova_group_conversations', 'nova_group_members',
   'nova_user_blocks', 'nova_conversation_mutes', 'nova_conversation_reads',
+  // Added for: Report user (supabase/user_reports.sql), typing indicators
+  // (supabase/typing_status.sql), and pinned chat messages
+  // (supabase/pinned_messages.sql) — same oversight as nova_music_plays
+  // above: these were never added here, so every call against them was
+  // silently failing this allowlist check with no visible error until now.
+  'nova_user_reports', 'nova_typing_status', 'nova_pinned_messages',
 ]);
 
 const IDENT_RE = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
