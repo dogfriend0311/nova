@@ -7,9 +7,9 @@ import db from '../../services/db';
 import { useAuth } from '../../context/AuthContext';
 import './Sidebar.css';
 
-const Sidebar = ({ currentPage, onNavigate }) => {
+const Sidebar = ({ currentPage, onNavigate, collapsed, onToggleCollapsed }) => {
   const { user } = useAuth();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const isCollapsed = collapsed;
   const [stats, setStats] = useState({ members: 0, online: 0, clips: 0 });
   const [onlineMembers, setOnlineMembers] = useState([]);
   const [avatarByUsername, setAvatarByUsername] = useState({});
@@ -90,7 +90,7 @@ const Sidebar = ({ currentPage, onNavigate }) => {
     <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
       <button
         className="sidebar-toggle"
-        onClick={() => setIsCollapsed(!isCollapsed)}
+        onClick={onToggleCollapsed}
         title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
       >
         {isCollapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}

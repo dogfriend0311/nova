@@ -52,7 +52,7 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, on
         {/* Desktop tabs */}
         <div className="navbar-tabs desktop-tabs">
           {tabs.map(tab => (
-            <button key={tab.id} className={`nav-tab ${isActive(tab.id) ? 'active' : ''}`} onClick={() => onPageChange(tab.id)}>
+            <button key={tab.id} className={`nav-tab ${isActive(tab.id) ? 'active' : ''}`} onClick={() => onPageChange(tab.id)} title={tab.label}>
               <tab.Icon size={15} className="tab-icon-svg" strokeWidth={2.25} />
               <span className="tab-label">{tab.label}</span>
             </button>

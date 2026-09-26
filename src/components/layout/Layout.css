@@ -28,6 +28,16 @@
   flex: 1; min-height: 0; margin-left: 280px;
   overflow-y: auto; overflow-x: hidden;
   padding: 30px 40px; position: relative; z-index: 10;
+  transition: margin-left 0.3s ease;
+}
+
+/* Sidebar now starts collapsed (80px) rather than expanded (280px), so
+   content needs to track whichever width it's currently at instead of
+   always reserving room for the expanded state. Scoped to min-width so it
+   never fights the mobile rule below, where the sidebar is off-canvas
+   entirely and margin-left must stay 0 regardless of collapsed state. */
+@media (min-width: 1025px) {
+  .main-content.sidebar-collapsed { margin-left: 80px; }
 }
 
 .main-content::-webkit-scrollbar { width: 8px; }

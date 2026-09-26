@@ -116,6 +116,17 @@
 .tab-icon { font-size: 18px; }
 .tab-label { white-space: nowrap; }
 
+/* Icon-only tabs once there isn't comfortably enough room for all 10 with
+   labels — this is what actually keeps Store/Members etc. from getting
+   pushed off-screen on ordinary laptop widths. Labels come back as a
+   native tooltip via the button's title attribute. Full-width labels only
+   show on genuinely spacious desktop monitors. */
+@media (max-width: 1600px) {
+  .navbar-tabs { gap: 2px; }
+  .nav-tab { padding: 10px; }
+  .tab-label { display: none; }
+}
+
 .navbar-user { display: flex; align-items: center; }
 
 .navbar-user { gap: 8px; }
