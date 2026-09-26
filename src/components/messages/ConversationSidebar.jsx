@@ -144,10 +144,14 @@ const ConversationSidebar = ({ conversations, activeId, onSelect, currentUsernam
             }}
           >
             <div style={{
-              width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+              width: 34, height: 34, borderRadius: '50%', flexShrink: 0, overflow: 'hidden',
               background: 'rgba(94,129,244,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontWeight: 800, color: 'var(--color-cyan, #5e81f4)', fontSize: c.type === 'group' ? '1rem' : '0.85rem',
-            }}>{c.type === 'group' ? c.emoji : c.title.charAt(0).toUpperCase()}</div>
+            }}>
+              {c.type !== 'group' && c.avatar_url
+                ? <img src={c.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : (c.type === 'group' ? c.emoji : c.title.charAt(0).toUpperCase())}
+            </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
                 <span style={{ fontWeight: c.unread ? 800 : 600, color: '#e2e5f0', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>

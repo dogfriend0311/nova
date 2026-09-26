@@ -30,6 +30,8 @@ const MessagesPage = ({ initialUsername, onSignIn }) => {
   const [attaching, setAttaching] = useState(false);
   const [otherOnline, setOtherOnline] = useState(null); // null = unknown, true/false — DMs only
   const [typingUsers, setTypingUsers] = useState([]);
+  const [headerAvatar, setHeaderAvatar] = useState(null); // { url, position } for the open DM's header/back-button avatar
+  const lastDeepLinkRef = useRef(null); // last initialUsername we auto-opened, so a manual "back" sticks instead of being re-opened by the next conversations poll
   const [pinnedMessages, setPinnedMessages] = useState([]);
   const [pinnedOpen, setPinnedOpen] = useState(false);
   const bottomRef = useRef(null);
@@ -72,15 +74,35 @@ const MessagesPage = ({ initialUsername, onSignIn }) => {
     });
   }, [conversations]);
 
-  // Deep-link from e.g. a member profile's "Message" button (#messages/username)
+  // Deep-link from e.g. a member profile's "Message" button (#messages/username).
+  // Guarded by lastDeepLinkRef so this only fires once per distinct initialUsername
+  // rather than every time `conversations` gets a new array reference from the
+  // 15s poll — otherwise clicking "back" to the conversation list would get
+  // silently reopened by the next poll since initialUsername never changed.
   useEffect(() => {
     if (!user || !initialUsername || conversations === null) return;
+    if (lastDeepLinkRef.current === initialUsername) return;
+    lastDeepLinkRef.current = initialUsername;
     const existing = conversations.find(c => c.type === 'dm' && c.other_username === initialUsername);
     setActive(existing || {
       conversation_id: messagingService.dmConversationId(user.username, initialUsername),
       type: 'dm', other_username: initialUsername, title: initialUsername,
     });
   }, [initialUsername, conversations, user]);
+
+  // Avatar for the open DM's header — refetched from the member's profile
+  // whenever the thread changes, so it's correct even for a brand-new
+  // conversation (deep-linked or started via "New") that doesn't have an
+  // avatar_url on it yet from the conversations list.
+  useEffect(() => {
+    if (!active || active.type !== 'dm') { setHeaderAvatar(null); return; }
+    if (active.avatar_url) { setHeaderAvatar({ url: active.avatar_url, position: '50% 50%' }); return; }
+    let cancelled = false;
+    messagingService.getMiniProfile(active.other_username).then((p) => {
+      if (!cancelled) setHeaderAvatar(p.avatar_url ? { url: p.avatar_url, position: p.avatar_position } : null);
+    });
+    return () => { cancelled = true; };
+  }, [active]);
 
   const loadMessages = useCallback(() => {
     if (!user || !active) return;
@@ -381,13 +403,25 @@ const MessagesPage = ({ initialUsername, onSignIn }) => {
           ) : (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: '1px solid rgba(94,129,244,0.12)', position: 'relative' }}>
-                <button onClick={() => setActive(null)} style={{ background: 'none', border: 'none', color: 'rgba(158,165,196,0.6)', cursor: 'pointer', display: 'flex' }}>
+                <button
+                  onClick={() => {
+                    // Clear the ref too — otherwise the deep-link effect leaves this
+                    // username marked "already handled" and a later click on the same
+                    // person's DM (or a page refresh) wouldn't reopen it.
+                    lastDeepLinkRef.current = null;
+                    setActive(null);
+                    if (window.location.hash.startsWith('#messages/')) window.location.hash = '#messages';
+                  }}
+                  style={{ background: 'none', border: 'none', color: 'rgba(158,165,196,0.6)', cursor: 'pointer', display: 'flex' }}
+                >
                   <ArrowLeft size={18} />
                 </button>
                 {active.type === 'dm' ? (
                   <button onClick={() => setProfilePopover(profilePopover === active.other_username ? null : active.other_username)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(94,129,244,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: 'var(--color-cyan)', fontSize: '0.78rem' }}>
-                      {active.other_username.charAt(0).toUpperCase()}
+                    <span style={{ width: 28, height: 28, borderRadius: '50%', overflow: 'hidden', background: 'rgba(94,129,244,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: 'var(--color-cyan)', fontSize: '0.78rem' }}>
+                      {headerAvatar
+                        ? <img src={headerAvatar.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: headerAvatar.position || '50% 50%' }} />
+                        : active.other_username.charAt(0).toUpperCase()}
                     </span>
                     <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

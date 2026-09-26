@@ -44,11 +44,13 @@ const MiniProfilePopover = ({ username, currentUsername, onClose, onViewProfile,
     >
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 4 }}>
         <div style={{
-          width: 56, height: 56, borderRadius: '50%', background: 'rgba(94,129,244,0.15)',
+          width: 56, height: 56, borderRadius: '50%', background: 'rgba(94,129,244,0.15)', overflow: 'hidden',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontWeight: 800, color: 'var(--color-cyan, #5e81f4)', fontSize: '1.3rem', marginBottom: 4,
         }}>
-          {username.charAt(0).toUpperCase()}
+          {profile?.avatar_url
+            ? <img src={profile.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: profile.avatar_position || '50% 50%' }} />
+            : username.charAt(0).toUpperCase()}
         </div>
         <strong style={{ color: '#e2e5f0', fontSize: '0.95rem' }}>{username}</strong>
         <span style={{ color: 'rgba(158,165,196,0.5)', fontSize: '0.76rem' }}>@{username}</span>

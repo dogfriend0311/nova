@@ -1,5 +1,27 @@
 .layout-container { width: 100%; height: 100vh; overflow: hidden; background: #0a0d1a; }
 
+/* Brand watermark — sits above the plain space gradient and below every
+   page's real content, so it shows through consistently on every tab
+   without any page needing to know about it. */
+.bg-logo-watermark {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 1; pointer-events: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.bg-logo-watermark img {
+  width: min(46vw, 620px);
+  height: auto;
+  opacity: 0.07;
+  filter: saturate(130%);
+  user-select: none;
+}
+@media (max-width: 1024px) {
+  .bg-logo-watermark img { width: min(70vw, 480px); }
+}
+@media (max-width: 480px) {
+  .bg-logo-watermark img { width: 85vw; opacity: 0.08; }
+}
+
 .layout-wrapper { display: flex; height: calc(100vh - 70px); margin-top: 70px; overflow: hidden; }
 
 .main-content {

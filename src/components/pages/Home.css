@@ -231,6 +231,69 @@
   background: rgba(94, 129, 244, 0.12);
 }
 
+/* ── Two-column layout ────────────────────────────────────────── */
+/* Everything below the hero used to be one long stack of unrelated
+   widgets. Splitting it into a primary column (things you came here to
+   do — updates, digest, the explore grid, feeds) and a narrower rail of
+   glanceable community widgets (Discord, staff spotlight, who's online,
+   anniversaries) gives it actual hierarchy instead of a wall of sections. */
+.home-page { max-width: 1360px; margin: 0 auto; }
+
+.home-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 28px;
+  align-items: start;
+  margin-top: 8px;
+}
+
+.home-main-col { min-width: 0; }
+.home-main-col > *:first-child { margin-top: 0; }
+.home-main-col .home-section-label:first-child { margin-top: 0; }
+
+.home-rail-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: sticky;
+  top: 86px;
+  max-height: calc(100vh - 110px);
+  overflow-y: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+.home-rail-col::-webkit-scrollbar { width: 5px; }
+.home-rail-col::-webkit-scrollbar-thumb { background: rgba(94, 129, 244, 0.25); border-radius: 3px; }
+
+.home-rail-col .home-discord-banner,
+.home-rail-block,
+.home-rail-col > a,
+.home-rail-col > div {
+  margin-bottom: 20px;
+}
+
+.home-section-label--rail { margin: 0 0 12px; font-size: 0.68rem; }
+.home-rail-col .home-section-label { margin-top: 0; }
+
+.home-updates-card { margin-bottom: 0; }
+
+.home-online-strip--rail { flex-wrap: wrap; overflow-x: visible; }
+
+@media (max-width: 1100px) {
+  .home-layout { grid-template-columns: 1fr; }
+  .home-rail-col {
+    position: static; max-height: none; overflow-y: visible;
+    flex-direction: row; flex-wrap: wrap; gap: 20px 16px;
+  }
+  .home-rail-col > * { flex: 1 1 260px; margin-bottom: 0 !important; }
+  .home-rail-block { flex: 1 1 260px; }
+}
+
+@media (max-width: 640px) {
+  .home-rail-col { flex-direction: column; }
+  .home-rail-col > * { flex: 1 1 auto; }
+}
+
 /* ── Nav tile grid ────────────────────────────────────────────── */
 .home-tile-grid {
   display: grid;

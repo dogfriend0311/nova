@@ -254,159 +254,165 @@ const Home = ({ onNavigate, user }) => {
         onNavigate={onNavigate}
       />
 
-      <ContinueTiles />
+      <div className="home-layout">
+        {/* ── Main column: the stuff you came here to do ─────────── */}
+        <div className="home-main-col">
+          <ContinueTiles />
 
-      <a
-        href={DISCORD_INVITE_URL}
-        target="_blank"
-        rel="noreferrer"
-        className="home-discord-banner"
-        aria-label="Join the Nova Discord server"
-      >
-        <span className="home-discord-banner-icon"><DiscordMark /></span>
-        <span className="home-discord-banner-copy">
-          <strong>Join the Nova Discord</strong>
-          <span>Chat with the community, get live league updates &amp; more</span>
-        </span>
-        <span className="home-discord-banner-cta">Join Server &#8599;</span>
-      </a>
-
-      <DiscordWidget />
-
-      <ThisWeekDigest />
-
-      <OnThisDay />
-
-      <AnniversaryShoutouts />
-
-      {staffOfMonth && (
-        <div style={{ marginBottom: 20 }}>
-          <div className="home-section-label">Staff of the Month</div>
-          <div
-            className="home-sotm-card"
-            onClick={() => go('members', staffOfMonth.username)}
-          >
-            <div className="home-sotm-avatar">
-              {staffOfMonth.avatar_url
-                ? <img src={staffOfMonth.avatar_url} alt="" />
-                : (staffOfMonth.username?.[0]?.toUpperCase() || '★')}
-            </div>
-            <div style={{ flex: 1, minWidth: 160 }}>
-              <div className="home-sotm-kicker">🌟 Staff of the Month{staffOfMonth.month_label ? ` — ${staffOfMonth.month_label}` : ''}</div>
-              <div className="home-sotm-name">{staffOfMonth.username}</div>
-              {staffOfMonth.note && <div className="home-sotm-note">{staffOfMonth.note}</div>}
-            </div>
-            <span className="home-sotm-arrow">&#8599;</span>
-          </div>
-        </div>
-      )}
-
-      {announcements.length > 0 && (
-        <div className="neon-card p-3" style={{ marginBottom: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(158,165,196,0.4)' }}>
-              📢 Site Updates
-            </span>
-            {announcements.length > 1 && (
-              <button onClick={() => setShowAllUpdates(v => !v)} style={{ background: 'none', border: 'none', color: 'var(--color-cyan)', cursor: 'pointer', fontSize: '0.78rem' }}>
-                {showAllUpdates ? 'Show less ▲' : `View all ${announcements.length} updates ▼`}
-              </button>
-            )}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: showAllUpdates ? 360 : undefined, overflowY: showAllUpdates ? 'auto' : undefined }}>
-            {(showAllUpdates ? announcements : announcements.slice(0, 1)).map((a) => (
-              <div key={a.id} style={{ paddingBottom: 10, borderBottom: '1px solid rgba(94,129,244,0.1)' }}>
-                <div style={{ fontSize: '0.88rem', color: '#e2e5f0', whiteSpace: 'pre-wrap' }}>{a.message}</div>
-                <div style={{ fontSize: '0.7rem', color: 'rgba(158,165,196,0.4)', marginTop: 6 }}>
-                  {new Date(a.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {onlineList.length > 0 && (
-        <>
-          <div className="home-section-label">Online Now</div>
-          <div className="home-online-strip">
-            {onlineList.map((p) => (
-              <div key={p.username} className="home-online-chip" onClick={() => go('members', p.username)}>
-                <div className="home-online-avatar">
-                  {p.avatar_url
-                    ? <img src={p.avatar_url} alt="" />
-                    : p.username?.[0]?.toUpperCase()}
-                </div>
-                <span className="home-online-name">{p.username}</span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {songOfDay && (() => {
-        const embed = toSongEmbed(songOfDay.url);
-        return (
-          <div style={{ marginBottom: 8 }}>
-            <div className="home-section-label">Song of the Day</div>
-            <div style={{
-              background: 'linear-gradient(135deg, rgba(108,60,231,0.1), rgba(94,129,244,0.06))',
-              border: '1px solid rgba(108,60,231,0.25)', borderRadius: 14,
-              padding: '18px 20px', display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap'
-            }}>
-              <div style={{ flex: 1, minWidth: 160 }}>
-                <div style={{ fontSize: '0.65rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(158,165,196,0.4)', marginBottom: 4 }}>🎶 Admin Pick</div>
-                <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#e2e5f0' }}>{songOfDay.title || 'Song of the Day'}</div>
-                {songOfDay.artist && <div style={{ fontSize: '0.82rem', color: 'rgba(158,165,196,0.6)', marginTop: 2 }}>{songOfDay.artist}</div>}
-                {songOfDay.description && <div style={{ fontSize: '0.8rem', color: 'rgba(158,165,196,0.5)', marginTop: 6, lineHeight: 1.4 }}>{songOfDay.description}</div>}
-                {songOfDay.url && !embed && (
-                  <a href={songOfDay.url} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 10, fontSize: '0.8rem', color: 'var(--color-cyan)', textDecoration: 'none' }}>
-                    Listen ↗
-                  </a>
+          {announcements.length > 0 && (
+            <div className="neon-card p-3 home-updates-card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(158,165,196,0.4)' }}>
+                  📢 Site Updates
+                </span>
+                {announcements.length > 1 && (
+                  <button onClick={() => setShowAllUpdates(v => !v)} style={{ background: 'none', border: 'none', color: 'var(--color-cyan)', cursor: 'pointer', fontSize: '0.78rem' }}>
+                    {showAllUpdates ? 'Show less ▲' : `View all ${announcements.length} updates ▼`}
+                  </button>
                 )}
               </div>
-              {embed && (
-                <div style={{ borderRadius: 10, overflow: 'hidden', flexShrink: 0, width: '100%', maxWidth: 340 }}>
-                  <iframe
-                    src={embed.src}
-                    width="100%"
-                    height={embed.type === 'spotify' ? 80 : 160}
-                    frameBorder="0"
-                    allow="autoplay; clipboard-write; encrypted-media; fullscreen"
-                    title="Song of the Day"
-                    style={{ display: 'block' }}
-                  />
-                </div>
-              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: showAllUpdates ? 360 : undefined, overflowY: showAllUpdates ? 'auto' : undefined }}>
+                {(showAllUpdates ? announcements : announcements.slice(0, 1)).map((a) => (
+                  <div key={a.id} style={{ paddingBottom: 10, borderBottom: '1px solid rgba(94,129,244,0.1)' }}>
+                    <div style={{ fontSize: '0.88rem', color: '#e2e5f0', whiteSpace: 'pre-wrap' }}>{a.message}</div>
+                    <div style={{ fontSize: '0.7rem', color: 'rgba(158,165,196,0.4)', marginTop: 6 }}>
+                      {new Date(a.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
+          )}
+
+          <ThisWeekDigest />
+
+          {songOfDay && (() => {
+            const embed = toSongEmbed(songOfDay.url);
+            return (
+              <div style={{ marginBottom: 8 }}>
+                <div className="home-section-label">Song of the Day</div>
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(108,60,231,0.1), rgba(94,129,244,0.06))',
+                  border: '1px solid rgba(108,60,231,0.25)', borderRadius: 14,
+                  padding: '18px 20px', display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap'
+                }}>
+                  <div style={{ flex: 1, minWidth: 160 }}>
+                    <div style={{ fontSize: '0.65rem', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(158,165,196,0.4)', marginBottom: 4 }}>🎶 Admin Pick</div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#e2e5f0' }}>{songOfDay.title || 'Song of the Day'}</div>
+                    {songOfDay.artist && <div style={{ fontSize: '0.82rem', color: 'rgba(158,165,196,0.6)', marginTop: 2 }}>{songOfDay.artist}</div>}
+                    {songOfDay.description && <div style={{ fontSize: '0.8rem', color: 'rgba(158,165,196,0.5)', marginTop: 6, lineHeight: 1.4 }}>{songOfDay.description}</div>}
+                    {songOfDay.url && !embed && (
+                      <a href={songOfDay.url} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 10, fontSize: '0.8rem', color: 'var(--color-cyan)', textDecoration: 'none' }}>
+                        Listen ↗
+                      </a>
+                    )}
+                  </div>
+                  {embed && (
+                    <div style={{ borderRadius: 10, overflow: 'hidden', flexShrink: 0, width: '100%', maxWidth: 340 }}>
+                      <iframe
+                        src={embed.src}
+                        width="100%"
+                        height={embed.type === 'spotify' ? 80 : 160}
+                        frameBorder="0"
+                        allow="autoplay; clipboard-write; encrypted-media; fullscreen"
+                        title="Song of the Day"
+                        style={{ display: 'block' }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          <div className="home-section-label">Explore</div>
+          <div className="home-tile-grid">
+            {TILES.map((tile) => {
+              const IconCmp = Icon[tile.icon];
+              return (
+                <button
+                  key={tile.id}
+                  className="home-tile"
+                  style={{ '--tile-rgb': ACCENTS[tile.accent] }}
+                  onClick={() => go(tile.id)}
+                >
+                  <span className="home-tile-arrow">&#8599;</span>
+                  <div className="home-tile-icon"><IconCmp /></div>
+                  <h3 className="home-tile-title">{tile.title}</h3>
+                  <p className="home-tile-desc">{tile.desc}</p>
+                </button>
+              );
+            })}
           </div>
-        );
-      })()}
 
-      <RobloxGameStatusWidget />
+          <ActivityFeed />
+          <LeagueLeaders />
+        </div>
 
-      <div className="home-section-label">Explore</div>
-      <div className="home-tile-grid">
-        {TILES.map((tile) => {
-          const IconCmp = Icon[tile.icon];
-          return (
-            <button
-              key={tile.id}
-              className="home-tile"
-              style={{ '--tile-rgb': ACCENTS[tile.accent] }}
-              onClick={() => go(tile.id)}
-            >
-              <span className="home-tile-arrow">&#8599;</span>
-              <div className="home-tile-icon"><IconCmp /></div>
-              <h3 className="home-tile-title">{tile.title}</h3>
-              <p className="home-tile-desc">{tile.desc}</p>
-            </button>
-          );
-        })}
+        {/* ── Rail: glanceable community widgets ──────────────────── */}
+        <aside className="home-rail-col">
+          <div className="home-section-label home-section-label--rail">Discord</div>
+          <a
+            href={DISCORD_INVITE_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="home-discord-banner"
+            aria-label="Join the Nova Discord server"
+          >
+            <span className="home-discord-banner-icon"><DiscordMark /></span>
+            <span className="home-discord-banner-copy">
+              <strong>Join the Nova Discord</strong>
+              <span>Chat with the community, get live league updates &amp; more</span>
+            </span>
+            <span className="home-discord-banner-cta">Join Server &#8599;</span>
+          </a>
+          <DiscordWidget />
+
+          {staffOfMonth && (
+            <div className="home-rail-block">
+              <div className="home-section-label home-section-label--rail">Staff of the Month</div>
+              <div
+                className="home-sotm-card"
+                onClick={() => go('members', staffOfMonth.username)}
+              >
+                <div className="home-sotm-avatar">
+                  {staffOfMonth.avatar_url
+                    ? <img src={staffOfMonth.avatar_url} alt="" />
+                    : (staffOfMonth.username?.[0]?.toUpperCase() || '★')}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="home-sotm-kicker">🌟 {staffOfMonth.month_label || 'This Month'}</div>
+                  <div className="home-sotm-name">{staffOfMonth.username}</div>
+                  {staffOfMonth.note && <div className="home-sotm-note">{staffOfMonth.note}</div>}
+                </div>
+                <span className="home-sotm-arrow">&#8599;</span>
+              </div>
+            </div>
+          )}
+
+          {onlineList.length > 0 && (
+            <div className="home-rail-block">
+              <div className="home-section-label home-section-label--rail">Online Now</div>
+              <div className="home-online-strip home-online-strip--rail">
+                {onlineList.map((p) => (
+                  <div key={p.username} className="home-online-chip" onClick={() => go('members', p.username)}>
+                    <div className="home-online-avatar">
+                      {p.avatar_url
+                        ? <img src={p.avatar_url} alt="" />
+                        : p.username?.[0]?.toUpperCase()}
+                    </div>
+                    <span className="home-online-name">{p.username}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <OnThisDay />
+          <AnniversaryShoutouts />
+          <RobloxGameStatusWidget />
+        </aside>
       </div>
-
-      <ActivityFeed />
-      <LeagueLeaders />
     </div>
   );
 };

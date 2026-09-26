@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Sun, Moon } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Sun, Moon, Home, CircleDot, Rss, FileText, Twitter, Trophy, Gamepad2, Music, Store, Users } from 'lucide-react';
 import { useTheme } from '../../services/useTheme';
 import CommandPalette from '../CommandPalette';
 import NotificationBell from '../NotificationBell';
@@ -7,19 +7,32 @@ import './Navbar.css';
 
 const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, onLogout, user, coins }) => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
+  // Subtle "lift" once the page scrolls — gives the bar a bit of depth
+  // instead of sitting flat against the content the whole time.
+  useEffect(() => {
+    const onScroll = () => {
+      const scroller = document.querySelector('.main-content');
+      setScrolled((scroller ? scroller.scrollTop : window.scrollY) > 4);
+    };
+    const scroller = document.querySelector('.main-content');
+    (scroller || window).addEventListener('scroll', onScroll);
+    return () => (scroller || window).removeEventListener('scroll', onScroll);
+  }, []);
+
   const tabs = [
-    { id: 'home',        label: 'Home',        icon: 'Home' },
-    { id: 'leagues',     label: 'Leagues',     icon: 'Baseball' },
-    { id: 'feed',        label: 'Feed',        icon: 'Rss' },
-    { id: 'articles',    label: 'Articles',    icon: 'FileText' },
-    { id: 'tweets',      label: 'Tweets',      icon: 'Twitter' },
-    { id: 'sports',      label: 'Sports',      icon: 'Trophy' },
-    { id: 'games',       label: 'Games',       icon: 'Gamepad' },
-    { id: 'music',       label: 'Music',       icon: 'Music' },
-    { id: 'store',       label: 'Store',       icon: 'Store' },
-    { id: 'members',     label: 'Members',     icon: 'Users' },
+    { id: 'home',        label: 'Home',        Icon: Home },
+    { id: 'leagues',     label: 'Leagues',     Icon: CircleDot },
+    { id: 'feed',        label: 'Feed',        Icon: Rss },
+    { id: 'articles',    label: 'Articles',    Icon: FileText },
+    { id: 'tweets',      label: 'Tweets',      Icon: Twitter },
+    { id: 'sports',      label: 'Sports',      Icon: Trophy },
+    { id: 'games',       label: 'Games',       Icon: Gamepad2 },
+    { id: 'music',       label: 'Music',       Icon: Music },
+    { id: 'store',       label: 'Store',       Icon: Store },
+    { id: 'members',     label: 'Members',     Icon: Users },
   ];
 
   const staffRoles = ['owner', 'cofounder', 'mod', 'vizta_helper', 'football_helper'];
@@ -29,7 +42,7 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, on
     (id === 'games' && currentPage === 'perfectathlete');
 
   return (
-    <nav className="navbar">
+    <nav className={`navbar ${scrolled ? 'is-scrolled' : ''}`}>
       <div className="navbar-container">
         {/* Logo */}
         <div className="navbar-logo" onClick={() => onPageChange('home')}>
@@ -40,6 +53,7 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, on
         <div className="navbar-tabs desktop-tabs">
           {tabs.map(tab => (
             <button key={tab.id} className={`nav-tab ${isActive(tab.id) ? 'active' : ''}`} onClick={() => onPageChange(tab.id)}>
+              <tab.Icon size={15} className="tab-icon-svg" strokeWidth={2.25} />
               <span className="tab-label">{tab.label}</span>
             </button>
           ))}
@@ -96,6 +110,7 @@ const Navbar = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, on
         <div className="mobile-menu" onClick={() => setMenuOpen(false)}>
           {tabs.map(tab => (
             <button key={tab.id} className={`mobile-tab ${isActive(tab.id) ? 'active' : ''}`} onClick={() => onPageChange(tab.id)}>
+              <tab.Icon size={16} strokeWidth={2.25} />
               {tab.label}
             </button>
           ))}

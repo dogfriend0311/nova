@@ -8,6 +8,9 @@ const Layout = ({ currentPage, onPageChange, onDashboard, onSignIn, onSignUp, on
   return (
     <div className="layout-container">
       <SpaceBackground />
+      <div className="bg-logo-watermark" aria-hidden="true">
+        <img src="/nova-watermark.png" alt="" />
+      </div>
 
       <Navbar currentPage={currentPage} onPageChange={onPageChange} onDashboard={onDashboard} onSignIn={onSignIn} onSignUp={onSignUp} onLogout={onLogout} user={user} coins={coins} />
 

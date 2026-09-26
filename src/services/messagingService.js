@@ -87,13 +87,17 @@ const messagingService = {
   async getConversations(username) {
     if (!username) return [];
 
-    const [sentDm, recvDm, groupIds, blockedList] = await Promise.all([
+    const [sentDm, recvDm, groupIds, blockedList, profiles] = await Promise.all([
       safeSelect('nova_direct_messages', (q) => q.eq('from_username', username).order('created_at', { ascending: false })),
       safeSelect('nova_direct_messages', (q) => q.eq('to_username', username).order('created_at', { ascending: false })),
       safeSelect('nova_group_members', (q) => q.eq('username', username)),
       this.getBlockedUsers(username),
+      db.getMemberProfiles().catch(() => []),
     ]);
     const blocked = new Set(blockedList);
+    // Same profile-lookup pattern used elsewhere (e.g. StreakLeaderboard) to
+    // attach a member's avatar_url wherever their username shows up.
+    const avatarByUsername = new Map((profiles || []).map(p => [p.username, p.avatar_url]));
 
     const groupMsgRows = groupIds.length
       ? await safeSelect('nova_direct_messages', (q) => q.in('to_group_id', groupIds.map(g => g.group_id)).order('created_at', { ascending: false }))
@@ -146,6 +150,7 @@ const messagingService = {
         type: 'dm',
         other_username: other,
         title: other,
+        avatar_url: avatarByUsername.get(other) || null,
         last_message: previewText(latest),
         last_at: latest.created_at,
         unread: isUnread(convoId, latest),
@@ -436,6 +441,8 @@ const messagingService = {
     return {
       username,
       bio: profile.bio || '',
+      avatar_url: profile.avatar_url || null,
+      avatar_position: profile.avatar_position || '50% 50%',
       badges: Array.isArray(profile.displayed_badges) ? profile.displayed_badges.slice(0, 3) : [],
     };
   },
